@@ -133,6 +133,30 @@ Right: make it an operation and name it in
 Check: `bun run check:plain` prints the file and
 the line of each plain function.
 
+### HIGH: a helper behind a callback [tinker/plain]
+
+A function passes the check when Core, a library
+or React calls it. When your code calls it by
+name, it is a helper again.
+
+Wrong:
+
+```ts no-check
+const add = useCallback(
+  (a: number, b: number) => a + b,
+  [],
+);
+add(1, 2);
+```
+
+Right: make `add` an operation. Or keep a
+closure: a function that reads a name of the
+function around it, such as a counter of its
+resource.
+
+Check: `bun run check:plain` prints the helper
+and the line that calls it.
+
 ### HIGH: `name` in place of `label`
 
 ```ts expect-error

@@ -26,8 +26,12 @@ function plainIn(files: Record<string, string | string[]>) {
     .map(({ path, line }) => `${path}:${line}`);
 }
 
+/** `cn` is an entry of src/a.ts, so a function that takes that name passes. */
+const cnEntry = JSON.stringify({ plain: { entries: { "src/a.ts": { cn: "A test entry." } } } });
+
 test("a name reaches its function through a cast, parens, or a branch, not a condition", () => {
   const hits = plainIn({
+    "tinker-analyze.json": cnEntry,
     "src/a.ts": [
       `export const cn = ((x: string) => x) as (x: string) => string;`,
       `export const b = { cn: ((x: string) => x) satisfies unknown };`,
@@ -49,7 +53,12 @@ test("a name reaches its function through a cast, parens, or a branch, not a con
 test("a function takes its name from a class field, an assignment, or a quoted key", () => {
   const hits = plainIn({
     "tinker-analyze.json": JSON.stringify({
-      plain: { entries: { "src/d.ts": { default: "The file's one entry." } } },
+      plain: {
+        entries: {
+          "src/a.ts": { cn: "A test entry." },
+          "src/d.ts": { default: "The file's one entry." },
+        },
+      },
     }),
     "src/a.ts": [
       `export class A {`,
@@ -267,6 +276,7 @@ test("a component is a capitalized function in a .tsx file with JSX of its own",
 
 test("an unnamed function is inline as a callback of Core, a library, or an event", () => {
   const hits = plainIn({
+    "tinker-analyze.json": cnEntry,
     "src/a.ts": [
       `import { operation as op } from "@tinkered/core";`,
       `import lib, { part } from "pkg";`,
@@ -287,31 +297,4 @@ test("an unnamed function is inline as a callback of Core, a library, or an even
   });
 
   expect(hits).toEqual(["src/a.ts:10", "src/a.ts:11", "src/a.ts:13", "src/a.ts:15"]);
-});
-
-test("a top-level function handed to an event registration is a listener", () => {
-  const names = [
-    "addEventListener",
-    "removeEventListener",
-    "on",
-    "once",
-    "off",
-    "defer",
-    "dispose",
-  ];
-  const hits = plainIn({
-    "src/a.ts": [
-      ...names.map((name, index) => `function f${index}() {}\nsource.${name}("x", f${index});`),
-      `function called() {}`,
-      `source.on("x", called());`,
-      `function other() {}`,
-      `source.register(other);`,
-      `function bare() {}`,
-      `on(bare);`,
-      `export const box = { inner() {} };`,
-      `source.on("x", box.inner);`,
-    ],
-  });
-
-  expect(hits).toEqual(["src/a.ts:15", "src/a.ts:17", "src/a.ts:19", "src/a.ts:21"]);
 });

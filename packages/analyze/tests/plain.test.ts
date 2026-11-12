@@ -12,6 +12,7 @@ const folders: string[] = [];
 const config = {
   plain: {
     entries: {
+      "src/frontend/ui/classes.ts": { cn: "shadcn's registry imports it by this name." },
       "tinker/base/main.ts": { defineMain: "Type only." },
       "tinker/base/main-host.ts": { createMainHost: "No scope yet.", runMain: "No scope yet." },
       "tinker/components/rpc/index.ts": { rpc: "Runs at module load." },
@@ -163,7 +164,7 @@ export const routes = capsule({
   expect(result).toMatchObject({ code: 0, err: "" });
 });
 
-test("cn and defineMain pass by name, and defineMain takes the command's main", () => {
+test("cn and defineMain pass as entries, and defineMain takes the command's main", () => {
   const result = checkFiles({
     "src/frontend/ui/classes.ts": `export function cn(...names: string[]) {\n  return names.join(" ");\n}\n`,
     "tinker/base/main.ts": `export const defineMain = <R>(main: () => Promise<R>) => main;\n`,
@@ -275,13 +276,23 @@ test("Bun.serve's fetch and error pass", () => {
   expect(result).toMatchObject({ code: 0, err: "" });
 });
 
-test("a React component and a top-level listener pass", () => {
+test("a React component passes", () => {
   const result = checkFiles({
     "src/page.tsx": `export function Greeting({ name }: { name: string }) {\n  return <p>{name}</p>;\n}\n`,
-    "cmds/browser.ts": `const close = () => console.log("closed");\nwindow.addEventListener("pagehide", close);\n`,
   });
 
   expect(result).toMatchObject({ code: 0, err: "" });
+});
+
+test("a top-level function handed to an event registration fails; written inline it passes", () => {
+  const result = checkFiles({
+    "cmds/browser.ts": `const close = () => console.log("closed");\nwindow.addEventListener("pagehide", close);\n`,
+    "cmds/inline.ts": `window.addEventListener("pagehide", () => console.log("closed"));\n`,
+    "src/ui/classes.ts": `export function cn(...names: string[]) {\n  return names.join(" ");\n}\n`,
+  });
+
+  expect(result.code).toBe(1);
+  expect(result.hits).toBe([hit("cmds/browser.ts", 1), hit("src/ui/classes.ts", 1)].join("\n"));
 });
 
 /** A module resource: Core loads the package, and functions reach it through `depends`. */

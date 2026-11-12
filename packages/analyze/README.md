@@ -59,6 +59,8 @@ Exit codes:
 
 - `tinker/plain` — a named function in `src/`,
   `cmds/` or `tinker/` is an operation.
+  A function that passes is not called by name:
+  see below.
 - `tinker/one-wire` — a page file calls no
   `fetch`, `WebSocket`, `EventSource`,
   `XMLHttpRequest` or `sendBeacon`.
@@ -70,6 +72,47 @@ Exit codes:
 
 A page file is a file in `src/` with no `.server`
 in its name.
+
+## A call by name
+
+A function passes `tinker/plain` when something
+else calls it: Core, a library, React. So app
+code does not call it by name (ADR 0149).
+
+```ts
+const add = useCallback(
+  (a: number, b: number) => a + b,
+  [],
+);
+add(1, 2);
+```
+
+```text
+src/page.tsx:1 tinker/plain a helper, called
+by name at src/page.tsx:5
+```
+
+App code may call by name:
+
+- an operation, through the scope;
+- a closure: a function that reads a name of a
+  function around it, so it holds that unit's
+  state;
+- an entry in `tinker-analyze.json`.
+
+```ts
+factory: () => {
+  let n = 0;
+  const bump = () => ++n;
+  return { bump, twice: () => [bump(), bump()] };
+},
+```
+
+`bump` reads `n`, so it is a closure. It passes.
+
+The check reads syntax only. It does not see a
+function that comes through `depends`, or one a
+library hands back. Review looks at those.
 
 ## The app's own exceptions
 

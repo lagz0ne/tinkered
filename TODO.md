@@ -77,6 +77,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **analyze/call-guard** — ADR 0149. A passing function that app code calls by name is a finding, unless it is a closure or an entry. The listener pass is gone; `cn` is an entry.
+  Owner: this thread's lead. Next: gates, mutation, land, release, then the template and Hedl.
+  Verify: `packages/analyze/tests/called.test.ts`; the site's `check:plain` prints no finding; analyze mutation at 85 or more.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.

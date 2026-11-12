@@ -3,6 +3,9 @@ import { dirname, join } from "node:path";
 import ts from "typescript-api";
 
 import type { Check } from "./check";
+import { bindingNames, closes } from "./closure";
+import { enclosingFn, isFn, ownWalk, walk } from "./tree";
+import type { Fn } from "./tree";
 
 /** The hooks Core 0.10.0's `capsule()` accepts (`Capsule.Hooks`). */
 const hookNames = new Set(["start", "resolve", "run", "write", "close", "session"]);
@@ -21,16 +24,10 @@ const listenNames = new Set([
   "dispose",
 ]);
 
-type Fn =
-  | ts.FunctionDeclaration
-  | ts.FunctionExpression
-  | ts.ArrowFunction
-  | ts.MethodDeclaration
-  | ts.AccessorDeclaration;
-
 /**
  * What one file knows: its path, its Core imports, its library imports, its app imports (by the
- * file they come from), the `defineMain` it imports, its hooks objects, and its top-level consts.
+ * file they come from), the `defineMain` it imports, its hooks objects, its top-level consts, and
+ * its top-level function declarations.
  */
 type File = {
   pass: Pass;
@@ -42,6 +39,7 @@ type File = {
   mains: Set<string>;
   hooks: Set<string>;
   consts: Map<string, ts.Expression>;
+  fns: Map<string, ts.FunctionDeclaration>;
 };
 
 /** What one run shares: every file by its path without the extension, and each verdict once. */
@@ -50,36 +48,6 @@ type Pass = {
   verdicts: Map<ts.Node, boolean>;
   entries: Check.Entries;
 };
-
-function isFn(node: ts.Node): node is Fn {
-  return (
-    ts.isFunctionDeclaration(node) ||
-    ts.isFunctionExpression(node) ||
-    ts.isArrowFunction(node) ||
-    ts.isMethodDeclaration(node) ||
-    ts.isGetAccessorDeclaration(node) ||
-    ts.isSetAccessorDeclaration(node)
-  );
-}
-
-function walk(node: ts.Node, visit: (node: ts.Node) => void) {
-  visit(node);
-  ts.forEachChild(node, (child) => walk(child, visit));
-}
-
-/** Walk a body without entering the functions inside it. */
-function ownWalk(node: ts.Node, visit: (node: ts.Node) => void) {
-  visit(node);
-  ts.forEachChild(node, (child) => {
-    if (!isFn(child)) ownWalk(child, visit);
-  });
-}
-
-function enclosingFn(node: ts.Node): Fn | undefined {
-  for (let parent = node.parent; parent; parent = parent.parent) {
-    if (isFn(parent)) return parent;
-  }
-}
 
 /** Wrappers that keep the value: parens, casts, and the branches of `a || b` or `c ? a : b`. */
 function wraps(parent: ts.Node, node: ts.Node) {
@@ -459,19 +427,6 @@ function owned(file: File, fn: Fn, name: string) {
   return returnsName(owner, name) || handsName(owner, name);
 }
 
-/** A top-level function handed to an event registration: `import.meta.hot.dispose(close)`. */
-function listener(file: File, fn: Fn, name: string) {
-  if (enclosingFn(fn) || memberOf(fn)) return false;
-  let found = false;
-  walk(file.source, (node) => {
-    const call = valueUse(node, name) ? argumentOf(node) : undefined;
-    if (call && ts.isPropertyAccessExpression(call.expression)) {
-      found ||= listenNames.has(call.expression.name.text);
-    }
-  });
-  return found;
-}
-
 function hasJsx(node: ts.Node) {
   let found = false;
   ownWalk(node, (child) => {
@@ -520,7 +475,7 @@ function callbackCall(file: File, call: ts.CallExpression | ts.NewExpression) {
 }
 
 function exempt(file: File, name: string) {
-  return name === "cn" || Object.hasOwn(file.pass.entries[file.path] ?? {}, name);
+  return Object.hasOwn(file.pass.entries[file.path] ?? {}, name);
 }
 
 function judge(file: File, fn: Fn) {
@@ -532,8 +487,7 @@ function judge(file: File, fn: Fn) {
     component(file, fn, name) ||
     graphOption(file, fn) ||
     nativeOption(file, fn) ||
-    owned(file, fn, name) ||
-    listener(file, fn, name)
+    owned(file, fn, name)
   );
 }
 
@@ -541,6 +495,175 @@ function passes(file: File, fn: Fn): boolean {
   const verdicts = file.pass.verdicts;
   if (!verdicts.has(fn)) verdicts.set(fn, judge(file, fn));
   return verdicts.get(fn)!;
+}
+
+/** Library calls that hand back the function they take: the name they bind is still that function. */
+const keepNames = new Set(["useCallback"]);
+
+/** A function the syntax can name, in the file that holds it. */
+type Found = { file: File; fn: Fn };
+
+/** What a name is bound to: an initializer or a function declaration, in the file that holds it. */
+type Bound = { file: File; node: ts.Node };
+
+/** The value under the wrappers that keep it: parens, casts, `!`. */
+function unwrap(node: ts.Node) {
+  while (
+    ts.isParenthesizedExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isNonNullExpression(node)
+  ) {
+    node = node.expression;
+  }
+  return node;
+}
+
+/** Whether a variable or a parameter declares this name, alone or inside a pattern. */
+function names(node: ts.VariableDeclaration | ts.ParameterDeclaration, name: string) {
+  const found = new Set<string>();
+  bindingNames(node.name, found);
+  return found.has(name);
+}
+
+/** What a variable gives a name: its value, or "hidden" when it comes out of a pattern. */
+function variable(node: ts.VariableDeclaration, name: string) {
+  if (!names(node, name)) return undefined;
+  return (ts.isIdentifier(node.name) && node.initializer) || "hidden";
+}
+
+/** What a declaration gives a name: its value, "hidden" when the syntax cannot say, or nothing. */
+function declared(node: ts.Node, name: string): ts.Node | "hidden" | undefined {
+  if (ts.isFunctionDeclaration(node)) return node.name?.text === name ? node : undefined;
+  if (ts.isParameter(node)) return names(node, name) ? "hidden" : undefined;
+  return ts.isVariableDeclaration(node) ? variable(node, name) : undefined;
+}
+
+/** How a function binds a name for the code inside it: a parameter, a local, an inner function. */
+function localBinding(owner: Fn, name: string) {
+  let found: ts.Node | "hidden" | undefined;
+  const visit = (node: ts.Node) => {
+    found ??= declared(node, name);
+    if (!isFn(node)) ts.forEachChild(node, visit);
+  };
+  for (const parameter of owner.parameters) visit(parameter);
+  if (owner.body) visit(owner.body);
+
+  return found;
+}
+
+/** The file an app import comes from, and the name it has there. */
+function importedFrom(file: File, name: string) {
+  const from = file.app.get(name);
+  if (!from) return undefined;
+  const target = file.pass.files.get(from.from) ?? file.pass.files.get(`${from.from}/index`);
+  return target && { file: target, name: from.name };
+}
+
+/** A top-level name of a file: a function, a const, or an app import followed to its file. */
+function topBinding(file: File, name: string, depth = 0): Bound | undefined {
+  const node = file.fns.get(name) ?? file.consts.get(name);
+  if (node) return { file, node };
+
+  const from = importedFrom(file, name);
+  return from && depth < 8 ? topBinding(from.file, from.name, depth + 1) : undefined;
+}
+
+/** What a name is bound to where `at` stands: the nearest local, else a top-level name. */
+function boundTo(file: File, name: string, at: ts.Node): Bound | undefined {
+  for (let owner = enclosingFn(at); owner; owner = enclosingFn(owner)) {
+    const node = localBinding(owner, name);
+    if (node === "hidden") return undefined;
+    if (node) return { file, node };
+  }
+  return topBinding(file, name);
+}
+
+/** Follow `const b = a` to the value behind the names. */
+function settle(bound: Bound | undefined, depth = 0): Bound | undefined {
+  if (!bound) return undefined;
+  const node = unwrap(bound.node);
+  if (!ts.isIdentifier(node)) return { file: bound.file, node };
+  return depth < 8 ? settle(boundTo(bound.file, node.text, node), depth + 1) : undefined;
+}
+
+/** The function a keeping call takes: the `fn` of `useCallback(fn)`, imported from a library. */
+function keptFn(file: File, node: ts.Node) {
+  if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return undefined;
+  const name = node.expression.text;
+  if (!keepNames.has(name) || !file.library.has(name)) return undefined;
+  return node.arguments[0] && unwrap(node.arguments[0]);
+}
+
+/** The function a value is: itself, or the one a keeping call takes. */
+function fnOf(bound: Bound | undefined): Found | undefined {
+  const value = settle(bound);
+  if (!value) return undefined;
+  const fn = isFn(value.node) ? value.node : keptFn(value.file, value.node);
+  return fn && isFn(fn) ? { file: value.file, fn } : undefined;
+}
+
+/** The member `name` of a value that is an object literal. */
+function memberFn(bound: Bound | undefined, name: string): Found | undefined {
+  const value = settle(bound);
+  const item = value && property(value.node, name);
+  const member = item && unwrap(item);
+  return member && isFn(member) ? { file: value.file, fn: member } : undefined;
+}
+
+/** The app function a call names, when the syntax shows it: `f()` or `object.f()`. */
+function calleeFn(file: File, call: ts.CallExpression): Found | undefined {
+  const callee = unwrap(call.expression);
+  if (ts.isIdentifier(callee)) return fnOf(boundTo(file, callee.text, call));
+  if (!ts.isPropertyAccessExpression(callee) || !ts.isIdentifier(callee.expression)) {
+    return undefined;
+  }
+  return memberFn(boundTo(file, callee.expression.text, call), callee.name.text);
+}
+
+/**
+ * A helper behind a pass: a passing function that a call names, that holds no state of a
+ * function around it, and that is no entry. Something else is meant to call a passing function
+ * (Core, a library, React); a call by name makes it a plain function again (ADR 0149).
+ */
+function helperOf(file: File, call: ts.CallExpression) {
+  const found = calleeFn(file, call);
+  if (!found?.fn.body || !passes(found.file, found.fn)) return undefined;
+
+  const name = nameOf(found.fn);
+  if (name !== undefined && exempt(found.file, name)) return undefined;
+  return closes(found.fn) ? undefined : found;
+}
+
+/** The line a node starts on, from 1. */
+function lineOf(file: File, node: ts.Node) {
+  return file.source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+}
+
+/** Each helper the calls of a file name, as a finding at the helper, with the call that names it. */
+function called(file: File): Check.Finding[] {
+  const hits: Check.Finding[] = [];
+  walk(file.source, (node) => {
+    const found = ts.isCallExpression(node) ? helperOf(file, node) : undefined;
+    if (!found) return;
+
+    const what = `a helper, called by name at ${file.path}:${lineOf(file, node)}`;
+    const line = lineOf(found.file, found.fn);
+    hits.push({ path: found.file.path, line, rule: "tinker/plain", what });
+  });
+  return hits;
+}
+
+/** One finding for each helper: its first call in file order. */
+function calledOnce(files: Iterable<File>) {
+  const first = new Map<string, Check.Finding>();
+  for (const file of files) {
+    for (const hit of called(file)) {
+      const key = `${hit.path}:${hit.line}`;
+      if (!first.has(key)) first.set(key, hit);
+    }
+  }
+  return [...first.values()];
 }
 
 /** A bare package import is a library; `~/`, `@/` and relative paths are app code. */
@@ -609,10 +732,12 @@ function readFile(pass: Pass, path: string, text: string): File {
     mains: new Set(),
     hooks: new Set(),
     consts: new Map(),
+    fns: new Map(),
   };
 
   for (const node of source.statements) {
     if (ts.isImportDeclaration(node)) readImport(file, node);
+    if (ts.isFunctionDeclaration(node) && node.name) file.fns.set(node.name.text, node);
     readConsts(file, node);
   }
   walk(source, (node) => readHooks(file, node));
@@ -623,8 +748,12 @@ function check(file: File): Check.Finding[] {
   const hits: Check.Finding[] = [];
   walk(file.source, (node) => {
     if (!isFn(node) || !node.body || passes(file, node)) return;
-    const line = file.source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-    hits.push({ path: file.path, line, rule: "tinker/plain", what: "a plain function" });
+    hits.push({
+      path: file.path,
+      line: lineOf(file, node),
+      rule: "tinker/plain",
+      what: "a plain function",
+    });
   });
   return hits;
 }
@@ -646,13 +775,17 @@ function check(file: File): Check.Finding[] {
  *   `import("<package>")`): `depends: { x: thatResource }`, then `x.f({...})`,
  *   `const { f } = x; f({...})` or `new x.C({...})`;
  * - owned: named inside a passing function that returns it or hands it to a call;
- * - a listener: a top-level function handed to an event registration (`addEventListener`, ...);
  * - a React component: a capitalized function in a .tsx file that returns JSX;
- * - exempt: `cn` anywhere (shadcn's registry imports it), or an item of the app's `entries`.
+ * - exempt: an item of the app's `entries`.
+ *
+ * A pass says who calls the function: Core, a library, React. So a call by name takes the pass
+ * away (ADR 0149). A passing function that a call names is a finding, unless it is a closure
+ * (it reads a name of a function around it) or an entry.
  */
 export function findPlain(sources: readonly Check.Source[], entries: Check.Entries) {
   const pass: Pass = { files: new Map(), verdicts: new Map(), entries };
   for (const { path, text } of sources) pass.files.set(stem(path), readFile(pass, path, text));
 
-  return [...pass.files.values()].flatMap(check);
+  const files = [...pass.files.values()];
+  return [...files.flatMap(check), ...calledOnce(files)];
 }

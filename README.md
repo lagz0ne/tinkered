@@ -180,11 +180,17 @@ These functions pass with no change:
   handler in `Bun.serve({ ... })`.
 - **Owned:** named inside a passing function, and
   returned or handed to a call.
-- **A listener:** handed to `addEventListener`.
 - **A React component:** a capitalized function
   in a `.tsx` file that returns JSX.
-- **Exempt:** `cn`, and each function the app
-  lists in `tinker-analyze.json` with a reason.
+- **An entry:** each function the app lists in
+  `tinker-analyze.json` with a reason, such as
+  shadcn's `cn`.
+
+A function that passes is not called by name.
+Only a closure may be: a function that reads a
+name of a function around it. A pure function in
+`useCallback`, called as `add(1, 2)`, is a
+finding (ADR 0149).
 
 Workflow SDK flows are next: in a `*.flow.ts`
 file, a function that starts with

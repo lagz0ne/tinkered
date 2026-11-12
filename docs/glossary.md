@@ -462,6 +462,7 @@ New sections are lists, one term per item (vertical layout,
 ## Strict forms (ADR 0099)
 
 - **plain function** — A function that is not a tag, data, resource, operation, or extension.
+- **closure** — A function that reads a name of a function around it, so it holds state of the unit it lives in. App code may call one by name (ADR 0149).
 - **plain-function list** — The checked list of allowed plain functions, with params and call sites; it only shrinks.
 - **protocol layer** — The framework code at a service's edge: a Hono handler or a framework route.
   It owns route, params, headers, and wire body in; status, headers, and wire body out.
