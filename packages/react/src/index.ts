@@ -304,24 +304,9 @@ function useDataStore<T, S>(
   selector: ((value: T) => S) | undefined,
   isEqual: ((a: T, b: T) => boolean) | ((a: S, b: S) => boolean) | undefined,
 ): DataStore<T, T | S> {
-  const own = useRef<Held<T, S> | undefined>(undefined);
-  let held = own.current;
-  if (held === undefined) {
-    const bound = use(ScopeContext);
-    if (!bound) raise("NoProvider", { hook: "useScope" });
-    held = own.current = {
-      bound,
-      cell,
-      controller: readableOf(bound.scope, cell),
-      store: undefined,
-    };
-  } else if (held.cell !== cell) {
-    held.cell = cell;
-    held.controller = readableOf(held.bound.scope, cell);
-    held.store = undefined;
-  }
-
+  const held = useHeld<T, S>(cell);
   const controller = held.controller;
+
   if (selector === undefined && isEqual === undefined) {
     return (controller as RawHolder<T>)[RAW] ?? createRawStore(controller);
   }
@@ -341,6 +326,34 @@ type Held<T, S> = {
   controller: Readable<T>;
   store: SelectingStore<T, S> | undefined;
 };
+
+/** The Bound and the controller of one `useData` call. The context is read in the first render
+ * only: a later render that read it would cost a context item for this component and a check
+ * for each sibling. It is safe because a provider keys its subtree with its Bound. `use` is the
+ * context read that React allows inside a condition. */
+function useHeld<T, S>(cell: Data.Cell<T> | Data.View<T> | Data.Read<T>): Held<T, S> {
+  const own = useRef<Held<T, S> | undefined>(undefined);
+  const held = own.current;
+
+  if (held === undefined) {
+    const bound = use(ScopeContext);
+    if (!bound) raise("NoProvider", { hook: "useScope" });
+
+    return (own.current = {
+      bound,
+      cell,
+      controller: readableOf(bound.scope, cell),
+      store: undefined,
+    });
+  }
+
+  if (held.cell !== cell) {
+    held.cell = cell;
+    held.controller = readableOf(held.bound.scope, cell);
+    held.store = undefined;
+  }
+  return held;
+}
 
 /** A capsule's cell export: a read edge (ADR 0123). */
 const isView = <T>(
