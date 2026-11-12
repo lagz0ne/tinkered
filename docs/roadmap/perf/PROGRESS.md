@@ -2413,7 +2413,7 @@ Not done here:
 
 Duke asked what we can do to get closer to Preact Signals.
 The full record: [the learnings entry](../../../research/learnings/2026-11-12-preact-gap.md).
-The decision: [ADR 0143](../../decisions/0143-usedata-holds-its-scope-a-new-scope-mounts-the-subtree-again.md), proposed.
+The decision: [ADR 0144](../../decisions/0144-usedata-holds-its-scope-a-new-scope-mounts-the-subtree-again.md), proposed.
 
 The gap on the site bench, Chromium, median:
 

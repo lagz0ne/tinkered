@@ -1,4 +1,4 @@
-# 0143 useData holds its scope; a new scope mounts the subtree again
+# 0144 useData holds its scope; a new scope mounts the subtree again
 
 Date: 2026-11-12. Status: proposed; it waits
 for Duke's pick. Built on the work branch.

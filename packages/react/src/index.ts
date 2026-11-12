@@ -47,7 +47,7 @@ const ScopeContext = createContext<Bound | undefined>(undefined);
 const bind = (scope: Scope.Handle, ns?: Namespace): Bound => ({ scope, ns, key: ++serial });
 
 /** Provide a Bound to a subtree. The key makes React mount the subtree again for a new Bound
- * (ADR 0143). The owning providers did that before the key: they render nothing between two
+ * (ADR 0144). The owning providers did that before the key: they render nothing between two
  * scopes. */
 const provide = (bound: Bound, children: ReactNode): ReactNode =>
   createElement(ScopeContext.Provider, { key: bound.key, value: bound, children });
@@ -329,7 +329,7 @@ type Held<T, S> = { readonly bound: Bound; store: SelectingStore<T, S> | undefin
 
 /** The Bound of one `useData` call. The context is read in the first render only: a later render
  * that read it would cost a context item for this component and a check for each sibling
- * (ADR 0143). It is safe because a provider keys its subtree with its Bound. `use` is the context
+ * (ADR 0144). It is safe because a provider keys its subtree with its Bound. `use` is the context
  * read that React allows inside a condition. */
 function useHeld<T, S>(): Held<T, S> {
   const own = useRef<Held<T, S> | undefined>(undefined);

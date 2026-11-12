@@ -47,7 +47,7 @@ A profile with inlining off gives the same picture:
 - `createWorkInProgress`: 1,866 ns and 904 ns.
 - Core and the adapter: 0.63 µs. The signals code: 0.35 µs.
 
-## What we built (ADR 0143, proposed)
+## What we built (ADR 0144, proposed)
 
 - `useData` reads the context in its first render only.
 - A provider keys its subtree. A new scope mounts it again.
