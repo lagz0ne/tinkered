@@ -27,6 +27,19 @@ intent load <skill>
 fix, then check again
 ```
 
+One turn of the loop, step by step:
+
+1. **Write.** You or the agent add a function.
+2. **Check.** `tinker-analyze check` reads the
+   files. It runs no app code. Each finding is
+   `file:line rule what`.
+3. **Read.** After the findings, each broken rule
+   prints its next step and a skill name.
+4. **Load.** `intent load <skill>` prints that
+   skill, from the package version you have.
+5. **Fix.** Change the code to the shape the skill
+   shows. Check again until it is clean.
+
 The skills come with the package, through
 [TanStack Intent](https://tanstack.com/intent)
 (ADR 0143). So the advice always matches the code
@@ -123,6 +136,61 @@ Load that skill and fix the code:
 ```bash
 bunx intent load @tinkered/core#core/operation
 ```
+
+#### What `tinker/plain` asks
+
+Every named function in `src/`, `cmds/` and
+`tinker/` is an operation. So each call is a
+span in the trace, and what it needs comes
+through the scope, not through an import.
+
+Before: a plain function. The check flags it.
+
+```ts
+export function add(a: number, b: number) {
+  return a + b;
+}
+```
+
+After: an operation. The check passes it.
+
+```ts
+import { operation } from "@tinkered/core";
+
+type Pair = { a: number; b: number };
+
+export const add = operation({
+  label: "math.add",
+  run: (_deps, { input }: { input: Pair }) =>
+    input.a + input.b,
+});
+```
+
+Call it through a scope:
+`await scope.run(add, { input: { a: 1, b: 2 } })`.
+
+These functions pass with no change:
+
+- **Inline:** no name, written where it is used,
+  such as a callback or a JSX handler.
+- **A body Core calls:** the `run` of an
+  `operation`, `resource`, `tag` or `data`, or a
+  capsule hook.
+- **An option of a library call:** such as a
+  handler in `Bun.serve({ ... })`.
+- **Owned:** named inside a passing function, and
+  returned or handed to a call.
+- **A listener:** handed to `addEventListener`.
+- **A React component:** a capitalized function
+  in a `.tsx` file that returns JSX.
+- **Exempt:** `cn`, and each function the app
+  lists in `tinker-analyze.json` with a reason.
+
+Workflow SDK flows are next: in a `*.flow.ts`
+file, a function that starts with
+`"use workflow"` or `"use step"` passes
+([PR #36](https://github.com/lagz0ne/tinkered/pull/36),
+ADR 0148, not merged yet).
 
 Exit `0` is clean, `1` has findings, `2` is a
 bad call or config. So CI can gate on it.
