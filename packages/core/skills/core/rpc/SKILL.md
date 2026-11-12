@@ -13,7 +13,7 @@ metadata:
     on the client with remote data.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.18.2'
+  library_version: '0.19.0'
 requires:
   - core
   - capsule
@@ -140,6 +140,9 @@ const list = useData(
   the list.
 - `board.invalidate` marks a part dirty, so its
   readers ask again.
+- A call ends at its reply, as a TanStack Query
+  mutation. To see your own write at once, run
+  `board.invalidate` on its part after the call.
 
 ### Handle a fault
 
@@ -148,6 +151,8 @@ A failed call is a fault from a fixed set:
 - `refused`: a guard said no.
 - `failed`: the server threw. The cause stays in
   the server log; the client gets a trace id.
+  `error.execution` is the call's id: the server
+  log line has the same id, with tracing off too.
 - `invalid`, `encode`, `decode`: a bad shape.
 - `link`: the wire is down.
 

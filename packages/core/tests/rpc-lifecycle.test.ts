@@ -682,10 +682,13 @@ test("F1: every hook gets the key, the input and the meta, on both sides", async
   await client.run(api.echo, { input: { n: 1 } });
   await client.run(api.fail, { input: null }).catch(() => undefined);
 
-  const echo = { key: "echo", input: { n: 1 }, meta: {} };
-  const fail = { key: "fail", input: null, meta: {} };
-
+  // The server sees the meta that came: the call's execution id (ADR 0140).
+  const id = expect.stringMatching(/^[\w-]+$/);
   for (const side of ["client", "server"]) {
+    const meta = side === "server" ? { execution: id } : {};
+    const echo = { key: "echo", input: { n: 1 }, meta };
+    const fail = { key: "fail", input: null, meta };
+
     expect(was(side, "start")).toEqual([echo, fail]);
     expect(was(side, "success")).toEqual([echo]);
     expect(was(side, "error")).toEqual([fail]);

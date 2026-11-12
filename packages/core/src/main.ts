@@ -3,7 +3,7 @@
 // imports it.
 export * from "./index";
 
-export { bytes, channel, rpc } from "./rpc";
+export { bytes, channel, execution, rpc } from "./rpc";
 export type { RpcFault } from "./rpc";
 /** What a `bytes` field holds: a Blob on the client, the request body on the server. */
 export type { Body as RpcBody } from "./rpc-wire";

@@ -96,7 +96,12 @@ test("a refused call asks renew once, then sends again with the new meta", async
 
   expect(await tab.run(api.echo, { input: { n: 1 } })).toEqual({ n: 1 });
   expect(asked.map((m) => m.token)).toEqual(["old", "fresh"]);
-  expect(state.renewals).toEqual([{ payload: { why: "stale" }, sent: { token: "old" } }]);
+  // The second send is the same call: it keeps its execution id (ADR 0140).
+  const id = asked[0]!.execution;
+  expect(state.renewals).toEqual([
+    { payload: { why: "stale" }, sent: { token: "old", execution: id } },
+  ]);
+  expect(asked.map((m) => m.execution)).toEqual([id, id]);
 });
 
 test("a renew that says no, or throws, leaves the refusal as the answer", async () => {
@@ -126,7 +131,7 @@ test("with no renew, a refusal is the answer, sent once", async () => {
   expect(await faultOf(tab.run(api.echo, { input: { n: 1 } }))).toMatchObject({
     fault: "refused",
   });
-  expect(asked).toEqual([{}]);
+  expect(asked).toEqual([{ execution: expect.any(String) }]);
 });
 
 test("calls refused at one time share one renew; a later refusal renews again", async () => {

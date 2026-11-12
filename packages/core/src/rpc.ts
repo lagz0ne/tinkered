@@ -127,6 +127,8 @@ export type RpcFault<K extends string = string> = Error & {
   readonly sent?: boolean;
   readonly payload: unknown;
   readonly traceId: string | undefined;
+  /** The call's execution id (ADR 0147), as the ref a person quotes: set with tracing off too. */
+  readonly execution?: string;
 };
 
 type Remote = { readonly call: Call; readonly watch?: Watch };
@@ -142,7 +144,13 @@ type Def = {
   readonly bytesOf: Readonly<Record<string, BytesLimit & { field: string }>>;
   readonly fault: {
     is(error: unknown): boolean;
-    make(address: string, fault: Fault, payload: unknown, traceId: string | undefined): RpcFault;
+    make(
+      address: string,
+      fault: Fault,
+      payload: unknown,
+      traceId: string | undefined,
+      execution?: string,
+    ): RpcFault;
   };
   readonly answer: unknown;
   readonly stream: unknown;
@@ -162,6 +170,13 @@ type Read = {
 };
 
 type Event = Omit<Capsule.Events["run"], "config"> & { readonly config: Read };
+
+/**
+ * A call's execution id (ADR 0147): the client makes one per call and sends it as
+ * `meta.execution`; the server binds it here for the run. It is the fault's ref and a log field
+ * on both sides, with tracing off too.
+ */
+export const execution = tag<string>({ label: "execution" });
 
 /**
  * The steps every rpc capsule runs: check its config at start, send a key (`remote`), run it
@@ -193,7 +208,8 @@ const steps = resource({
       fault: Fault,
       payload: unknown,
       traceId: string | undefined,
-    ): RpcFault => def.fault.make(address, fault, payload, traceId);
+      execution?: string,
+    ): RpcFault => def.fault.make(address, fault, payload, traceId, execution);
 
     /**
      * Pull side of a stream: `start` gets `push` first (a source may push at once), then the
@@ -317,9 +333,11 @@ const steps = resource({
         return raise("MissingConfig", { label: def.name, key: "remote.watch" });
       }
       const watch = remote.watch;
-      const faulted = (r: Failed) => {
-        if (r.kind !== "refused") log.warn(`${def.name} fault`, { address: key, fault: r.kind });
-        return faultOf(def, key, r.kind, r.payload, traceId);
+      const faulted = (r: Failed, execution?: string) => {
+        if (r.kind !== "refused") {
+          log.warn(`${def.name} fault`, { address: key, fault: r.kind, execution });
+        }
+        return faultOf(def, key, r.kind, r.payload, traceId, execution);
       };
 
       return flow
@@ -333,9 +351,11 @@ const steps = resource({
             const bind = tags.length ? { tags } : {};
             const signal = invocation?.signal;
             if (reply) {
-              const ask = { input: { ...split(def, key, input), meta }, signal, ...bind };
-              const answer = await run(remote.call, ask, sent);
-              if (!answer.ok) throw faulted(answer);
+              // The call's execution id (ADR 0147): the ref of its fault, on both sides.
+              const id = event.random.uuid();
+              const out = { ...split(def, key, input), meta: { ...meta, execution: id } };
+              const answer = await run(remote.call, { input: out, signal, ...bind }, sent);
+              if (!answer.ok) throw faulted(answer, id);
               return answer.value;
             }
 
@@ -440,11 +460,12 @@ const steps = resource({
 
     /** A throw is `failed`, whatever it carries: its kind is never read. The cause stays here, whole. */
     const failedAt =
-      (def: Def, event: Event, address: string) =>
+      (def: Def, event: Event, address: string, execution?: string) =>
       (error: unknown): Reply => {
         event.obs.event(`${def.name}.failed`, { address });
         event.log.error(`${def.name} call failed`, {
           address,
+          execution,
           cause: String(error),
           stack: String(Object(error).stack ?? ""),
         });
@@ -478,6 +499,10 @@ const steps = resource({
       return parsed.issues ? invalid(answering, asked.push) : here(def, event, asked, parsed.value);
     };
 
+    /** The caller's execution id as a tag, when it is a plain id. */
+    const idOf = ({ execution: id }: Record<string, string>) =>
+      id && /^[\w-]{1,64}$/.test(id) ? [execution(id)] : [];
+
     /** answer: one output, as the envelope. */
     const answerHere = (
       def: Def,
@@ -500,16 +525,19 @@ const steps = resource({
           address,
           input,
           meta,
-          (_, tags) =>
+          (_, given) => {
             // Its own layer (a call with a signal, ADR 0090): a session-target resource, such as
-            // a transaction, ends with the implementation's result, not the request session's close.
-            Promise.resolve(
+            // a transaction, ends with the implementation's result, not the request session's
+            // close. The caller's execution id is bound for the run, for its logs and its writes.
+            const tags = [...given, ...idOf(meta)];
+            return Promise.resolve(
               run(
                 implementation,
                 { input, signal: event.signal, ...(tags.length ? { tags } : {}) },
                 work,
               ),
-            ),
+            );
+          },
           {
             reply: true,
             signal: event.signal,
@@ -518,7 +546,7 @@ const steps = resource({
           },
         )
         .then(answeredAs)
-        .catch(failedAt(def, event, address));
+        .catch(failedAt(def, event, address, meta.execution));
     };
 
     /** stream: each output pushed, until the op returns or the caller leaves (`left`). */
@@ -620,6 +648,7 @@ export function rpc<const C extends Contracts>(
       kind: Fault,
       payload: unknown,
       traceId: string | undefined,
+      execution?: string,
     ): RpcFault => {
       const { side, sent } = Object(payload);
       const local = kind === "link" || side === "client";
@@ -635,6 +664,7 @@ export function rpc<const C extends Contracts>(
           ...(local && { sent: sent ?? !(kind === "encode" || kind === "invalid") }),
           payload,
           traceId,
+          ...(execution && { execution }),
         } as const,
       );
     },

@@ -445,6 +445,7 @@ New sections are lists, one term per item (vertical layout,
 ## Execution results
 
 - **execution ID** — The ID of one change request, shared by its change and result events.
+- **read your write** — A client sees its own change: after the call, it runs `board.invalidate` on the part (ADR 0147).
 - **completion goal** — The work an operation requires before it can report complete.
 - **execution result** — The complete, partial, or failed result for one completion goal.
 - **partial result** — A result where some required work succeeded and other required work failed.
