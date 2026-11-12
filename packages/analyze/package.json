@@ -1,0 +1,44 @@
+{
+  "name": "@tinker/analyze",
+  "version": "0.17.9",
+  "description": "Tinker's checks: one command reads an app and prints each broken rule with its id and the skill to read.",
+  "license": "MIT",
+  "bin": {
+    "tinker-analyze": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "lint"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./lint": "./lint/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "mutate": "stryker run",
+    "check": "vp check",
+    "prepublishOnly": "vp run build"
+  },
+  "dependencies": {
+    "typescript-api": "npm:typescript@5.9.3"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
+    "@types/node": "^26.1.1",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}

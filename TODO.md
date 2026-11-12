@@ -25,8 +25,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **skills/check-names-skill** — ADR 0143 decision 5, in tinker-app. Each check prints its rule id and the skill to read next: `check:plain` (`tinker/plain`), the lint (`tinker/one-door`, `tinker/floating`), `MissingConfig` (`tinker/config`). The template also gets Hedl's frontend check (`tinker/react-state`, `tinker/one-wire`): today the guide's Rules page says `bun run check` fails on `useState`, and in the template it does not.
-  Verify: a planted case per rule prints `<file>:<line> tinker/<rule>` and `read: @tinker/core#core/<skill>`.
+- **skills/check-names-skill** — ADR 0143 decision 5, ADR 0145, in tinker-app, after the release that ships `@tinker/analyze`. The template runs `tinker-analyze check` in place of its `scripts/check-plain.ts`, with its entries in `tinker-analyze.json`, and takes its lint rules from `@tinker/analyze/lint`. So it gets the page rules (`tinker/react-state`, `tinker/one-wire`) that the guide's Rules page already claims. Left after that: the lint messages for `tinker/one-door` and `tinker/floating`, and `MissingConfig` (`tinker/config`), name their skill.
+  Verify: in the template, a planted `useState` in `src/` fails `bun run check:plain` with `tinker/react-state` and `read: @tinker/react#react`.
 
 - **skills/template-wire** — ADR 0143 decision 2, in tinker-app, after the release that ships the skills. `@tanstack/intent` as a dev dependency, `"intent": { "skills": ["@tinker/*"] }`, and the `intent-skills` block in `AGENTS.md`.
   Verify: in a fresh `degit` of the template, `intent list` shows the Core and React skills at the installed version.
@@ -81,6 +81,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 ## Review
+
+- **analyze/check** — owner: lead (Fable, thread "Ship Tinker skills and verify tools"). ADR 0145. `packages/analyze` is on main: `tinker-analyze check [root]` holds the plain-function check and the page rules; each finding prints its rule id, and each broken rule its skill. The lint rules are `@tinker/analyze/lint`. The site runs the package; its script and lint copies are gone. Proof seen: 56 package tests, `vp check`, the site's `check:plain` prints `no findings in 79 files`.
+  Next step: mutation. The package scores 77 against the floor of 85; `plain.ts` is at 71 (the script was never under mutation), the other files are at 84 or more. Kill the `plain.ts` survivors through `main`, or delete code no test needs.
+  Census: three strict rows still fire and are false here: S11 reads a glob string as a comment, S15 reads a TSDoc example, P04 is a hot-path rule on module-level constant sets.
+  Verify: `pnpm --dir packages/analyze mutate` clears 85.
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.

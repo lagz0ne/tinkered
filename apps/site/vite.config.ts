@@ -93,7 +93,7 @@ export default defineConfig({
     plugins: ["eslint", "typescript", "unicorn", "oxc", "import"],
     jsPlugins: [
       { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
-      { name: "tinker", specifier: "./tools/lint/blank-lines.mjs" },
+      { name: "tinker", specifier: "@tinker/analyze/lint" },
     ],
     rules: {
       "vite-plus/prefer-vite-plus-imports": "error",

@@ -1,45 +1,14 @@
-/**
- * The plain-function check (Duke 2026-10-31, tinker-app #44). App code has no plain helper
- * functions: every named function is an operation, so every call is a span and its dependencies
- * come through the graph. It reads `.ts`, `.tsx`, `.mts` and `.cts` files in src/, cmds/ and
- * tinker/ (the syntax tree only, no types) and prints one line per plain function.
- *
- * A function passes when it is one of these:
- * - inline: no name of its own, written where it is used: a JSX attribute, a returned value, or
- *   an argument of a call inside a function, a Core call, `defineMain`, a library call, or an
- *   event registration. An IIFE, `Object.freeze(() => 1)` at the top level, or a function in an
- *   array bound to a name is not inline;
- * - a graph body: a direct option of a Core `operation`, `resource`, `tag` or `data`, or a hook
- *   of a capsule (in `capsule({ hooks })`, or in an object typed `Capsule.Hooks`);
- * - a native option: inside the options of a library call (`Bun.serve`, `createRoute`, ...).
- *   A library may come through a module resource (a Core `resource` whose factory returns
- *   `import("<package>")`): `depends: { x: thatResource }`, then `x.f({...})`,
- *   `const { f } = x; f({...})` or `new x.C({...})`;
- * - owned: named inside a passing function that returns it or hands it to a call;
- * - a listener: a top-level function handed to an event registration (`addEventListener`, ...);
- * - a React component: a capitalized function in a .tsx file that returns JSX;
- * - exempt by name (`cn` anywhere, `defineMain` in tinker/base/main.ts), or an `entries` item.
- *
- * Usage: bun scripts/check-plain.ts [root]
- */
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 
 import ts from "typescript-api";
+
+import type { Check } from "./check";
 
 /** The hooks Core 0.10.0's `capsule()` accepts (`Capsule.Hooks`). */
 const hookNames = new Set(["start", "resolve", "run", "write", "close", "session"]);
 
 /** Core calls whose direct options are graph bodies. */
 const unitNames = new Set(["operation", "resource", "tag", "data"]);
-
-/**
- * Exempt by name, each tied to the file that defines it. shadcn's `cn` (its registry imports it)
- * has no file yet, so it passes in any file; the type-only `defineMain` only in its own file.
- */
-const exemptNames: Record<string, string | undefined> = {
-  cn: undefined,
-  defineMain: "tinker/base/main.ts",
-};
 
 /** Calls that register a listener: the event source calls it, never app code by name. */
 const listenNames = new Set([
@@ -51,34 +20,6 @@ const listenNames = new Set([
   "defer",
   "dispose",
 ]);
-
-/**
- * Entry contracts that run outside any scope, keyed by file. Each needs a one-line reason.
- * Keep it small: anything else becomes an operation.
- */
-const entries: Record<string, readonly string[]> = {
-  // The host for commands with no port, and its process form: like `serve`, they run before
-  // any scope exists, and own OS signals and the exit code.
-  "tinker/base/main-host.ts": ["createMainHost", "runMain"],
-  // The process panic hook: it must report even when the root's own close fails.
-  "tinker/base/panics.server.ts": ["observeServerPanics"],
-  "tinker/base/telemetry-worker.ts": [
-    // The worker thread's inputs: read from `workerData` before its root exists.
-    "telemetryWorkerInput",
-    // The worker's native loop beside its root (ring, port, close). It traces nothing: a span
-    // here would feed the telemetry it drains. `ringLines` and `takeLines` are its two steps.
-    "serveTelemetryWorker",
-    "ringLines",
-    "takeLines",
-  ],
-  // Definitions: each runs at module load, before any scope exists, and makes the units its
-  // capsules install (one capsule per definition, or a client and a server per transport).
-  "tinker/components/rpc/index.ts": ["rpc", "bytes"],
-  "tinker/components/remote-data/index.ts": ["remoteData"],
-  "tinker/components/ws/index.ts": ["createWs"],
-  "tinker/components/ws/index.server.ts": ["createWs"],
-  "tinker/components/memory/index.ts": ["createMemory"],
-};
 
 type Fn =
   | ts.FunctionDeclaration
@@ -92,6 +33,7 @@ type Fn =
  * file they come from), the `defineMain` it imports, its hooks objects, and its top-level consts.
  */
 type File = {
+  pass: Pass;
   path: string;
   source: ts.SourceFile;
   core: Map<string, string>;
@@ -102,11 +44,12 @@ type File = {
   consts: Map<string, ts.Expression>;
 };
 
-const root = resolve(Bun.argv[2] ?? join(import.meta.dir, ".."));
-const verdicts = new Map<ts.Node, boolean>();
-
-/** Every scanned file, by its path without the extension. */
-const files = new Map<string, File>();
+/** What one run shares: every file by its path without the extension, and each verdict once. */
+type Pass = {
+  files: Map<string, File>;
+  verdicts: Map<ts.Node, boolean>;
+  entries: Check.Entries;
+};
 
 function isFn(node: ts.Node): node is Fn {
   return (
@@ -228,7 +171,7 @@ function spreadRoot(array: ts.ArrayLiteralExpression) {
   const roots = array.elements.map((item) =>
     ts.isSpreadElement(item) ? calleeRoot(item.expression) : undefined,
   );
-  const first = roots[0];
+  const [first] = roots;
   return first && roots.every((root) => root === first) ? first : undefined;
 }
 
@@ -252,11 +195,11 @@ function stem(path: string) {
  * value (a Proxy returns its app target). Only the ones the app uses; add one with its reason.
  */
 const platformNames = new Set([
-  // A stream source: the stream calls `start`, `pull` and `cancel`.
+  /** A stream source: the stream calls `start`, `pull` and `cancel`. */
   "ReadableStream",
-  // A proxy handler: the proxy calls its traps (`get`, `set`, ...).
+  /** A proxy handler: the proxy calls its traps (`get`, `set`, ...). */
   "Proxy",
-  // A stream step: the stream calls `transform` and `flush`.
+  /** A stream step: the stream calls `transform` and `flush`. */
   "TransformStream",
 ]);
 
@@ -284,7 +227,8 @@ function libraryValue(file: File, name: string, depth = 0): boolean {
 
 function importedValue(file: File, name: string, depth: number) {
   const from = file.app.get(name);
-  const target = from && (files.get(from.from) ?? files.get(`${from.from}/index`));
+  const target =
+    from && (file.pass.files.get(from.from) ?? file.pass.files.get(`${from.from}/index`));
   return !!target && libraryValue(target, from.name, depth + 1);
 }
 
@@ -366,17 +310,20 @@ function moduleResource(file: File, name: string, depth = 0): boolean {
   if (value) return libraryResource(file, value);
 
   const from = file.app.get(name);
-  const target = from && (files.get(from.from) ?? files.get(`${from.from}/index`));
+  const target =
+    from && (file.pass.files.get(from.from) ?? file.pass.files.get(`${from.from}/index`));
   return !!target && moduleResource(target, from.name, depth + 1);
 }
 
-/** A `resource({ factory })` call whose factory returns `import("<package>")` on every return. */
+/**
+ * A `resource({ factory })` call whose factory returns `import("<package>")` on every return:
+ * one branch of app code makes the whole value app code.
+ */
 function libraryResource(file: File, value: ts.Node) {
   if (!ts.isCallExpression(value) || !ts.isIdentifier(value.expression)) return false;
   if (file.core.get(value.expression.text) !== "resource") return false;
 
-  // Every return must load a package: one branch of app code makes the whole value app code.
-  const factory = property(value.arguments[0], "factory");
+  const factory = property(value.arguments.at(0), "factory");
   const returns = factory && isFn(factory) ? returnsOf(factory) : [];
   return returns.length > 0 && returns.every(importsLibrary);
 }
@@ -573,8 +520,7 @@ function callbackCall(file: File, call: ts.CallExpression | ts.NewExpression) {
 }
 
 function exempt(file: File, name: string) {
-  const home = name in exemptNames ? exemptNames[name] : null;
-  return home === undefined || home === file.path || !!entries[file.path]?.includes(name);
+  return name === "cn" || Object.hasOwn(file.pass.entries[file.path] ?? {}, name);
 }
 
 function judge(file: File, fn: Fn) {
@@ -592,6 +538,7 @@ function judge(file: File, fn: Fn) {
 }
 
 function passes(file: File, fn: Fn): boolean {
+  const verdicts = file.pass.verdicts;
   if (!verdicts.has(fn)) verdicts.set(fn, judge(file, fn));
   return verdicts.get(fn)!;
 }
@@ -649,10 +596,11 @@ function readHooks(file: File, node: ts.Node) {
   }
 }
 
-function readFile(path: string, text: string): File {
+function readFile(pass: Pass, path: string, text: string): File {
   const kind = path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, kind);
   const file: File = {
+    pass,
     path,
     source,
     core: new Map(),
@@ -671,26 +619,40 @@ function readFile(path: string, text: string): File {
   return file;
 }
 
-function check(file: File) {
-  const hits: string[] = [];
+function check(file: File): Check.Finding[] {
+  const hits: Check.Finding[] = [];
   walk(file.source, (node) => {
     if (!isFn(node) || !node.body || passes(file, node)) return;
     const line = file.source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-    hits.push(`${file.path}:${line}: plain-function: make it an operation`);
+    hits.push({ path: file.path, line, rule: "tinker/plain", what: "a plain function" });
   });
   return hits;
 }
 
-const paths = [...new Bun.Glob("{src,cmds,tinker}/**/*.{ts,tsx,mts,cts}").scanSync({ cwd: root })]
-  .filter((path) => !/\.d\.[mc]?ts$/.test(path))
-  .sort();
+/**
+ * The plain-function check (Duke 2026-10-31, tinker-app #44). App code has no plain helper
+ * functions: every named function is an operation, so every call is a span and its dependencies
+ * come through the graph. It reads the syntax tree only, no types.
+ *
+ * A function passes when it is one of these:
+ * - inline: no name of its own, written where it is used: a JSX attribute, a returned value, or
+ *   an argument of a call inside a function, a Core call, `defineMain`, a library call, or an
+ *   event registration. An IIFE, `Object.freeze(() => 1)` at the top level, or a function in an
+ *   array bound to a name is not inline;
+ * - a graph body: a direct option of a Core `operation`, `resource`, `tag` or `data`, or a hook
+ *   of a capsule (in `capsule({ hooks })`, or in an object typed `Capsule.Hooks`);
+ * - a native option: inside the options of a library call (`Bun.serve`, `createRoute`, ...).
+ *   A library may come through a module resource (a Core `resource` whose factory returns
+ *   `import("<package>")`): `depends: { x: thatResource }`, then `x.f({...})`,
+ *   `const { f } = x; f({...})` or `new x.C({...})`;
+ * - owned: named inside a passing function that returns it or hands it to a call;
+ * - a listener: a top-level function handed to an event registration (`addEventListener`, ...);
+ * - a React component: a capitalized function in a .tsx file that returns JSX;
+ * - exempt: `cn` anywhere (shadcn's registry imports it), or an item of the app's `entries`.
+ */
+export function findPlain(sources: readonly Check.Source[], entries: Check.Entries) {
+  const pass: Pass = { files: new Map(), verdicts: new Map(), entries };
+  for (const { path, text } of sources) pass.files.set(stem(path), readFile(pass, path, text));
 
-for (const path of paths) {
-  files.set(stem(path), readFile(path, await Bun.file(join(root, path)).text()));
+  return [...pass.files.values()].flatMap(check);
 }
-
-const hits = [...files.values()].flatMap(check);
-
-for (const hit of hits) console.error(hit);
-if (hits.length) process.exit(1);
-console.log(`plain functions: none in ${paths.length} files`);

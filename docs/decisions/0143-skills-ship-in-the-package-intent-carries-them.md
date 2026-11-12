@@ -81,7 +81,8 @@ skills` runs it, and CI runs that. Each `ts`
    the rule id and the skill to read next
    (`@tinker/core#core/operation`). The checks
    live in the app template today, so that work
-   is its own card.
+   is its own card. (Built as a package:
+   ADR 0145.)
 6. **The bump stamps the version.**
    `scripts/bump.mjs` writes the new version to
    each skill's `library_version`. So

@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
-const repo = resolve(import.meta.dirname, "../..");
-const rule = join(repo, "tools/lint/cell-write.mjs");
+const repo = resolve(import.meta.dirname, "../../..");
+const rule = join(repo, "packages/analyze/lint/cell-write.mjs");
 
 /** The oxlint that vite-plus runs: `vp lint` needs a workspace, and the fixture has none. */
 const vitePlus = createRequire(join(repo, "package.json")).resolve("vite-plus/package.json");

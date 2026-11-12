@@ -25,6 +25,7 @@ await test("a tag that does not match the tree names every problem", () => {
     `@tinker/core is ${version}, not 9.9.9`,
     `@tinker/react is ${version}, not 9.9.9`,
     `@tinker/bun is ${version}, not 9.9.9`,
+    `@tinker/analyze is ${version}, not 9.9.9`,
     'CHANGELOG.md has no "## 9.9.9" section',
   ]);
 });
