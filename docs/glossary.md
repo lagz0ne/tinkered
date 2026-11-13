@@ -38,8 +38,8 @@
 - **load (of a keyed cell)** — An op on the server that gives the members of a part from a store. Its input says which fields a part must have. With a load, the server keeps no member (ADR 0138).
 - **projector** — A reader of a store's notices that calls `invalidate` for each one (`docs/keyed-projector.md`).
 - **dependency mode** — How a dep is taken: **read** (bare `data` → the value) or **write** (`data.controller` → get/set/watch handle). A bare resource slot delivers its **built value** — never a promise (ADR 0044); a bare operation delivers a subflow.
-- **derivation** — An operation/resource writes a `data` cell (write-mode dep) that others watch; or a slice computes a value from its sources (ADR 0150, proposed).
-- **slice** — A unit that computes a value from its sources, declared once. It takes `config` as a capsule does; the call with values is the read, and its config is the key: one entry per key, shared by every reader (ADR 0150, proposed; the name is open).
+- **derivation** — An operation/resource writes a `data` cell (write-mode dep) that others watch; or a `derived` computes a value from its sources (ADR 0150).
+- **derived** — A unit that computes a value from its sources, declared once: `derived({ ... })`. It takes `config` as a capsule does; the call with values is the read, and its config is the key: one entry per key, shared by every reader. With no config the bare unit reads (ADR 0150).
 - **operation (command)** — An action run on demand, with typed input, dependencies, and a result.
 - **resource** — A reusable value built once per owner, with cleanup tied to its lifetime.
 - **defer** — `ctx.defer((end) => ...)` on an operation or resource ctx: the one lifetime hook (replaced `cleanup`+`onOutcome`, ADR 0024). Runs in reverse-registration LIFO when the owning layer closes/releases; `end.status` (`success`/`failed`/`cancelled`/`released`) drives commit vs rollback.

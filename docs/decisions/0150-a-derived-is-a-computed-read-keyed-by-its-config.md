@@ -1,7 +1,7 @@
-# 0150 A slice is a computed read, keyed by its config
+# 0150 A derived is a computed read, keyed by its config
 
-Date: 2026-11-13. Status: proposed (Duke picked
-each part, 04:10 to 07:32 UTC; not built).
+Date: 2026-11-13. Status: accepted (Duke picked
+each part, 04:10 to 07:40 UTC); not built.
 Changes: the glossary row "derivation".
 
 ## What the user said
@@ -22,6 +22,9 @@ like capsule? So that'll be a parameterized one".
 
 Duke, 07:32: "we'll stay small firstly then expand
 as needed".
+
+Duke, 07:40: "A is fine. the config can also be
+empty, right?"
 
 ## Context
 
@@ -58,12 +61,21 @@ keeps one result per cell value.
 
 ## Decision
 
-1. **A slice is a unit.** It is declared once at
-   module level, like data or an operation.
+1. **A derived is a unit.** It is declared once at
+   module level, like data or an operation. The
+   maker is `derived({ ... })` (Svelte `derived`,
+   Jotai's derived atom).
 2. **It declares `config`, as a capsule does.**
    Each key is a tag, `.required` or with a
    default. Core types the call from them.
-3. **The call is the read.**
+3. **The call is the read.** With no config, or
+   only keys with a default, the bare unit reads
+   too, as a capsule with no config installs
+   uncalled: `useData(total)` is
+   `useData(total())`. Its key is its defaults,
+   `{}` with no config: one entry for the scope.
+
+   With config:
 
    ```ts
    const view = useData(
@@ -101,11 +113,11 @@ keeps one result per cell value.
    watched. A resource value is fixed until it
    builds again.
 8. **A config key may hold a slot.** A slot holds
-   a unit the slice reads: a cell, a read, a
+   a unit the derived reads: a cell, a read, a
    capsule export, or a resource. Core keys a unit
    by a number it gives once. A unit is declared
    once (ADR 0057), so the number is stable.
-9. **No operation in a slot.** A slice computes.
+9. **No operation in a slot.** A derived computes.
    It does not act. The work it does is an op it
    names in `depends`.
 10. **A slot is read, not owned.** It is delivered
@@ -116,19 +128,18 @@ keeps one result per cell value.
 11. **A library with state joins by its adapter.**
     A resource builds the library object and writes
     its changes to a cell. `ctx.defer` ends it. The
-    slice reads the cell.
+    derived reads the cell.
 
 ## Where ours is simpler
 
 - No `get` with run-time tracking, as Jotai has.
   The sources are known from code.
 - No new key rule. The keyed-data key is reused.
-- No new hook. `useData` reads a slice as it
+- No new hook. `useData` reads a derived as it
   reads a keyed part.
 
 ## Not decided
 
-- **The name.** `slice` is a placeholder.
 - **Op slots.** Left out for now. Add one when a
   real case needs it.
 - **Size.** Core is at its size cap. The build
