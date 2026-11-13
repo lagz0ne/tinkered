@@ -10,6 +10,7 @@ import {
   resource,
   tag,
   type Data,
+  type Operation,
 } from "@/main";
 
 type Pr = { viewer: string; id: string; amount: number };
@@ -167,17 +168,74 @@ test("a slot keys the entry by its unit and is delivered as a depends slot", asy
   stop();
 });
 
-test("an operation in a slot raises InvalidKey", async () => {
+test("an operation in a slot is a caller, and each operation is its own entry", async () => {
   const scope = seeded();
-  const source = tag<unknown>({ label: "derived.op-slot" });
+  const runs = { count: 0 };
+  const score = tag<Operation.Handle<number, number>>({ label: "derived.score" });
+  const byTen = operation({
+    label: "derived.byTen",
+    input: (raw: unknown) => raw as number,
+    run: (_deps, ctx) => {
+      runs.count++;
+      return ctx.input * 10;
+    },
+  });
+  const byTwo = operation({
+    label: "derived.byTwo",
+    input: (raw: unknown) => raw as number,
+    run: (_deps, ctx) => ctx.input * 2,
+  });
+  const scored = derived({
+    label: "derived.scored",
+    config: { score: score.required },
+    depends: (c) => ({ rate, score: c.score }),
+    factory: ({ rate, score }) => score.run({ input: rate }),
+  });
+
+  const tens = scope.resolve(scored({ score: byTen }));
+  expect(runs.count).toBe(0);
+
+  expect(tens.get()).toBe(10);
+  expect(scope.resolve(scored({ score: byTen }))).toBe(tens);
+  expect(scope.resolve(scored({ score: byTwo }))).not.toBe(tens);
+  expect(scope.resolve(scored({ score: byTwo })).get()).toBe(2);
+  expect(runs.count).toBe(1);
+});
+
+test("an operation in a slot that writes a cell makes the entry a fault", async () => {
+  const scope = seeded();
+  const save = tag<Operation.Handle<number, void>>({ label: "derived.save" });
+  const bump = operation({
+    label: "derived.bump",
+    depends: { rate: rate.controller },
+    run: ({ rate }) => {
+      rate.set(rate.get() + 1);
+      return 0;
+    },
+  });
+  const saved = derived({
+    label: "derived.saved",
+    config: { save: save.required },
+    depends: (c) => ({ rate, save: c.save }),
+    factory: ({ rate, save }) => rate + save.run(),
+  });
+
+  const read = () => scope.resolve(saved({ save: bump })).get();
+
+  expect(read).toThrow(expect.objectContaining({ kind: "WriteInDerived" }));
+  expect(scope.controller(rate).get()).toBe(1);
+});
+
+test("a config value that is no unit raises InvalidKey", async () => {
+  const scope = seeded();
+  const source = tag<unknown>({ label: "derived.bad-slot" });
   const bad = derived({
     label: "derived.bad",
     config: { source: source.required },
     factory: () => 0,
   });
-  const op = operation({ label: "derived.op", run: () => 1 });
 
-  const read = () => scope.resolve(bad({ source: op }));
+  const read = () => scope.resolve(bad({ source: { any: "object" } }));
 
   expect(read).toThrow(expect.objectContaining({ kind: "InvalidKey" }));
 });

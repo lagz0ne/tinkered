@@ -95,12 +95,15 @@ operation") and a list (`tag.all`).
 - No second container. The tag is the interface,
   the cmd's call is the binding.
 
+## Decided after
+
+- **An operation in a derived slot.** Allowed
+  (Duke, 10:17 UTC: "Yes"). See ADR 0150, point 9.
+  A write in it raises `WriteInDerived` (ADR
+  0152).
+
 ## Not decided
 
-- **An operation in a derived slot.** A derived
-  computes again on each change. An op that writes
-  can loop. Core could refuse an op whose `depends`
-  hold a write edge.
 - **A list in a derived key.** Order counts:
   `[a, b]` and `[b, a]` are two entries.
 

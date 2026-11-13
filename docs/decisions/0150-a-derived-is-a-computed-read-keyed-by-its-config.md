@@ -117,9 +117,29 @@ keeps one result per cell value.
    capsule export, or a resource. Core keys a unit
    by a number it gives once. A unit is declared
    once (ADR 0057), so the number is stable.
-9. **No operation in a slot.** A derived computes.
-   It does not act. The work it does is an op it
-   names in `depends`.
+9. **An operation in a slot is a caller.** Changed
+   2026-11-13 (Duke, 10:17 UTC: "Yes"). First rule:
+   no operation in a slot. That rule guarded
+   nothing: the same op could go in `depends`.
+   Now the slot gives the op as `depends` does: a
+   thing to call. It runs only when the factory
+   calls it. A derived still computes and does not
+   act: an op that writes a cell raises
+   `WriteInDerived` (ADR 0152, point 7).
+
+   ```ts
+   const score = tag<Operation.Handle<Pr, number>>(
+     { label: "prs.score" });
+   const ranked = derived({
+     label: "prs.ranked",
+     config: { score: score.required },
+     depends: (c) => ({ rows, score: c.score }),
+     factory: ({ rows, score }) =>
+       rows.map((pr) => score.run({ input: pr })),
+   });
+   useData(ranked({ score: byAmount }));
+   ```
+
 10. **A slot is read, not owned.** It is delivered
     as a `depends` slot (ADR 0044). A pending build
     waits, and `useData` suspends (ADR 0032). A
@@ -140,8 +160,8 @@ keeps one result per cell value.
 
 ## Not decided
 
-- **Op slots.** Left out for now. Add one when a
-  real case needs it.
+- **A list in a key.** Order counts: `[a, b]` and
+  `[b, a]` are two entries.
 - **Size.** Core is at its size cap. The build
   measures the cost.
 
