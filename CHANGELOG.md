@@ -6,6 +6,37 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.21.2
+
+A write made while watchers hear another write
+now waits its turn (ADR 0152). Each watcher hears
+writes in the order they were made.
+
+- A chain of writes deeper than 100 raises
+  `UpdateDepth`. It names the last cells written.
+  Before, a derived that wrote its own source
+  looped about 2,900 times and kept a wrong value.
+- A cell write inside a derived's factory raises
+  `WriteInDerived`.
+- A watcher that throws ends only its own round.
+  The first error goes to the first write.
+- A derived slot may hold an operation (ADR 0150,
+  point 9). The factory gets a caller.
+- A plain write allocates nothing new: on the bench
+  `write` and the standard ten show no difference
+  from 0.21.1.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.21.2 \
+  @tinkered/react@0.21.2 \
+  @tinkered/bun@0.21.2
+bun add -d @tinkered/analyze@0.21.2
+```
+
 ## 0.21.1
 
 `tinker/plain` reads a derived's `depends` and
