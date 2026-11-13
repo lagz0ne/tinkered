@@ -8480,12 +8480,18 @@ function valueOf(label: string, field: string, entry: Scope.ConfigEntry, given: 
   return value;
 }
 
+/** Whether a config value is a unit a derived slot takes whole: a cell, a resource, a capsule
+ * export, an operation. */
+const isSlotUnit = (value: unknown): value is object =>
+  isData(value) || isResource(value) || isReader(value) || isOperation(value);
+
 /** A config value as key (ADR 0150, decisions 4, 8, 9): a string or a number as is; a slot (a
- * cell, a capsule export, a resource) as its unit's number; a keyed read as its cell's number
- * and its part. Anything else, an operation too, raises `InvalidKey`. */
+ * cell, a capsule export, a resource, an operation) as its unit's number; a keyed read as its
+ * cell's number and its part. Anything else raises `InvalidKey`. An operation is a caller: the
+ * factory may call it, and a cell write in it raises `WriteInDerived` (ADR 0152). */
 function partOf(label: string, field: string, value: unknown): unknown {
   if (typeof value === "string" || typeof value === "number") return value;
-  if (isData(value) || isResource(value) || isReader(value)) return [idOf(value)];
+  if (isSlotUnit(value)) return [idOf(value)];
   if (!isEdge(value) || value.kind !== "read") return raise("InvalidKey", { label, field });
 
   const read = value as unknown as Data.Read<unknown>;

@@ -145,7 +145,7 @@ Branch `claude/project-thread-ph7ce7`.
 
 ## Not decided
 
-- **An op in a derived slot.** The loop was the
-  reason to refuse it (ADR 0150, point 9). With
-  point 7 the reason is gone.
+- **An op in a derived slot.** Decided after:
+  allowed (Duke, 10:17 UTC: "Yes"). ADR 0150,
+  point 9 has the rule and its test.
 - **The limit as a setting.** It is fixed at 100.

@@ -81,7 +81,7 @@ None.
 
 ## Review
 
-- **core/rounds** — ADR 0152. Owner: the design thread for derived; the lead lands it on the box. Branch `claude/project-thread-ph7ce7`: a write in a round waits for the round, `UpdateDepth` past depth 100, `WriteInDerived`. Seen: Core 1,358 tests, React 120 tests, `vp check` 0 errors, 10 of 19 new tests fail without the fix; size core 22,104 -> 22,363 B gzip. Next: `bench/queued.sh` against 0.21.1 (the write path is hot), Core's mutation lane, `vp run skills`, then release.
+- **core/rounds** — ADR 0152. Owner: the design thread for derived; the lead lands it on the box. Branch `claude/project-thread-ph7ce7`: a write in a round waits for the round, `UpdateDepth` past depth 100, `WriteInDerived`. A second commit on it lets a derived slot hold an operation (ADR 0150, point 9). Seen: Core 1,360 tests, React 120 tests, `vp check` 0 errors, 10 of 19 new tests fail without the fix; size core 22,104 -> 22,377 B gzip. Next: `bench/queued.sh` against 0.21.1 (the write path is hot), Core's mutation lane, `vp run skills`, then release.
   Verify: `vp test tests/rounds.test.ts` in `packages/core`; the bench verdict on this card.
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.

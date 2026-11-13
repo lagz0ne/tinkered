@@ -135,8 +135,11 @@ const read = count({ room: "a" });
   gives a reader. React reads it with `useData`.
 - It computes again only when a source changed.
 - A config value is a string, a number, or a
-  slot: a cell, a read, a capsule export, or a
-  resource. Never an operation.
+  slot: a cell, a read, a capsule export, a
+  resource, or an operation.
+- An operation in a slot is a caller. It runs
+  only when the factory calls it. It must not
+  write a cell: that raises `WriteInDerived`.
 - With no required key, the bare unit reads too.
 - The last reader leaves, and the entry goes.
 
