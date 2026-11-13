@@ -1871,59 +1871,6 @@ function writeCell<T>(
   tell(target.label, () => flushCell(layer, target));
 }
 
-/** The label of the derived whose factory runs now (ADR 0152): a cell write raises while it is
- * set. */
-let computing: string | undefined;
-
-/** One round: the watchers of one write, told together. `depth` counts the writes that led to
- * it, so a watcher that writes 200 cells makes 200 rounds of one depth. */
-type Round = { readonly label: string; readonly depth: number; readonly run: () => void };
-
-/** The rounds that wait while a round runs, and the depth of the one that runs (ADR 0152). */
-let rounds: Round[] | undefined;
-let roundDepth = 0;
-
-/** The deepest chain of writes one write may set off: Vue's limit for one job. */
-const ROUND_LIMIT = 100;
-
-/** Tell the watchers of a write (ADR 0152). A write made while a round runs keeps its value at
- * once, and its own round waits until the rounds before it are over: each watcher hears the
- * writes in the order they were made (Svelte's subscriber queue). A chain deeper than the limit
- * raises `UpdateDepth` at the first write. A watcher that throws ends its own round only: the
- * rounds that wait still run, then the first error goes to the first write. */
-function tell(label: string, run: () => void): void {
-  if (rounds !== undefined) {
-    rounds.push({ label, depth: roundDepth + 1, run });
-    return;
-  }
-
-  const queue: Round[] = (rounds = [{ label, depth: 0, run }]);
-  let failed: { readonly error: unknown } | undefined;
-  try {
-    for (let at = 0; at < queue.length; at++) {
-      const next = queue[at] as Round;
-      if (next.depth > ROUND_LIMIT) tooDeep(queue, at);
-
-      roundDepth = next.depth;
-      try {
-        next.run();
-      } catch (error) {
-        failed ??= { error };
-      }
-    }
-  } finally {
-    rounds = undefined;
-    roundDepth = 0;
-  }
-  if (failed !== undefined) throw failed.error;
-}
-
-/** The chain of writes is deeper than the limit: name the last cells written, oldest first. */
-function tooDeep(queue: readonly Round[], at: number): never {
-  const cells = queue.slice(Math.max(0, at - 7), at + 1).map((each) => each.label);
-  return raise("UpdateDepth", { depth: (queue[at] as Round).depth, cells });
-}
-
 /** A namespaced write lands at `(this layer, first key)` (ADR 0059 decision 3), seeded from the
  * current effective value (write-what-differs). The default bucket and its watchers are untouched;
  * namespaced watchers below this layer re-resolve their own chains. */
@@ -8694,4 +8641,57 @@ class DerivedEntry implements Data.Reader<unknown> {
     this.toldFault = fault;
     for (const watcher of this.watchers) watcher.fn(this.value, prev);
   }
+}
+
+/** The label of the derived whose factory runs now (ADR 0152): a cell write raises while it is
+ * set. */
+let computing: string | undefined;
+
+/** One round: the watchers of one write, told together. `depth` counts the writes that led to
+ * it, so a watcher that writes 200 cells makes 200 rounds of one depth. */
+type Round = { readonly label: string; readonly depth: number; readonly run: () => void };
+
+/** The rounds that wait while a round runs, and the depth of the one that runs (ADR 0152). */
+let rounds: Round[] | undefined;
+let roundDepth = 0;
+
+/** The deepest chain of writes one write may set off: Vue's limit for one job. */
+const ROUND_LIMIT = 100;
+
+/** Tell the watchers of a write (ADR 0152). A write made while a round runs keeps its value at
+ * once, and its own round waits until the rounds before it are over: each watcher hears the
+ * writes in the order they were made (Svelte's subscriber queue). A chain deeper than the limit
+ * raises `UpdateDepth` at the first write. A watcher that throws ends its own round only: the
+ * rounds that wait still run, then the first error goes to the first write. */
+function tell(label: string, run: () => void): void {
+  if (rounds !== undefined) {
+    rounds.push({ label, depth: roundDepth + 1, run });
+    return;
+  }
+
+  const queue: Round[] = (rounds = [{ label, depth: 0, run }]);
+  let failed: { readonly error: unknown } | undefined;
+  try {
+    for (let at = 0; at < queue.length; at++) {
+      const next = queue[at] as Round;
+      if (next.depth > ROUND_LIMIT) tooDeep(queue, at);
+
+      roundDepth = next.depth;
+      try {
+        next.run();
+      } catch (error) {
+        failed ??= { error };
+      }
+    }
+  } finally {
+    rounds = undefined;
+    roundDepth = 0;
+  }
+  if (failed !== undefined) throw failed.error;
+}
+
+/** The chain of writes is deeper than the limit: name the last cells written, oldest first. */
+function tooDeep(queue: readonly Round[], at: number): never {
+  const cells = queue.slice(Math.max(0, at - 7), at + 1).map((each) => each.label);
+  return raise("UpdateDepth", { depth: (queue[at] as Round).depth, cells });
 }
