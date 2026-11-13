@@ -6,6 +6,52 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.22.0
+
+A unit that depends on a slot tag now gets what
+it would get from the unit in that slot
+(ADR 0151). Before, it got the handle.
+
+- A resource in a slot arrives built. An async one
+  waits before the body runs.
+- A cell in a slot arrives as its value.
+- An operation in a slot arrives as a subflow.
+- `.all` and `.optional` give each unit the same
+  way, in the order the tag holds them.
+- `tag.controller` gives the controller of the cell
+  or operation in the slot.
+- A resource that reads a slot rebuilds when the
+  resource in the slot is released.
+- `scope.resolve(tag)` and a start hook's config
+  still read the handle as bound.
+- A list or record inside one tag value stays as
+  bound.
+
+```ts
+const store = tag<Resource.Handle<Db>>({
+  label: "store",
+});
+const rows = operation({
+  label: "rows",
+  depends: { store },
+  run: ({ store }) => store.all(),
+});
+```
+
+### Speed
+
+- An operation that reads a slot: 3.5 to 6% faster.
+- An inline `scope.run({ depends, run })`: 3.8%
+  slower. It checks its depends on each call.
+
+### Upgrade
+
+- Code that read a slot in `depends` and then
+  resolved the handle by hand now gets the value.
+  Drop the extra step.
+- A slot that held a cell only to pass a resource
+  can hold the resource now.
+
 ## 0.21.3
 
 Two services with one address now fail the start

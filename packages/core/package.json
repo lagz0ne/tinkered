@@ -1,6 +1,6 @@
 {
   "name": "@tinkered/core",
-  "version": "0.21.3",
+  "version": "0.22.0",
   "description": "Tinkered core: a small, fast reactive/graph dependency engine.",
   "keywords": [
     "tanstack-intent"
