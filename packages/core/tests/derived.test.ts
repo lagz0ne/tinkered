@@ -1,6 +1,16 @@
 import { expect, expectTypeOf, test } from "vite-plus/test";
 
-import { createScope, data, derived, operation, resource, tag, type Data } from "@/main";
+import {
+  capsule,
+  createScope,
+  data,
+  derived,
+  isError,
+  operation,
+  resource,
+  tag,
+  type Data,
+} from "@/main";
 
 type Pr = { viewer: string; id: string; amount: number };
 
@@ -399,4 +409,133 @@ test("a config value that is not a string, a number or a slot raises InvalidKey"
       expect.objectContaining({ kind: expect.stringMatching(/InvalidKey|MissingConfig/) }),
     );
   }
+});
+
+const caught = (fn: () => unknown): unknown => {
+  try {
+    fn();
+  } catch (error) {
+    return error;
+  }
+  return undefined;
+};
+
+test("a number in the config is a key, and a default fills an optional key", () => {
+  const scope = seeded();
+  const step = tag<number>({ label: "derived.step" });
+  const scaled = derived({
+    label: "derived.scaled",
+    config: { step: step.required, mode: mode.optional },
+    depends: { rate },
+    factory: ({ rate }, c) => `${c.mode}:${rate * c.step}`,
+  });
+
+  const two = scope.resolve(scaled({ step: 2 }));
+  const three = scope.resolve(scaled({ step: 3 }));
+
+  expect(two).not.toBe(three);
+  expect([two.get(), three.get()]).toEqual(["sum:2", "sum:3"]);
+});
+
+test("a key error names the derived and the key", () => {
+  const scope = seeded();
+  const { total } = counted();
+  const flag = tag<unknown>({ label: "derived.flag2" });
+  const odd = derived({ label: "derived.odd2", config: { flag: flag.required }, factory: () => 0 });
+
+  const missing = caught(() => scope.resolve(total({ viewer: undefined })));
+  const invalid = caught(() => scope.resolve(odd({ flag: viewer.required })));
+
+  expect(isError(missing, "MissingConfig") && missing.payload).toEqual({
+    label: "derived.total",
+    key: "viewer",
+  });
+  expect(isError(invalid, "InvalidKey") && invalid.payload).toEqual({
+    label: "derived.odd2",
+    field: "flag",
+  });
+});
+
+test("a tag, an operation and a controller in depends are delivered fixed", () => {
+  const scope = createScope({ tags: [viewer("z")] });
+  const double = operation({
+    label: "derived.double",
+    input: (n: unknown) => n as number,
+    run: (_, { input }) => input * 2,
+  });
+  const fixed = derived({
+    label: "derived.fixed",
+    depends: { who: viewer, double, rate: rate.controller },
+    factory: ({ who, double, rate }) => `${who}:${double.run({ input: rate.get() })}`,
+  });
+
+  const reader = scope.resolve(fixed);
+
+  expect(reader.get()).toBe("z:2");
+});
+
+test("a capsule's cell export is a watched source", async () => {
+  const shared = capsule({ label: "derived.cap", exports: { rate } });
+  const scope = await createScope({ capsules: [shared] }).ready;
+  const viaView = derived({
+    label: "derived.view",
+    depends: { r: shared.rate },
+    factory: ({ r }) => r.get() + 1,
+  });
+  const reader = scope.resolve(viaView);
+  const heard: unknown[] = [];
+  const stop = reader.watch((next) => heard.push(next));
+
+  scope.controller(rate).set(5);
+
+  expect(heard).toEqual([6]);
+  stop();
+});
+
+test("a pending entry throws the same wait each read", () => {
+  const scope = createScope();
+  const slow = resource({
+    label: "derived.slow2",
+    factory: () => new Promise<number>(() => undefined),
+  });
+  const plus = derived({ label: "derived.plus2", depends: { slow }, factory: ({ slow }) => slow });
+  const reader = scope.resolve(plus);
+
+  const first = caught(() => reader.get());
+  const second = caught(() => reader.get());
+
+  expect(first).toBeInstanceOf(Promise);
+  expect(second).toBe(first);
+});
+
+test("a stop called twice leaves the other watcher", () => {
+  const scope = seeded();
+  const { total } = counted();
+  const reader = scope.resolve(total({ viewer: "a" }));
+  const heard: unknown[] = [];
+  const stopOne = reader.watch(() => undefined);
+  const stopTwo = reader.watch((next) => heard.push(next));
+
+  stopOne();
+  stopOne();
+  scope.controller(rate).set(2);
+
+  expect(heard).toEqual([10]);
+  expect(scope.resolve(total({ viewer: "a" }))).toBe(reader);
+  stopTwo();
+});
+
+test("an old entry that leaves again does not drop the new one", () => {
+  const scope = seeded();
+  const { total } = counted();
+  const old = scope.resolve(total({ viewer: "a" }));
+  old.watch(() => undefined)();
+  const fresh = scope.resolve(total({ viewer: "a" }));
+  const stop = fresh.watch(() => undefined);
+
+  old.watch(() => undefined)();
+
+  expect(fresh).not.toBe(old);
+  expect(scope.resolve(total({ viewer: "a" }))).toBe(fresh);
+  stop();
 });

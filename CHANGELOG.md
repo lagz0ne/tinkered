@@ -6,6 +6,63 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.21.0
+
+Core has `derived`: a computed read, keyed by
+its config (ADR 0150). It replaces a `useMemo`
+that keeps a slice stable. React reads it with
+`useData`. Bun and analyze have no code change.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.21.0 \
+  @tinkered/react@0.21.0 \
+  @tinkered/bun@0.21.0
+bun add -d @tinkered/analyze@0.21.0
+```
+
+### Derived
+
+```ts
+const viewer = tag<string>({ label: "pr.viewer" });
+
+export const prView = derived({
+  label: "pr.view",
+  config: { viewer: viewer.required },
+  depends: (c) => ({
+    rows: prs.where({ viewer: c.viewer }),
+  }),
+  factory: ({ rows }) => rows.get().length,
+});
+
+const view = useData(prView({ viewer }));
+```
+
+- The config is the key: strings, finite
+  numbers, and slots (a cell, a read, a capsule
+  export, a resource). No operation.
+- Every reader of one config shares one entry.
+  The last watcher leaves, and the entry goes.
+- It computes again only when a source changed.
+- A pending resource suspends React. A failed
+  one is the entry's fault.
+- With no required key, the bare unit reads:
+  `useData(total)`.
+
+### Size
+
+Core grows by about 1 KiB gzip. The core cap
+rises by 1 KiB, to 22,528 B.
+
+### What to change in an app
+
+- Nothing is required.
+- A `useMemo` that keeps a slice stable can move
+  to a `derived`.
+
 ## 0.20.1
 
 A Workflow SDK flow file passes `tinker/plain`

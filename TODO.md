@@ -77,8 +77,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/derived** — ADR 0150. Owner: lead (thread "Build derived in Core"). `derived({ label, config, depends, factory })` in Core; `useData` reads it with no new hook. Next: build, then tests, size, release, then the app sites (acountee 7, Hedl 5).
-  Verify: tests for one compute per key, a new key leaves the old entry, a source write computes again, field order names one entry; `pnpm validate` size lane green, cost on this card.
+- **core/derived** — ADR 0150. Owner: lead (thread "Build derived in Core"). `derived({ label, config, depends, factory })` in Core; `useData` reads it with no new hook. Built: 19 Core tests, 2 React tests, one review round (Fable, 7 findings, 6 fixed; the self-cycle check is not built). Size: core 21,123 -> 22,159 B gzip; Duke raised both caps by 1 KiB. Mutation on the derived lines 90.86 (the full Core run takes ~4.5 h on this box). Next: release 0.21.0, then the app sites (acountee 7, Hedl 5).
+  Verify: mutation >= 85 on the landed commit; the release is on npm.
 
 ## Review
 
