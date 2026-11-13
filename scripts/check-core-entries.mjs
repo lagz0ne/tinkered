@@ -68,7 +68,8 @@ assert.equal(rpcChunks.length, 1, "rpc and remoteData must sit in one chunk of t
 const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // Keyed data (ADR 0135 to 0138) raised the core cap by 1 KiB: a second mode of `data`.
 // derived (ADR 0150) raised it by 1 KiB more (Duke 2026-11-13).
-const coreCap = 22528;
+// A slot that arrives as its value (ADR 0151) raised it by 256 B (Duke 2026-11-13: "Can increase a little bit").
+const coreCap = 22784;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
 // derived (ADR 0150) raised this cap by 1 KiB too.

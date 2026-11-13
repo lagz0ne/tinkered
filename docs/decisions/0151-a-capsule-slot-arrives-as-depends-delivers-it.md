@@ -1,8 +1,9 @@
 # 0151 A capsule slot arrives as `depends` delivers it
 
-Date: 2026-11-13. Status: proposed (points 1 and
-2 accepted by Duke, 08:21 and 08:23 UTC; not
-built).
+Date: 2026-11-13. Status: accepted (points 1 and
+2 by Duke, 08:21 and 08:23 UTC). Built
+2026-11-13; the Core cap rose 256 B for it (Duke,
+13:41 UTC: "Can increase a little bit").
 Changes: ADR 0120, 0121 (slot keys). Matches ADR
 0150 (a derived slot).
 

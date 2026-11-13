@@ -569,6 +569,24 @@ The library builds the held unit in its own start, through the scope.
 A unit that reads the start value sees the instance the scope built, not a copy.
 So a preset on that unit reaches every reader of it.
 
+A unit that depends on a slot tag gets what the held unit gives in `depends` (ADR 0151):
+
+- a resource: its built value;
+- an operation: a subflow to call;
+- a cell: its value; `tag.controller` gives its controller;
+- `tag.all`: each item the same way.
+
+```ts
+const whoami = operation({
+  label: "app.whoami",
+  depends: { store: storeSlot },
+  run: ({ store }) => store.id,
+});
+```
+
+`scope.resolve(tag)` and a start hook's `config` still give the handle.
+A list or record inside one tag's value stays as bound.
+
 Core adds no owner mark on config tags. A library's index does not export them, so the app uses
 the library through its capsule.
 
@@ -1716,6 +1734,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   one tag per item and reads every binding last first.
 - A slot key holds a resource or an operation, which the library resolves through the scope, so a
   preset on the held unit reaches its readers.
+- A unit that depends on a slot tag gets what the held unit gives in `depends`; `scope.resolve` and a
+  start hook's `config` keep the handle (ADR 0151).
 - A run hook sees every call and passes it through unchanged; a start or run hook that skips `next`
   short-circuits: inner starts never run, the refused body never runs.
 - `update(fn)` runs through the write chain with the computed value; the cell controller is cached

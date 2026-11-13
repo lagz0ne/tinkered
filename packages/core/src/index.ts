@@ -200,6 +200,11 @@ export declare namespace Tag {
     readonly required: Edge<"required", Handle<T>>;
     readonly optional: Edge<"optional", Handle<T>>;
     readonly all: Edge<"all", Handle<T>>;
+    /** The controller of the cell or operation the slot holds (ADR 0151, point 2). A resource
+     * has none, as a bare resource has none. */
+    readonly controller: T extends Data.Cell<unknown> | Operation.Handle<unknown, unknown>
+      ? Edge<"controller", T>
+      : never;
     (value: T): Binding<T>;
   };
 
@@ -620,7 +625,7 @@ export declare namespace Scope {
   /** Maps one declared dependency to the value delivered in `deps` — exact, no casts in userland.
    * A bare operation is a subflow (a callable controller); a bare resource is its built instance;
    * a bare capsule is its settled start value (ADR 0051: what `scope.resolve(capsule)` returns). */
-  export type SlotValue<D> =
+  export type SlotValue<D, Raw extends boolean = false> =
     D extends Data.View<infer T>
       ? Data.Reader<T>
       : D extends Data.Read<infer T>
@@ -634,13 +639,13 @@ export declare namespace Scope {
                 ? OperationController<T, I>
                 : never
           : D extends Edge<"all", Tag.Handle<infer T>>
-            ? T[]
+            ? Held<T, Raw>[]
             : D extends Edge<"optional", Tag.Handle<infer T>>
-              ? Tag.Presence<T>
+              ? Tag.Presence<Held<T, Raw>>
               : D extends Edge<"required", Tag.Handle<infer T>>
-                ? T
+                ? Held<T, Raw>
                 : D extends Tag.Handle<infer T>
-                  ? T
+                  ? Held<T, Raw>
                   : D extends Data.Cell<infer T>
                     ? T
                     : D extends Operation.Handle<infer T, infer I>
@@ -652,6 +657,19 @@ export declare namespace Scope {
                           : never;
 
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
+
+  /** A tag's value as a slot holds it (ADR 0151): a unit in it arrives as `depends` delivers that
+   * unit; any other value as is. `Raw` keeps the handle, as a start hook's config reads it. */
+  export type Held<T, Raw extends boolean = false> = Raw extends true
+    ? T
+    : T extends
+          | Data.View<unknown>
+          | Data.Read<unknown>
+          | Data.Cell<unknown>
+          | Operation.Handle<unknown, unknown>
+          | Resource.Handle<unknown>
+      ? SlotValue<T>
+      : T;
 
   /** True when a declared dependency is an async resource (its factory returns a promise, or it is
    * itself contagious). Async is a build detail the type system carries through the graph (ADR
@@ -960,7 +978,9 @@ export declare namespace Capsule {
 
   /** The config a hook reads: each key's value once bound, a tag's default filled, in the form a
    * `depends` slot of that entry delivers. */
-  export type ConfigOf<C extends Scope.Config> = { readonly [K in keyof C]: Scope.SlotValue<C[K]> };
+  export type ConfigOf<C extends Scope.Config> = {
+    readonly [K in keyof C]: Scope.SlotValue<C[K], true>;
+  };
 
   /** A `load`'s call options: the namespace to read the unit in, as a run's `ns` (A22). A
    * namespace made with `observe: false` builds the unit with no spans or logs. Never meta. */
@@ -1347,6 +1367,7 @@ export function tag<T>(config: {
     required: edgeTo("required", handle),
     optional: edgeTo("optional", handle),
     all: edgeTo("all", handle),
+    controller: edgeTo("controller", handle),
   });
 }
 
@@ -2181,10 +2202,7 @@ function resolveEdge(
     return KeyedControl.readerOf(control as Scope.KeyedController<unknown, Data.Key>, read);
   }
 
-  const target = dep.target as Tag.Handle<unknown>;
-  if (dep.kind === "all") return tagAll(layer, target, chain);
-  if (dep.kind === "optional") return tagFind(layer, target, chain);
-  return tagRequired(layer, target, chain);
+  return tagSlot(layer, dep, up, chain, caller);
 }
 
 function resolveDep(
@@ -2196,7 +2214,7 @@ function resolveDep(
 ): unknown {
   if (isEdge(dep)) return resolveEdge(layer, dep, up, chain, caller);
   if (isData(dep)) return readCell(layer, dep, chain);
-  if (isTag(dep)) return tagRequired(layer, dep, chain);
+  if (isTag(dep)) return slotOf(layer, tagRequired(layer, dep, chain), up, chain, caller);
   if (isOperation(dep)) return operationController(layer, dep, up, chain, caller);
   if (isResource(dep)) return resourceSlot(layer, dep, up, chain);
   if (isCapsule(dep)) return resolveCapsule(layer, dep);
@@ -4879,7 +4897,7 @@ function resolveNs(
 ): unknown {
   if (isData(target)) return readCell(layer, target, chain);
   if (isResource(target)) return resourceController(layer, target, undefined, chain).resolve();
-  if (isEdge(target)) return resolveEdge(layer, target, undefined, chain);
+  if (isEdge(target)) return edgeValue(layer, target, chain);
   if (isCapsule(target)) return resolveCapsule(layer, target);
   return tagRequired(layer, target as Tag.Handle<unknown>, chain);
 }
@@ -5022,7 +5040,7 @@ class ScopeHandle implements Scope.Handle {
 
     if (isData(target)) return readCell(layer, Capsules.check(layer, target));
     if (isResource(target)) return resolveResource(layer, target);
-    if (isEdge(target)) return resolveEdge(layer, target, undefined);
+    if (isEdge(target)) return edgeValue(layer, target, layer.ns);
     if (isCapsule(target)) return resolveCapsule(layer, target);
 
     return tagRequired(layer, target as Tag.Handle<unknown>);
@@ -8349,12 +8367,13 @@ function resolvePlaced(
   caller?: RunState,
 ): unknown {
   const placement = (dep as { placement?: "scope" | "namespace" }).placement;
-  if (placement === undefined) return resolveControllerEdge(layer, dep.target, up, chain, caller);
+  const target = isTag(dep.target) ? tagRequired(layer, dep.target, chain) : dep.target;
+  if (placement === undefined) return resolveControllerEdge(layer, target, up, chain, caller);
   // scope: the root's own bucket, as a scope-target resource; namespace: the root, keyed by
   // the caller's namespace chain, as a namespace-target resource.
   return resolveControllerEdge(
     rootOf(layer),
-    dep.target,
+    target,
     up,
     placement === "scope" ? NO_NAMESPACE : chain,
   );
@@ -8742,4 +8761,59 @@ function drainRounds(first: { readonly error: unknown } | undefined): void {
 function tooDeep(queue: readonly Round[], at: number): never {
   const cells = queue.slice(Math.max(0, at - 7), at + 1).map((each) => each.label);
   return raise("UpdateDepth", { depth: (queue[at] as Round).depth, cells });
+}
+
+/** A tag's value as `depends` takes it (ADR 0151): a unit in a slot arrives as that unit
+ * would, any other value as is. */
+function slotOf(
+  layer: Layer,
+  value: unknown,
+  up: SpanImpl | undefined,
+  chain: readonly Namespace[] | undefined,
+  caller: RunState | undefined,
+): unknown {
+  return isData(value) || isResource(value) || isOperation(value) || isEdge(value)
+    ? resolveDep(layer, value as Scope.Dependency, up, chain, caller)
+    : value;
+}
+
+/** A tag edge in `depends`: each unit in it arrives as `depends` delivers that unit (ADR 0151). */
+function tagSlot(
+  layer: Layer,
+  dep: Edge<string, unknown>,
+  up: SpanImpl | undefined,
+  chain: readonly Namespace[] | undefined,
+  caller: RunState | undefined,
+): unknown {
+  const as = (value: unknown): unknown => slotOf(layer, value, up, chain, caller);
+  const raw = tagEdge(layer, dep, chain);
+  if (dep.kind === "all") return (raw as unknown[]).map(as);
+  if (dep.kind !== "optional") return as(raw);
+
+  const found = raw as Tag.Presence<unknown>;
+  return found.present ? { present: true, value: as(found.value) } : found;
+}
+
+/** An edge as `scope.resolve` reads it: a tag edge as bound, any other as `depends` does. */
+function edgeValue(
+  layer: Layer,
+  target: Edge<string, unknown>,
+  chain: readonly Namespace[] | undefined,
+): unknown {
+  return isTag(target.target)
+    ? tagEdge(layer, target, chain)
+    : resolveEdge(layer, target, undefined, chain);
+}
+
+/** A tag edge's value as bound: a unit in it stays a handle, as `scope.resolve` and a start
+ * hook's config read it (ADR 0151, point 4). */
+function tagEdge(
+  layer: Layer,
+  dep: Edge<string, unknown>,
+  chain: readonly Namespace[] | undefined,
+): unknown {
+  const target = dep.target as Tag.Handle<unknown>;
+  if (dep.kind === "all") return tagAll(layer, target, chain);
+  if (dep.kind === "optional") return tagFind(layer, target, chain);
+  return tagRequired(layer, target, chain);
 }
