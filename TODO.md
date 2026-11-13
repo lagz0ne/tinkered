@@ -77,8 +77,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/derived** — ADR 0150. Owner: lead (thread "Build derived in Core"). `derived({ label, config, depends, factory })` in Core; `useData` reads it with no new hook. Built: 19 Core tests, 2 React tests, one review round (Fable, 7 findings, 6 fixed; the self-cycle check is not built). Size: core 21,123 -> 22,159 B gzip; Duke raised both caps by 1 KiB. Mutation on the derived lines 90.86 (the full Core run takes ~4.5 h on this box). Next: release 0.21.0, then the app sites (acountee 7, Hedl 5).
-  Verify: mutation >= 85 on the landed commit; the release is on npm.
+None.
 
 ## Review
 
@@ -119,6 +118,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/derived** — done 2026-11-13 (ADR 0150). `derived({ label, config, depends, factory })` in Core; `useData` reads it with no new hook. Released as 0.21.0, and 0.21.1 (tinker/plain reads a derived's depends and factory). Not built: the self-cycle check (review finding 7 of 7).
+  Proof: 26 Core tests, 2 React tests; size core 22,104 / 22,528 B gzip (caps +1 KiB, Duke); mutation on the derived lines 90.86. acountee 48683cb (7 sites: 201 tests, browser smoke of /prs grouped, /approvals, /invoices, audit tab); Hedl d006070 (5 sites: `bun run check` green).
 - **analyze/flow-files** — done 2026-11-12 (ADR 0148, issue #35, PR #36; Duke 15:47: "Go ahead"). In a `*.flow.ts` or `*.flow.server.ts` file, a workflow or step passes `tinker/plain`; only a flow function calls a flow function by name. Released as 0.20.1.
   Proof: `packages/analyze/tests/plain.test.ts` (3 flow tests) and `called.test.ts` (step called from a plain file is a finding; `start(nameFlow)` is not; the called test fails without the clause); analyze 85 tests; mutation 89.90, exit 0.
 
