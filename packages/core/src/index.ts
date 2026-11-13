@@ -1868,7 +1868,16 @@ function writeCell<T>(
   if (computing !== undefined) raise("WriteInDerived", { derived: computing, cell: target.label });
 
   ownCell(layer, target, chain).value = value;
-  tell(target.label, flushCell, layer, target, undefined);
+  if (inRound) return waitFlush(layer, target, undefined);
+
+  inRound = true;
+  let failed: { readonly error: unknown } | undefined;
+  try {
+    flushCell(layer, target);
+  } catch (error) {
+    failed = { error };
+  }
+  drainRounds(failed);
 }
 
 /** A namespaced write lands at `(this layer, first key)` (ADR 0059 decision 3), seeded from the
@@ -1889,7 +1898,16 @@ function writeCellNs(
   if (computing !== undefined) raise("WriteInDerived", { derived: computing, cell: target.label });
 
   ownNsCell(layer, target, key, current).value = value;
-  tell(target.label, flushInheritedNsWatchers, layer, target, key);
+  if (inRound) return waitFlush(layer, target, key);
+
+  inRound = true;
+  let failed: { readonly error: unknown } | undefined;
+  try {
+    flushInheritedNsWatchers(layer, target, key);
+  } catch (error) {
+    failed = { error };
+  }
+  drainRounds(failed);
 }
 
 /** A named bucket change can affect only chains containing its key at this layer. A default
@@ -5601,7 +5619,7 @@ function releaseNode(layer: Layer, target: Node): void {
 
   const dataReleased = invalidateAffected(order, affected);
   drainRelease(affected, () => {
-    if (dataReleased && isData(target)) tell(target.label, flushCell, layer, target, undefined);
+    if (dataReleased && isData(target)) tell(target.label, () => flushCell(layer, target));
   });
 }
 
@@ -5623,7 +5641,9 @@ function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespac
   rec.cells.delete(ns);
   rec.readers?.delete(entry);
 
-  drainRelease(affected, () => tell(target.label, flushInheritedNsWatchers, owner, target, ns));
+  drainRelease(affected, () =>
+    tell(target.label, () => flushInheritedNsWatchers(owner, target, ns)),
+  );
 }
 
 function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {
@@ -8592,7 +8612,7 @@ class DerivedEntry implements Data.Reader<unknown> {
         if (this.wait !== wait) return;
 
         this.wait = undefined;
-        tell(this.def.label, (entry) => entry.wake(), this, undefined, undefined);
+        tell(this.def.label, () => this.wake());
       });
     this.wait = wait;
   }
@@ -8652,34 +8672,51 @@ type Round = { readonly label: string; readonly depth: number; readonly run: () 
 /** The rounds that wait while a round runs, and the depth of the one that runs (ADR 0152). One
  * array serves every round: a write with no write inside it makes no round object. */
 const waiting: Round[] = [];
-let rounds: Round[] | undefined;
+let inRound = false;
 let roundDepth = 0;
 
 /** The deepest chain of writes one write may set off: Vue's limit for one job. */
 const ROUND_LIMIT = 100;
 
-/** Tell the watchers of a write (ADR 0152). A write made while a round runs keeps its value at
- * once, and its own round waits until the rounds before it are over: each watcher hears the
- * writes in the order they were made (Svelte's subscriber queue). A chain deeper than the limit
- * raises `UpdateDepth` at the first write. A watcher that throws ends its own round only: the
- * rounds that wait still run, then the first error goes to the first write. */
-function tell<A, B, K>(label: string, run: (a: A, b: B, key: K) => void, a: A, b: B, key: K): void {
-  if (rounds !== undefined) {
-    rounds.push({ label, depth: roundDepth + 1, run: () => run(a, b, key) });
-    return;
-  }
+/** A write made while a round runs keeps its value at once; its own round waits until the
+ * rounds before it are over, so each watcher hears the writes in the order they were made
+ * (Svelte's subscriber queue). */
+function waitRound(label: string, run: () => void): void {
+  waiting.push({ label, depth: roundDepth + 1, run });
+}
 
-  const queue = (rounds = waiting);
+/** A hot write's round, queued. The closure is made here, not in the write: a closure in the
+ * write would make V8 build its context on every write, round or not. */
+function waitFlush(layer: Layer, target: Data.Cell<unknown>, key: Namespace | undefined): void {
+  waitRound(target.label, () =>
+    key === undefined ? flushCell(layer, target) : flushInheritedNsWatchers(layer, target, key),
+  );
+}
+
+/** Tell the watchers of a write (ADR 0152) on a cold path. The hot writes open the round
+ * inline, so V8 keeps their flush inlined. */
+function tell(label: string, run: () => void): void {
+  if (inRound) return waitRound(label, run);
+
+  inRound = true;
   let failed: { readonly error: unknown } | undefined;
   try {
-    try {
-      run(a, b, key);
-    } catch (error) {
-      failed = { error };
-    }
-    for (let at = 0; at < queue.length; at++) {
-      const next = queue[at] as Round;
-      if (next.depth > ROUND_LIMIT) tooDeep(queue, at);
+    run();
+  } catch (error) {
+    failed = { error };
+  }
+  drainRounds(failed);
+}
+
+/** Run the rounds that waited, then close. A chain deeper than the limit raises `UpdateDepth`.
+ * A watcher that throws ends its own round only: the rounds that wait still run, then the first
+ * error goes to the first write. */
+function drainRounds(first: { readonly error: unknown } | undefined): void {
+  let failed = first;
+  try {
+    for (let at = 0; at < waiting.length; at++) {
+      const next = waiting[at] as Round;
+      if (next.depth > ROUND_LIMIT) tooDeep(waiting, at);
 
       roundDepth = next.depth;
       try {
@@ -8689,9 +8726,9 @@ function tell<A, B, K>(label: string, run: (a: A, b: B, key: K) => void, a: A, b
       }
     }
   } finally {
-    rounds = undefined;
+    inRound = false;
     roundDepth = 0;
-    queue.length = 0;
+    waiting.length = 0;
   }
   if (failed !== undefined) throw failed.error;
 }
