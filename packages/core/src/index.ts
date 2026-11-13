@@ -1470,8 +1470,12 @@ export function resource<
     factory: config.factory as Resource.Handle<T>["factory"],
     capsule: undefined,
     passed: undefined,
+    slots: seesResource(depends) === 2,
   } as Resource.Handle<T> & Exported;
 }
+
+/** A resource whose `depends` name a slot (ADR 0151): its build swaps each slot for the unit it holds. */
+type SlotFlag = { readonly slots?: boolean };
 
 type HookFlag = { readonly mayHook?: boolean };
 
@@ -3386,11 +3390,6 @@ function registerEdge(
   if (dependent === undefined || state === undefined || state.gen !== gen) return;
   const node = depNode(dep);
   if (node) addDependent(owner, node, dependent, chain, state);
-  if (!isTagEdge(dep)) return;
-
-  for (const unit of heldUnits(owner, dep, chain)) {
-    registerEdge(owner, unit as Scope.Dependency, dependent, chain, state, gen);
-  }
 }
 
 function buildDeps(
@@ -3403,17 +3402,28 @@ function buildDeps(
   dependent?: Resource.Handle<unknown>,
   state?: ResourceState,
   gen?: number,
+  slots?: boolean,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
   for (const key in depends) {
-    const dep = depends[key];
+    let dep = depends[key];
+    // Behind a flag set at declare time: a body that names no slot never runs this (bench opres).
+    if (slots) {
+      dep = heldDep(layer, dep, chain);
+      if (dep === PLAIN) {
+        deps[key] = plainValue;
+        continue;
+      }
+      heldEdges(layer, dep, dependent, chain, state, gen);
+    }
+
     registerEdge(layer, dep, dependent, chain, state, gen);
     const value =
       selected === undefined
         ? resolveDep(layer, dep, span, chain, caller)
         : resolveSelectedDep(layer, dep, span, chain, selected, caller);
-    if (isThenable(value) && (isResource(dep) || isTagEdge(dep))) {
+    if (parks(value, dep)) {
       (pending ??= []).push({ key, build: Promise.resolve(value) });
     }
     deps[key] = value;
@@ -3455,11 +3465,19 @@ function readOpDeps(
   if (override !== undefined || held === undefined) {
     return buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, caller);
   }
-  const depends =
-    (target as BorrowFlag).borrows === 2
-      ? aliasSlots(layer, target.depends, chain)
-      : target.depends;
-  return buildDeps(layer, depends, span, chain, held, caller);
+  const slots = (target as BorrowFlag).borrows === 2;
+  return buildDeps(
+    layer,
+    target.depends,
+    span,
+    chain,
+    held,
+    caller,
+    undefined,
+    undefined,
+    0,
+    slots,
+  );
 }
 
 /** Await every parked build, then deliver the values into their slots. A rejected build rejects
@@ -3480,8 +3498,19 @@ function resolveResourceDeps(
   state: ResourceState,
   selected: Selection | undefined,
 ): Record<string, unknown> {
-  const depends = aliasSlots(owner, target.depends, chain);
-  return buildDeps(owner, depends, span, chain, selected, undefined, target, state, gen);
+  const slots = (target as SlotFlag).slots;
+  return buildDeps(
+    owner,
+    target.depends,
+    span,
+    chain,
+    selected,
+    undefined,
+    target,
+    state,
+    gen,
+    slots,
+  );
 }
 
 class ResourceCtx implements Resource.Ctx {
@@ -8835,24 +8864,13 @@ function tagEdge(
   return tagRequired(layer, target, chain);
 }
 
-/** `depends` with each bare or required slot that holds a unit swapped for that unit (ADR 0151),
- * so the unit builds, parks, borrows and keeps its edges as if named there. Copies only when a
- * slot holds a unit. An operation pays it only when its `depends` name a slot. */
-function aliasSlots(
-  layer: Layer,
-  depends: Scope.Depends,
-  chain: readonly Namespace[] | undefined,
-): Scope.Depends {
-  let out: Record<string, Scope.Dependency> | undefined;
-  for (const key in depends) {
-    const dep = depends[key];
-    const held = heldDep(layer, dep, chain);
-    if (held !== dep) (out ??= { ...depends })[key] = held;
-  }
-  return out ?? depends;
-}
+/** The value a {@link heldDep} read for a tag that holds no unit, handed to its loop. */
+let plainValue: unknown;
+const PLAIN = Symbol() as unknown as Scope.Dependency;
 
-/** The unit a bare or required slot holds, else the dep as declared. */
+/** A slot is an alias in `depends` (ADR 0151): a bare or required tag that holds a unit stands
+ * for that unit, so the unit builds, parks, borrows and keeps its edges as if named there. A tag
+ * that holds a plain value gives {@link PLAIN}, its value in {@link plainValue}: one tag walk. */
 function heldDep(
   layer: Layer,
   dep: Scope.Dependency,
@@ -8862,7 +8880,31 @@ function heldDep(
   if (tag === undefined) return dep;
 
   const value = tagRequired(layer, tag as Tag.Handle<unknown>, chain);
-  return isUnit(value) ? (value as Scope.Dependency) : dep;
+  if (isUnit(value)) return value as Scope.Dependency;
+
+  plainValue = value;
+  return PLAIN;
+}
+
+/** A list or optional slot's units become the building resource's dependencies, as named ones do. */
+function heldEdges(
+  layer: Layer,
+  dep: Scope.Dependency,
+  dependent: Resource.Handle<unknown> | undefined,
+  chain: readonly Namespace[] | undefined,
+  state: ResourceState | undefined,
+  gen: number | undefined,
+): void {
+  if (!isTagEdge(dep)) return;
+
+  for (const unit of heldUnits(layer, dep, chain)) {
+    registerEdge(layer, unit as Scope.Dependency, dependent, chain, state, gen);
+  }
+}
+
+/** A still-building resource, direct or in a slot, parks for the body to await (ADR 0044). */
+function parks(value: unknown, dep: Scope.Dependency): boolean {
+  return isThenable(value) && (isResource(dep) || isTagEdge(dep));
 }
 
 /** A tag edge: `.required`, `.optional` or `.all` of a tag. */
