@@ -6,6 +6,25 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.21.1
+
+`tinker/plain` reads a derived's `depends` and
+`factory` as unit bodies, as it reads an
+operation's `run`. 0.21.0 called them plain
+functions. Core, React and Bun have no code
+change.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.21.1 \
+  @tinkered/react@0.21.1 \
+  @tinkered/bun@0.21.1
+bun add -d @tinkered/analyze@0.21.1
+```
+
 ## 0.21.0
 
 Core has `derived`: a computed read, keyed by
@@ -51,9 +70,6 @@ const view = useData(prView({ viewer }));
   one is the entry's fault.
 - With no required key, the bare unit reads:
   `useData(total)`.
-- `tinker/plain` reads a derived's `depends` and
-  `factory` as unit bodies, as it reads an
-  operation's `run`.
 
 ### Size
 
