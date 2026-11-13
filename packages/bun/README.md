@@ -34,11 +34,16 @@ const socket = ws.server({
   path: "/rpc",
   services: [api],
 });
-const table = routes({ table, stop });
 
 export default defineMain(
-  ({ env, signal, stdout }) =>
-    createScope({
+  ({ env, signal, stdout }) => {
+    // `routes` is the template's request table.
+    const table = routes({
+      stop: signal,
+      table: { "GET /api/health": health },
+    });
+
+    return createScope({
       signal,
       capsules: [
         serve({
@@ -52,7 +57,8 @@ export default defineMain(
         socket,
         table,
       ],
-    }),
+    });
+  },
 );
 ```
 

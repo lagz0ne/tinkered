@@ -852,9 +852,10 @@ The cell declares no place. The words are resource targets:
   namespace (as `scope`).
 
 ```ts
-const token = data({ initial: null });
+const token = data({ label: "token", initial: null });
 
 const renew = operation({
+  label: "renew",
   depends: { t: token.atScope.controller },
   run: async ({ t }) => t.set(await refresh()),
 });
@@ -915,6 +916,55 @@ On a `remoteData` board, a keyed cell is served by part: the first reader
 of a part asks for it, and the guard runs at each ask. `board.invalidate`
 marks parts dirty on either side. With `load`, the server reads each part
 from a store and keeps no member (`docs/keyed-projector.md`).
+
+## Derived
+
+A derived computes a value from its sources (ADR 0150). It is declared
+once. Its `config` is its key: the call with values names a read.
+
+```ts
+import { createScope, data, derived, tag } from "@tinkered/core";
+
+type Pr = { viewer: string; id: string; amount: number };
+
+const prs = data({
+  label: "prs",
+  mode: "keyed",
+  key: (pr: Pr) => ({ viewer: pr.viewer, id: pr.id }),
+});
+const viewer = tag<string>({ label: "prs.viewer" });
+
+const total = derived({
+  label: "prs.total",
+  config: { viewer: viewer.required },
+  depends: (c) => ({
+    rows: prs.where({ viewer: c.viewer }),
+  }),
+  factory: ({ rows }) =>
+    rows.get().reduce((sum, pr) => sum + pr.amount, 0),
+});
+
+const scope = createScope();
+const read = scope.resolve(total({ viewer: "ann" }));
+read.get(); // 0
+read.watch((next) => console.log(next));
+```
+
+- `total({ viewer })` names a read; `scope.resolve` gives its reader,
+  and React's `useData` takes it.
+- Two readers of one config share one entry and one compute.
+- It computes again only when a source changed. A cell, a read and a
+  capsule export are watched; a resource value is fixed until it builds
+  again.
+- A config value is a string, a finite number, or a slot: a cell, a
+  read, a capsule export, a resource, or an operation. Any other value
+  raises `InvalidKey`.
+- A slot arrives as a `depends` slot. An operation in a slot is a
+  caller: it runs only when the factory calls it.
+- With no required key, the bare unit reads too.
+- The last watcher leaves, and the entry goes.
+- A factory must not write a cell. The write raises `WriteInDerived`,
+  and the entry holds it as its fault (ADR 0152).
 
 ## Tags
 
@@ -1072,10 +1122,12 @@ Pick a resource `target` by how long and where the value must be shared:
 
 ```ts
 const db = resource({
+  label: "db",
   target: "namespace",
   factory: () => openDb(),
 });
 const tx = resource({
+  label: "tx",
   target: "session",
   depends: { db },
   factory: ({ db }) => db.begin(),
@@ -1174,6 +1226,15 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A read view has no placement, at run time and in the types.
 - A placed controller kept past its call still writes the root,
   and watchers see it.
+- A write made by a watcher keeps its value at once. Its own watchers
+  hear it after the watchers of the write before it, so each watcher
+  hears the writes in the order they were made (ADR 0152).
+- A watcher that corrects a value and stops needs no guard.
+- A chain of watcher writes more than 100 deep raises `UpdateDepth`
+  with the labels of the last cells; the cells keep their values.
+- One watcher that writes many cells is one write deep, not a chain.
+- A watcher that throws ends its own telling only; the first error goes
+  to the first writer.
 
 ### Keyed data
 
@@ -1194,6 +1255,29 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A part that rides a ready part is `ready` at once.
 - A `refused` or `invalid` part waits: no ask again until an
   `invalidate` names it. A broken link asks again by itself.
+
+### Derived
+
+- Two readers of one key share one entry and one compute.
+- A new key reads another entry, and the last reader leaving drops the
+  old one.
+- A source write computes again and wakes the watcher; a write elsewhere
+  does not.
+- Config fields in another order name the same entry.
+- A derived with no required key reads bare, as its defaults; a missing
+  required key raises `MissingConfig`.
+- A slot keys the entry by its unit and is delivered as a `depends`
+  slot.
+- An operation in a slot is a caller, and each operation is its own
+  entry.
+- A factory that writes a cell is a fault named `WriteInDerived`, after
+  one compute.
+- A config value that is not a string, a number or a slot raises
+  `InvalidKey`.
+- A failed compute is the entry's fault until a source changes.
+- A pending resource parks the entry; a built one is read; a failed one
+  is a fault.
+- A derived reads another derived.
 
 ### Faults
 

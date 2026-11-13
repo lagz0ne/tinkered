@@ -270,8 +270,8 @@ in the [changelog](CHANGELOG.md).
 ## The packages
 
 - [`@tinkered/core`](packages/core/README.md):
-  scope, operations, data cells, capsules, rpc,
-  remote data.
+  scope, operations, data cells, derived values,
+  capsules, rpc, remote data.
 - [`@tinkered/react`](packages/react/README.md):
   hooks that read cells and run operations.
 - [`@tinkered/bun`](packages/bun/README.md):
