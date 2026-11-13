@@ -209,3 +209,73 @@ test("a resource slot has no controller edge, as a bare resource has none", () =
 
   expect(edge).toMatchObject({ kind: "controller" });
 });
+
+test("an async resource in a slot arrives built, in a resource and in an operation", async () => {
+  const slow = resource({
+    label: "slot.slow",
+    factory: async (): Promise<Store> => ({ id: "slow" }),
+  });
+  const held = tag<Resource.Handle<Promise<Store>>>({ label: "slot.async" });
+  const wrap = resource({
+    label: "slot.wrap",
+    depends: { s: held },
+    factory: ({ s }) => `wrapped ${s.id}`,
+  });
+  const read = operation({ label: "slot.async.read", depends: { s: held }, run: ({ s }) => s.id });
+  const scope = createScope({ tags: [held(slow)] });
+  await scope.ready;
+
+  expect(await scope.run(read)).toBe("slow");
+  expect(await scope.resolve(wrap)).toBe("wrapped slow");
+  await scope.close();
+});
+
+test("an async resource in a list slot arrives built", async () => {
+  const slow = resource({
+    label: "slot.slow.all",
+    factory: async (): Promise<Store> => ({ id: "slow" }),
+  });
+  const held = tag<Resource.Handle<Promise<Store>>>({ label: "slot.async.all" });
+  const ids = operation({
+    label: "slot.async.ids",
+    depends: { all: held.all, one: held.optional },
+    run: ({ all, one }) => [...all.map((s) => s.id), one.present ? one.value.id : "none"],
+  });
+  const scope = createScope({ tags: [held(slow)] });
+  await scope.ready;
+
+  expect(await scope.run(ids)).toEqual(["slow", "slow"]);
+  await scope.close();
+});
+
+test("a resource that reads a slot rebuilds when the resource in the slot is released", async () => {
+  let builds = 0;
+  const base = resource({ label: "slot.base", factory: () => `b${++builds}` });
+  const slot = tag<Resource.Handle<string>>({ label: "slot.base.held" });
+  const listSlot = tag<Resource.Handle<string>>({ label: "slot.base.list" });
+  const viaSlot = resource({
+    label: "slot.viaSlot",
+    depends: { s: slot, all: listSlot.all },
+    factory: ({ s, all }) => `${s}:${all.join()}`,
+  });
+  const scope = createScope({ tags: [slot(base), listSlot(base)] });
+  await scope.ready;
+
+  expect(scope.resolve(viaSlot)).toBe("b1:b1");
+  await scope.release(base);
+  expect(scope.resolve(viaSlot)).toBe("b2:b2");
+  await scope.close();
+});
+
+test("scope.resolve of a slot's controller edge gives the controller", async () => {
+  const count = data({ label: "slot.res.count", initial: 1 });
+  const held = tag<Data.Cell<number>>({ label: "slot.res.cell" });
+  const scope = createScope({ tags: [held(count)] });
+  await scope.ready;
+
+  const control = scope.resolve(held.controller as never) as { set(n: number): void };
+  control.set(5);
+
+  expect(scope.resolve(count)).toBe(5);
+  await scope.close();
+});

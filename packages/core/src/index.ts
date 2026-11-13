@@ -864,9 +864,10 @@ export declare namespace Scope {
     resolve<T>(read: Data.View<T> | Data.Read<T> | Data.Derived<T>): Data.Reader<T>;
     resolve<T>(res: Resource.Handle<T>, ns?: NsArg): ResourceValue<T>;
     resolve<T>(tag: Tag.Handle<T>, ns?: NsArg): T;
-    /** A tag edge reads exactly what that `depends` slot would deliver (ADR 0020/0036): `.all` →
-     * every binding nearest-first, `.optional` → a presence, `.required` → the value or `MissingTag`.
-     * The way a driver reads a whole routing table off the scope (core/t29). */
+    /** A tag edge reads its bindings as bound (ADR 0020/0036): `.all` → every binding
+     * nearest-first, `.optional` → a presence, `.required` → the value or `MissingTag`. A unit in
+     * it stays a handle; only `depends` delivers it (ADR 0151). The way a driver reads a whole
+     * routing table off the scope (core/t29). */
     resolve<T>(edge: Edge<"all", Tag.Handle<T>>, ns?: NsArg): T[];
     resolve<T>(edge: Edge<"optional", Tag.Handle<T>>, ns?: NsArg): Tag.Presence<T>;
     resolve<T>(edge: Edge<"required", Tag.Handle<T>>, ns?: NsArg): T;
@@ -3385,6 +3386,11 @@ function registerEdge(
   if (dependent === undefined || state === undefined || state.gen !== gen) return;
   const node = depNode(dep);
   if (node) addDependent(owner, node, dependent, chain, state);
+  if (!isTagEdge(dep)) return;
+
+  for (const unit of heldUnits(owner, dep, chain)) {
+    registerEdge(owner, unit as Scope.Dependency, dependent, chain, state, gen);
+  }
 }
 
 function buildDeps(
@@ -3401,13 +3407,18 @@ function buildDeps(
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
   for (const key in depends) {
-    const dep = depends[key];
+    const dep = heldDep(layer, depends[key], chain);
+    if (dep === PLAIN) {
+      deps[key] = plainValue;
+      continue;
+    }
+
     registerEdge(layer, dep, dependent, chain, state, gen);
     const value =
       selected === undefined
         ? resolveDep(layer, dep, span, chain, caller)
         : resolveSelectedDep(layer, dep, span, chain, selected, caller);
-    if (isThenable(value) && isResource(dep)) {
+    if (isThenable(value) && (isResource(dep) || isTagEdge(dep))) {
       (pending ??= []).push({ key, build: Promise.resolve(value) });
     }
     deps[key] = value;
@@ -5008,9 +5019,7 @@ class ScopeHandle implements Scope.Handle {
   resolve<T>(view: Data.View<T>, ns?: Scope.NsArg): Data.Reader<T>;
   resolve<T>(res: Resource.Handle<T>, ns?: Scope.NsArg): Scope.ResourceValue<T>;
   resolve<T>(tag: Tag.Handle<T>, ns?: Scope.NsArg): T;
-  /** A tag edge reads exactly what that `depends` slot would deliver (ADR 0020/0036): `.all` →
-   * every binding nearest-first, `.optional` → a presence, `.required` → the value or `MissingTag`.
-   * The way a driver reads a whole routing table off the scope (core/t29). */
+  /** A tag edge reads its bindings as bound (ADR 0020/0036, 0151): a unit in it stays a handle. */
   resolve<T>(edge: Edge<"all", Tag.Handle<T>>, ns?: Scope.NsArg): T[];
   resolve<T>(edge: Edge<"optional", Tag.Handle<T>>, ns?: Scope.NsArg): Tag.Presence<T>;
   resolve<T>(edge: Edge<"required", Tag.Handle<T>>, ns?: Scope.NsArg): T;
@@ -7524,7 +7533,7 @@ async function closeInstances(
 function seesResource(depends: Scope.Depends): boolean {
   for (const key in depends) {
     const dep = depends[key];
-    if (isResource(dep)) return true;
+    if (isResource(dep) || isTag(dep) || isTagEdge(dep)) return true;
   }
   return false;
 }
@@ -8772,9 +8781,7 @@ function slotOf(
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
 ): unknown {
-  return isData(value) || isResource(value) || isOperation(value) || isEdge(value)
-    ? resolveDep(layer, value as Scope.Dependency, up, chain, caller)
-    : value;
+  return isUnit(value) ? resolveDep(layer, value as Scope.Dependency, up, chain, caller) : value;
 }
 
 /** A tag edge in `depends`: each unit in it arrives as `depends` delivers that unit (ADR 0151). */
@@ -8787,11 +8794,19 @@ function tagSlot(
 ): unknown {
   const as = (value: unknown): unknown => slotOf(layer, value, up, chain, caller);
   const raw = tagEdge(layer, dep, chain);
-  if (dep.kind === "all") return (raw as unknown[]).map(as);
+  if (dep.kind === "all") {
+    const items = (raw as unknown[]).map(as);
+    return items.some(isThenable) ? Promise.all(items) : items;
+  }
   if (dep.kind !== "optional") return as(raw);
 
   const found = raw as Tag.Presence<unknown>;
-  return found.present ? { present: true, value: as(found.value) } : found;
+  if (!found.present) return found;
+
+  const value = as(found.value);
+  return isThenable(value)
+    ? (value as PromiseLike<unknown>).then((built) => ({ present: true, value: built }))
+    : { present: true, value };
 }
 
 /** An edge as `scope.resolve` reads it: a tag edge as bound, any other as `depends` does. */
@@ -8800,7 +8815,7 @@ function edgeValue(
   target: Edge<string, unknown>,
   chain: readonly Namespace[] | undefined,
 ): unknown {
-  return isTag(target.target)
+  return isTag(target.target) && target.kind !== "controller"
     ? tagEdge(layer, target, chain)
     : resolveEdge(layer, target, undefined, chain);
 }
@@ -8816,4 +8831,49 @@ function tagEdge(
   if (dep.kind === "all") return tagAll(layer, target, chain);
   if (dep.kind === "optional") return tagFind(layer, target, chain);
   return tagRequired(layer, target, chain);
+}
+
+/** The value a {@link heldDep} read for a tag that holds no unit, handed to its loop. */
+let plainValue: unknown;
+const PLAIN = Symbol() as unknown as Scope.Dependency;
+
+/** A slot is an alias in `depends` (ADR 0151): a bare or required tag that holds a unit stands
+ * for that unit, so the unit builds, parks, borrows and keeps its edges as if named there. A tag
+ * that holds a plain value gives {@link PLAIN}, its value in {@link plainValue}. */
+function heldDep(
+  layer: Layer,
+  dep: Scope.Dependency,
+  chain: readonly Namespace[] | undefined,
+): Scope.Dependency {
+  const tag = isTag(dep) ? dep : isTagEdge(dep) && dep.kind === "required" ? dep.target : undefined;
+  if (tag === undefined) return dep;
+
+  const value = tagRequired(layer, tag as Tag.Handle<unknown>, chain);
+  if (isUnit(value)) return value as Scope.Dependency;
+
+  plainValue = value;
+  return PLAIN;
+}
+
+/** A tag edge: `.required`, `.optional` or `.all` of a tag. */
+function isTagEdge(dep: unknown): dep is Edge<string, unknown> {
+  return isEdge(dep) && isTag(dep.target);
+}
+
+/** A unit a slot may hold: a cell, a resource, an operation, a read or another edge. */
+function isUnit(value: unknown): boolean {
+  return isData(value) || isResource(value) || isOperation(value) || isEdge(value);
+}
+
+/** The units a list or optional slot holds, for their dependency edges. */
+function heldUnits(
+  layer: Layer,
+  dep: Edge<string, unknown>,
+  chain: readonly Namespace[] | undefined,
+): readonly unknown[] {
+  const raw = tagEdge(layer, dep, chain);
+  if (dep.kind === "all") return raw as unknown[];
+
+  const found = raw as Tag.Presence<unknown>;
+  return found.present ? [found.value] : [];
 }
