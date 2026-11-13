@@ -1,7 +1,7 @@
 # 0153 Two services with one address fail the start
 
-Date: 2026-11-13. Status: proposed (built as the
-default; Duke's pick of A, B or C is open).
+Date: 2026-11-13. Status: accepted (Duke, 14:50,
+picked "A. Fail the start").
 Changes: Duke's rule of 2026-11-06 04:21 ("a
 duplicate address is allowed, as in Hono").
 Keeps: ADR 0130 (a board has no name).
@@ -95,6 +95,8 @@ ws.server({ path: "/rpc", services, strict: false });
 
 ## Options not taken
 
+Duke had the three on one card and took A.
+
 - **B. Keep "first wins", name both cells in the
   warning.** Nothing fails. Data still mixes when
   nobody reads the log, as in acountee.
@@ -112,8 +114,3 @@ ws.server({ path: "/rpc", services, strict: false });
 - Checked on main, 2026-11-13: tinker-app, Hedl
   and the site have no clash.
 - Size: 33 B gzip in the entry with rpc.
-
-## Open
-
-1. Duke's pick. If B: flip the default back, keep
-   point 2. If C: a new ADR.
