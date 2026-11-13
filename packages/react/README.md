@@ -80,6 +80,8 @@ function App() {
 - `useData(cell)` reads a cell and follows its changes.
   A selector reads part of its value.
 - `useData(cell, { writable: true })` returns the value and a setter.
+- `useData(total({ viewer }))` reads a Core `derived`.
+  Each reader of the same config gets the same value, so it needs no `useMemo`.
 - `useController` supplies writes without subscribing the component.
 - `useResource` reads a built resource.
   Async builds suspend; failures reach the error boundary.
@@ -220,6 +222,8 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - useData with no provider raises NoProvider.
 - An unchanged object value keeps its identity across a parent re-render.
 - A write after unmount neither updates the removed subtree nor breaks the still-open scope.
+- A component reads a derived, keeps its reference across renders, and follows a write.
+- A new config leaves the old entry.
 
 ### useResource
 

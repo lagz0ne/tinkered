@@ -102,6 +102,15 @@ operation") and a list (`tag.all`).
   A write in it raises `WriteInDerived` (ADR
   0152).
 
+- **A list or a record in one tag.** It stays as
+  it ships (Duke, 11:45 UTC: "If we ship that
+  already then all good"). Tested: a capsule
+  config passes a list or a record of plain
+  values, and of units. Units in it arrive as
+  handles; the start hook builds each one, as
+  `serve.handlers` does. Core does not look
+  inside a tag's value.
+
 ## Not decided
 
 - **A list in a derived key.** Order counts:
