@@ -119,6 +119,10 @@ capsules: [
   alone.
 - A service must be in `services`, or no client
   can reach it.
+- An address is a call's key or a cell's name.
+  Two services with one address fail the start
+  with `DuplicateAddress`. So two boards cannot
+  both have a cell named `flows`: rename one.
 
 ### Call and read on the client
 

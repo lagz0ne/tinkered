@@ -218,18 +218,26 @@ test("a client needs its peer, and a server its services", async () => {
   });
 });
 
-test("a server is lenient by default: two services with one address still start", async () => {
+test("two services with one address fail the start; strict: false lets the first win", async () => {
   const shadow = rpc({ who: { input: z.null(), output: z.null() } });
-  const server = await createScope({
-    capsules: [
-      api({ implement: { who, count, heard, open } }),
-      shadow({
-        implement: { who: operation({ label: "shadow", input: z.null(), run: () => null }) },
-      }),
-      memory.server({ services: [api, shadow] }),
-    ],
-  }).ready;
-  closers.push(() => server.close());
+  const both = (strict?: boolean) =>
+    createScope({
+      capsules: [
+        api({ implement: { who, count, heard, open } }),
+        shadow({
+          implement: { who: operation({ label: "shadow", input: z.null(), run: () => null }) },
+        }),
+        memory.server({ services: [api, shadow], ...(strict === undefined ? {} : { strict }) }),
+      ],
+    }).ready;
 
+  const failed = await both().then(
+    (scope) => scope.close(),
+    (error: unknown) => error,
+  );
+  expect(failed).toMatchObject({ kind: "DuplicateAddress", payload: { address: "who" } });
+
+  const server = await both(false);
+  closers.push(() => server.close());
   expect(server).toBeDefined();
 });

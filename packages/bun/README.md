@@ -113,6 +113,21 @@ takes a bytes POST. Each answer:
 A bytes POST is for a key with a
 bytes field.
 
+Two services with one address fail the start
+with `DuplicateAddress`. The fault names both:
+
+```
+two boards, each with a cell named "flows":
+
+DuplicateAddress
+  address: "flows"
+  services: ["approvals.flows", "admin.flows"]
+```
+
+- The fix is a rename of one cell.
+- `strict: false` lets the first in the list
+  win, with a warning at start.
+
 The client:
 
 ```ts

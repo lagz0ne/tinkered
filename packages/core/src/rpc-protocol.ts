@@ -89,10 +89,14 @@ export const protocol = resource({
     const given = <T>(slot: Maybe<T>): T | undefined => (slot.present ? slot.value : undefined);
 
     /**
-     * The route table: built once at start. Two services with one address: the first in the
-     * list wins and start logs a warning, as Hono does (Duke 2026-11-06 04:21). `strict`
-     * makes it fail start with DuplicateAddress instead.
+     * The route table: built once at start. Two services with one address fail the start with
+     * DuplicateAddress, as tRPC `mergeRouters` and Fastify do: two boards with one cell name
+     * mixed their data (acountee, 2026-11-13). `strict: false` is the old rule: the first in
+     * the list wins and start logs a warning, as Hono does (Duke 2026-11-06 04:21).
      */
+    const named = (service: Service, address: string) =>
+      String(service.names?.(address) || service.label);
+
     const routesOf = (
       services: readonly Service[],
       raise: (kind: string, payload: unknown) => never,
@@ -102,14 +106,14 @@ export const protocol = resource({
       const table = new Map<string, Service>();
       for (const service of services) {
         for (const address of service.addresses) {
-          const label = String(service.label);
           const taken = table.get(address);
           if (!taken) {
             table.set(address, service);
             continue;
           }
 
-          const pair = { address, services: [String(taken.label), label] };
+          const label = named(service, address);
+          const pair = { address, services: [named(taken, address), label] };
           if (strict) raise("DuplicateAddress", pair);
           log.warn("protocol duplicate address", {
             address,

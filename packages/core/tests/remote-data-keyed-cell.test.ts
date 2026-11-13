@@ -2,7 +2,7 @@ import { memory } from "@tinkered/core/testing";
 import { afterEach, expect, expectTypeOf, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { createScope, data, operation, remoteData, tag, transport } from "@/main";
+import { createScope, data, operation, remoteData, rpc, tag, transport } from "@/main";
 import type { Observe, Scope } from "@/main";
 
 const { hook } = transport;
@@ -636,4 +636,62 @@ test("a server that closes while a client watches: its close settles, and the pa
   expect(closed).toBe("settled");
   expect(state.get()).toMatchObject({ status: "fault", fault: { fault: "link", from: "local" } });
   p1.stop();
+});
+
+test("two boards with one cell name fail the server's start, and the fault names both cells", async () => {
+  const Flow = z.object({ id: z.string() });
+  const cell = (label: string) =>
+    data({ label, mode: "keyed", parse: Flow, key: (f) => ({ id: f.id }) });
+  const approvals = remoteData({ flows: cell("approvals.flows") });
+  const admin = remoteData({ flows: cell("admin.flows") });
+
+  const failed = await createScope({
+    capsules: [
+      approvals({ serve: true }),
+      admin({ serve: true }),
+      memory.server({ services: [approvals, admin] }),
+    ],
+  }).ready.then(
+    (scope) => scope.close(),
+    (error: unknown) => error,
+  );
+
+  // Before: both served "flows", the first won, and admin's client got the approvals rows.
+  expect(failed).toMatchObject({
+    kind: "DuplicateAddress",
+    payload: { address: "flows", services: ["approvals.flows", "admin.flows"] },
+  });
+});
+
+test("a clash names the cell by its label: an ask address finds its cell, no label gives the board", async () => {
+  const Flow = z.object({ id: z.string() });
+  const flows = data({
+    label: "flows.rows",
+    mode: "keyed",
+    parse: Flow,
+    key: (f) => ({ id: f.id }),
+  });
+  const keyed = remoteData({ flows });
+  const calls = rpc({ "flows.ask": { input: z.null(), output: z.null() } });
+  const plain = [
+    remoteData({ count: data({ initial: 0 }) }),
+    remoteData({ count: data({ initial: 1 }) }),
+  ];
+  const clash = async (capsules: NonNullable<Parameters<typeof createScope>[0]>["capsules"]) => {
+    const scope = createScope({ capsules });
+    const error = await scope.ready.then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    await scope.close().catch(() => undefined);
+    return Object(error).payload;
+  };
+
+  expect(
+    await clash([keyed({ serve: true }), memory.server({ services: [keyed, calls] })]),
+  ).toEqual({ address: "flows.ask", services: ["flows.rows", "rpc"] });
+  expect(
+    await clash([...plain.map((b) => b({ serve: true })), memory.server({ services: plain })]),
+  ).toEqual({ address: "count", services: ["remoteData", "remoteData"] });
 });

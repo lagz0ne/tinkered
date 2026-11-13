@@ -1416,6 +1416,8 @@ export function remoteData<
       return states.of({ at: partSlot(key, { read: read.read, part: read.part }) });
     },
     addresses: keys.flatMap((key) => (keyed.has(key) ? [key, `${key}.ask`] : [key])),
+    // A cell with no label says nothing: the transport then names the board, "remoteData".
+    names: (address: string) => cells[address.replace(/\.ask$/, "")]?.label.replace(/^anon$/, ""),
     answer: wire.answer,
     stream: wire.stream,
     ...config,
