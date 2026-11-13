@@ -110,6 +110,18 @@ const one = useData(
 );
 ```
 
+### A computed value with a stable reference
+
+Use a Core `derived`, not `useMemo`. Pass its
+config at each render. Every reader of the same
+config gets the same value.
+
+```tsx no-check
+const view = useData(
+  prView({ viewer: me.email, mode }),
+);
+```
+
 ### State for one subtree
 
 `SessionProvider` opens a session for its

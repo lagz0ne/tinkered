@@ -101,6 +101,45 @@ const press = operation({
 - A write to one member wakes the readers of that
   member and of its parts. No other reader runs.
 
+### Compute a value from sources
+
+A `derived` computes a value from cells, reads,
+capsule exports, and resources. Its `config` is
+its key, as a capsule's config is. Every reader
+of the same config shares one entry.
+
+```ts
+import { data, derived, tag } from "@tinkered/core";
+
+const waves = data({
+  label: "sea.waves",
+  mode: "keyed",
+  key: (w: { room: string; id: string }) => w,
+});
+
+const room = tag<string>({ label: "sea.room" });
+
+const count = derived({
+  label: "sea.count",
+  config: { room: room.required },
+  depends: (c) => ({
+    here: waves.where({ room: c.room }),
+  }),
+  factory: ({ here }) => here.get().length,
+});
+
+const read = count({ room: "a" });
+```
+
+- The call is the read: `scope.resolve(read)`
+  gives a reader. React reads it with `useData`.
+- It computes again only when a source changed.
+- A config value is a string, a number, or a
+  slot: a cell, a read, a capsule export, or a
+  resource. Never an operation.
+- With no required key, the bare unit reads too.
+- The last reader leaves, and the entry goes.
+
 ### Say where a write lands
 
 A write from a session stays in that session. The

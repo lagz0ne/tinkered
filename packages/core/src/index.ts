@@ -1465,14 +1465,15 @@ type DerivedDef = {
  * `depends` delivers it. The layer's own `resolveEdge` makes it. */
 type DerivedSlot = (dep: Scope.Dependency) => unknown;
 
-/** One source of an entry. A cell or a reader is read again at each `get`: its value is the
- * input. A cell fills its slot with the value, a reader with itself. Any other unit is read once,
- * when the entry builds, and stays fixed (ADR 0150, decision 7). */
+/** One source of an entry. `read` gives its input at each `get`: a cell's value, a reader's
+ * value, a resource's built value (fixed until it builds again, ADR 0150 decision 7), any other
+ * unit as it was when the entry built. A reader fills its slot with itself (`gives`); every other
+ * source with its input. A cell or a reader is watched. */
 type DerivedSource = {
   readonly key: string;
-  readonly reader: Data.Reader<unknown> | undefined;
-  readonly cell: boolean;
-  value: unknown;
+  readonly read: () => unknown;
+  readonly watch: ((fn: () => void) => () => void) | undefined;
+  readonly gives: Data.Reader<unknown> | undefined;
 };
 
 /** Declare a derived (ADR 0150): a computed read, declared once, keyed by its config. Call it
@@ -1494,7 +1495,9 @@ export function derived<
   return Object.assign(unit, { unit }) as Derived.Handle<C, T>;
 }
 
-/** Each layer's entries that have a watcher, by unit number and config text. */
+/** Each layer's entries, by unit number and config text. An entry is kept from its first read,
+ * so readers that render together share it; its last watcher leaving drops it. An entry no one
+ * ever watches lives as long as its layer. */
 const derivedKept = new WeakMap<object, Map<string, DerivedEntry>>();
 
 /** A number per unit, given once: a unit is declared once (ADR 0057), so it is stable. */
@@ -1524,7 +1527,14 @@ function derivedReader(
   }
 
   const text = `${idOf(read.unit)}${keyText(def.label, key as Data.Key)}`;
-  return derivedKept.get(layer)?.get(text) ?? new DerivedEntry(layer, text, def, config, slot);
+  const own = derivedKept.get(layer) ?? new Map<string, DerivedEntry>();
+  derivedKept.set(layer, own);
+  const kept = own.get(text);
+  if (kept !== undefined) return kept;
+
+  const entry = new DerivedEntry(own, text, def, config, slot);
+  own.set(text, entry);
+  return entry;
 }
 
 /** A config key's value: the one given, else its tag's default. A required key with neither
@@ -1535,23 +1545,24 @@ function valueOf(label: string, field: string, entry: Scope.ConfigEntry, given: 
   return value;
 }
 
-/** A config value as key: a string or a number as is; a slot as its unit's number, and a keyed
- * read as its cell's number and its part. No operation (ADR 0150, decision 9). */
+/** A config value as key (ADR 0150, decisions 4, 8, 9): a string or a number as is; a slot (a
+ * cell, a capsule export, a resource) as its unit's number; a keyed read as its cell's number
+ * and its part. Anything else, an operation too, raises `InvalidKey`. */
 function partOf(label: string, field: string, value: unknown): unknown {
-  if (typeof value !== "object" && typeof value !== "function") return value;
-  if (isOperation(value)) raise("InvalidKey", { label, field });
+  if (typeof value === "string" || typeof value === "number") return value;
+  if (isData(value) || isResource(value) || isReader(value)) return [idOf(value)];
+  if (!isEdge(value) || value.kind !== "read") return raise("InvalidKey", { label, field });
 
-  const read = value as Data.Read<unknown>;
-  if (read.kind !== "read") return [idOf(value as object)];
+  const read = value as unknown as Data.Read<unknown>;
   return [idOf(read.cell), read.read, keyText(label, read.part)];
 }
 
 /** One entry of a derived (ADR 0150): one per unit and per config as text, on one layer. It
- * computes again only when an input is not the same as the last time. The first watcher keeps it
- * on its layer and watches its sources; the last one leaves, and it goes, as a keyed part does
- * (ADR 0136). It reads its slots and owns none of them. */
+ * computes again only when an input is not the same as the last time. The first watcher watches
+ * its sources; the last one leaves, and it goes, as a keyed part does (ADR 0136). It reads its
+ * slots and owns none of them. */
 class DerivedEntry implements Data.Reader<unknown> {
-  private layer: object;
+  private own: Map<string, DerivedEntry>;
   private text: string;
   private def: DerivedDef;
   private config: object;
@@ -1561,11 +1572,21 @@ class DerivedEntry implements Data.Reader<unknown> {
   private inputs: unknown[] | undefined;
   private value: unknown;
   private fault: { readonly error: unknown } | undefined;
-  /** A pending build of a fixed source: `get` throws it, so React suspends (ADR 0032, 0044). */
+  /** A pending build of a source: `get` throws it, so React suspends (ADR 0032, 0044). */
   private wait: Promise<void> | undefined;
+  /** A failed build of a source: the entry's fault for as long as it lives. */
   private failed: { readonly error: unknown } | undefined;
-  constructor(layer: object, text: string, def: DerivedDef, config: object, slot: DerivedSlot) {
-    this.layer = layer;
+  /** The value and the fault the watchers last heard of. */
+  private told: unknown;
+  private toldFault: { readonly error: unknown } | undefined;
+  constructor(
+    own: Map<string, DerivedEntry>,
+    text: string,
+    def: DerivedDef,
+    config: object,
+    slot: DerivedSlot,
+  ) {
+    this.own = own;
     this.text = text;
     this.def = def;
     this.config = config;
@@ -1576,29 +1597,46 @@ class DerivedEntry implements Data.Reader<unknown> {
     this.fault = undefined;
     this.wait = undefined;
     this.failed = undefined;
+    this.told = undefined;
+    this.toldFault = undefined;
 
     const depends = typeof def.depends === "function" ? def.depends(config) : def.depends;
     this.sources = Object.entries(depends ?? NO_VALUES).map(([key, dep]) =>
-      this.source(key, dep as Scope.Dependency, slot),
+      DerivedEntry.source(key, dep as Scope.Dependency, slot),
     );
   }
 
+  private static source(key: string, dep: Scope.Dependency, slot: DerivedSlot): DerivedSource {
+    if (isResource(dep)) return { key, read: () => slot(dep), watch: undefined, gives: undefined };
+
+    const value = slot(dep);
+    const kind = (dep as { readonly kind?: string }).kind;
+    if (
+      isData(dep) ||
+      (isEdge(dep) && (kind === "reader" || kind === "read" || kind === "derived"))
+    ) {
+      const reader = value as Data.Reader<unknown>;
+      const gives = isData(dep) ? undefined : reader;
+      return { key, read: () => reader.get(), watch: (fn) => reader.watch(fn), gives };
+    }
+    return { key, read: () => value, watch: undefined, gives: undefined };
+  }
+
   get(): unknown {
+    if (this.wait === undefined && this.failed === undefined) this.fresh();
     if (this.wait !== undefined) throw this.wait;
     if (this.failed !== undefined) throw this.failed.error;
-
-    this.fresh();
     if (this.fault !== undefined) throw this.fault.error;
     return this.value;
   }
 
   watch(fn: (next: unknown, prev: unknown) => void): () => void {
-    const own = derivedKept.get(this.layer) ?? new Map<string, DerivedEntry>();
     if (this.watchers.size === 0) {
-      derivedKept.set(this.layer, own);
-      if (!own.has(this.text)) own.set(this.text, this);
+      if (this.wait === undefined && this.failed === undefined) this.fresh();
+      this.told = this.value;
+      this.toldFault = this.failed ?? this.fault;
       for (const source of this.sources) {
-        if (source.reader !== undefined) this.stops.push(source.reader.watch(() => this.wake()));
+        if (source.watch !== undefined) this.stops.push(source.watch(() => this.wake()));
       }
     }
 
@@ -1606,57 +1644,39 @@ class DerivedEntry implements Data.Reader<unknown> {
     this.watchers.add(watcher);
     return () => {
       if (!this.watchers.delete(watcher) || this.watchers.size !== 0) return;
-      if (own.get(this.text) === this) own.delete(this.text);
+      if (this.own.get(this.text) === this) this.own.delete(this.text);
       for (const stop of this.stops.splice(0)) stop();
     };
   }
 
-  private source(key: string, dep: Scope.Dependency, slot: DerivedSlot): DerivedSource {
-    const value = slot(dep);
-    if (isData(dep)) {
-      return { key, reader: value as Data.Reader<unknown>, cell: true, value: undefined };
-    }
-
-    const kind = (dep as { readonly kind?: string }).kind;
-    if (isEdge(dep) && (kind === "reader" || kind === "read" || kind === "derived")) {
-      return { key, reader: value as Data.Reader<unknown>, cell: false, value: undefined };
-    }
-
-    const source: DerivedSource = { key, reader: undefined, cell: false, value };
-    if (value instanceof Promise) this.park(source, value);
-    return source;
-  }
-
-  /** A fixed source still builds: the entry waits for it. A failed build is the entry's fault
-   * for as long as the entry lives. */
-  private park(source: DerivedSource, build: Promise<unknown>): void {
-    const built = build.then(
-      (value) => {
-        source.value = value;
-      },
-      (error: unknown) => {
+  /** A source still builds: the entry waits for it, then reads it again. */
+  private park(build: Promise<unknown>): void {
+    const wait: Promise<void> = build
+      .then(undefined, (error: unknown) => {
         this.failed = { error };
-      },
-    );
-    const wait: Promise<void> = Promise.all([this.wait, built]).then(() => {
-      if (this.wait !== wait) return;
+      })
+      .then(() => {
+        if (this.wait !== wait) return;
 
-      this.wait = undefined;
-      this.wake();
-    });
+        this.wait = undefined;
+        this.wake();
+      });
     this.wait = wait;
   }
 
   /** Compute again when an input changed: a failed compute is the entry's fault until the next.
-   * Answers whether it computed. */
-  private fresh(): boolean {
-    const inputs = this.sources.map((s) => (s.reader === undefined ? s.value : s.reader.get()));
+   * An input that still builds parks the entry instead. */
+  private fresh(): void {
+    const inputs = this.sources.map((source) => source.read());
+    const pending = inputs.find((input) => input instanceof Promise);
+    if (pending !== undefined) return this.park(pending as Promise<unknown>);
+
     const last = this.inputs;
-    if (last !== undefined && inputs.every((input, at) => Object.is(input, last[at]))) return false;
+    if (last !== undefined && inputs.every((input, at) => Object.is(input, last[at]))) return;
 
     const deps: Record<string, unknown> = {};
-    this.sources.forEach((s, at) => {
-      deps[s.key] = s.reader === undefined || s.cell ? inputs[at] : s.reader;
+    this.sources.forEach((source, at) => {
+      deps[source.key] = source.gives ?? inputs[at];
     });
     this.inputs = inputs;
     try {
@@ -1665,19 +1685,21 @@ class DerivedEntry implements Data.Reader<unknown> {
     } catch (error) {
       this.fault = { error };
     }
-    return true;
   }
 
   /** A source changed or a build settled: compute now, and tell each watcher when the value or
-   * the fault is new. */
+   * the fault is not what it last heard. Another reader may have computed first, so it compares
+   * with what the watchers heard, not with what this entry held. */
   private wake(): void {
-    const prev = this.value;
+    if (this.wait === undefined && this.failed === undefined) this.fresh();
     if (this.wait !== undefined) return;
-    if (this.failed === undefined) {
-      if (!this.fresh()) return;
-      if (this.fault === undefined && Object.is(prev, this.value)) return;
-    }
 
+    const prev = this.told;
+    const fault = this.failed ?? this.fault;
+    if (fault === this.toldFault && Object.is(prev, this.value)) return;
+
+    this.told = this.value;
+    this.toldFault = fault;
     for (const watcher of this.watchers) watcher.fn(this.value, prev);
   }
 }

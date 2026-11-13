@@ -281,3 +281,122 @@ test("a derived reads another derived", async () => {
   expect(reader.get()).toBe("a: 10");
   stop();
 });
+
+test("readers that resolve before any watch share one entry and one compute", () => {
+  const scope = seeded();
+  const { runs, total } = counted();
+
+  const first = scope.resolve(total({ viewer: "a" }));
+  const second = scope.resolve(total({ viewer: "a" }));
+  const values = [first.get(), second.get()];
+
+  expect(second).toBe(first);
+  expect(values).toEqual([5, 5]);
+  expect(runs.count).toBe(1);
+});
+
+test("a watcher hears a change that another reader computed first", () => {
+  const scope = seeded();
+  const base = derived({
+    label: "derived.base",
+    depends: { rate },
+    factory: ({ rate }) => rate * 10,
+  });
+  const over = derived({
+    label: "derived.over",
+    depends: { rate, base },
+    factory: ({ rate, base }) => rate + base.get(),
+  });
+  const top = scope.resolve(over);
+  const stopTop = top.watch(() => undefined);
+  const heard: unknown[] = [];
+  const stopBase = scope.resolve(base).watch((next) => heard.push(next));
+
+  scope.controller(rate).set(2);
+
+  expect(heard).toEqual([20]);
+  expect(top.get()).toBe(22);
+  stopTop();
+  stopBase();
+});
+
+test("a watcher hears a fault go away, even back to an equal value", () => {
+  const scope = seeded();
+  const flaky = derived({
+    label: "derived.flaky",
+    depends: { rate },
+    factory: ({ rate }) => {
+      if (rate < 0) throw Object.assign(new Error("negative"), { kind: "Negative" });
+      return 7;
+    },
+  });
+  const reader = scope.resolve(flaky);
+  reader.get();
+  let wakes = 0;
+  const stop = reader.watch(() => wakes++);
+
+  scope.controller(rate).set(-1);
+  scope.controller(rate).set(1);
+
+  expect(wakes).toBe(2);
+  expect(reader.get()).toBe(7);
+  stop();
+});
+
+test("a failed resource build is a fault on the next read, with no watcher", async () => {
+  const scope = createScope();
+  const broken = resource({
+    label: "derived.broken-alone",
+    factory: (): Promise<number> =>
+      Promise.reject(Object.assign(new Error("down"), { kind: "Down" })),
+  });
+  const failing = derived({
+    label: "derived.failing-alone",
+    depends: { broken },
+    factory: ({ broken }) => broken,
+  });
+  const thrown = (() => {
+    try {
+      return scope.resolve(failing).get();
+    } catch (wait) {
+      return wait;
+    }
+  })();
+
+  await thrown;
+
+  expect(() => scope.resolve(failing).get()).toThrow("down");
+});
+
+test("a resource is read again after it builds again", async () => {
+  const scope = createScope();
+  let built = 0;
+  const counter = resource({ label: "derived.counter", factory: () => ++built });
+  const shown = derived({
+    label: "derived.shown",
+    depends: { counter },
+    factory: ({ counter }) => counter,
+  });
+  const reader = scope.resolve(shown);
+  const stop = reader.watch(() => undefined);
+  const before = reader.get();
+
+  await scope.release(counter);
+
+  expect([before, reader.get()]).toEqual([1, 2]);
+  stop();
+});
+
+test("a config value that is not a string, a number or a slot raises InvalidKey", () => {
+  const scope = seeded();
+  const flag = tag<unknown>({ label: "derived.flag" });
+  const odd = derived({ label: "derived.odd", config: { flag: flag.required }, factory: () => 0 });
+
+  const reads = [true, { x: 1 }, null].map((value) => () => scope.resolve(odd({ flag: value })));
+
+  for (const read of reads) {
+    expect(read).toThrow(
+      expect.objectContaining({ kind: expect.stringMatching(/InvalidKey|MissingConfig/) }),
+    );
+  }
+});
