@@ -67,10 +67,12 @@ assert.equal(rpcChunks.length, 1, "rpc and remoteData must sit in one chunk of t
 
 const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // Keyed data (ADR 0135 to 0138) raised the core cap by 1 KiB: a second mode of `data`.
-const coreCap = 21504;
+// derived (ADR 0150) raised it by 1 KiB more (Duke 2026-11-13).
+const coreCap = 22528;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
-const runtimeCap = 33792;
+// derived (ADR 0150) raised this cap by 1 KiB too.
+const runtimeCap = 34816;
 assert.ok(coreSize <= coreCap, `core runtime without rpc exceeds ${coreCap} B gzip: ${coreSize} B`);
 assert.ok(runtimeSize <= runtimeCap, `core runtime exceeds ${runtimeCap} B gzip: ${runtimeSize} B`);
 console.log(`core runtime size: ${coreSize} B gzip without rpc (cap ${coreCap} B)`);

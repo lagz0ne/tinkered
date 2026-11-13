@@ -236,6 +236,11 @@ export function useData<T>(view: Data.View<T>): T;
  * new key leaves the old part. Read-only: write through an op. */
 export function useData<T>(read: Data.Read<T>): T;
 
+/** Reactively read a derived (ADR 0150): `useData(prView({ viewer, mode }))`, or the bare unit
+ * when it needs no config. Every reader of the same config shares one entry; a new config leaves
+ * the old one. */
+export function useData<T>(read: Data.Derived<T>): T;
+
 /** Reactively read a slice of a capsule's cell export. */
 export function useData<T, S>(
   view: Data.View<T>,
@@ -264,7 +269,7 @@ export function useData<T, S>(
 ): UseData.Pair<T, S>;
 
 export function useData<T, S>(
-  cell: Data.Cell<T> | Data.View<T> | Data.Read<T>,
+  cell: Source<T>,
   a?: ((value: T) => S) | UseData.Options<T>,
   b?: ((a: S, b: S) => boolean) | UseData.Options<S>,
 ): T | S | UseData.Pair<T, T | S> {
@@ -272,7 +277,7 @@ export function useData<T, S>(
 }
 
 function useStoreData<T, S>(
-  cell: Data.Cell<T> | Data.View<T> | Data.Read<T>,
+  cell: Source<T>,
   a: ((value: T) => S) | UseData.Options<T> | undefined,
   b: ((a: S, b: S) => boolean) | UseData.Options<S> | undefined,
 ): T | S | UseData.Pair<T, T | S> {
@@ -291,7 +296,7 @@ function useStoreData<T, S>(
  * when called. */
 function readData<T, S>(
   scope: Scope.Handle,
-  cell: Data.Cell<T> | Data.View<T> | Data.Read<T>,
+  cell: Source<T>,
   a: ((value: T) => S) | UseData.Options<T> | undefined,
   b: ((a: S, b: S) => boolean) | UseData.Options<S> | undefined,
 ): T | S | UseData.Pair<T, T | S> {
@@ -309,7 +314,7 @@ function readData<T, S>(
 }
 
 function useDataStore<T, S>(
-  cell: Data.Cell<T> | Data.View<T> | Data.Read<T>,
+  cell: Source<T>,
   selector: ((value: T) => S) | undefined,
   isEqual: ((a: T, b: T) => boolean) | ((a: S, b: S) => boolean) | undefined,
 ): DataStore<T, T | S> {
@@ -349,14 +354,17 @@ function useHeld<T, S>(): Held<T, S> {
   return (own.current = { bound, store: undefined });
 }
 
-/** A capsule's cell export: a read edge (ADR 0123). */
-const isView = <T>(
-  target: Data.Cell<T> | Data.View<T> | Data.Read<T>,
-): target is Data.View<T> | Data.Read<T> => (target as { kind?: unknown }).kind !== undefined;
+/** What `useData` reads: a cell, or a read edge (a capsule's cell export, ADR 0123; a keyed read,
+ * ADR 0136; a derived read, ADR 0150). */
+type Source<T> = Data.Cell<T> | Data.View<T> | Data.Read<T> | Data.Derived<T>;
+
+/** A read edge: it has a `kind`, and a cell has none. */
+const isView = <T>(target: Source<T>): target is Data.View<T> | Data.Read<T> | Data.Derived<T> =>
+  (target as { kind?: unknown }).kind !== undefined;
 
 /** A writable pair only for a cell: a capsule's cell export answers the bare value. */
 function wantsPair<T>(
-  cell: Data.Cell<T> | Data.View<T> | Data.Read<T>,
+  cell: Source<T>,
   options: { readonly writable?: boolean } | undefined,
 ): boolean {
   return options?.writable === true && !isView(cell);
@@ -365,16 +373,10 @@ function wantsPair<T>(
 /** What a store reads through: a cell's controller, or a capsule export's reader (no `set`). */
 type Readable<T> = Data.Reader<T> & { readonly set?: (value: T) => void };
 
-function readableOf<T>(
-  scope: Scope.Handle,
-  cell: Data.Cell<T> | Data.View<T> | Data.Read<T>,
-): Readable<T> {
-  if (!isView(cell)) return scope.controller(cell);
-  if (cell.kind === "reader") return scope.resolve(cell);
-
-  const keyed = scope.controller(cell.cell);
-  const reader = cell.read === "of" ? keyed.of(cell.part) : keyed.where(cell.part as never);
-  return reader as Readable<T>;
+/** A cell reads through its controller; a view, a keyed read, and a derived read through the
+ * reader the scope resolves them to. */
+function readableOf<T>(scope: Scope.Handle, cell: Source<T>): Readable<T> {
+  return isView(cell) ? scope.resolve(cell) : scope.controller(cell);
 }
 
 /** What `useSyncExternalStore` needs from a cell, plus the write half of the writable pair. */

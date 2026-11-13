@@ -77,6 +77,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/derived** — ADR 0150. Owner: lead (thread "Build derived in Core"). `derived({ label, config, depends, factory })` in Core; `useData` reads it with no new hook. Next: build, then tests, size, release, then the app sites (acountee 7, Hedl 5).
+  Verify: tests for one compute per key, a new key leaves the old entry, a source write computes again, field order names one entry; `pnpm validate` size lane green, cost on this card.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
