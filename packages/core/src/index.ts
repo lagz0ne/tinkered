@@ -1868,16 +1868,7 @@ function writeCell<T>(
   if (computing !== undefined) raise("WriteInDerived", { derived: computing, cell: target.label });
 
   ownCell(layer, target, chain).value = value;
-  if (inRound) return waitFlush(layer, target, undefined);
-
-  inRound = true;
-  let failed: { readonly error: unknown } | undefined;
-  try {
-    flushCell(layer, target);
-  } catch (error) {
-    failed = { error };
-  }
-  drainRounds(failed);
+  tellWrite(layer, target, undefined);
 }
 
 /** A namespaced write lands at `(this layer, first key)` (ADR 0059 decision 3), seeded from the
@@ -1898,16 +1889,7 @@ function writeCellNs(
   if (computing !== undefined) raise("WriteInDerived", { derived: computing, cell: target.label });
 
   ownNsCell(layer, target, key, current).value = value;
-  if (inRound) return waitFlush(layer, target, key);
-
-  inRound = true;
-  let failed: { readonly error: unknown } | undefined;
-  try {
-    flushInheritedNsWatchers(layer, target, key);
-  } catch (error) {
-    failed = { error };
-  }
-  drainRounds(failed);
+  tellWrite(layer, target, key);
 }
 
 /** A named bucket change can affect only chains containing its key at this layer. A default
@@ -8683,6 +8665,23 @@ const ROUND_LIMIT = 100;
  * (Svelte's subscriber queue). */
 function waitRound(label: string, run: () => void): void {
   waiting.push({ label, depth: roundDepth + 1, run });
+}
+
+/** Tell the watchers of a cell write (ADR 0152): its round runs now, or waits when a round
+ * runs. A write with no write inside it touches no queue. */
+function tellWrite(layer: Layer, target: Data.Cell<unknown>, key: Namespace | undefined): void {
+  if (inRound) return waitFlush(layer, target, key);
+
+  inRound = true;
+  let failed: { readonly error: unknown } | undefined;
+  try {
+    if (key === undefined) flushCell(layer, target);
+    else flushInheritedNsWatchers(layer, target, key);
+  } catch (error) {
+    failed = { error };
+  }
+  if (waiting.length === 0 && failed === undefined) inRound = false;
+  else drainRounds(failed);
 }
 
 /** A hot write's round, queued. The closure is made here, not in the write: a closure in the
