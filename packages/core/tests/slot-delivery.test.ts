@@ -5,6 +5,7 @@ import {
   capsule,
   createScope,
   data,
+  derived,
   operation,
   resource,
   tag,
@@ -291,5 +292,76 @@ test("a plain value in a required slot of a resource arrives as is, null too", a
   await scope.ready;
 
   expect(scope.resolve(loader)).toBe("none");
+  await scope.close();
+});
+
+test("a resource that reads one slot through .all, .optional or .required rebuilds on release", async () => {
+  let builds = 0;
+  const base = resource({ label: "slot.edge.base", factory: () => `b${++builds}` });
+  const viaAll = tag<Resource.Handle<string>>({ label: "slot.edge.all" });
+  const viaOptional = tag<Resource.Handle<string>>({ label: "slot.edge.optional" });
+  const viaRequired = tag<Resource.Handle<string>>({ label: "slot.edge.required" });
+
+  const readers = [
+    resource({
+      label: "slot.edge.readAll",
+      depends: { s: viaAll.all },
+      factory: ({ s }) => s.join(),
+    }),
+    resource({
+      label: "slot.edge.readOptional",
+      depends: { s: viaOptional.optional },
+      factory: ({ s }) => (s.present ? s.value : "none"),
+    }),
+    resource({
+      label: "slot.edge.readRequired",
+      depends: { s: viaRequired.required },
+      factory: ({ s }) => s,
+    }),
+  ];
+
+  for (const reader of readers) {
+    builds = 0;
+    const scope = createScope({ tags: [viaAll(base), viaOptional(base), viaRequired(base)] });
+    await scope.ready;
+
+    expect(scope.resolve(reader)).toBe("b1");
+    await scope.release(base);
+    expect(scope.resolve(reader)).toBe("b2");
+    await scope.close();
+  }
+});
+
+test("a cell that holds a promise arrives as that promise; only a resource or a slot waits", async () => {
+  const held = Promise.resolve(7);
+  const pending = data<Promise<number>>({ label: "slot.park.cell", initial: held });
+  const slow = resource({ label: "slot.park.slow", factory: async () => 1 });
+  const both = resource({
+    label: "slot.park.both",
+    depends: { pending, slow },
+    factory: async ({ pending, slow }) => ({ pending, slow }),
+  });
+  const scope = createScope();
+  await scope.ready;
+
+  const got = await scope.resolve(both);
+
+  expect(got.pending).toBe(held);
+  expect(got.slow).toBe(1);
+  await scope.close();
+});
+
+test("a derived that reads a cell slot through .required gets the cell's value", async () => {
+  const count = data({ label: "slot.derived.count", initial: 3 });
+  const held = tag<Data.Cell<number>>({ label: "slot.derived.cell" });
+  const doubled = derived({
+    label: "slot.derived.doubled",
+    depends: { n: held.required },
+    factory: ({ n }) => n * 2,
+  });
+  const scope = createScope({ tags: [held(count)] });
+  await scope.ready;
+
+  expect(scope.resolve(doubled).get()).toBe(6);
   await scope.close();
 });
