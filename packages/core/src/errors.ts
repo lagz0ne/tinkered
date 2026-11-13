@@ -29,6 +29,11 @@ type Payloads = {
   KeyChanged: { label: string; key: string; next: string };
   /** A key's field holds a number that is not finite (ADR 0138): JSON writes it as `null`. */
   InvalidKey: { label: string; field: string };
+  /** One write set off a chain of writes more than the limit deep (ADR 0152). `cells` holds the
+   * labels of the last cells written, oldest first. */
+  UpdateDepth: { depth: number; cells: string[] };
+  /** A derived's factory wrote a cell while it computed (ADR 0152). */
+  WriteInDerived: { derived: string; cell: string };
 };
 
 export declare namespace Errors {

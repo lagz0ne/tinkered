@@ -952,8 +952,9 @@ test("a watcher that writes during notify does not rob a later watcher of its ch
   const scope = createScope();
   scope.controller(cell, { ns: a }).set(1);
 
-  /** The second of two watchers on one bucket; the first re-writes on seeing 2. The nested
-   * round's `[2, 0]` lands first, then the outer `[1, 2]`: not missed, not seen as `[1, 0]`. */
+  /** The second of two watchers on one bucket; the first re-writes on seeing 2. The round of
+   * the first write ends before the round of the second starts (ADR 0152): `[1, 2]`, then
+   * `[2, 0]`, so the last change it hears is the cell's value. */
   const seen2: [number, number][] = [];
   scope.controller(cell, { ns: a }).watch((next) => {
     if (next === 2) scope.controller(cell, { ns: a }).set(0);
@@ -963,8 +964,8 @@ test("a watcher that writes during notify does not rob a later watcher of its ch
   scope.controller(cell, { ns: a }).set(2);
 
   expect(seen2).toEqual([
-    [2, 0],
     [1, 2],
+    [2, 0],
   ]);
   await scope.close();
 });
