@@ -81,9 +81,6 @@ None.
 
 ## Review
 
-- **core/rounds** — ADR 0152. Owner: the design thread for derived; the lead lands it on the box. Branch `claude/project-thread-ph7ce7`: a write in a round waits for the round, `UpdateDepth` past depth 100, `WriteInDerived`. A second commit on it lets a derived slot hold an operation (ADR 0150, point 9). Seen: Core 1,360 tests, React 120 tests, `vp check` 0 errors, 10 of 19 new tests fail without the fix; size core 22,104 -> 22,377 B gzip. Next: `bench/queued.sh` against 0.21.1 (the write path is hot), Core's mutation lane, `vp run skills`, then release.
-  Verify: `vp test tests/rounds.test.ts` in `packages/core`; the bench verdict on this card.
-
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
@@ -121,6 +118,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/rounds** — done 2026-11-13 (ADR 0152; ADR 0150 point 9). A write in a round waits for the round; `UpdateDepth` past depth 100; `WriteInDerived`; a derived slot may hold an operation. Released as 0.21.2.
+  Proof: Core 1,360 tests, 11 of 19 new tests fail on 0.21.1; size core 22,448 / 22,528 B gzip; box bench vs 0.21.1 on e2f8d026: `write` and the standard ten no difference, `writeunwatched` +0.8%, 4M-write probe +9.3%, new frame `tellWrite` 1.3% (/home/paseo/plans/rounds/report.md, flamegraphs there); mutation on efdca167 85.84, 85.10 on kills alone, exit 0.
 - **core/derived** — done 2026-11-13 (ADR 0150). `derived({ label, config, depends, factory })` in Core; `useData` reads it with no new hook. Released as 0.21.0, and 0.21.1 (tinker/plain reads a derived's depends and factory). Not built: the self-cycle check (review finding 7 of 7).
   Proof: 26 Core tests, 2 React tests; size core 22,104 / 22,528 B gzip (caps +1 KiB, Duke); mutation on the derived lines 90.86. acountee 48683cb (7 sites: 201 tests, browser smoke of /prs grouped, /approvals, /invoices, audit tab); Hedl d006070 (5 sites: `bun run check` green).
 - **analyze/flow-files** — done 2026-11-12 (ADR 0148, issue #35, PR #36; Duke 15:47: "Go ahead"). In a `*.flow.ts` or `*.flow.server.ts` file, a workflow or step passes `tinker/plain`; only a flow function calls a flow function by name. Released as 0.20.1.
