@@ -1,7 +1,8 @@
 # 0151 A capsule slot arrives as `depends` delivers it
 
-Date: 2026-11-13. Status: proposed (point 1
-accepted by Duke, 08:21 UTC; not built).
+Date: 2026-11-13. Status: proposed (points 1 and
+2 accepted by Duke, 08:21 and 08:23 UTC; not
+built).
 Changes: ADR 0120, 0121 (slot keys). Matches ADR
 0150 (a derived slot).
 
@@ -24,6 +25,9 @@ to have the same capability, why not, that'll be a
 better quality of life. If they want to have more
 control, be it, use controller, etc rather than
 bared one".
+
+Duke, 08:23: "we'll go with different handle
+differently".
 
 ## Context
 
@@ -73,10 +77,14 @@ operation") and a list (`tag.all`).
    - an operation: a subflow, to call;
    - a cell: its value;
    - a read or a capsule export: a reader.
-2. **More control is the controller edge.** A unit
-   that wants the handle's controls asks for them,
-   as with a bare unit today. The edge on a slot
-   tag is open (see below).
+2. **Each kind keeps its own edges.** A slot tag
+   offers the edges the unit in it has, no more:
+   - a cell: `.controller` gives get, set and
+     watch (`Data.Cell`, core index.ts:81);
+   - an operation: `.controller` gives its
+     controller (core index.ts:357);
+   - a resource: no `.controller` edge, as today.
+     A start hook keeps `load` for it.
 3. **A list slot gives a list.** `tag.all` of slots
    gives each item as `depends` delivers it.
 4. **The start hook keeps `load` and `run`.** They
@@ -89,8 +97,6 @@ operation") and a list (`tag.all`).
 
 ## Not decided
 
-- **The controller edge on a slot tag.** For
-  example `logger.controller`. Next question.
 - **An operation in a derived slot.** A derived
   computes again on each change. An op that writes
   can loop. Core could refuse an op whose `depends`
