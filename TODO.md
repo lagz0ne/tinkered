@@ -118,6 +118,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/duplicate-address** — done 2026-11-13 (ADR 0153, Duke picked "A. Fail the start"). Two services with one address fail the start with `DuplicateAddress`, which names both units (a board gives its cell's label); `strict: false` is the old first-wins rule. Released as 0.21.3.
+  Proof: a scratch test on 0.21.1 showed admin's client with the approvals rows, and the new test needs the fix; Core 1,362 tests, Bun 120, React 120, site 145; scoped mutation on the changed lines 21 of 22; size core 22,448 B, with rpc 34,289 B gzip; tinker-app, Hedl and the site have no clash.
 - **core/rounds** — done 2026-11-13 (ADR 0152; ADR 0150 point 9). A write in a round waits for the round; `UpdateDepth` past depth 100; `WriteInDerived`; a derived slot may hold an operation. Released as 0.21.2.
   Proof: Core 1,360 tests, 11 of 19 new tests fail on 0.21.1; size core 22,448 / 22,528 B gzip; box bench vs 0.21.1 on e2f8d026: `write` and the standard ten no difference, `writeunwatched` +0.8%, 4M-write probe +9.3%, new frame `tellWrite` 1.3% (/home/paseo/plans/rounds/report.md, flamegraphs there); mutation on efdca167 85.84, 85.10 on kills alone, exit 0.
 - **core/derived** — done 2026-11-13 (ADR 0150). `derived({ label, config, depends, factory })` in Core; `useData` reads it with no new hook. Released as 0.21.0, and 0.21.1 (tinker/plain reads a derived's depends and factory). Not built: the self-cycle check (review finding 7 of 7).

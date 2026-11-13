@@ -1103,3 +1103,20 @@ event.input; // { x: number; y: number }
 
 State: built (ADR 0142). Duke, 16:30: "I follow ur rec".
 The tide hook now reads `event.input` and passes a typed `input` on.
+
+## Two boards with one cell name mix their data — 2026-11-13
+
+Asked by acountee (the approvals and admin boards).
+
+- Both boards had a cell named `flows`, so both served
+  the address `flows`.
+- The first board won. The admin board's client got
+  the approvals rows, with no fault.
+- The start warning named both services `remoteData`.
+- Workaround (acountee): rename one cell. Nothing said
+  why it was needed.
+- Ask: a clash that cannot pass in silence.
+
+State: built (ADR 0153, 0.21.3). Duke, 14:50, picked
+"A. Fail the start". The workaround hid lost data, so
+it became a ticket at its first asker.

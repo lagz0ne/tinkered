@@ -6,6 +6,51 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.21.3
+
+Two services with one address now fail the start
+(ADR 0153). Before, the first one won.
+
+- Two boards with a cell of the same name served
+  one address. The second board's client got the
+  first board's rows, with no fault.
+- The server transport now raises
+  `DuplicateAddress` at start, in `ws.server` and
+  in the memory transport.
+- The fault names both units. A board gives its
+  cell's label:
+
+```
+DuplicateAddress
+  address: "flows"
+  services: ["approvals.flows", "admin.flows"]
+```
+
+### Upgrade
+
+- A server with a clash does not start. Rename one
+  cell, or one rpc key.
+- To keep the old rule (the first wins, with a
+  warning at start), set `strict: false`:
+
+```ts
+ws.server({ path: "/rpc", services, strict: false });
+```
+
+- A test that relied on the first winning needs
+  `strict: false` too.
+
+### Install
+
+From npm:
+
+```bash
+bun add @tinkered/core@0.21.3 \
+  @tinkered/react@0.21.3 \
+  @tinkered/bun@0.21.3
+bun add -d @tinkered/analyze@0.21.3
+```
+
 ## 0.21.2
 
 A write made while watchers hear another write
