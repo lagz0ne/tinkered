@@ -279,3 +279,17 @@ test("scope.resolve of a slot's controller edge gives the controller", async () 
   expect(scope.resolve(count)).toBe(5);
   await scope.close();
 });
+
+test("a plain value in a required slot of a resource arrives as is, null too", async () => {
+  const wasm = tag<string | null>({ label: "slot.wasm" });
+  const loader = resource({
+    label: "slot.loader",
+    depends: { wasm: wasm.required },
+    factory: ({ wasm }) => wasm ?? "none",
+  });
+  const scope = createScope({ tags: [wasm(null)] });
+  await scope.ready;
+
+  expect(scope.resolve(loader)).toBe("none");
+  await scope.close();
+});

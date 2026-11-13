@@ -1432,7 +1432,7 @@ export function operation<
   } as Operation.Handle<R, I> &
     Exported & {
       controller: Operation.Handle<R, I>["controller"];
-      borrows: boolean;
+      borrows: number;
     };
 
   const controller = edgeTo("controller", base);
@@ -1443,7 +1443,7 @@ export function operation<
   return base;
 }
 
-type BorrowFlag = { readonly borrows?: boolean };
+type BorrowFlag = { readonly borrows?: number };
 
 /** Declare a reusable resource: built once per owner, cleaned up when its owner closes. */
 export function resource<
@@ -3407,12 +3407,7 @@ function buildDeps(
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
   for (const key in depends) {
-    const dep = heldDep(layer, depends[key], chain);
-    if (dep === PLAIN) {
-      deps[key] = plainValue;
-      continue;
-    }
-
+    const dep = depends[key];
     registerEdge(layer, dep, dependent, chain, state, gen);
     const value =
       selected === undefined
@@ -3460,7 +3455,11 @@ function readOpDeps(
   if (override !== undefined || held === undefined) {
     return buildPlainDeps(layer, override === undefined ? target.depends : {}, span, chain, caller);
   }
-  return buildDeps(layer, target.depends, span, chain, held, caller);
+  const depends =
+    (target as BorrowFlag).borrows === 2
+      ? aliasSlots(layer, target.depends, chain)
+      : target.depends;
+  return buildDeps(layer, depends, span, chain, held, caller);
 }
 
 /** Await every parked build, then deliver the values into their slots. A rejected build rejects
@@ -3481,7 +3480,8 @@ function resolveResourceDeps(
   state: ResourceState,
   selected: Selection | undefined,
 ): Record<string, unknown> {
-  return buildDeps(owner, target.depends, span, chain, selected, undefined, target, state, gen);
+  const depends = aliasSlots(owner, target.depends, chain);
+  return buildDeps(owner, depends, span, chain, selected, undefined, target, state, gen);
 }
 
 class ResourceCtx implements Resource.Ctx {
@@ -4162,7 +4162,7 @@ function addBorrow(owned: ResourceInstance, held: HeldBorrows): void {
 }
 
 function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | undefined {
-  if ((target as BorrowFlag).borrows !== true) return undefined;
+  if (!(target as BorrowFlag).borrows) return undefined;
   return createBorrows();
 }
 
@@ -7530,12 +7530,14 @@ async function closeInstances(
 }
 
 /** True when an operation's deps name a resource, directly or behind an edge. */
-function seesResource(depends: Scope.Depends): boolean {
+function seesResource(depends: Scope.Depends): number {
+  let sees = 0;
   for (const key in depends) {
     const dep = depends[key];
-    if (isResource(dep) || isTag(dep) || isTagEdge(dep)) return true;
+    if (isTag(dep) || isTagEdge(dep)) return 2;
+    if (isResource(dep)) sees = 1;
   }
-  return false;
+  return sees;
 }
 
 function nanosFromMillis(ms: number): bigint {
@@ -8833,13 +8835,24 @@ function tagEdge(
   return tagRequired(layer, target, chain);
 }
 
-/** The value a {@link heldDep} read for a tag that holds no unit, handed to its loop. */
-let plainValue: unknown;
-const PLAIN = Symbol() as unknown as Scope.Dependency;
+/** `depends` with each bare or required slot that holds a unit swapped for that unit (ADR 0151),
+ * so the unit builds, parks, borrows and keeps its edges as if named there. Copies only when a
+ * slot holds a unit. An operation pays it only when its `depends` name a slot. */
+function aliasSlots(
+  layer: Layer,
+  depends: Scope.Depends,
+  chain: readonly Namespace[] | undefined,
+): Scope.Depends {
+  let out: Record<string, Scope.Dependency> | undefined;
+  for (const key in depends) {
+    const dep = depends[key];
+    const held = heldDep(layer, dep, chain);
+    if (held !== dep) (out ??= { ...depends })[key] = held;
+  }
+  return out ?? depends;
+}
 
-/** A slot is an alias in `depends` (ADR 0151): a bare or required tag that holds a unit stands
- * for that unit, so the unit builds, parks, borrows and keeps its edges as if named there. A tag
- * that holds a plain value gives {@link PLAIN}, its value in {@link plainValue}. */
+/** The unit a bare or required slot holds, else the dep as declared. */
 function heldDep(
   layer: Layer,
   dep: Scope.Dependency,
@@ -8849,10 +8862,7 @@ function heldDep(
   if (tag === undefined) return dep;
 
   const value = tagRequired(layer, tag as Tag.Handle<unknown>, chain);
-  if (isUnit(value)) return value as Scope.Dependency;
-
-  plainValue = value;
-  return PLAIN;
+  return isUnit(value) ? (value as Scope.Dependency) : dep;
 }
 
 /** A tag edge: `.required`, `.optional` or `.all` of a tag. */
@@ -8875,5 +8885,5 @@ function heldUnits(
   if (dep.kind === "all") return raw as unknown[];
 
   const found = raw as Tag.Presence<unknown>;
-  return found.present ? [found.value] : [];
+  return dep.kind === "optional" && found.present ? [found.value] : [];
 }
