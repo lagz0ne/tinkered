@@ -78,6 +78,25 @@ export const shout = operation({
   expect(result).toMatchObject({ code: 0, out: "no findings in 1 files\n", err: "" });
 });
 
+test("a derived passes: its depends and its factory, with their inline callbacks (ADR 0150)", () => {
+  const result = checkFiles({
+    "src/api/count.ts": `import { data, derived, tag } from "@tinkered/core";
+
+const rows = data({ label: "rows", initial: [1, 2] });
+const min = tag<number>({ label: "min" });
+
+export const count = derived({
+  label: "count",
+  config: { min: min.required },
+  depends: (c) => ({ rows, min: c.min }),
+  factory: ({ rows }, c) => rows.filter((n) => n >= c.min).length,
+});
+`,
+  });
+
+  expect(result).toMatchObject({ code: 0, out: "no findings in 1 files\n", err: "" });
+});
+
 test("a resource's returned methods pass; a helper only called inside it fails", () => {
   const result = checkFiles({
     "tinker/counter.ts": `import { resource } from "@tinkered/core";

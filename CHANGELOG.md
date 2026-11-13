@@ -51,6 +51,9 @@ const view = useData(prView({ viewer }));
   one is the entry's fault.
 - With no required key, the bare unit reads:
   `useData(total)`.
+- `tinker/plain` reads a derived's `depends` and
+  `factory` as unit bodies, as it reads an
+  operation's `run`.
 
 ### Size
 

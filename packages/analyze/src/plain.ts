@@ -11,7 +11,7 @@ import type { Fn } from "./tree";
 const hookNames = new Set(["start", "resolve", "run", "write", "close", "session"]);
 
 /** Core calls whose direct options are graph bodies. */
-const unitNames = new Set(["operation", "resource", "tag", "data"]);
+const unitNames = new Set(["operation", "resource", "tag", "data", "derived"]);
 
 /** Calls that register a listener: the event source calls it, never app code by name. */
 const listenNames = new Set([
