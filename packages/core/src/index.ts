@@ -1868,7 +1868,7 @@ function writeCell<T>(
   if (computing !== undefined) raise("WriteInDerived", { derived: computing, cell: target.label });
 
   ownCell(layer, target, chain).value = value;
-  tell(target.label, () => flushCell(layer, target));
+  tell(target.label, flushCell, layer, target, undefined);
 }
 
 /** A namespaced write lands at `(this layer, first key)` (ADR 0059 decision 3), seeded from the
@@ -1889,7 +1889,7 @@ function writeCellNs(
   if (computing !== undefined) raise("WriteInDerived", { derived: computing, cell: target.label });
 
   ownNsCell(layer, target, key, current).value = value;
-  tell(target.label, () => flushInheritedNsWatchers(layer, target, key));
+  tell(target.label, flushInheritedNsWatchers, layer, target, key);
 }
 
 /** A named bucket change can affect only chains containing its key at this layer. A default
@@ -5601,7 +5601,7 @@ function releaseNode(layer: Layer, target: Node): void {
 
   const dataReleased = invalidateAffected(order, affected);
   drainRelease(affected, () => {
-    if (dataReleased && isData(target)) tell(target.label, () => flushCell(layer, target));
+    if (dataReleased && isData(target)) tell(target.label, flushCell, layer, target, undefined);
   });
 }
 
@@ -5623,9 +5623,7 @@ function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespac
   rec.cells.delete(ns);
   rec.readers?.delete(entry);
 
-  drainRelease(affected, () =>
-    tell(target.label, () => flushInheritedNsWatchers(owner, target, ns)),
-  );
+  drainRelease(affected, () => tell(target.label, flushInheritedNsWatchers, owner, target, ns));
 }
 
 function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {
@@ -8594,7 +8592,7 @@ class DerivedEntry implements Data.Reader<unknown> {
         if (this.wait !== wait) return;
 
         this.wait = undefined;
-        tell(this.def.label, () => this.wake());
+        tell(this.def.label, (entry) => entry.wake(), this, undefined, undefined);
       });
     this.wait = wait;
   }
@@ -8651,7 +8649,9 @@ let computing: string | undefined;
  * it, so a watcher that writes 200 cells makes 200 rounds of one depth. */
 type Round = { readonly label: string; readonly depth: number; readonly run: () => void };
 
-/** The rounds that wait while a round runs, and the depth of the one that runs (ADR 0152). */
+/** The rounds that wait while a round runs, and the depth of the one that runs (ADR 0152). One
+ * array serves every round: a write with no write inside it makes no round object. */
+const waiting: Round[] = [];
 let rounds: Round[] | undefined;
 let roundDepth = 0;
 
@@ -8663,15 +8663,20 @@ const ROUND_LIMIT = 100;
  * writes in the order they were made (Svelte's subscriber queue). A chain deeper than the limit
  * raises `UpdateDepth` at the first write. A watcher that throws ends its own round only: the
  * rounds that wait still run, then the first error goes to the first write. */
-function tell(label: string, run: () => void): void {
+function tell<A, B, K>(label: string, run: (a: A, b: B, key: K) => void, a: A, b: B, key: K): void {
   if (rounds !== undefined) {
-    rounds.push({ label, depth: roundDepth + 1, run });
+    rounds.push({ label, depth: roundDepth + 1, run: () => run(a, b, key) });
     return;
   }
 
-  const queue: Round[] = (rounds = [{ label, depth: 0, run }]);
+  const queue = (rounds = waiting);
   let failed: { readonly error: unknown } | undefined;
   try {
+    try {
+      run(a, b, key);
+    } catch (error) {
+      failed = { error };
+    }
     for (let at = 0; at < queue.length; at++) {
       const next = queue[at] as Round;
       if (next.depth > ROUND_LIMIT) tooDeep(queue, at);
@@ -8686,6 +8691,7 @@ function tell(label: string, run: () => void): void {
   } finally {
     rounds = undefined;
     roundDepth = 0;
+    queue.length = 0;
   }
   if (failed !== undefined) throw failed.error;
 }
