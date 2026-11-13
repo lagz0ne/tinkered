@@ -115,6 +115,8 @@ export type Watch = Operation.Handle<Promise<void>, z.infer<typeof watchInput>>;
 export type Service = {
   readonly label: unknown;
   readonly addresses: readonly string[];
+  /** The unit behind an address, for a clash's message: a board gives its cell's label. */
+  readonly names?: (address: string) => string | undefined;
   readonly answer: Answer;
   readonly stream: Stream;
   /** The addresses that take bytes, with their limits: only these answer a POST. */

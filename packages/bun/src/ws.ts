@@ -84,7 +84,7 @@ export function createWs() {
   const path = tag<string>({ label: "ws.path" });
   const codec = tag<Codec>({ label: "ws.codec" }).optional;
   const services = tag<readonly Service[]>({ label: "ws.services" }).required;
-  const strict = tag<boolean>({ label: "ws.strict", default: false });
+  const strict = tag<boolean>({ label: "ws.strict", default: true });
   /** The public origin a socket comes from. Unset, it is the request URL's own origin; behind a
    * TLS proxy that is `http://<host>`, so the app binds its public `https` origin here. */
   const origin = tag<string | null>({ label: "ws.origin", default: null });

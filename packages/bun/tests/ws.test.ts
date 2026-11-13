@@ -5,9 +5,12 @@ import { z } from "zod";
 import { ws } from "@/client";
 import { ws as wsServer } from "@/index";
 
-const api = rpc({
-  greet: { input: z.object({ name: z.string().min(1) }), output: z.object({ text: z.string() }) },
-});
+const greet = {
+  input: z.object({ name: z.string().min(1) }),
+  output: z.object({ text: z.string() }),
+};
+
+const api = rpc({ greet });
 
 const greetHere = operation({
   label: "greet.here",
@@ -205,4 +208,28 @@ test("reset drops the socket: the next call opens a new one, and the old close f
   await tick();
   expect(await client.run(api.greet, { input: { name: "c" } })).toEqual({ text: "Hello, c." });
   expect(upgrades).toBe(2);
+});
+
+test("two services with one address fail the server's start; strict: false lets the first win", async () => {
+  const again = rpc({ greet });
+  const capsules = [
+    api({ implement: { greet: greetHere } }),
+    again({ implement: { greet: greetHere } }),
+  ];
+  const failed = await createScope({
+    capsules: [...capsules, wsServer.server({ path: "/rpc", services: [api, again] })],
+  }).ready.then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect(failed).toMatchObject({
+    kind: "DuplicateAddress",
+    payload: { address: "greet", services: ["rpc", "rpc"] },
+  });
+
+  const { url } = await serverOf([api as never, again as never], capsules, { strict: false });
+  const client = await createScope({ capsules: [ws.client({ url }), api({ remote: ws.client })] })
+    .ready;
+  closers.push(() => client.close());
+  expect(await client.run(api.greet, { input: { name: "a" } })).toEqual({ text: "Hello, a." });
 });

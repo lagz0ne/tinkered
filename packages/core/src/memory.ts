@@ -220,7 +220,7 @@ export function createMemory() {
     config: {
       codec: tag<Codec>({ label: "memory.codec" }).optional,
       services: tag<readonly Service[]>({ label: "memory.services" }).required,
-      strict: tag<boolean>({ label: "memory.strict", default: false }),
+      strict: tag<boolean>({ label: "memory.strict", default: true }),
     },
     exports: { serve, serveStream },
     hooks: {
