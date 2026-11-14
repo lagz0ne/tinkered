@@ -6,6 +6,19 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.23.1
+
+A cell write is a little faster. No API change.
+
+- A watcher that throws is caught at the watcher
+  loop, not around each write.
+- The `WriteInDerived` check stays in the write;
+  its error is built outside it.
+- One cell, one watcher, 4M writes: 81 to 80 ns
+  per write. 0.21.1 took 75 ns.
+- The rest is the catch that keeps a throwing
+  watcher safe. Vue and Preact pay it too.
+
 ## 0.23.0
 
 A keyed read can name a window: an order and a
