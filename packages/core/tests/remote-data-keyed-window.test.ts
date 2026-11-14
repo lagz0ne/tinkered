@@ -37,6 +37,15 @@ const newest = { order: "-created", limit: 2 };
 async function boot() {
   const rows = new Map<string, Task>();
   const asked: unknown[] = [];
+  let gate: Promise<void> | undefined;
+  const hold = () => {
+    let open = () => undefined as void;
+    gate = new Promise<void>((done) => (open = done));
+    return () => {
+      gate = undefined;
+      open();
+    };
+  };
   const loadTasks = operation({
     label: "window.load",
     input: z.object({
@@ -44,8 +53,9 @@ async function boot() {
       order: z.enum(["-created"]).optional(),
       limit: z.number().max(50).optional(),
     }),
-    run: (_, { input }) => {
+    run: async (_, { input }) => {
       asked.push(input);
+      await gate;
       const all = [...rows.values()].filter((t) => t.project === input.project);
       if (input.order) all.sort((a, b) => b.created - a.created);
       return input.limit === undefined ? all : all.slice(0, input.limit);
@@ -76,7 +86,7 @@ async function boot() {
     closers.push(() => scope.close());
     return scope;
   };
-  return { server, client, write, rows, asked };
+  return { server, client, write, rows, asked, hold };
 }
 
 /** A reader kept in use until `stop`. */
@@ -241,4 +251,38 @@ test("a board with no load cannot sort: a window fails", async () => {
 
   expect(state.get()).toMatchObject({ status: "fault", fault: { fault: "failed" } });
   expect(top.get()).toEqual([]);
+});
+
+test("a window that comes back shows no rows until its new answer", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const b = watch(tab, board.tasks.of({ project: "p1", id: "b" }));
+  const first = watch(tab, board.tasks.where({ project: "p1" }, newest));
+  await until(() => first.get().length === 2 && b.get() !== undefined);
+
+  first.stop();
+  const open = app.hold();
+  const back = watch(tab, board.tasks.where({ project: "p1" }, newest));
+  const shown = back.get();
+  open();
+  await until(() => back.get().length === 2);
+
+  expect(shown).toEqual([]);
+  expect(ids(back.get())).toEqual(["c", "b"]);
+});
+
+test.each([
+  ["a string", "newest"],
+  ["a nested value", { order: { by: "created" } }],
+])("a window that is %s never leaves the client", async (_, window) => {
+  const app = await boot();
+  const tab = await app.client();
+  const read = board.tasks.where({ project: "p1" }, window as never);
+  const top = watch(tab, read);
+  const state = tab.resolve(board.status(read));
+  await until(() => state.get()?.status === "fault");
+
+  expect(state.get()).toMatchObject({ status: "fault", fault: { from: "local" } });
+  expect(top.get()).toEqual([]);
+  expect(app.asked).toEqual([]);
 });

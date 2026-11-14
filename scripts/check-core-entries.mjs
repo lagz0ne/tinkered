@@ -69,11 +69,13 @@ const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // Keyed data (ADR 0135 to 0138) raised the core cap by 1 KiB: a second mode of `data`.
 // derived (ADR 0150) raised it by 1 KiB more (Duke 2026-11-13).
 // A slot that arrives as its value (ADR 0151) raised it by 320 B (Duke 2026-11-13: "Can increase a little bit"; the last 64 B keep the slot check off the paths that name no slot).
-const coreCap = 22848;
+// A window in a keyed read (ADR 0139 2) raised it by 192 B (Duke 2026-11-14: "Can do").
+const coreCap = 23040;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
 // derived (ADR 0150) raised this cap by 1 KiB too.
-const runtimeCap = 34816;
+// A window in a keyed read (ADR 0139 2) raised this cap by 256 B.
+const runtimeCap = 35072;
 assert.ok(coreSize <= coreCap, `core runtime without rpc exceeds ${coreCap} B gzip: ${coreSize} B`);
 assert.ok(runtimeSize <= runtimeCap, `core runtime exceeds ${runtimeCap} B gzip: ${runtimeSize} B`);
 console.log(`core runtime size: ${coreSize} B gzip without rpc (cap ${coreCap} B)`);

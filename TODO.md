@@ -66,7 +66,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/closing-no-any** — `closingOf` joins a layer's ancestors with `AbortSignal.any`. On Node 22 each call keeps a record on the root's signal, so a session resource that reads `ctx.closing` keeps about 180 B per session (ADR 0133, not done there).
   Verify: a `bench/heap-stop.mjs` row for a session resource that reads `ctx.closing` stays within 64 B.
 
-- **hedl/tasks-keyed** — keyed data k07, blocked by the order decision (ADR 0138: the Tasks panel reads the newest 50, and a part has no order and no limit). In Hedl: the projector calls `invalidate` for each notice; the panel reads `where({ project })`; the tasks board has no session tag. k08 (checks, Inbox) and k09 (`remoteData` loses `config`) follow in the track.
+- **hedl/tasks-keyed** — keyed data k07. Unblocked: Core 0.23.0 has the window (ADR 0139 2). In Hedl: the panel reads `where({ project }, { order: "-created", limit: 50 })`; the load takes `order` and `limit`; the projector calls `invalidate` for each notice; the tasks board has no session tag. k08 (checks, Inbox) and k09 (`remoteData` loses `config`) follow in the track.
   Verify: the e2e flows pass; a task change sends one member to a reader of that project; a reader of another project gets nothing.
 
 - **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
@@ -165,6 +165,8 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **core/clear-exits** — done 2026-11-11 (released 0.17.6). ADR 0141 (Duke 07:23): a backend's `send` and `open` end with a value; a throw is a bug (logged, failed/local, never link); memory: one server per transport, a closing server ends its watches. Proof: tests per exit; Core 1,300, bun 111, react 115; scoped mutation 85.05.
 
 - **core/fault-from** — done 2026-11-11 (released 0.17.5). ADR 0141: each fault has `from` (server or local) and a local one `sent`; an unknown address is `missing`, not `link`. Proof: the missing-part test fails with `link`; Core 1,295, bun 111, react 115; scoped mutation 85.71; size 32,623 B with rpc. The shape (a field, or the kind alone) waits on Duke.
+
+- **core/keyed-window** — done 2026-11-14 (released 0.23.0). ADR 0139 step 3: `where(part, window)`; the store sorts and cuts. Proof: 11 Core tests (tests/remote-data-keyed-window.test.ts); size 23,027 B and 35,004 B under caps Duke raised.
 
 - **core/keyed-part-state** — done 2026-11-11 (released 0.17.4). ADR 0139 step 1: `board.status(read)` gives pending, ready or fault per part; a refused or invalid part waits for `invalidate`; a link fault heals. Proof: 4 new Core tests (the wait test fails with no wait); Core 1,294 tests, bun 109, react 115; scoped mutation 85.79; size 32,526 B with rpc.
 

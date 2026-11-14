@@ -8210,7 +8210,7 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
 
   where(part: Data.Part<Data.Key>, window?: KeyWindow): Data.Reader<readonly unknown[]> {
     const key = part as Data.Key;
-    const text = this.textOf("where", key, window);
+    const text = window ? this.windowText(key, window) : `w${this.spec.text(key)}`;
     // A window holds what the store gave, in its order; a part holds each member it names.
     const find = window
       ? (index: KeyedIndex) =>
@@ -8254,7 +8254,7 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     const given = this.spec.slotsOf(members);
     // A window's answer is its list. A member it leaves out may still be in the store, so it
     // goes only when the window is empty: then the part is empty too.
-    if (window) this.list(this.textOf(read, part, window), [...given.keys()]);
+    if (window) this.list(this.windowText(part, window), [...given.keys()]);
     if (!window || !given.size) this.drop(slots, index, read, part, given, keep);
 
     for (const [at, slot] of given) {
@@ -8313,10 +8313,9 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     else lists.delete(at);
   }
 
-  /** A read as text: `o` or `w`, the key or the part, then a window's own text. */
-  private textOf(read: "of" | "where", part: Data.Key, window?: KeyWindow): string {
-    const own = `${read === "of" ? "o" : "w"}${this.spec.text(part)}`;
-    return window ? `${own}\u0000${this.spec.text(window)}` : own;
+  /** A window's read as text: the part's, then the window's. */
+  private windowText(part: Data.Key, window: KeyWindow): string {
+    return `w${this.spec.text(part)}\u0000${this.spec.text(window)}`;
   }
 
   /** A part in use hands back the reader that joined it, so a reader is as stable as its part:

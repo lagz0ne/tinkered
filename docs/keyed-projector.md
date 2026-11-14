@@ -53,6 +53,25 @@ board({ serve: true, load: { tasks: loadTasks } });
 - It runs in a session of its own, closed when it
   returns. A transaction it opens ends with it.
 
+## A window: order and limit
+
+A read can name a window (ADR 0139 2). The store
+sorts and cuts. Core does not.
+
+```ts
+useData(board.tasks.where(
+  { project },
+  { order: "-created", limit: 50 },
+));
+```
+
+- The load gets the part and the window as one
+  input. Its input type says which windows it takes.
+- A window the input does not take is refused.
+- A signal in the part asks the whole window again.
+- `invalidate` of the part asks each of its windows.
+- A board with no load fails a window: `failed`.
+
 ## The rules
 
 1. One notice: one `invalidate` for its key.

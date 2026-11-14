@@ -147,7 +147,7 @@ const askShape = z.make<Ask>((value) => {
   ) {
     return z.fail("expected an ask");
   }
-  return { value: window == null ? { read, part } : { read, part, window } };
+  return { value: { read, part, window } as Ask };
 });
 
 /**

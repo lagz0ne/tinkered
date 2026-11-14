@@ -13,7 +13,7 @@ metadata:
     cell read only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.22.0'
+  library_version: '0.23.0'
 requires:
   - core
 sources:
@@ -98,6 +98,11 @@ const press = operation({
 - `of(key)` reads one member.
 - `where(part)` reads the members whose key
   holds those fields.
+- `where(part, window)` names a window, such as
+  `{ order: "-created", limit: 50 }`. The board's
+  `load` gets the part and the window, and the
+  store sorts and cuts. Core does not sort, so a
+  window needs `remoteData` with a `load`.
 - A write to one member wakes the readers of that
   member and of its parts. No other reader runs.
 

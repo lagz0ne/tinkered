@@ -6,6 +6,37 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.23.0
+
+A keyed read can name a window: an order and a
+limit (ADR 0139 decision 2). The store sorts and
+cuts. Core does not.
+
+```ts
+useData(board.tasks.where(
+  { project },
+  { order: "-created", limit: 50 },
+));
+```
+
+- The board's `load` gets the part and the window
+  as one input. A window it does not take is
+  refused.
+- A window keeps the store's order. Its members go
+  in the one cell, so `of(key)` sees them.
+- A signal in the part asks the whole window
+  again. `invalidate` of the part asks each window.
+- A window does not ride a whole part, and a whole
+  part does not ride a window.
+- A new window starts `pending`, with no rows.
+- A board with no `load` fails a window (`failed`):
+  nothing sorts.
+
+### Size
+
+- Core cap 23,040 B (+192), with rpc 35,072 B
+  (+256).
+
 ## 0.22.0
 
 A unit that depends on a slot tag now gets what
