@@ -1120,3 +1120,34 @@ Asked by acountee (the approvals and admin boards).
 State: built (ADR 0153, 0.21.3). Duke, 14:50, picked
 "A. Fail the start". The workaround hid lost data, so
 it became a ticket at its first asker.
+
+## A board key clashes with an rpc op — 2026-11-14
+
+Asked by Hedl (k07, Hedl 90649e2).
+
+- A keyed cell named `tasks` serves `tasks` and
+  `tasks.ask`.
+- Hedl's rpc api already has the op `tasks.ask`.
+- The start failed with `DuplicateAddress` (ADR 0153).
+  The fail is right: two services, one address.
+- Workaround (Hedl): rename the board key `queue`.
+- Ask: board keys and rpc ops in their own spaces,
+  or a board name in its addresses.
+
+State: open. First asker. Next design question in
+the thread "Add order and limit to keyed reads",
+after the time to ask again.
+
+## A pending window reads as an empty one — 2026-11-14
+
+Asked by Hedl (k07).
+
+- Before the first answer, a window reads `[]`.
+- The panel showed "No tasks yet." for a moment.
+- Core has the answer: `board.status(read)` is
+  `pending` until the first answer (ADR 0139 1).
+  TanStack's `status: "pending"` is the same.
+
+State: closed, no Core change. The panel reads
+`useData(board.status(read))` and shows "No tasks
+yet." only when it is `ready`.
