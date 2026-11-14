@@ -935,6 +935,62 @@ of a part asks for it, and the guard runs at each ask. `board.invalidate`
 marks parts dirty on either side. With `load`, the server reads each part
 from a store and keeps no member (`docs/keyed-projector.md`).
 
+### A window: order and limit
+
+A `where` read takes a window as its second argument (ADR 0139
+decision 2). The store sorts and cuts. Core does not.
+
+```ts
+import {
+  data,
+  operation,
+  remoteData,
+} from "@tinkered/core";
+import { z } from "zod";
+
+type Task = {
+  project: string;
+  id: string;
+  created: number;
+};
+
+const tasks = data({
+  label: "tasks",
+  mode: "keyed",
+  key: (t: Task) => ({ project: t.project, id: t.id }),
+});
+const board = remoteData({ tasks });
+
+const loadTasks = operation({
+  label: "tasks.load",
+  input: z.object({
+    project: z.string(),
+    order: z.enum(["-created"]).optional(),
+    limit: z.number().max(50).optional(),
+  }),
+  // The store sorts by input.order, cuts at input.limit.
+  run: async (_, { input }): Promise<Task[]> => [],
+});
+
+board({ serve: true, load: { tasks: loadTasks } });
+
+const newest = tasks.where(
+  { project: "p1" },
+  { order: "-created", limit: 50 },
+);
+```
+
+- The board's `load` gets the part and the window as one input. A
+  window its input does not take is `refused`.
+- A window keeps the store's order. Its members go in the one cell,
+  so `of(key)` sees them.
+- A signal in the part, or an `invalidate` of the part, asks each
+  window of it again.
+- A window does not ride its whole part, and the whole part does not
+  ride a window.
+- A new window starts `pending`, with no rows.
+- A board with no `load` fails a window (`failed`): nothing sorts.
+
 ## Derived
 
 A derived computes a value from its sources (ADR 0150). It is declared
@@ -1268,6 +1324,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - With a load, the server keeps no member.
 - `board.part(call)` gives a guard the part of a keyed join or ask, typed;
   any other call gives `undefined`.
+- A window read is one more read of its part: the store's order and
+  limit, in its own list. Two windows of one part keep two lists.
+- A member that leaves a window stays for a reader of its key.
+- An empty window answer empties its part in the cell.
 - `board.status(read)` gives a part's state: `pending` until its first
   answer, then `ready` or `fault`; `undefined` when no reader holds it.
 - A part that rides a ready part is `ready` at once.
