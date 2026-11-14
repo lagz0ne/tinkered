@@ -1134,9 +1134,10 @@ Asked by Hedl (k07, Hedl 90649e2).
 - Ask: board keys and rpc ops in their own spaces,
   or a board name in its addresses.
 
-State: open. First asker. Next design question in
-the thread "Add order and limit to keyed reads",
-after the time to ask again.
+State: closed, no Core change. Duke, 2026-11-14
+13:34, picked "A. One space, say it", as tRPC
+`mergeRouters` and Fastify keep one route table.
+The rpc skill now names the hidden `.ask` address.
 
 ## A pending window reads as an empty one — 2026-11-14
 

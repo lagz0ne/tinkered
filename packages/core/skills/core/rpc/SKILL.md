@@ -123,6 +123,8 @@ capsules: [
   Two services with one address fail the start
   with `DuplicateAddress`. So two boards cannot
   both have a cell named `flows`: rename one.
+- A keyed cell `tasks` serves `tasks` and its ask,
+  `tasks.ask`. An rpc op must not use either name.
 
 ### Call and read on the client
 
