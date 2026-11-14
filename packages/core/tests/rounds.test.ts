@@ -369,3 +369,72 @@ test("the first of two watcher errors goes to the writer", () => {
 
   expect(error).toEqual(new Error("first failed"));
 });
+
+test("a namespaced watcher that writes and then throws: the write's watchers are told, the writer gets the error", () => {
+  const ns = namespace();
+  const first = data({ label: "rounds.ns.throw.first", initial: 0 });
+  const second = data({ label: "rounds.ns.throw.second", initial: 0 });
+  const scope = createScope();
+  const heard: number[] = [];
+  scope.controller(second, { ns }).watch((next) => heard.push(next));
+  scope.controller(first, { ns }).watch((next) => {
+    scope.controller(second, { ns }).set(next);
+    throw new Error("ns watcher failed");
+  });
+
+  const error = caught(() => scope.controller(first, { ns }).set(1));
+
+  expect(error).toEqual(new Error("ns watcher failed"));
+  expect(heard).toEqual([1]);
+});
+
+test("after a watcher throws, the next write tells its watchers at once", () => {
+  const ns = namespace();
+  const plain = data({ label: "rounds.after.plain", initial: 0 });
+  const named = data({ label: "rounds.after.named", initial: 0 });
+  const scope = createScope();
+  const heard: string[] = [];
+  let fail = true;
+  for (const [label, control] of [
+    ["plain", scope.controller(plain)],
+    ["named", scope.controller(named, { ns })],
+  ] as const) {
+    control.watch((next) => {
+      heard.push(`${label} ${next}`);
+      if (fail) throw new Error(label);
+    });
+  }
+
+  const errors = [
+    caught(() => scope.controller(plain).set(1)),
+    caught(() => scope.controller(named, { ns }).set(1)),
+  ];
+  fail = false;
+  scope.controller(plain).set(2);
+  scope.controller(named, { ns }).set(2);
+
+  expect(errors).toEqual([new Error("plain"), new Error("named")]);
+  expect(heard).toEqual(["plain 1", "named 1", "plain 2", "named 2"]);
+});
+
+test("a watcher that throws inside a waiting round: the rounds after it still run", () => {
+  const first = data({ label: "rounds.wait.first", initial: 0 });
+  const second = data({ label: "rounds.wait.second", initial: 0 });
+  const third = data({ label: "rounds.wait.third", initial: 0 });
+  const scope = createScope();
+  const heard: string[] = [];
+  scope.controller(second).watch((next) => {
+    heard.push(`second ${next}`);
+    throw new Error("second failed");
+  });
+  scope.controller(third).watch((next) => heard.push(`third ${next}`));
+  scope.controller(first).watch((next) => {
+    scope.controller(second).set(next);
+    scope.controller(third).set(next);
+  });
+
+  const error = caught(() => scope.controller(first).set(1));
+
+  expect(error).toEqual(new Error("second failed"));
+  expect(heard).toEqual(["second 1", "third 1"]);
+});
