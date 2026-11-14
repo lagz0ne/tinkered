@@ -53,3 +53,6 @@ examples/**/*.d.ts
 
 # local GitHub release assets
 .release/
+
+# Bun's pack writes a declaration beside the backend kit it imports (ADR 0140).
+packages/core/tests/kit/*.d.ts

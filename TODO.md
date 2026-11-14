@@ -168,6 +168,10 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **core/fault-from** — done 2026-11-11 (released 0.17.5). ADR 0141: each fault has `from` (server or local) and a local one `sent`; an unknown address is `missing`, not `link`. Proof: the missing-part test fails with `link`; Core 1,295, bun 111, react 115; scoped mutation 85.71; size 32,623 B with rpc. The shape (a field, or the kind alone) waits on Duke.
 
+- **core/backend-kit** — done 2026-11-14. ADR 0140 step 1: one kit of 6 cases, repo only (`packages/core/tests/kit/backend.ts`), run on `memory` (Core) and `ws` (Bun, a real socket). Proof: 6 + 6 tests green.
+
+- **core/keyed-refetch** — done 2026-11-14 (released 0.24.0). ADR 0139 step 4: `refetchInterval` per keyed cell. Proof: 5 Core tests, 3 fail without the clock.
+
 - **core/keyed-window** — done 2026-11-14 (released 0.23.0). ADR 0139 step 3: `where(part, window)`; the store sorts and cuts. Proof: 11 Core tests (tests/remote-data-keyed-window.test.ts); size 23,027 B and 35,004 B under caps Duke raised.
 
 - **core/keyed-part-state** — done 2026-11-11 (released 0.17.4). ADR 0139 step 1: `board.status(read)` gives pending, ready or fault per part; a refused or invalid part waits for `invalidate`; a link fault heals. Proof: 4 new Core tests (the wait test fails with no wait); Core 1,294 tests, bun 109, react 115; scoped mutation 85.79; size 32,526 B with rpc.

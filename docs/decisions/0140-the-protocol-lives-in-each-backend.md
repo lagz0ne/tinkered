@@ -136,7 +136,16 @@ await move.runAsync({ input });
 ## Next, after ADR 0139's list
 
 1. The SPI test kit, run on `memory` and `ws` as
-   they are.
+   they are. Built 2026-11-14. It stays in this
+   repo (Duke, 15:47, picked "Repo only"):
+   `packages/core/tests/kit/backend.ts`. Cases: a
+   call and its reply; each server exit (`invalid`,
+   `refused`, `failed`, `missing`); a write reaches
+   two clients; a keyed part asked again on
+   `invalidate`; a server close under a watch is
+   `link`; a duplicate address fails the start.
+   Not in it yet: a throw in `send` or `open`, which
+   needs a backend that can be made to throw.
 2. `watch` required; the wire code moves from
    `rpc-protocol.ts` into each backend.
 3. The execution id, on the SPI.

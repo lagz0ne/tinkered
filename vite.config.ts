@@ -45,6 +45,11 @@ export default defineConfig({
         files: ["tools/blueprint/**"],
         rules: { "import/no-relative-parent-imports": "off" },
       },
+      // The backend kit stays in Core's tests (ADR 0140, repo only); Bun reaches it by path.
+      {
+        files: ["packages/bun/tests/backend-kit.test.ts"],
+        rules: { "import/no-relative-parent-imports": "off" },
+      },
       // Trial fixtures keep the layout their runs recorded.
       {
         files: ["tools/writer-trial/**", "tools/flight-trial/**", "docs/roadmap/**"],

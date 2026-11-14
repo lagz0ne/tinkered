@@ -10,6 +10,8 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       "@tinkered/core/testing": fileURLToPath(new URL("./src/testing.ts", import.meta.url)),
+      /** The backend kit imports Core by its name: here that is this source, so one Core runs. */
+      "@tinkered/core": fileURLToPath(new URL("./src/main.ts", import.meta.url)),
     },
   },
   pack: {
