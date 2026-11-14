@@ -1898,7 +1898,7 @@ function writeCell<T>(
   const value = admit(target.label, target.parse, next);
   if (cellEq(target, readCell(layer, target, chain), value)) return;
 
-  if (computing !== undefined) raise("WriteInDerived", { derived: computing, cell: target.label });
+  if (computing !== undefined) inDerived(computing, target);
 
   ownCell(layer, target, chain).value = value;
   tellWrite(layer, target, undefined);
@@ -1919,7 +1919,7 @@ function writeCellNs(
   if (cellEq(target, current, value)) return;
 
   const [key] = chain;
-  if (computing !== undefined) raise("WriteInDerived", { derived: computing, cell: target.label });
+  if (computing !== undefined) inDerived(computing, target);
 
   ownNsCell(layer, target, key, current).value = value;
   tellWrite(layer, target, key);
@@ -8821,6 +8821,12 @@ function tellWrite(layer: Layer, target: Data.Cell<unknown>, key: Namespace | un
 function watcherThrew(error: unknown): never {
   if (inRound && roundDepth === 0) drainRounds({ error });
   throw error;
+}
+
+/** A cell write while a derived computes (ADR 0152). Out of the write, so the write stays small
+ * when V8 inlines it. */
+function inDerived(derived: string, target: Data.Cell<unknown>): never {
+  return raise("WriteInDerived", { derived, cell: target.label });
 }
 
 /** A hot write's round, queued. The closure is made here, not in the write: a closure in the
