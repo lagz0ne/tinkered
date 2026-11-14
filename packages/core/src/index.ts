@@ -1875,7 +1875,11 @@ function flushOne(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): voi
 /** Run one layer's watchers in registration order against the value already read for the layer. */
 function notifyLayer(rec: NodeState, ws: Set<Watcher>, next: unknown, prev: unknown): void {
   rec.prev = next;
-  for (const w of ws) w.fn(next, prev);
+  try {
+    for (const w of ws) w.fn(next, prev);
+  } catch (error) {
+    watcherThrew(error);
+  }
 }
 
 function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
@@ -1936,7 +1940,11 @@ function flushNsWatchers(
   if (!watch?.size) return;
 
   const pending = pendingNsWatchers(layer, target, watch);
-  for (const p of pending ?? []) p.fn(p.next, p.prev);
+  try {
+    for (const p of pending ?? []) p.fn(p.next, p.prev);
+  } catch (error) {
+    watcherThrew(error);
+  }
 }
 
 /** Snapshot the changed watchers BEFORE any callback fires: read and record each watcher's new value
@@ -7369,7 +7377,11 @@ function flushInheritedNsWatchers(layer: Layer, target: Data.Cell<unknown>, key:
     }
   }
   collect(layer);
-  for (const p of pending) p.fn(p.next, p.prev);
+  try {
+    for (const p of pending) p.fn(p.next, p.prev);
+  } catch (error) {
+    watcherThrew(error);
+  }
 }
 
 function shadowsNamedChange(layer: Layer, target: Data.Cell<unknown>, key: Namespace): boolean {
@@ -8796,15 +8808,19 @@ function tellWrite(layer: Layer, target: Data.Cell<unknown>, key: Namespace | un
   if (inRound) return waitFlush(layer, target, key);
 
   inRound = true;
-  let failed: { readonly error: unknown } | undefined;
-  try {
-    if (key === undefined) flushCell(layer, target);
-    else flushInheritedNsWatchers(layer, target, key);
-  } catch (error) {
-    failed = { error };
-  }
-  if (waiting.length === 0 && failed === undefined) inRound = false;
-  else drainRounds(failed);
+  if (key === undefined) flushCell(layer, target);
+  else flushInheritedNsWatchers(layer, target, key);
+  if (waiting.length === 0) inRound = false;
+  else drainRounds(undefined);
+}
+
+/** A watcher threw (ADR 0152). The catch sits at the watcher loop, not around the write: a try
+ * inlined into every write cost about 5 ns (box bench, 4M writes). In the first round the rounds
+ * that wait still run, then the error goes on to the write; inside a waiting round,
+ * {@link drainRounds} catches it. */
+function watcherThrew(error: unknown): never {
+  if (inRound && roundDepth === 0) drainRounds({ error });
+  throw error;
 }
 
 /** A hot write's round, queued. The closure is made here, not in the write: a closure in the
