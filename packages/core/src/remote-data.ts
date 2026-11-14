@@ -1,3 +1,4 @@
+import { raise } from "./errors";
 import { capsule, data, operation, parse, resource, tag } from "./index";
 import type { Capsule, Data, Observe, Operation, Scope, Tag } from "./index";
 import { channel, rpc } from "./rpc";
@@ -44,16 +45,23 @@ type Fill = Readonly<Record<string, Operation.Handle<unknown, void>>>;
 
 /** What a keyed key's stream takes and its signal names, and what its ask takes (ADR 0137):
  * one member (`of` a key) or one part (`where` a part). */
-type Ask = { readonly read: "of" | "where"; readonly part: Data.Key };
+type Ask = {
+  readonly read: "of" | "where";
+  readonly part: Data.Key;
+  readonly window?: Exclude<Data.Key, string>;
+};
 
 /** The calls remoteData makes on a keyed cell's root controller, past its public type. */
 type Keyed = Scope.KeyedController<unknown, Data.Key> & {
-  listen(listener: (read: "of" | "where", part: Data.Key) => () => void): void;
+  listen(
+    listener: (read: "of" | "where", part: Data.Key, window?: Ask["window"]) => () => void,
+  ): void;
   answer(
     read: "of" | "where",
     part: Data.Key,
     members: readonly unknown[],
     keep: (key: Data.Key) => boolean,
+    window?: Ask["window"],
   ): void;
   adopt(value: readonly unknown[]): Data.Key | undefined;
   step(value: readonly unknown[]): Data.Key | undefined;
@@ -110,7 +118,7 @@ const textOf = (part: Data.Key): string =>
 
 /** The slot of one part: the key, then `o` or `w` and the part's text. */
 const partSlot = (key: string, ask: Ask): string =>
-  `${key}\u0000${ask.read === "of" ? "o" : "w"}${textOf(ask.part)}`;
+  `${key}\u0000${ask.read === "of" ? "o" : "w"}${textOf(ask.part)}${ask.window ? textOf(ask.window) : ""}`;
 
 /** Whether a member's key is in an asked part. */
 const holds = (ask: Ask, key: Data.Key): boolean =>
@@ -131,11 +139,15 @@ const isKey = (part: unknown): part is Data.Key =>
 
 /** An ask from the wire: `of` or `where`, and a key or a part. */
 const askShape = z.make<Ask>((value) => {
-  const ask = Object(value) as { read?: unknown; part?: unknown };
-  if ((ask.read !== "of" && ask.read !== "where") || !isKey(ask.part)) {
+  const { read, part, window } = Object(value) as Partial<Record<keyof Ask, unknown>>;
+  if (
+    (read !== "of" && read !== "where") ||
+    !isKey(part) ||
+    (window != null && (typeof window !== "object" || !isKey(window)))
+  ) {
     return z.fail("expected an ask");
   }
-  return { value: { read: ask.read, part: ask.part } };
+  return { value: window == null ? { read, part } : { read, part, window } };
 });
 
 /**
@@ -153,8 +165,14 @@ const narrowed = (reader: Ask, dirty: Data.Key): Ask | undefined => {
   if (reader.read === "of" || Object.keys(was).some((f) => was[f] !== part[f])) {
     return undefined;
   }
-  return { read: "where", part };
+  // A window asks again whole: only the store knows which members are in it (ADR 0139 2).
+  return reader.window ? reader : { read: "where", part };
 };
+
+/** Whether two asks can share members in the cell. A window shares only with itself: only the
+ * store knows which members are in it (ADR 0139 2). */
+const shares = (a: Ask, b: Ask): boolean =>
+  a.window || b.window ? partSlot("", a) === partSlot("", b) : !!narrowed(a, b.part);
 
 /** The key function of a keyed cell: it reads a member's key. */
 const memberKey = (cell: Data.Cell<unknown>) =>
@@ -471,7 +489,11 @@ const steps = resource({
     /** A keyed key's ask, as rpc runs it: the members of the part from its load, or in the
      * root's cell now. A load may give more than the part: only the part's members go out. */
     const answerPart = (def: Def, own: Served, key: string, ask: Ask, signal: AbortSignal) => {
-      const loaded = own.load(key, ask.part, signal);
+      const loaded = own.load(
+        key,
+        ask.window ? { ...Object(ask.part), ...ask.window } : ask.part,
+        signal,
+      );
       if (loaded) {
         const keyOf = memberKey(def.cells[key]!);
         return loaded.then((members) =>
@@ -479,6 +501,8 @@ const steps = resource({
         );
       }
 
+      // Core does not sort: a window needs the store's load (ADR 0139 2).
+      if (ask.window) raise("MissingConfig", { label: name, key: "load" });
       const root = own.roots.get(key) as unknown as Keyed;
       if (ask.read === "where") return root.where(ask.part as never).get();
 
@@ -738,7 +762,7 @@ const steps = resource({
       const stand = (asked: Ask, now: PartState) => {
         if (signal.aborted) return;
         for (const j of joined.values()) {
-          if (j.ask === asked || holds(asked, j.ask.part)) {
+          if (shares(asked, j.ask) && (asked.window || holds(asked, j.ask.part))) {
             states.set({ ...now, at: partSlot(key, j.ask) });
           }
         }
@@ -756,7 +780,7 @@ const steps = resource({
        * goes to `board.faults`. */
       const ask = (asked: Ask, signalled?: { meta?: Record<string, string> }): Promise<void> => {
         const entry: Asking = { ask: asked, later: [], signalled };
-        for (const p of pending) if (narrowed(p.ask, asked.part)) p.later.push(entry);
+        for (const p of pending) if (shares(p.ask, asked)) p.later.push(entry);
         pending.add(entry);
         entry.done = settle(entry);
         return entry.done;
@@ -780,7 +804,7 @@ const steps = resource({
           .then(
             (members) => () => {
               const fresh = (members as readonly unknown[]).filter((m) => !newer(keyOf(m)));
-              cell.answer(read, part, fresh, newer);
+              cell.answer(read, part, fresh, newer, entry.ask.window);
             },
             (error: unknown) => () => {
               throw error;
@@ -866,7 +890,9 @@ const steps = resource({
 
       /** A part in use that holds every member of this part, if any. */
       const coverOf = (asked: Ask) =>
-        [...joined.values()].find((j) => j.ask !== asked && holds(j.ask, asked.part));
+        [...joined.values()].find(
+          (j) => j.ask !== asked && !j.ask.window && !asked.window && holds(j.ask, asked.part),
+        );
 
       /** A part's own stream, until the part leaves or the root closes. */
       const own = (part: Joined) => {
@@ -877,8 +903,8 @@ const steps = resource({
         void follow(part);
       };
 
-      cell.listen((read, part) => {
-        const asked: Ask = { read, part };
+      cell.listen((read, part, window) => {
+        const asked: Ask = window ? { read, part, window } : { read, part };
         const at = partSlot(key, asked);
         const made = joined.get(at) ?? { refs: 0, ask: asked, stop: new AbortController() };
         if (made.refs++ === 0) {
@@ -901,7 +927,7 @@ const steps = resource({
             r.rides = coverOf(r.ask);
             if (!r.rides) own(r);
           }
-          if (!signal.aborted) cell.answer(read, part, [], stays);
+          if (!signal.aborted) cell.answer(read, part, [], stays, window);
         };
       });
     };
@@ -1223,9 +1249,9 @@ export function remoteData<
     depends: { own: state },
     run: ({ own }, { input }) => {
       const need = own!.loads[input.key.replace(/\.ask$/, "")]?.input;
-      const part = Object(input.input).part;
+      const { part, window } = Object(input.input) as Partial<Ask>;
       try {
-        if (need) parse(need, part);
+        if (need) parse(need, window ? { ...Object(part), ...window } : part);
         return undefined;
       } catch {
         return input.refuse({ part });
@@ -1413,7 +1439,7 @@ export function remoteData<
      * while no reader has the part in use. */
     status: (read: Data.Read<unknown>) => {
       const key = Object.keys(made).find((k) => made[k] === read.cell)!;
-      return states.of({ at: partSlot(key, { read: read.read, part: read.part }) });
+      return states.of({ at: partSlot(key, read) });
     },
     addresses: keys.flatMap((key) => (keyed.has(key) ? [key, `${key}.ask`] : [key])),
     // A cell with no label says nothing: the transport then names the board, "remoteData".

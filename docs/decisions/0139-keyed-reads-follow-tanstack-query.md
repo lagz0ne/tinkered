@@ -92,8 +92,29 @@ TanStack Query, the rule Duke named:
    );
    ```
 
-   The shape above is a sketch, not a decision.
-   It unblocks the design of k07.
+   The shape is settled (Duke, 2026-11-14 00:35,
+   picked A on the card). The window is a second
+   argument, as the rest of a TanStack `queryKey`:
+
+   - The part stays key fields only (ADR 0136).
+     `invalidate(part)` names the part, so every
+     window of it asks again, as a prefix match.
+   - Core does not read the window. It puts it in
+     the read's text and gives `load` the part and
+     the window as one object.
+   - A window keeps its own list of member keys, in
+     the order the server gave. Its members still go
+     in the one cell, so `of(key)` sees them.
+   - A signal in the part asks the whole window
+     again, never one member.
+   - A window does not ride a whole part, and a whole
+     part does not ride a window: only the store
+     knows the order.
+   - A board with no `load` refuses a window, since
+     nothing sorts.
+   - A new window starts `pending`, with no rows.
+     This is TanStack's default; `keepPreviousData`
+     waits for a real case. "Load more" waits too.
 
 3. **Ask again on a trigger (point 2).** A part in
    use asks again on `invalidate`, and after a time
