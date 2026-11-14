@@ -72,6 +72,23 @@ useData(board.tasks.where(
 - `invalidate` of the part asks each of its windows.
 - A board with no load fails a window: `failed`.
 
+## Ask again on a clock
+
+A client board can ask again by time (ADR 0139 3).
+Set it per keyed cell. With none, it never does.
+
+```ts
+board({
+  read: ws.client,
+  refetchInterval: { tasks: 30_000 },
+});
+```
+
+- Each part in use asks again whole, every 30 s.
+- It reaches a store with no notices, or a write
+  that no one signalled.
+- A part that waits on a fault asks again too.
+
 ## The rules
 
 1. One notice: one `invalidate` for its key.

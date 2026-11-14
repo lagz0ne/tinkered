@@ -18,7 +18,7 @@ type Read = { readonly call: Call; readonly watch: Watch };
 /** The job, picked by the config: serve the cells here, or fill them from a backend. */
 type Job<D = Cells> =
   | { readonly serve: true; readonly fill?: Fill; readonly load?: Loads<D>; readonly read?: never }
-  | { readonly read: Read; readonly serve?: never };
+  | { readonly read: Read; readonly refetchInterval?: Intervals<D>; readonly serve?: never };
 
 /** The lifecycle hooks go to the wire: rpc runs them, on each side, per key. */
 type Config<D = Cells> = Job<D> & Hooks;
@@ -35,6 +35,12 @@ type Loads<D> = {
 };
 
 type Load = Readonly<Record<string, Operation.Handle<unknown, any> | undefined>>;
+
+/** By keyed key: how often, in ms, a part in use asks again (ADR 0139 3). With none, it never
+ * does by time: TanStack's `refetchInterval` is off by default too. */
+type Intervals<D> = {
+  readonly [K in keyof D as D[K] extends Data.Keyed<any, any> ? K : never]?: number;
+};
 
 /**
  * A keyed definition's first value for one parameter, per key: an op the server runs in a call
@@ -334,6 +340,7 @@ type Shape = {
   readonly fill: Tag.Presence<Fill>;
   readonly load: Tag.Presence<Load>;
   readonly read: Tag.Presence<Read>;
+  readonly refetchInterval: Tag.Presence<Readonly<Record<string, number | undefined>>>;
 };
 
 type StartEvent = Omit<Capsule.Events["start"], "config"> & { readonly config: Shape };
@@ -751,7 +758,8 @@ const steps = resource({
       key: string,
       mark: (k: string, e: RemoteFault | null) => void,
     ) => {
-      const { run, clock, signal, log } = event;
+      const { run, clock, signal, log, config } = event;
+      const every = (config.refetchInterval as { value?: Record<string, number> }).value?.[key];
       const cell = event.load(def.made[key]!, meta) as unknown as Keyed;
       const joined = new Map<string, Joined>();
       const states = event.load(def.states, meta) as unknown as Scope.KeyedController<
@@ -894,6 +902,15 @@ const steps = resource({
           (j) => j.ask !== asked && !j.ask.window && !asked.window && holds(j.ask, asked.part),
         );
 
+      /** A part asks again each `ms` while it is in use, as TanStack's `refetchInterval`. A part
+       * that waits on a fault wakes: the time is a trigger (ADR 0139 3, 4). */
+      const tick = async (part: Joined, ms: number) => {
+        for (;;) {
+          await clock.sleep(ms, part.stop.signal);
+          void (part.wake ? part.wake() : ask(part.ask));
+        }
+      };
+
       /** A part's own stream, until the part leaves or the root closes. */
       const own = (part: Joined) => {
         signal.addEventListener("abort", () => part.stop.abort(), {
@@ -901,6 +918,7 @@ const steps = resource({
           signal: part.stop.signal,
         });
         void follow(part);
+        if (every) tick(part, every).catch(() => undefined);
       };
 
       cell.listen((read, part, window) => {
@@ -1066,6 +1084,9 @@ export function remoteData<
   const fillKey = tag<Fill>({ label: `${name}.fill` });
   const loadKey = tag<Load>({ label: `${name}.load` });
   const readKey = tag<Read>({ label: `${name}.read` });
+  const refetchKey = tag<Readonly<Record<string, number | undefined>>>({
+    label: `${name}.refetchInterval`,
+  });
 
   const configDepends = Object.fromEntries(
     Object.entries(config).map(([key, t]) => [key, (t as Tag.Handle<unknown>).optional]),
@@ -1316,6 +1337,7 @@ export function remoteData<
       fill: fillKey.optional,
       load: loadKey.optional,
       read: readKey.optional,
+      refetchInterval: refetchKey.optional,
     },
     exports: { ...made, faults, states, drop, invalidate } as unknown as {
       drop: typeof drop;

@@ -123,10 +123,19 @@ TanStack Query, the rule Duke named:
    by default.
 
    ```ts
-   issues.board({ read: ws.client, revalidate: 30_000 });
+   board({
+     read: ws.client,
+     refetchInterval: { tasks: 30_000 },
+   });
    ```
 
-   The name `revalidate` is a sketch.
+   Settled (Duke, 2026-11-14 10:19, picked A on
+   the card): one time per keyed cell, beside
+   `load`, with TanStack's name. A cell left out
+   never asks by time. The clock runs while a part
+   is in use. A part that rides a wider part asks
+   nothing on its own clock. A part that waits on a
+   fault wakes on it: the time is a trigger (4).
 
    The ask again is a plain ask: the whole part, as a
    page refresh. There is no version and no "same"

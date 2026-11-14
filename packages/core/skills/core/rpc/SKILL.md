@@ -13,7 +13,7 @@ metadata:
     on the client with remote data.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.23.1'
+  library_version: '0.24.0'
 requires:
   - core
   - capsule
@@ -144,6 +144,9 @@ const list = useData(
   the list.
 - `board.invalidate` marks a part dirty, so its
   readers ask again.
+- `sea.board({ read, refetchInterval: { waves:
+30_000 } })` makes each part in use ask again
+  every 30 s. With none, it never asks by time.
 - A call ends at its reply, as a TanStack Query
   mutation. To see your own write at once, run
   `board.invalidate` on its part after the call.

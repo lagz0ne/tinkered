@@ -6,6 +6,28 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.24.0
+
+A client board can ask again on a clock, per keyed
+cell (ADR 0139 decision 3). TanStack's name.
+
+```ts
+board({
+  read: ws.client,
+  refetchInterval: { tasks: 30_000 },
+});
+```
+
+- Each part in use asks again whole, every 30 s.
+- A cell left out never asks by time. That is the
+  default, as in TanStack.
+- The clock stops when the part's last reader
+  leaves.
+- A part that rides a wider part asks nothing on
+  its own clock.
+- A part that waits on a fault (`refused`,
+  `invalid`) wakes on it.
+
 ## 0.23.1
 
 A cell write is a little faster. No API change.
