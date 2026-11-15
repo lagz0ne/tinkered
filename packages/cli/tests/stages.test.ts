@@ -396,3 +396,70 @@ test(
     ]);
   },
 );
+
+const gapsDoc = [`## G1: a cast Core cannot type yet`, ``, `- Status: open`, `- Lines: 1`, ``];
+
+test(
+  "a lint comment that turns a gate off fails the types stage; other rules may be off",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({
+      "src/a.ts": [
+        `// oxlint-disable-next-line typescript/consistent-type-assertions -- a reason`,
+        `export const a = JSON.parse("1") as string;`,
+        `/* eslint-disable-next-line */`,
+        `export const b = [1].at(0)!;`,
+        `// oxlint-disable-next-line curly`,
+        `export const c = 1;`,
+      ],
+    });
+
+    const { code, out } = main(["check", folder, "--json"], "/");
+
+    expect(code).toBe(1);
+    expect(JSON.parse(out)).toMatchObject({
+      kind: "failed",
+      stage: "types",
+      total: 5,
+      findings: [
+        {
+          line: 1,
+          rule: "tinker/gap",
+          what: "a `lint-disable` comment turns off the gate consistent-type-assertions",
+        },
+        { line: 3, what: expect.stringMatching(/gate switch-exhaustiveness-check$/) },
+        { line: 3, what: expect.stringMatching(/gate consistent-type-assertions$/) },
+        { line: 3, what: expect.stringMatching(/gate no-non-null-assertion$/) },
+        { line: 3, what: expect.stringMatching(/gate no-explicit-any$/) },
+      ],
+    });
+  },
+);
+
+test("a gap row allows a gate finding, and counts it", { timeout: 60_000 }, () => {
+  const folder = appOf({
+    "tinker.json": [`{ "gaps": "gaps.md" }`],
+    "gaps.md": gapsDoc,
+    "src/a.ts": [`// tinker-gap: G1`, `export const a = JSON.parse("1") as string;`],
+  });
+
+  expect(main(["check", folder], "/")).toEqual({
+    code: 0,
+    out: "gaps: G1 1/1\nran: tsc, lint, rules (1 files)\ntinker check: OK\n",
+    err: "",
+  });
+});
+
+test(
+  "a gap marker with no gate finding below it fails the rules stage",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({
+      "tinker.json": [`{ "gaps": "gaps.md" }`],
+      "gaps.md": gapsDoc,
+      "src/a.ts": [`// tinker-gap: G1`, `export const a = 1;`],
+    });
+
+    expect(heads(main(["check", folder], "/").out)).toEqual(["src/a.ts:1 tinker/gap"]);
+  },
+);

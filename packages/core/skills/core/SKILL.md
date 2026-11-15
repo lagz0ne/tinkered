@@ -127,7 +127,9 @@ Right: narrow or parse. Do not cast:
   `states.find((s) => s === value)`;
 - a fault: `api.fault.is(error)`;
 - a payload: `schema.safeParse(payload)`;
-- a value that can be absent: `if (value)`.
+- a value that can be absent: `if (value)`;
+- a cast you cannot remove yet: a gap row and
+  its marker, never a `lint-disable` comment.
 
 `as const` is not a cast. It may stay.
 
@@ -144,6 +146,25 @@ Right: put the marker on the line above the
 finding. Name an open row of the gaps doc. Keep
 the marked lines within the row's `Lines:` count.
 Better: fix the finding and remove the marker.
+
+### HIGH: a gate off by a `lint-disable` comment [tinker/gap]
+
+The comment hides the cast or the missing case
+from the check. Nobody counts it.
+
+Wrong:
+
+```ts no-check
+// eslint-disable-next-line no-non-null-assertion
+const issue = data!.issue;
+```
+
+Right: remove the comment and fix the line. When
+it cannot be fixed yet, mark it with a gap row:
+`// tinker-gap: G<n>` on the line above, and a
+row `## G<n>: <why>` in the gaps doc that
+`tinker.json` names, with `- Status: open` and
+`- Lines: <count>`.
 
 ## Completion
 

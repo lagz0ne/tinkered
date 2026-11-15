@@ -210,6 +210,16 @@ Files: project files `sure-right/`.
   does not.
 - **More commands.** `tinker shape`, `tinker
 explore`, `tinker new` are ideas only.
+- **Files outside the tsconfig.** `tsc` checks
+  only the files its `include` names. The rules
+  read `src/`, `cmds/` and `tinker/`. A file the
+  tsconfig leaves out gets rules but no types.
+- **Which files the gates cover.** The check
+  asks only that each gate is at error in some
+  part of the lint config. An override can turn
+  a gate off for some files, as the site does
+  for its bench. The check does not compare
+  those files with the files the rules read.
 - **The proof of the goal.** "A cheap model
   writes golden code with this loop" is not
   measured. The CUJ eval measures it.

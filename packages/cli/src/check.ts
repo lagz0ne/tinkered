@@ -139,24 +139,33 @@ function gapsDoc(root: string, path: string): Check.Source {
 }
 
 /**
+ * The app's files and what Tinker's rules find in them, before the gap rule allows any. `doc`
+ * is the gaps doc, when the config names one.
+ *
+ * @throws `BadConfig` when `tinker.json` is not the shape `Check.Config` names.
+ */
+export function readApp(root: string) {
+  const config = configOf(root);
+  const app = sourcesOf(root, appFiles, appFile);
+  const page = pageSources(root, config.page ?? {});
+
+  const found = [...findPlain(app, config.plain?.entries ?? {}), ...page.flatMap(findPage)];
+  const sources = [...new Map([...app, ...page].map((source) => [source.path, source])).values()];
+  return { sources, found, ...(config.gaps ? { doc: gapsDoc(root, config.gaps) } : {}) };
+}
+
+/**
  * Read the app at `root` and answer every broken rule. It reads files and nothing else: it
  * runs no app code. A `tinker.json` at the root holds the app's own exceptions.
  *
  * @throws `BadConfig` when that file is not the shape `Check.Config` names.
  */
 export function check(root: string): Check.Report {
-  const config = configOf(root);
-  const app = sourcesOf(root, appFiles, appFile);
-  const page = pageSources(root, config.page ?? {});
-
-  const found = [...findPlain(app, config.plain?.entries ?? {}), ...page.flatMap(findPage)];
-  const sources = new Map([...app, ...page].map((source) => [source.path, source]));
-  const { findings, gaps } = config.gaps
-    ? applyGaps(found, [...sources.values()], gapsDoc(root, config.gaps))
-    : { findings: found, gaps: [] };
+  const { sources, found, doc } = readApp(root);
+  const { findings, gaps } = doc ? applyGaps(found, sources, doc) : { findings: found, gaps: [] };
 
   findings.sort(
     (a, b) => a.path.localeCompare(b.path) || a.line - b.line || a.rule.localeCompare(b.rule),
   );
-  return { files: sources.size, findings, gaps };
+  return { files: sources.length, findings, gaps };
 }

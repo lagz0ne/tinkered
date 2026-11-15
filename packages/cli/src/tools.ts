@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 
 import ts from "typescript-api";
 
+import type { Check } from "./check";
 import { raise } from "./errors";
 import { gates, taught } from "./rules";
 
@@ -192,6 +193,30 @@ function lint(root: string) {
   return { types, rules, off };
 }
 
+/** A lint comment that turns rules off, and the rules it names (none names every rule). */
+const disable = /(?:\/\/|\/\*)\s*(?:es|ox)lint-disable(?:-next-line|-line)?(?![\w-])([^\n]*)/;
+
+/** A gate's rule name with no plugin: oxlint takes `typescript/x`, `@typescript-eslint/x`, `x`. */
+const gateNames = Object.keys(gates).map((code) => code.replace(/^.+\((.+)\)$/, "$1"));
+
+/**
+ * A comment in the app's code that turns a gate off. The lint then reports nothing there, so
+ * the check reports the comment: an exception to a gate is a gap row (ADR 0156).
+ */
+function turnedOff({ path, text }: Check.Source): Tools.Found[] {
+  return text.split("\n").flatMap((line, index) => {
+    const match = disable.exec(line);
+    if (!match) return [];
+    const [list = ""] = (match[1] ?? "").replace(/\*\/.*$/, "").split("--");
+    const named = list.split(",").flatMap((name) => name.trim().split("/").slice(-1));
+    const rules = named.filter((name) => name !== "");
+    const off = rules.length ? gateNames.filter((gate) => rules.includes(gate)) : gateNames;
+
+    const what = (gate: string) => `a \`lint-disable\` comment turns off the gate ${gate}`;
+    return off.map((gate) => ({ path, line: index + 1, rule: "tinker/gap", what: what(gate) }));
+  });
+}
+
 /** The `switch` that starts on 1-based `line`, as the parser reads it. */
 function switchAt(source: ts.SourceFile, line: number): ts.SwitchStatement | undefined {
   const lineOf = (node: ts.Node) => source.getLineAndCharacterOfPosition(node.getStart()).line;
@@ -255,10 +280,13 @@ function once(root: string, found: readonly Tools.Found[]) {
  * Run the app's own `tsc` and lint, each where the app has its config: `tsconfig.json` for
  * `tsc`, a `vite.config` for `vp lint`. The command has no config of its own for either.
  *
+ * `sources` are the app files the rules read: a comment there that turns a gate off is a
+ * `types` finding.
+ *
  * @throws `MissingTool` when the config is there but the tool is not installed.
  * @throws `ToolFailed` when a tool fails and prints no finding.
  */
-export function runTools(root: string): Tools.Report {
+export function runTools(root: string, sources: readonly Check.Source[]): Tools.Report {
   const ran: string[] = [];
   const skipped: string[] = [];
   const types: Tools.Found[] = [];
@@ -271,7 +299,7 @@ export function runTools(root: string): Tools.Report {
 
   if (globSync(viteConfig, { cwd: root }).length) {
     const found = lint(root);
-    types.push(...found.types);
+    types.push(...found.types, ...sources.flatMap(turnedOff));
     rules.push(...found.rules);
     ran.push("lint");
     if (found.off.length) {

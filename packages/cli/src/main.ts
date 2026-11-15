@@ -3,9 +3,10 @@ import { resolve } from "node:path";
 
 import { IntentCoreError } from "@tanstack/intent/core";
 
-import { check } from "./check";
+import { readApp } from "./check";
 import type { Check } from "./check";
 import { isError } from "./errors";
+import { applyGaps } from "./gaps";
 import { rules } from "./rules";
 import { fixOf, listSkills, loadSkill, sectionsOf } from "./skills";
 import type { Skills } from "./skills";
@@ -82,16 +83,22 @@ function failed(
 /**
  * Report the stages in order: the rules stage prints only when the types stage is clean. Tinker's
  * own rules read the config, so they run first: a bad config stops the run before the tools.
+ * The gap rule allows a marked finding of either stage; its own findings are rules.
  */
 function stages(root: string): Main.Report {
-  const { files, findings, gaps } = check(root);
-  const tools = runTools(root);
-  if (tools.types.length) return failed(root, "types", tools.types, []);
+  const { sources, found, doc } = readApp(root);
+  const tools = runTools(root, sources);
+  const all = [...tools.types, ...found, ...tools.rules];
+  const { findings, gaps } = doc ? applyGaps(all, sources, doc) : { findings: all, gaps: [] };
 
-  const broken = [...findings, ...tools.rules];
+  const typed = new Set<Tools.Found>(tools.types);
+  const types = findings.filter((item) => typed.has(item));
+  if (types.length) return failed(root, "types", types, []);
+
+  const broken = findings.filter((item) => !typed.has(item));
   if (broken.length) return failed(root, "rules", broken, gaps);
 
-  const ran = [...tools.ran, `rules (${files} files)`];
+  const ran = [...tools.ran, `rules (${sources.length} files)`];
   if (tools.skipped.length) return { kind: "incomplete", ran, skipped: tools.skipped, gaps };
   return { kind: "ok", ran, gaps };
 }

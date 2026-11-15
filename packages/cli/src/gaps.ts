@@ -40,13 +40,16 @@ const broken = (path: string, line: number, what: string): Check.Finding => ({
   what,
 });
 
+/** Where a finding is: a gap marker reads nothing else of it. */
+type At = { path: string; line: number };
+
 /** Split findings into the ones a marker on an open row allows, and the rest. */
-function allow(
-  findings: readonly Check.Finding[],
+function allow<Found extends At>(
+  findings: readonly Found[],
   markers: Map<string, Marker>,
   rows: Map<string, Row>,
 ) {
-  const kept: Check.Finding[] = [];
+  const kept: (Found | Check.Finding)[] = [];
   const marked = new Map<string, Set<string>>();
 
   for (const finding of findings) {
@@ -77,11 +80,11 @@ function markerProblem(marker: Marker, found: Set<string>, rows: Map<string, Row
  * marker with no finding below it, a marker whose row is missing or closed, and a row with
  * more marked lines than its count, so the count can only go down.
  */
-export function applyGaps(
-  findings: readonly Check.Finding[],
+export function applyGaps<Found extends At>(
+  findings: readonly Found[],
   sources: readonly Check.Source[],
   doc: Check.Source,
-): Pick<Check.Report, "findings" | "gaps"> {
+): { findings: (Found | Check.Finding)[]; gaps: Check.Gap[] } {
   const rows = rowsOf(doc.text);
   const list = sources.flatMap(markersOf);
   const markers = new Map(list.map((marker) => [`${marker.path}:${marker.line + 1}`, marker]));
