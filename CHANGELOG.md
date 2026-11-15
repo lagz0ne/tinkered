@@ -7,6 +7,15 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.27.1
+
+Skill text only.
+
+- The `core/rpc` skill has a new part, "Guard a
+  call or a read": a start hook, `input.meta`,
+  `input.refuse`, the tags it binds, and
+  `board.part(input)` for the part of a read.
+
 ## 0.27.0
 
 `derived` is now a `resource` with a `config`

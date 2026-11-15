@@ -126,6 +126,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **core/keyed-resource** — done 2026-11-15 (ADR 0157; Duke 13:37 to 14:24). `derived` is gone: a `resource` with a `config` is keyed, follows its sources, makes a span per build, has `defer`, and an operation can read it. A build a source change set off may write a cell; a build a reader started may not (`WriteInRead`).
   Proof: Core 1,420 and React 120 tests; `tests/resource-keyed-life.test.ts` (span, defer at close, a reaction, a loop at the round limit).
 
+- **skills/rpc-guard** — done 2026-11-15 (CUJ eval run 2). The `core/rpc` skill teaches a guard: `transport.hook.start`, `input.meta`, `input.refuse`, bound tags, `board.part(input)`. Released as 0.27.1.
+  Proof: run 2 writer Sonnet 2 guessed the read hook's input and failed 9 of 14 journeys; `vp run skills` and `vp run prose` green.
+
 - **analyze/keyed-prop-removed** — done 2026-11-15 (Duke 16:37 "A. Pass the member, drop the rule"). The rule `tinker/keyed-prop` is gone in 0.27.0; ADR 0155 is withdrawn; the React skill says a list passes the member.
   Proof: a 3-card browser test showed the same draws for a `memo` item with the member and an item that reads `of(key)`; analyze tests green.
 

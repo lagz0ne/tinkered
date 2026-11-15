@@ -13,7 +13,7 @@ metadata:
     on the client with remote data.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.27.0'
+  library_version: '0.27.1'
 requires:
   - core
   - capsule
@@ -152,6 +152,59 @@ const list = useData(
 - A call ends at its reply, as a TanStack Query
   mutation. To see your own write at once, run
   `board.invalidate` on its part after the call.
+
+### Guard a call or a read
+
+A guard is an operation with the input
+`transport.hook.start`. It runs before each call
+or each read of the service it is on.
+
+```ts no-check
+// src/sea/ops.server.ts
+import { operation, tag, transport } from "@tinkered/core";
+
+const viewer = tag<string>({ label: "sea.viewer" });
+
+export const signedIn = operation({
+  label: "sea.signedIn",
+  input: transport.hook.start,
+  run: (_, { input }) => {
+    const who = input.meta.who;
+    return who
+      ? { tags: [viewer(who)] }
+      : input.refuse({ signIn: true });
+  },
+});
+
+export const inRoom = operation({
+  label: "sea.inRoom",
+  input: transport.hook.start,
+  depends: { me: viewer.required },
+  run: ({ me }, { input }) => {
+    const room = seaBoard.part(input)?.room ?? "";
+    if (!me.startsWith(room)) {
+      return input.refuse({ notIn: room });
+    }
+  },
+});
+
+// cmds/server.ts
+sea.board({ serve: true, onStart: [signedIn, inRoom] }),
+sea.api({ implement: seaOps, onStart: [signedIn] }),
+```
+
+- `input.meta` is what the client's backend sent
+  with the message: `ws.client({ url, meta })`.
+- `input.refuse(payload)` ends the call. The
+  client gets a `refused` fault with the payload.
+- A returned `{ tags }` binds each tag for the
+  later guards and for the operation. They take
+  it with `depends: { me: viewer.required }`.
+- No return lets the call go on.
+- The guards in `onStart` run in order.
+- On a read, `board.part(input)` gives the key of
+  the part the client asks for. Do not read
+  `input.input` by hand.
 
 ### Handle a fault
 
