@@ -194,26 +194,48 @@ function lint(root: string) {
 }
 
 /** A lint comment that turns rules off, and the rules it names (none names every rule). */
-const disable = /(?:\/\/|\/\*)\s*(?:es|ox)lint-disable(?:-next-line|-line)?(?![\w-])([^\n]*)/;
+const disable = /^(?:\/\/|\/\*)\s*(?:es|ox)lint-disable(?:-next-line|-line)?(?![\w-])([\s\S]*)$/;
 
 /** A gate's rule name with no plugin: oxlint takes `typescript/x`, `@typescript-eslint/x`, `x`. */
 const gateNames = Object.keys(gates).map((code) => code.replace(/^.+\((.+)\)$/, "$1"));
 
+/** Each comment of a file, as the parser reads it: a `//` in a string is no comment. */
+function commentsOf({ path, text }: Check.Source) {
+  const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);
+  const ranges = new Map<number, ts.CommentRange>();
+  const visit = (node: ts.Node): void => {
+    const leading = ts.getLeadingCommentRanges(text, node.pos) ?? [];
+    for (const range of [...leading, ...(ts.getTrailingCommentRanges(text, node.end) ?? [])]) {
+      ranges.set(range.pos, range);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+
+  return [...ranges.values()].map(({ pos, end }) => ({
+    line: source.getLineAndCharacterOfPosition(pos).line + 1,
+    text: text.slice(pos, end),
+  }));
+}
+
 /**
  * A comment in the app's code that turns a gate off. The lint then reports nothing there, so
- * the check reports the comment: an exception to a gate is a gap row (ADR 0156).
+ * the check reports the comment, once: an exception to a gate is a gap row (ADR 0156).
  */
-function turnedOff({ path, text }: Check.Source): Tools.Found[] {
-  return text.split("\n").flatMap((line, index) => {
-    const match = disable.exec(line);
+function turnedOff(source: Check.Source): Tools.Found[] {
+  if (!/lint-disable/.test(source.text)) return [];
+  return commentsOf(source).flatMap(({ line, text }) => {
+    const match = disable.exec(text);
     if (!match) return [];
-    const [list = ""] = (match[1] ?? "").replace(/\*\/.*$/, "").split("--");
+    const [list = ""] = (match[1] ?? "").replace(/\*\/$/, "").split("--");
     const named = list.split(",").flatMap((name) => name.trim().split("/").slice(-1));
     const rules = named.filter((name) => name !== "");
-    const off = rules.length ? gateNames.filter((gate) => rules.includes(gate)) : gateNames;
+    const off = gateNames.filter((gate) => !rules.length || rules.includes(gate));
+    if (!off.length) return [];
 
-    const what = (gate: string) => `a \`lint-disable\` comment turns off the gate ${gate}`;
-    return off.map((gate) => ({ path, line: index + 1, rule: "tinker/gap", what: what(gate) }));
+    const gate = rules.length ? `the gate ${off.join(", ")}` : "every gate";
+    const what = `a \`lint-disable\` comment turns off ${gate}`;
+    return [{ path: source.path, line, rule: "tinker/gap", what }];
   });
 }
 

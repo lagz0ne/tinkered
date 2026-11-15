@@ -83,13 +83,19 @@ function failed(
 /**
  * Report the stages in order: the rules stage prints only when the types stage is clean. Tinker's
  * own rules read the config, so they run first: a bad config stops the run before the tools.
- * The gap rule allows a marked finding of either stage; its own findings are rules.
+ * The gap rule allows a marked Tinker finding of either stage, never a `tsc` or other lint
+ * error; its own findings are rules.
  */
 function stages(root: string): Main.Report {
   const { sources, found, doc } = readApp(root);
   const tools = runTools(root, sources);
   const all = [...tools.types, ...found, ...tools.rules];
-  const { findings, gaps } = doc ? applyGaps(all, sources, doc) : { findings: all, gaps: [] };
+  const isOwn = ({ rule }: Tools.Found) => rule.startsWith("tinker/");
+  const own = all.filter(isOwn);
+  const { findings: allowed, gaps } = doc
+    ? applyGaps(own, sources, doc)
+    : { findings: own, gaps: [] };
+  const findings = [...allowed, ...all.filter((item) => !isOwn(item))];
 
   const typed = new Set<Tools.Found>(tools.types);
   const types = findings.filter((item) => typed.has(item));

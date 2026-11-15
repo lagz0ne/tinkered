@@ -400,7 +400,7 @@ test(
 const gapsDoc = [`## G1: a cast Core cannot type yet`, ``, `- Status: open`, `- Lines: 1`, ``];
 
 test(
-  "a lint comment that turns a gate off fails the types stage; other rules may be off",
+  "a lint comment that turns a gate off fails the types stage, once per comment",
   { timeout: 60_000 },
   () => {
     const folder = appOf({
@@ -411,6 +411,12 @@ test(
         `export const b = [1].at(0)!;`,
         `// oxlint-disable-next-line curly`,
         `export const c = 1;`,
+        `export const d = "// eslint-disable-line";`,
+        `/*`,
+        `  eslint-disable-next-line @typescript-eslint/no-explicit-any,`,
+        `  no-non-null-assertion`,
+        `*/`,
+        `export const e: any = [1].at(0)!;`,
       ],
     });
 
@@ -420,21 +426,35 @@ test(
     expect(JSON.parse(out)).toMatchObject({
       kind: "failed",
       stage: "types",
-      total: 5,
+      total: 3,
       findings: [
         {
           line: 1,
           rule: "tinker/gap",
           what: "a `lint-disable` comment turns off the gate consistent-type-assertions",
         },
-        { line: 3, what: expect.stringMatching(/gate switch-exhaustiveness-check$/) },
-        { line: 3, what: expect.stringMatching(/gate consistent-type-assertions$/) },
-        { line: 3, what: expect.stringMatching(/gate no-non-null-assertion$/) },
-        { line: 3, what: expect.stringMatching(/gate no-explicit-any$/) },
+        { line: 3, what: "a `lint-disable` comment turns off every gate" },
+        {
+          line: 8,
+          what: "a `lint-disable` comment turns off the gate no-non-null-assertion, no-explicit-any",
+        },
       ],
     });
   },
 );
+
+test("a gap marker never allows a type error", { timeout: 60_000 }, () => {
+  const folder = appOf({
+    "tinker.json": [`{ "gaps": "gaps.md" }`],
+    "gaps.md": gapsDoc,
+    "src/a.ts": [`// tinker-gap: G1`, `export const n: number = "x";`],
+  });
+
+  const { code, out } = main(["check", folder], "/");
+
+  expect(code).toBe(1);
+  expect(heads(out)).toEqual(["src/a.ts:2 TS2322"]);
+});
 
 test("a gap row allows a gate finding, and counts it", { timeout: 60_000 }, () => {
   const folder = appOf({
