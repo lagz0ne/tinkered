@@ -64,25 +64,10 @@ test("implement names a run for every key", async () => {
   expect(await startOf([api({ implement: { echo, ticks } }) as never])).toBeNull();
 });
 
-test("a remote with no watch can call, but a stream key fails as remote.watch", async () => {
+test("a remote with no watch fails the start as remote.watch (ADR 0140)", async () => {
   const api = rpc(contracts);
-  const server = await createScope({
-    capsules: [api({ implement: { echo, ticks } }), memory.server({ services: [api] })],
-  }).ready;
-  closers.push(() => server.close());
-  const tab = await createScope({
-    capsules: [
-      memory.client({ peer: server }),
-      api({ remote: { call: memory.client.call } as never }),
-    ],
-  }).ready;
-  closers.push(() => tab.close());
-
-  expect(await tab.run(api.echo, { input: { n: 2 } })).toEqual({ n: 2 });
-  const failed = await Promise.resolve()
-    .then(() => tab.run(api.ticks, { input: null }))
-    .catch((e: unknown) => e);
-  expect(failed).toMatchObject({
+  const remote = { call: memory.client.call } as never;
+  expect(await startOf([api({ remote }) as never])).toMatchObject({
     kind: "MissingConfig",
     payload: { label: "rpc", key: "remote.watch" },
   });

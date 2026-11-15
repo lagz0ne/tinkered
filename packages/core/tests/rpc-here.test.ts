@@ -216,7 +216,12 @@ test("stream: each push as a reply; a bad input, a refusal or a throw is one pus
 test("a scope that reads a definition remotely serves none of it", async () => {
   const scope = await createScope({
     capsules: [
-      api({ remote: { call: operation({ label: "c", run: async () => null }) } as never }),
+      api({
+        remote: {
+          call: operation({ label: "c", run: async () => null }),
+          watch: operation({ label: "w", run: async () => null }),
+        } as never,
+      }),
     ],
   }).ready;
   closers.push(() => scope.close());
@@ -261,7 +266,8 @@ test("a bytes field's type is read without its parameters and in lower case", as
     input: transport.callInput,
     run: async (_, { input }) => (sent.push(input.body?.type), { ok: true as const, value: "ok" }),
   });
-  const scope = await createScope({ capsules: [files({ remote: { call } as never })] }).ready;
+  const scope = await createScope({ capsules: [files({ remote: { call, watch: call } as never })] })
+    .ready;
   closers.push(() => scope.close());
 
   await scope.run(files.put, {

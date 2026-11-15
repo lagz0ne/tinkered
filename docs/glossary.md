@@ -499,8 +499,10 @@ New sections are lists, one term per item (vertical layout,
 - **rpc** — `rpc(name, contract)`: a capsule with typed calls (`answer`, `stream`). Each call goes through a transport.
 - **remoteData** — `remoteData({ cell })`: a capsule that sends a server cell's value to each client that watches it.
 - **contract** — The `input` and `output` of one rpc call. Each takes any Standard Schema value (zod, valibot, arktype).
-- **protocol** — The wire shapes, faults, codec and lifecycle hooks that rpc and remoteData share. `transport.protocol` in code.
-- **rpc transport** — A capsule pair that carries the protocol: the client exports `call` and `watch`; the server exports `serve` and `serveStream`.
+- **protocol** — The meaning that rpc and remoteData share, in values: the faults, the route table, `meta` and `renew`, and the lifecycle hooks. `transport.protocol` in code. It sees no text (ADR 0154).
+- **rpc transport** — A capsule pair that carries the protocol: the client exports `call` and `watch` (both required, ADR 0140); the server serves its routes. Also called a backend.
+- **backend** — An rpc transport, as the one that owns the bytes: the codec, the envelope, the frames (ADR 0154). `ws` and `memory` today.
+- **execution id** — The id a client makes for one call: the `execution` field of the call, bound on the server as the `execution` tag, and the fault's ref (ADR 0147, 0154).
 - **server fault / local fault** — Who spoke (ADR 0141). A server fault is the server's answer in the wire format: the same call gets it again. A local fault is this side's: `link`, or `encode`/`decode`/`invalid` with side client. `fault.from` says which.
 - **address** — The name a client sends to reach one rpc call or one board cell. A cell's address is its name in `remoteData({ name: cell })`. One address has one service on a link: a second one fails the start with `DuplicateAddress` (ADR 0153).
 - **missing** — The server fault for an address no one serves, as HTTP 404 or gRPC `UNIMPLEMENTED`: nothing ran (ADR 0141).

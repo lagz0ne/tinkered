@@ -1,11 +1,11 @@
 import type { Operation } from "./index";
 import * as z from "./rpc-shape";
 
-// The shapes each layer gives the next (ADR 0048 words):
-//   transport  moves text: ws, memory
-//   protocol   gives text meaning: the codec and the reply envelope, shared by rpc and remoteData
-//   rpc, remoteData deal in values only
-// `meta`: string pairs beside the body (`m` in a socket message). Lowercase, as HTTP headers.
+// The SPI (ADR 0140, 0154): values only. Core keeps the meaning; each backend keeps its bytes.
+//   rpc, remoteData  values, the cache
+//   protocol         routes, meta, renew, faults (Core)
+//   backend          codec, envelope, frames (ws, memory)
+// `meta`: string pairs beside the body (as HTTP headers). Lowercase.
 
 const meta = z.record(z.string().regex(/^[a-z0-9-]+$/), z.string());
 /**
@@ -39,33 +39,12 @@ const body = bodyShape.optional();
 /** A bytes field's limits: the most bytes, and the content types it takes (the first is the default). */
 export type BytesLimit = { readonly max: number; readonly types: readonly string[] };
 
-// ---- transport: text
-export const sendInput = z.object({ address: z.string(), text: z.string(), meta, body });
-
-export const openInput = sendInput.extend({
-  push: z.custom<(text: string) => void>((v) => typeof v === "function"),
-  left,
-});
-
 /**
- * How a transport's send or open ends (ADR 0141): every exit is a value. `missing` when the other
- * side said no one serves the address; `link` when the path failed, `sent: false` when nothing
- * left this side. A throw is a bug: the protocol logs it and gives `failed` on this side.
+ * How a backend's send or open ends with no reply (ADR 0141): every exit is a value. `missing` when
+ * the other side said no one serves the address; `link` when the path failed, `sent: false` when
+ * nothing left this side. A throw is a bug: the protocol logs it and gives `failed` on this side.
  */
 export type Exit = { ok: false; kind: "missing" } | { ok: false; kind: "link"; sent: boolean };
-
-/** Client: one text out, one text back, or its exit. */
-export type Send = Operation.Handle<
-  Promise<{ ok: true; text: string } | Exit>,
-  z.infer<typeof sendInput>
->;
-
-/** Client: one text out, texts pushed until the signal aborts (`ok`) or another exit. */
-export type Open = Operation.Handle<Promise<{ ok: true } | Exit>, z.infer<typeof openInput>>;
-/** Server: the text reply, or null when no one answers the address. */
-export type TextServe = Operation.Handle<Promise<string | null>, z.infer<typeof sendInput>>;
-/** Server: pushes texts; false when no one answers the address. */
-export type TextStream = Operation.Handle<Promise<boolean>, z.infer<typeof openInput>>;
 
 // ---- protocol: values
 /**
@@ -96,7 +75,17 @@ export const lost = (exit: Exit): Extract<Reply, { ok: false }> => ({
   payload: { sent: Object(exit).sent },
 });
 
-export const callInput = z.object({ address: z.string(), value: z.unknown(), meta, body });
+/**
+ * `execution`: the call's id (ADR 0147), its own field (ADR 0154): each backend carries it its own
+ * way. Only a call has one.
+ */
+export const callInput = z.object({
+  address: z.string(),
+  value: z.unknown(),
+  meta,
+  body,
+  execution: z.string().optional(),
+});
 
 export const watchInput = callInput.extend({
   push: z.custom<(reply: Reply) => void>((v) => typeof v === "function"),
@@ -107,6 +96,13 @@ export const watchInput = callInput.extend({
 export type Call = Operation.Handle<Promise<Reply>, z.infer<typeof callInput>>;
 /** Client: a value out; replies pushed until the signal aborts or the link ends. */
 export type Watch = Operation.Handle<Promise<void>, z.infer<typeof watchInput>>;
+
+type Failed = Extract<Reply, { ok: false }>;
+
+/** A backend's client: a value out, the reply back. An exit is a fault made with `lost`. */
+export type Send = Operation.Handle<Promise<Reply>, z.infer<typeof callInput>>;
+/** A backend's client: replies pushed until the signal aborts (`ok`), or the fault that ended it. */
+export type Open = Operation.Handle<Promise<{ ok: true } | Failed>, z.infer<typeof watchInput>>;
 
 /**
  * A definition the server protocol routes to: the addresses it has (its keys), and how it

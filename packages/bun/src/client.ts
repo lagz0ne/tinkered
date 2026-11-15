@@ -1,8 +1,9 @@
 import { capsule, data, operation, tag, transport } from "@tinkered/core";
 
+import { coding, json, withId } from "./codec";
 import { Tools } from "./tools";
 
-const { callInput, kept, openInput, protocol, sendInput, watchInput } = transport;
+const { callInput, kept, lost, protocol, watchInput } = transport;
 
 type Call = transport.Call;
 type ClientSide = transport.ClientSide;
@@ -20,6 +21,7 @@ type Watch = transport.Watch;
 // keys one write changed arrive together (F35) with no shared stream in the protocol.
 //
 //   call   {i, a: address, t: text, m: meta}     answer {i, t} | {i, e: status}
+//          (`m.execution` is the call's id: its own SPI field, carried here as before)
 //   watch  {i, a, t, m, w: 1}                    pushes {i, t} ... then {i, end: 1}
 //   stop   {i, x: 1}
 //
@@ -72,7 +74,7 @@ export function createWs() {
   const url = tag<string>({ label: "ws.url" });
   const headers = tag<Readonly<Record<string, string>>>({ label: "ws.headers", default: {} });
   const keys = {
-    codec: tag<Codec>({ label: "ws.codec" }).optional,
+    codec: tag<Codec>({ label: "ws.codec", default: json }),
     meta: tag<MetaOp>({ label: "ws.meta" }).optional,
     renew: tag<RenewOp>({ label: "ws.renew" }).optional,
   };
@@ -90,85 +92,125 @@ export function createWs() {
   };
   const link = data<Link | null>({ label: "ws.link", initial: null });
 
-  // Text, one layer down: the protocol calls these. The span goes as `traceparent` in `m`.
+  // The bytes are this backend's (ADR 0154): the protocol hands a value, these send its text and
+  // read the reply. The span goes as `traceparent` in `m`.
   // A call or a watch with no signal of its own gets the scope's signal, which lives as long as
   // the tab: each takes its abort listener off when it ends, so none stays on that signal. So
   // `stop` runs only while its call or watch waits.
+  type Got = { ok: true; text: string } | Exit;
+  type Asked = { address: string; text: string; m: Record<string, string>; signal: AbortSignal };
+
+  /**
+   * Bytes go on their own POST beside the socket: `<url>/<address>`, the value as text in
+   * `x-input`, the meta in `x-meta`, the bytes as the body, streamed by fetch.
+   * A fetch that rejects is the network (MDN: a TypeError), so a link that may have sent.
+   */
+  const postBytes = async (
+    to: { url: string; headers: Readonly<Record<string, string>> },
+    { address, text, m, signal }: Asked,
+    body: Blob,
+  ): Promise<Got> => {
+    const answer = await fetch(`${to.url.replace(/^ws/, "http")}/${address}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        ...to.headers,
+        "content-type": body.type,
+        "x-input": text,
+        "x-meta": JSON.stringify(m),
+      },
+      body,
+      signal,
+    }).catch(() => null);
+    if (!answer) return exitOf(null);
+    if (!answer.ok) {
+      void answer.body?.cancel();
+      return exitOf({ i: 0, e: answer.status });
+    }
+
+    return answer.text().then(
+      (got) => ({ ok: true as const, text: got }),
+      () => exitOf(null),
+    );
+  };
+
+  /** One call on the socket: its answer's text, or the exit. */
+  const onSocket = (own: Link, { address, text, m, signal }: Asked) =>
+    new Promise<Got>((got) => {
+      const i = own.next++;
+      const stop = () => {
+        own.waits.delete(i);
+        own.post({ i, x: 1 });
+        got(exitOf(null));
+      };
+      own.waits.set(i, (message, sent) => {
+        own.waits.delete(i);
+        signal.removeEventListener("abort", stop);
+        got(message?.t === undefined ? exitOf(message, sent) : { ok: true, text: message.t });
+      });
+      signal.addEventListener("abort", stop);
+      own.post({ i, a: address, t: text, m });
+    });
+
   const send = operation({
     label: "ws.send",
-    input: sendInput,
-    depends: { link: link.controller, protocol, url: url.required, headers },
-    run: async ({ link, protocol, url, headers }, { input, signal, obs }) => {
-      const own = link.get()!;
-      const i = own.next++;
-      const m = { ...input.meta, ...protocol.traceparent(obs.span) };
-      if (input.body) {
-        // Bytes go on their own POST beside the socket: `<url>/<address>`, the value as text in
-        // `x-input`, the meta in `x-meta`, the bytes as the body, streamed by fetch.
-        // A fetch that rejects is the network (MDN: a TypeError), so a link that may have sent.
-        const answer = await fetch(`${url.replace(/^ws/, "http")}/${input.address}`, {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            ...headers,
-            "content-type": input.body.type,
-            "x-input": input.text,
-            "x-meta": JSON.stringify(m),
-          },
-          body: input.body as Blob,
-          signal,
-        }).catch(() => null);
-        if (!answer) return exitOf(null);
-        if (!answer.ok) {
-          void answer.body?.cancel();
-          return exitOf({ i, e: answer.status });
-        }
-        return answer.text().then(
-          (text) => ({ ok: true as const, text }),
-          () => exitOf(null),
-        );
-      }
-      return new Promise<{ ok: true; text: string } | Exit>((got) => {
-        const stop = () => {
-          own.waits.delete(i);
-          own.post({ i, x: 1 });
-          got(exitOf(null));
-        };
-        own.waits.set(i, (message, sent) => {
-          own.waits.delete(i);
-          signal.removeEventListener("abort", stop);
-          got(message?.t === undefined ? exitOf(message, sent) : { ok: true, text: message.t });
-        });
-        signal.addEventListener("abort", stop);
-        own.post({ i, a: input.address, t: input.text, m });
-      });
+    input: callInput,
+    depends: { link: link.controller, protocol, url: url.required, headers, codec: keys.codec },
+    run: async ({ link, protocol, url, headers, codec }, ctx): Promise<Reply> => {
+      const { input, signal } = ctx;
+      const { encode, replyOf } = coding(codec, "client", ctx);
+      const text = encode(input.address, input.value);
+      if (!text.ok) return text; // nothing is sent
+
+      const m = withId({ ...input.meta, ...protocol.traceparent(ctx.obs.span) }, input.execution);
+      const asked = { address: input.address, text: text.value, m, signal };
+
+      const got = await (input.body
+        ? postBytes({ url, headers }, asked, input.body as Blob)
+        : onSocket(link.get()!, asked));
+      return got.ok ? replyOf(input.address, got.text) : lost(got);
     },
   });
 
+  /** One watch on the socket: each push's text to `push`, until it ends (`ok`) or its exit. */
+  const watchOnSocket = (
+    own: Link,
+    { address, text, m, signal }: Asked,
+    push: (text: string) => void,
+  ) =>
+    new Promise<{ ok: true } | Exit>((ended) => {
+      const i = own.next++;
+      // A reader that leaves stops the server's stream: the server ends the watch.
+      const stop = () => {
+        own.waits.delete(i);
+        own.post({ i, x: 1 });
+        ended({ ok: true });
+      };
+      own.waits.set(i, (message, sent) => {
+        if (message?.t !== undefined) return push(message.t);
+        own.waits.delete(i);
+        signal.removeEventListener("abort", stop);
+        ended(message?.end ? { ok: true } : exitOf(message, sent));
+      });
+      signal.addEventListener("abort", stop);
+      own.post({ i, a: address, t: text, m, w: 1 });
+    });
+
   const open = operation({
     label: "ws.open",
-    input: openInput,
-    depends: { link: link.controller, protocol },
-    run: ({ link, protocol }, { input, signal, obs }) => {
-      const own = link.get()!;
-      const i = own.next++;
-      const m = { ...input.meta, ...protocol.traceparent(obs.span) };
-      return new Promise<{ ok: true } | Exit>((ended) => {
-        // A reader that leaves stops the server's stream: the server ends the watch.
-        const stop = () => {
-          own.waits.delete(i);
-          own.post({ i, x: 1 });
-          ended({ ok: true });
-        };
-        own.waits.set(i, (message, sent) => {
-          if (message?.t !== undefined) return input.push(message.t);
-          own.waits.delete(i);
-          signal.removeEventListener("abort", stop);
-          ended(message?.end ? { ok: true } : exitOf(message, sent));
-        });
-        signal.addEventListener("abort", stop);
-        own.post({ i, a: input.address, t: input.text, m, w: 1 });
-      });
+    input: watchInput,
+    depends: { link: link.controller, protocol, codec: keys.codec },
+    run: async ({ link, protocol, codec }, ctx) => {
+      const { input, signal } = ctx;
+      const { encode, replyOf } = coding(codec, "client", ctx);
+      const text = encode(input.address, input.value);
+      if (!text.ok) return text; // nothing is sent
+
+      const m = { ...input.meta, ...protocol.traceparent(ctx.obs.span) };
+      const push = (t: string) => input.push(replyOf(input.address, t));
+
+      const end = await watchOnSocket(link.get()!, { ...input, text: text.value, m, signal }, push);
+      return end.ok ? end : lost(end);
     },
   });
 
@@ -281,13 +323,7 @@ export function createWs() {
         load(link, kept).set({ sockets, waits, next: 1, post, drop, reset });
         load(held, kept).set({
           protocol: p,
-          side: {
-            send,
-            open,
-            codec: p.given(config.codec) ?? p.json,
-            meta: p.given(config.meta),
-            renew: p.given(config.renew),
-          },
+          side: { send, open, meta: p.given(config.meta), renew: p.given(config.renew) },
         });
 
         return next();

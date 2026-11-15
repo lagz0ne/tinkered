@@ -1,7 +1,7 @@
 # 0140 The protocol lives in each backend
 
 Date: 2026-11-11. Status: accepted as the direction
-(Duke, 05:11 to 05:16 UTC); not built.
+(Duke, 05:11 to 05:16 UTC); built in ADR 0154.
 Changes: where the wire protocol lives (today
 `rpc-protocol.ts` in Core).
 Governs: the execution id, and every wire change
@@ -147,5 +147,7 @@ await move.runAsync({ input });
    Not in it yet: a throw in `send` or `open`, which
    needs a backend that can be made to throw.
 2. `watch` required; the wire code moves from
-   `rpc-protocol.ts` into each backend.
-3. The execution id, on the SPI.
+   `rpc-protocol.ts` into each backend. Built
+   2026-11-15: ADR 0154.
+3. The execution id, on the SPI. Built
+   2026-11-15: a field of the call (ADR 0154).

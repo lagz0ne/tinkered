@@ -1,4 +1,4 @@
-import { channel, createScope, operation, rpc, transport } from "@tinkered/core";
+import { channel, createScope, execution, operation, rpc, transport } from "@tinkered/core";
 import type { Observe } from "@tinkered/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
@@ -398,4 +398,39 @@ test("post: not a POST, or not under the path, is not this server's", async () =
   expect(await door.post(new Request(`${http}/rpc`, { method: "POST" }), scope)).toBeUndefined();
   const reply = await door.post(new Request(`${http}/rpc/greet`, { method: "POST" }), scope);
   expect(reply?.status).toBe(404);
+});
+
+test("the execution id rides as m.execution, as before ADR 0154: the run gets it, meta does not", async () => {
+  const idApi = rpc({ who: { input: z.null(), output: z.string() } });
+  const metas: unknown[] = [];
+  const seen = operation({
+    label: "seen",
+    input: transport.hook.start,
+    run: (_, { input }) => void metas.push(input.meta),
+  });
+  const who = operation({
+    label: "who.here",
+    input: z.null(),
+    depends: { id: execution.required },
+    run: ({ id }) => id,
+  });
+  const server = wsServer.server({ path: "/rpc", services: [idApi as never] });
+  const scope = await createScope({
+    capsules: [idApi({ implement: { who }, onStart: [seen] }), server],
+  }).ready;
+  const door = scope.resolve(server) as never as Door;
+  const bun = Bun.serve({
+    port: 0,
+    websocket: door.websocket as never,
+    fetch: (r, b) => door.upgrade(r, scope, b) ?? undefined,
+  });
+  closers.push(() => bun.stop(true));
+  closers.push(() => scope.close());
+  const s = await socketTo(`ws://localhost:${bun.port}/rpc`);
+
+  s.socket.send(JSON.stringify([{ i: 1, a: "who", t: "null", m: { execution: "old-page-1" } }]));
+  await s.until(() => s.got().length === 1);
+
+  expect(s.got()).toEqual([{ i: 1, t: '{"ok":true,"value":"old-page-1"}' }]);
+  expect(metas).toEqual([{}]);
 });

@@ -103,7 +103,7 @@ const held = { role: "state", explain: "The rpc steps of this root" } as const;
 type Job<C extends Contracts> =
   | { readonly implement: Implement<C>; readonly remote?: never }
   | {
-      readonly remote: { readonly call: Call; readonly watch?: Watch };
+      readonly remote: { readonly call: Call; readonly watch: Watch };
       readonly implement?: never;
     };
 
@@ -131,7 +131,8 @@ export type RpcFault<K extends string = string> = Error & {
   readonly execution?: string;
 };
 
-type Remote = { readonly call: Call; readonly watch?: Watch };
+/** A backend's client: `watch` is required (ADR 0140); how soon it tells is the backend's. */
+type Remote = { readonly call: Call; readonly watch: Watch };
 type Failed = Extract<Reply, { ok: false }>;
 
 /** One definition, as the steps read it: its contracts, its brand, its serving ops. */
@@ -172,8 +173,8 @@ type Read = {
 type Event = Omit<Capsule.Events["run"], "config"> & { readonly config: Read };
 
 /**
- * A call's execution id (ADR 0147): the client makes one per call and sends it as
- * `meta.execution`; the server binds it here for the run. It is the fault's ref and a log field
+ * A call's execution id (ADR 0147): the client makes one per call and sends it in the call's
+ * `execution` field (ADR 0154); the server binds it here for the run. It is the fault's ref and a log field
  * on both sides, with tracing off too.
  */
 export const execution = tag<string>({ label: "execution" });
@@ -296,6 +297,10 @@ const steps = resource({
         ? def.keys.find((key) => !implement[key] || !flow.runOf(implement[key]))
         : undefined;
       if (missing) raise("MissingConfig", { label: def.name, key: `implement.${missing}` });
+      // `watch` is required (ADR 0140): a remote with none fails the start, not its first stream.
+      if (config.remote.present && !config.remote.value.watch) {
+        raise("MissingConfig", { label: def.name, key: "remote.watch" });
+      }
     };
 
     /** A key's input checked by its contract; a bytes field must hold bytes, whatever it admits. */
@@ -329,9 +334,6 @@ const steps = resource({
       const remote = config.remote.value;
       const input = inputOf(def, event, key);
       const reply = (contract.mode ?? "reply") === "reply";
-      if (!reply && !remote.watch) {
-        return raise("MissingConfig", { label: def.name, key: "remote.watch" });
-      }
       const watch = remote.watch;
       const faulted = (r: Failed, execution?: string) => {
         if (r.kind !== "refused") {
@@ -353,7 +355,7 @@ const steps = resource({
             if (reply) {
               // The call's execution id (ADR 0147): the ref of its fault, on both sides.
               const id = event.random.uuid();
-              const out = { ...split(def, key, input), meta: { ...meta, execution: id } };
+              const out = { ...split(def, key, input), meta, execution: id };
               const answer = await run(remote.call, { input: out, signal, ...bind }, sent);
               if (!answer.ok) throw faulted(answer, id);
               return answer.value;
@@ -365,7 +367,7 @@ const steps = resource({
               (push) =>
                 Promise.resolve(
                   run(
-                    watch!,
+                    watch,
                     {
                       input: { address: key, value: input, meta, push },
                       signal: leave.signal,
@@ -501,14 +503,14 @@ const steps = resource({
     };
 
     /** The caller's execution id as a tag, when it is a plain id. */
-    const idOf = ({ execution: id }: Record<string, string>) =>
+    const idOf = (id: string | undefined) =>
       id && /^[\w-]{1,64}$/.test(id) ? [execution(id)] : [];
 
     /** answer: one output, as the envelope. */
     const answerHere = (
       def: Def,
       event: Event,
-      { address, meta }: z.infer<typeof callInput>,
+      { address, meta, execution: id }: z.infer<typeof callInput>,
       input: unknown,
     ) => {
       // A key answers only in its own mode: a stream key never runs from a call.
@@ -530,7 +532,7 @@ const steps = resource({
             // Its own layer (a call with a signal, ADR 0090): a session-target resource, such as
             // a transaction, ends with the implementation's result, not the request session's
             // close. The caller's execution id is bound for the run, for its logs and its writes.
-            const tags = [...given, ...idOf(meta)];
+            const tags = [...given, ...idOf(id)];
             return Promise.resolve(
               run(
                 implementation,
@@ -547,7 +549,7 @@ const steps = resource({
           },
         )
         .then(answeredAs)
-        .catch(failedAt(def, event, address, meta.execution));
+        .catch(failedAt(def, event, address, id));
     };
 
     /** stream: each output pushed, until the op returns or the caller leaves (`left`). */

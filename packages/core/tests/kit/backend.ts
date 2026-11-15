@@ -1,4 +1,12 @@
-import { createScope, data, operation, remoteData, rpc, transport } from "@tinkered/core";
+import {
+  createScope,
+  data,
+  execution,
+  operation,
+  remoteData,
+  rpc,
+  transport,
+} from "@tinkered/core";
 import type { Capsule, Scope } from "@tinkered/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
@@ -24,6 +32,7 @@ const api = rpc({
   greet: { input: z.object({ name: z.string() }), output: z.string() },
   shut: { input: z.null(), output: z.null() },
   boom: { input: z.null(), output: z.null() },
+  who: { input: z.null(), output: z.string() },
 });
 
 /** What an older or other client knows: an address the server lacks, and a looser `greet`. */
@@ -77,6 +86,12 @@ export function backendKit<S>(name: string, make: () => Backend<S>): void {
       run: (_, { input }) => `Hello, ${input.name}.`,
     }),
     shut: operation({ label: "kit.shut", input: z.null(), run: () => null }),
+    who: operation({
+      label: "kit.who",
+      input: z.null(),
+      depends: { id: execution.required },
+      run: ({ id }) => id,
+    }),
     boom: operation({
       label: "kit.boom",
       input: z.null(),
@@ -151,6 +166,21 @@ export function backendKit<S>(name: string, make: () => Backend<S>): void {
       { fault: "failed", from: "server" },
       { fault: "missing", from: "server" },
     ]);
+  });
+
+  test(`${name}: the call's execution id reaches the server's run (ADR 0154)`, async () => {
+    const app = await start();
+    const tab = await app.client();
+
+    const [one, two] = await Promise.all([
+      tab.run(api.who, { input: null }),
+      tab.run(api.who, { input: null }),
+    ]);
+    const fault = await tab.run(api.boom, { input: null }).catch((error: unknown) => error);
+
+    expect(one).toMatch(/^[\w-]{1,64}$/);
+    expect(two).not.toBe(one);
+    expect(fault).toMatchObject({ execution: expect.stringMatching(/^[\w-]{1,64}$/) });
   });
 
   test(`${name}: a write on the server reaches each client that reads the cell`, async () => {

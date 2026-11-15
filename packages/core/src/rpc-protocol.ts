@@ -1,18 +1,20 @@
 import { resource } from "./index";
 import type { Observe, Operation, Resource } from "./index";
+import type * as z from "./rpc-shape";
 import { lost } from "./rpc-wire";
-import type { Body, Codec, Exit, Open, Reply, Send, Service } from "./rpc-wire";
+import type { callInput, Open, Reply, Send, Service } from "./rpc-wire";
 
-// The protocol: the reply envelope, the fault set, the codec use and the route table. Fixed: any transport carries it (glossary "protocol", ADR 0048). It is not a capsule.
-// Each transport (ws, memory) is one client and one server capsule that speaks it, as each
-// Connect RPC transport speaks one protocol over its own wire.
+// The protocol (ADR 0154): the meaning every backend shares, in values. The route table, `meta`
+// and one `renew` at a time, a throw as `failed`, and the server's `answer` and `stream`. It
+// never sees text: the codec, the envelope and the frames are each backend's own (ADR 0140), as
+// each tRPC link owns its transformer use and its frames.
 
 /**
  * `meta`: an op the client runs before each call and each stream open; its pairs go beside the
  * body (headers). As tRPC's `headers()` or a gRPC call credential.
  * `renew`: runs when a call or a push is `refused`, as OkHttp's Authenticator runs on a 401.
  * True means "try once more" (the next `meta` has fresh credentials). One renew at a time per
- * transport: calls refused together wait for the same one (single flight).
+ * backend: calls refused together wait for the same one (single flight).
  */
 export type MetaOp = Operation.Handle<Promise<Record<string, string>>, void>;
 
@@ -21,21 +23,20 @@ export type RenewOp = Operation.Handle<
   { payload: unknown; sent: Record<string, string> }
 >;
 
-/** What a client transport holds once started: its text ops and the options it was given. */
+/** What a backend's client holds once started: its value ops and the options it was given. */
 export type ClientSide = {
   readonly send: Send;
   readonly open: Open;
-  readonly codec: Codec;
   readonly meta?: MetaOp;
   readonly renew?: RenewOp;
 };
 
-/** What a server transport holds once started: its codec and its route table. */
-export type ServerSide = { readonly codec: Codec; readonly routes: ReadonlyMap<string, Service> };
+/** What a backend's server holds once started: its route table. */
+export type ServerSide = { readonly routes: ReadonlyMap<string, Service> };
 
 /**
  * The hook's own tools: run (with a handler note), log, and the call's signal. The protocol reads
- * `log` only when it logs a fault, so a transport can make it on that read.
+ * `log` only when it logs a fault, so a backend can make it on that read.
  */
 export type Hook = {
   readonly run: (op: never, options: never, why: never) => unknown;
@@ -43,17 +44,15 @@ export type Hook = {
   readonly signal: AbortSignal | undefined;
 };
 
-/** Where a started transport keeps its side. */
+/** Where a started backend keeps its side. */
 export const kept = { role: "state", explain: "The transport's own side" } as const;
 
 /** The renew in flight, per client side. */
 const renewing = new WeakMap<object, Promise<boolean>>();
 
-/** A fault from the codec: `encode` or `decode`, saying only the side. */
 type Failed = Extract<Reply, { ok: false }>;
-type Coded<T> = { ok: true; value: T } | Failed;
-type Sent = { ok: true; text: string } | Exit;
-type Ended = { ok: true } | Exit;
+/** One value out, as rpc and remoteData give it. */
+type Asked = z.infer<typeof callInput>;
 
 const why = { role: "handler", explain: "One layer down" } as const;
 
@@ -61,9 +60,8 @@ const why = { role: "handler", explain: "One layer down" } as const;
 type Maybe<T> = { readonly present: boolean; readonly value?: T };
 
 /**
- * The protocol's steps, for each transport's capsules: the client's `callOver` and `watchOver`,
- * the server's `serveText` and `streamText`, the route table, the codec use, and the default
- * codec (`json`). One per root; it holds nothing of its own.
+ * The protocol's steps, for each backend's capsules: the client's `callOver` and `watchOver`, the
+ * server's `answer` and `stream`, and the route table. One per root; it holds nothing of its own.
  */
 export const protocol = resource({
   label: "protocol",
@@ -71,12 +69,6 @@ export const protocol = resource({
   factory: () => {
     const run = <T>(hook: Hook, op: unknown, options: unknown) =>
       Promise.resolve(hook.run(op as never, options as never, why as never) as T);
-
-    /** The codec a transport uses when none is given. */
-    const json: Codec = {
-      serialize: (value) => JSON.stringify(value ?? null),
-      deserialize: (text) => JSON.parse(text),
-    };
 
     /** W3C traceparent from a span: the client transport sends its own span (ADR 0076). */
     const traceparent = (
@@ -126,50 +118,6 @@ export const protocol = resource({
       return table;
     };
 
-    /** The codec, used on one side: a fault keeps its cause in this side's log, and says only the side. */
-    const coding = (codec: Codec, side: "client" | "server", hook: Hook) => {
-      const fault = (kind: "encode" | "decode", address: string, error: unknown): Failed => {
-        hook.log.error(`protocol ${kind} failed`, {
-          address,
-          side,
-          cause: String(error),
-          stack: String(Object(error).stack ?? ""),
-        });
-        return { ok: false, kind, payload: { side } };
-      };
-
-      const encode = (address: string, value: unknown): Coded<string> => {
-        try {
-          return { ok: true, value: codec.serialize(value) };
-        } catch (error) {
-          return fault("encode", address, error);
-        }
-      };
-
-      const decode = (address: string, text: string): Coded<unknown> => {
-        try {
-          return { ok: true, value: codec.deserialize(text) };
-        } catch (error) {
-          return fault("decode", address, error);
-        }
-      };
-
-      return {
-        fault,
-        encode,
-        decode,
-        /** A reply as text. A reply the codec cannot carry goes out as the encode fault instead. */
-        answerText: (address: string, reply: Reply): string => {
-          const text = encode(address, reply);
-          return text.ok ? text.value : codec.serialize(text);
-        },
-        replyOf: (address: string, text: string): Reply => {
-          const reply = decode(address, text);
-          return reply.ok ? (reply.value as Reply) : reply;
-        },
-      };
-    };
-
     /** Client: the meta for a request, and the shared renew. */
     const asking = async (own: ClientSide, hook: Hook, given: Record<string, string>) => {
       const metaNow = async () =>
@@ -193,22 +141,12 @@ export const protocol = resource({
     };
 
     /** Client: one value out, the reply back as a value. A fault is data too; only a bug throws. */
-    const callOver = async (
-      own: ClientSide,
-      hook: Hook,
-      input: { address: string; value: unknown; meta: Record<string, string>; body?: Body },
-    ): Promise<Reply> => {
-      const { encode, replyOf } = coding(own.codec, "client", hook);
-      const { address, body: bytes } = input;
+    const callOver = async (own: ClientSide, hook: Hook, input: Asked): Promise<Reply> => {
       const { meta, metaNow, renewed } = await asking(own, hook, input.meta);
-      const body = encode(address, input.value);
-      if (!body.ok) return body; // nothing is sent
-
       const ask = (m: Record<string, string>): Promise<Reply> =>
-        run<Sent>(hook, own.send, {
-          input: { address, text: body.value, meta: m, ...(bytes ? { body: bytes } : {}) },
-          signal: hook.signal,
-        }).then((sent) => (sent.ok ? replyOf(address, sent.text) : lost(sent)), bug(hook, address));
+        run<Reply>(hook, own.send, { input: { ...input, meta: m }, signal: hook.signal }).catch(
+          bug(hook, input.address),
+        );
       const first = await ask(meta);
       if (first.ok || first.kind !== "refused" || !(await renewed(first.payload, meta))) {
         return first;
@@ -221,33 +159,22 @@ export const protocol = resource({
     const watchOver = async (
       own: ClientSide,
       hook: Hook,
-      input: {
-        address: string;
-        value: unknown;
-        meta: Record<string, string>;
-        push: (reply: Reply) => void;
-      },
+      input: Asked & { push: (reply: Reply) => void },
     ): Promise<void> => {
-      const { encode, replyOf } = coding(own.codec, "client", hook);
-      const { address, push: up } = input;
       const { signal } = hook;
       const { meta, renewed } = await asking(own, hook, input.meta);
-      const body = encode(address, input.value);
-      if (!body.ok) return up(body); // nothing is sent
-
-      const got = (text: string) => {
-        const reply = replyOf(address, text);
+      const got = (reply: Reply) => {
         // A refused push starts a renew; the watch's own retry then opens with fresh meta.
         if (!reply.ok && reply.kind === "refused") void renewed(reply.payload, meta);
-        up(reply);
+        input.push(reply);
       };
 
       // One exit, after the pushes: a fault that ends it is pushed last.
-      const end = await run<Ended>(hook, own.open, {
-        input: { address, text: body.value, meta, push: got },
+      const end = await run<{ ok: true } | Failed>(hook, own.open, {
+        input: { ...input, meta, push: got },
         signal,
-      }).then((exit) => (exit.ok ? exit : lost(exit)), bug(hook, address));
-      if (!end.ok && !signal?.aborted) up(end);
+      }).catch(bug(hook, input.address));
+      if (!end.ok && !signal?.aborted) input.push(end);
     };
 
     /** A service that throws (a bug: rpc and remoteData turn their own throws into `failed`): `failed` too, never a silent end. */
@@ -263,7 +190,7 @@ export const protocol = resource({
       };
 
     /**
-     * A transport that throws: a bug (ADR 0141), logged with the trace, and `failed` on this side;
+     * A backend that throws: a bug (ADR 0141), logged with the trace, and `failed` on this side;
      * never `link`, so nothing asks again. A throw after the caller stopped is the stop.
      */
     const bug = (hook: Hook, address: string) => (error: unknown) =>
@@ -271,68 +198,42 @@ export const protocol = resource({
         ? lost({ ok: false, kind: "link", sent: true })
         : broke(hook, address, "client")(error);
 
-    /** Server: one text in, the reply text out; null when no service has the address (404). */
-    const serveText = async (
-      own: ServerSide,
-      hook: Hook,
-      input: { address: string; text: string; meta: Record<string, string>; body?: Body },
-    ): Promise<string | null> => {
-      const { codec, routes } = own;
-      const { decode, answerText } = coding(codec, "server", hook);
-      const { address, meta, body } = input;
-      const read = decode(address, input.text);
-      if (!read.ok) return codec.serialize(read);
-      const service = routes.get(address);
-      if (!service) return null; // no one has this address: the transport says 404
+    /** Server: one value in, the reply out; null when no service has the address (`missing`). */
+    const answer = async (own: ServerSide, hook: Hook, input: Asked): Promise<Reply | null> => {
+      const service = own.routes.get(input.address);
+      if (!service) return null;
 
-      const reply = await run<Reply | null>(hook, service.answer, {
-        input: { address, value: read.value, meta, ...(body ? { body } : {}) },
-        signal: hook.signal,
-      }).catch(broke(hook, address));
-
-      return reply === null ? null : answerText(address, reply);
+      return run<Reply | null>(hook, service.answer, { input, signal: hook.signal }).catch(
+        broke(hook, input.address),
+      );
     };
 
-    /** Server: one watched address, its pushes as reply texts, until the client leaves. */
-    const streamText = async (
+    /** Server: one watched address, its pushes as replies, until the client leaves. */
+    const stream = async (
       own: ServerSide,
       hook: Hook,
-      input: {
-        address: string;
-        text: string;
-        meta: Record<string, string>;
-        push: (text: string) => void;
-        left?: AbortSignal;
-      },
+      input: Asked & { push: (reply: Reply) => void; left?: AbortSignal },
     ): Promise<boolean> => {
-      const { codec, routes } = own;
-      const { decode, answerText } = coding(codec, "server", hook);
-      const { address, meta, push, left } = input;
-      const read = decode(address, input.text);
-      if (!read.ok) return (push(codec.serialize(read)), true);
-      const send = (reply: Reply) => push(answerText(address, reply));
-      const service = routes.get(address);
-      // No one has this address: false, and the transport says it its own way (ws: a 404 frame).
+      const service = own.routes.get(input.address);
+      // No one has this address: false, and the backend says it its own way (ws: a 404 frame).
       if (!service) return false;
 
-      return run<boolean>(hook, service.stream, {
-        input: { address, value: read.value, meta, left, push: send },
-      }).catch((error) => (send(broke(hook, address)(error)), true));
+      return run<boolean>(hook, service.stream, { input }).catch(
+        (error) => (input.push(broke(hook, input.address)(error)), true),
+      );
     };
 
     return {
       run,
-      json,
       traceparent,
       given,
       routesOf,
-      coding,
       asking,
       callOver,
       watchOver,
       broke,
-      serveText,
-      streamText,
+      answer,
+      stream,
     };
   },
 });

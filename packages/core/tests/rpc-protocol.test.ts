@@ -2,7 +2,7 @@ import { createMemory, memory } from "@tinkered/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { channel, createScope, operation, rpc, transport } from "@/main";
+import { capsule, channel, createScope, operation, rpc, transport } from "@/main";
 import type { Observe, Scope } from "@/main";
 
 // The protocol's own steps, through the memory transport: meta and renew on the client, the
@@ -32,9 +32,21 @@ const count = operation({
   },
 });
 
-/** The server: each call's meta, in order; a call passes only with `token: fresh`. */
+/** The server: each call's meta and execution id, in order; a call passes only with `token: fresh`. */
 async function serverOf(logs: Observe.Log[] = []) {
   const asked: Array<Record<string, string>> = [];
+  const ids: string[] = [];
+  // The id the backend carried, as the server's text op got it (ADR 0154: its own field).
+  const carried = capsule({
+    label: "carried",
+    hooks: {
+      run(event): unknown {
+        const got = Object(event.call?.input ?? event.call?.rawInput);
+        if (typeof got.text === "string") ids.push(got.execution);
+        return event.next();
+      },
+    },
+  });
   const gate = operation({
     label: "gate",
     input: transport.hook.start,
@@ -46,13 +58,14 @@ async function serverOf(logs: Observe.Log[] = []) {
   const server = await createScope({
     observe: { log: (entry) => void logs.push(entry) },
     capsules: [
+      carried,
       api({ implement: { echo, count }, onStart: [gate] }),
       memory.server({ services: [api] }),
     ],
   }).ready;
   closers.push(() => server.close());
 
-  return { server, asked };
+  return { server, asked, ids };
 }
 
 /** A client whose meta reads `token`, and whose renew sets it to `fresh` after a wait. */
@@ -91,17 +104,14 @@ const faultOf = (p: Promise<unknown>) =>
   );
 
 test("a refused call asks renew once, then sends again with the new meta", async () => {
-  const { server, asked } = await serverOf();
+  const { server, asked, ids } = await serverOf();
   const { tab, state } = await clientOf(server);
 
   expect(await tab.run(api.echo, { input: { n: 1 } })).toEqual({ n: 1 });
-  expect(asked.map((m) => m.token)).toEqual(["old", "fresh"]);
-  // The second send is the same call: it keeps its execution id (ADR 0140).
-  const id = asked[0]!.execution;
-  expect(state.renewals).toEqual([
-    { payload: { why: "stale" }, sent: { token: "old", execution: id } },
-  ]);
-  expect(asked.map((m) => m.execution)).toEqual([id, id]);
+  expect(asked).toEqual([{ token: "old" }, { token: "fresh" }]);
+  expect(state.renewals).toEqual([{ payload: { why: "stale" }, sent: { token: "old" } }]);
+  // The second send is the same call: it keeps its execution id (ADR 0140, 0154).
+  expect(ids).toEqual([expect.stringMatching(/^[\w-]+$/), ids[0]]);
 });
 
 test("a renew that says no, or throws, leaves the refusal as the answer", async () => {
@@ -131,7 +141,7 @@ test("with no renew, a refusal is the answer, sent once", async () => {
   expect(await faultOf(tab.run(api.echo, { input: { n: 1 } }))).toMatchObject({
     fault: "refused",
   });
-  expect(asked).toEqual([{ execution: expect.any(String) }]);
+  expect(asked).toEqual([{}]);
 });
 
 test("calls refused at one time share one renew; a later refusal renews again", async () => {

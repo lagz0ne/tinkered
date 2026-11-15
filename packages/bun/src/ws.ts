@@ -3,23 +3,15 @@ import type { Scope } from "@tinkered/core";
 import type { Server, ServerWebSocket, WebSocketHandler } from "bun";
 
 import { frameMax } from "./client";
+import { given, idOff, json, serveText } from "./codec";
+import type { Held, StreamIn, TextIn, TextServe, TextStream } from "./codec";
 import { Tools } from "./tools";
 
-const { kept, openInput, protocol, request, requestStop, sendInput, traceparentOf } = transport;
+const { kept, protocol, request, requestStop, traceparentOf } = transport;
 
 type BytesLimit = transport.BytesLimit;
 type Codec = transport.Codec;
-type Protocol = transport.Protocol;
-type ServerSide = transport.ServerSide;
 type Service = transport.Service;
-type TextServe = transport.TextServe;
-type TextStream = transport.TextStream;
-
-/** The input of an op only this transport calls: its one caller builds it, so it is typed only. */
-const given =
-  <T>() =>
-  (raw: unknown): T =>
-    raw as T;
 
 /** True for an object of string values only: the `x-meta` header of a bytes POST. */
 const isTextRecord = (v: unknown): v is Record<string, string> =>
@@ -82,7 +74,7 @@ type Socket = {
 /** Makes one WebSocket server. */
 export function createWs() {
   const path = tag<string>({ label: "ws.path" });
-  const codec = tag<Codec>({ label: "ws.codec" }).optional;
+  const codec = tag<Codec>({ label: "ws.codec", default: json });
   const services = tag<readonly Service[]>({ label: "ws.services" }).required;
   const strict = tag<boolean>({ label: "ws.strict", default: true });
   /** The public origin a socket comes from. Unset, it is the request URL's own origin; behind a
@@ -107,7 +99,7 @@ export function createWs() {
 
   const serve = operation({
     label: "ws.serve",
-    input: sendInput,
+    input: given<TextIn>(),
     run: (): Promise<string | null> => {
       throw new Error("ws: no server here");
     },
@@ -115,7 +107,7 @@ export function createWs() {
 
   const serveStream = operation({
     label: "ws.serveStream",
-    input: openInput,
+    input: given<StreamIn>(),
     run: (): Promise<boolean> => {
       throw new Error("ws: no server here");
     },
@@ -193,7 +185,7 @@ export function createWs() {
     },
   });
 
-  const held = data<{ side: ServerSide; protocol: Protocol } | null>({
+  const held = data<Held | null>({
     label: "transport.server",
     initial: null,
   });
@@ -224,7 +216,6 @@ export function createWs() {
         }
         const p = await load(protocol, kept);
         const routesOf = p.routesOf(config.services, raise as never, log, config.strict);
-        const side = { codec: p.given(config.codec) ?? p.json, routes: routesOf };
         /** The addresses that take bytes, with their limits, from the service that owns each. */
         const uploadsAt = new Map(
           [...routesOf].flatMap(([address, one]) => {
@@ -232,7 +223,7 @@ export function createWs() {
             return limit ? [[address, limit] as const] : [];
           }),
         );
-        load(held, kept).set({ side, protocol: p });
+        load(held, kept).set({ side: { routes: routesOf }, codec: config.codec, protocol: p });
         await next();
 
         const upgrade = (
@@ -274,7 +265,7 @@ export function createWs() {
             },
             /** A call or a watch, in its own session of the scope. */
             async run(ws, m) {
-              const meta = Object(m.m) as Record<string, string>;
+              const { meta, execution } = idOff(Object(m.m));
               const trace = traceparentOf(meta.traceparent);
               // Only a watch has a stop of its own: a call ends with its answer, or with the socket.
               const stop = m.w ? new AbortController() : undefined;
@@ -287,7 +278,7 @@ export function createWs() {
                 .catch(() => null);
               if (!session) return own.emit(ws, { i: m.i, e: 503 });
 
-              const input = { address: String(m.a), text: String(m.t), meta };
+              const input = { address: String(m.a), text: String(m.t), meta, execution };
               if (!m.w) {
                 const reply = await session.run(serve, { input }).finally(() => session.close());
                 return own.emit(ws, reply === null ? { i: m.i, e: 404 } : { i: m.i, t: reply });
@@ -325,7 +316,8 @@ export function createWs() {
           const admitted = await scope.run(admit, { input: { req, limit, origin, busy } });
           if (admitted instanceof Response) return admitted;
 
-          const { text, meta, type } = admitted;
+          const { text, type } = admitted;
+          const { meta, execution } = idOff(admitted.meta);
           const stop = AbortSignal.any([req.signal, AbortSignal.timeout(config.uploadDeadline)]);
           const trace = traceparentOf(meta.traceparent);
           const tags = [request(req), requestStop(stop)];
@@ -337,7 +329,7 @@ export function createWs() {
           uploading += 1;
           const body = session.run(bodyOf, { input: { req, max: limit!.max, type, stop } });
           const reply = await session
-            .run(serve, { input: { address, text, meta, body } })
+            .run(serve, { input: { address, text, meta, body, execution } })
             .finally(() => {
               uploading -= 1;
               // An unread body is cancelled; a read one is locked, and its cancel is a no-op.
@@ -397,10 +389,9 @@ export function createWs() {
         const { op, call: invocation } = event;
         if (op !== serve && op !== serveStream) return event.next();
 
-        const { side, protocol: p } = event.load(held, kept).get()!;
-        const hook = new Tools(event);
-        const input = (invocation?.input ?? invocation?.rawInput) as never;
-        return op === serve ? p.serveText(side, hook, input) : p.streamText(side, hook, input);
+        const own = event.load(held, kept).get()!;
+        const input = (invocation?.input ?? invocation?.rawInput) as StreamIn;
+        return serveText(own, new Tools(event), op === serve, input);
       },
     },
   });

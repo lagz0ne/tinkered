@@ -4,7 +4,7 @@ import { transport } from "@/main";
 
 // The shapes each layer hands the next: what each one takes, and what it refuses.
 
-const { callInput, hook, openInput, sendInput, traceparentOf, watchInput } = transport;
+const { callInput, hook, traceparentOf, watchInput } = transport;
 
 const ok = (shape: { check: (v: unknown) => { issues?: unknown } }, value: unknown) =>
   shape.check(value).issues === undefined;
@@ -13,38 +13,27 @@ const blob = new Blob(["x"], { type: "text/plain" });
 const push = () => {};
 
 test("meta keys are lowercase letters, digits and dashes, whole", () => {
-  const text = { address: "a", text: "1" };
+  const base = { address: "a", value: 1 };
 
-  expect(ok(sendInput, { ...text, meta: { "x-a1": "v" } })).toBe(true);
-  expect(ok(sendInput, { ...text, meta: {} })).toBe(true);
+  expect(ok(callInput, { ...base, meta: { "x-a1": "v" } })).toBe(true);
+  expect(ok(callInput, { ...base, meta: {} })).toBe(true);
   for (const key of ["X-A", "a b", "-a!", "!a", "a!", ""]) {
-    expect(ok(sendInput, { ...text, meta: { [key]: "v" } }), key).toBe(false);
+    expect(ok(callInput, { ...base, meta: { [key]: "v" } }), key).toBe(false);
   }
-  expect(ok(sendInput, { ...text, meta: { a: 1 } })).toBe(false);
+  expect(ok(callInput, { ...base, meta: { a: 1 } })).toBe(false);
 });
 
-test("text in: an address and a text, each a string; bytes only as a body", () => {
-  expect(sendInput.check({ address: "a", text: "1", meta: {} })).toEqual({
-    value: { address: "a", text: "1", meta: {} },
+test("bytes ride only as a body; the execution id is a string field (ADR 0154)", () => {
+  const base = { address: "a", value: 1, meta: {} };
+
+  expect(ok(callInput, { ...base, body: blob })).toBe(true);
+  expect(ok(callInput, { ...base, body: "bytes" })).toBe(false);
+  expect(ok(callInput, { ...base, body: { stream: push } })).toBe(false);
+  expect(ok(callInput, { ...base, body: { type: "t" } })).toBe(false);
+  expect(callInput.check({ ...base, execution: "e-1" })).toEqual({
+    value: { ...base, execution: "e-1" },
   });
-  expect(ok(sendInput, { address: 1, text: "1", meta: {} })).toBe(false);
-  expect(ok(sendInput, { address: "a", text: 1, meta: {} })).toBe(false);
-  expect(ok(sendInput, { address: "a", text: "1" })).toBe(false);
-
-  expect(ok(sendInput, { address: "a", text: "1", meta: {}, body: blob })).toBe(true);
-  expect(ok(sendInput, { address: "a", text: "1", meta: {}, body: "bytes" })).toBe(false);
-  expect(ok(sendInput, { address: "a", text: "1", meta: {}, body: { stream: push } })).toBe(false);
-  expect(ok(sendInput, { address: "a", text: "1", meta: {}, body: { type: "t" } })).toBe(false);
-});
-
-test("an open takes a push function, and a left that is a signal", () => {
-  const base = { address: "a", text: "1", meta: {} };
-
-  expect(ok(openInput, { ...base, push })).toBe(true);
-  expect(ok(openInput, { ...base, push, left: new AbortController().signal })).toBe(true);
-  expect(ok(openInput, base)).toBe(false);
-  expect(ok(openInput, { ...base, push: "no" })).toBe(false);
-  expect(ok(openInput, { ...base, push, left: "no" })).toBe(false);
+  expect(ok(callInput, { ...base, execution: 1 })).toBe(false);
 });
 
 test("values in: an address, any value, meta; a watch takes a push too", () => {

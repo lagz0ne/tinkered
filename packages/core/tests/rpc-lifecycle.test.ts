@@ -384,7 +384,10 @@ test("L9: retry { link: 2 } runs the call again until it answers", async () => {
         : { ok: true, value: { n: calls } };
     },
   });
-  const { client } = await pair({ implement: here }, { remote: { call }, retry: { link: 2 } });
+  const { client } = await pair(
+    { implement: here },
+    { remote: { call, watch: memory.client.watch }, retry: { link: 2 } },
+  );
 
   expect(await client.run(api.echo, { input: { n: 1 } })).toEqual({ n: 3 });
   expect(calls).toBe(3);
@@ -442,7 +445,10 @@ test("L12: no run again once the call's signal aborts", async () => {
       return { ok: false, kind: "link", payload: {} };
     },
   });
-  const { client } = await pair({ implement: here }, { remote: { call }, retry: { link: 5 } });
+  const { client } = await pair(
+    { implement: here },
+    { remote: { call, watch: memory.client.watch }, retry: { link: 5 } },
+  );
 
   await client
     .run(api.echo, { input: { n: 1 }, signal: AbortSignal.timeout(5) })
@@ -682,10 +688,9 @@ test("F1: every hook gets the key, the input and the meta, on both sides", async
   await client.run(api.echo, { input: { n: 1 } });
   await client.run(api.fail, { input: null }).catch(() => undefined);
 
-  // The server sees the meta that came: the call's execution id (ADR 0140).
-  const id = expect.stringMatching(/^[\w-]+$/);
+  // The server sees the meta that came. The execution id is its own field, not meta (ADR 0154).
   for (const side of ["client", "server"]) {
-    const meta = side === "server" ? { execution: id } : {};
+    const meta = {};
     const echo = { key: "echo", input: { n: 1 }, meta };
     const fail = { key: "fail", input: null, meta };
 
@@ -738,7 +743,7 @@ test("F2: a client onSuccess never sees a bad wire value: the error goes to onEr
   });
   const { client } = await pair(
     { implement: here },
-    { remote: { call }, onSuccess: [sees], onError: [catches] },
+    { remote: { call, watch: memory.client.watch }, onSuccess: [sees], onError: [catches] },
   );
 
   const error = await client.run(api.echo, { input: { n: 1 } }).then(
@@ -823,7 +828,10 @@ test("F4: retry counts down: one run, then at most the count it names", async ()
       return { ok: false, kind: "link", payload: {} };
     },
   });
-  const { client } = await pair({ implement: here }, { remote: { call }, retry: { link: 2 } });
+  const { client } = await pair(
+    { implement: here },
+    { remote: { call, watch: memory.client.watch }, retry: { link: 2 } },
+  );
 
   const error = await client.run(api.echo, { input: { n: 1 } }).then(
     () => null,
