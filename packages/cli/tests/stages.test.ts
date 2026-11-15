@@ -417,6 +417,9 @@ test(
         `  no-non-null-assertion`,
         `*/`,
         `export const e: any = [1].at(0)!;`,
+        `export const f = {`,
+        `  g: JSON.parse("2") as string, // eslint-disable-line consistent-type-assertions`,
+        `};`,
       ],
     });
 
@@ -426,7 +429,7 @@ test(
     expect(JSON.parse(out)).toMatchObject({
       kind: "failed",
       stage: "types",
-      total: 3,
+      total: 4,
       findings: [
         {
           line: 1,
@@ -437,6 +440,10 @@ test(
         {
           line: 8,
           what: "a `lint-disable` comment turns off the gate no-non-null-assertion, no-explicit-any",
+        },
+        {
+          line: 14,
+          what: "a `lint-disable` comment turns off the gate consistent-type-assertions",
         },
       ],
     });

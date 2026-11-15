@@ -199,7 +199,10 @@ const disable = /^(?:\/\/|\/\*)\s*(?:es|ox)lint-disable(?:-next-line|-line)?(?![
 /** A gate's rule name with no plugin: oxlint takes `typescript/x`, `@typescript-eslint/x`, `x`. */
 const gateNames = Object.keys(gates).map((code) => code.replace(/^.+\((.+)\)$/, "$1"));
 
-/** Each comment of a file, as the parser reads it: a `//` in a string is no comment. */
+/**
+ * Each comment of a file, as the parser reads it: a `//` in a string is no comment. It reads
+ * around every token, so a comment after a `,` counts too.
+ */
 function commentsOf({ path, text }: Check.Source) {
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);
   const ranges = new Map<number, ts.CommentRange>();
@@ -208,7 +211,7 @@ function commentsOf({ path, text }: Check.Source) {
     for (const range of [...leading, ...(ts.getTrailingCommentRanges(text, node.end) ?? [])]) {
       ranges.set(range.pos, range);
     }
-    ts.forEachChild(node, visit);
+    for (const child of node.getChildren(source)) visit(child);
   };
   visit(source);
 
