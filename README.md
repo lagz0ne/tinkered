@@ -8,9 +8,9 @@ you and an AI agent write together.
 - **The page** reads those cells
   (`@tinkered/react`).
 - **The server** runs on Bun (`@tinkered/bun`).
-- **The checks** read your code and name the
-  skill that fixes each finding
-  (`@tinkered/analyze`).
+- **The check** runs your types and rules, and
+  prints the fix for each finding
+  (`@tinkered/cli`, the `tinker` command).
 
 Each package ships its own skills: the rules for
 its code, for the version you installed.
@@ -20,25 +20,27 @@ its code, for the version you installed.
 ```text
 you or your agent write code
    |
-tinker-analyze check
-   |  a finding names a rule and a skill
-intent load <skill>
-   |  the skill shows the right shape
+tinker check
+   |  types first, then rules
+   |  each finding prints its fix
 fix, then check again
+   |
+tinker check: OK
 ```
 
 One turn of the loop, step by step:
 
 1. **Write.** You or the agent add a function.
-2. **Check.** `tinker-analyze check` reads the
-   files. It runs no app code. Each finding is
-   `file:line rule what`.
-3. **Read.** After the findings, each broken rule
-   prints its next step and a skill name.
-4. **Load.** `intent load <skill>` prints that
-   skill, from the package version you have.
-5. **Fix.** Change the code to the shape the skill
-   shows. Check again until it is clean.
+2. **Check.** `tinker check` runs the app's
+   `tsc` and lint, then Tinker's rules. Only the
+   first stage that fails prints.
+3. **Read.** Each finding is `file:line rule
+what`, then its fix from the skill.
+4. **Load more.** `tinker skill load <skill>`
+   prints the whole skill, from the package
+   version you have.
+5. **Fix.** Check again. Only
+   `tinker check: OK` says the work is done.
 
 The skills come with the package, through
 [TanStack Intent](https://tanstack.com/intent)
@@ -61,7 +63,7 @@ bun run dev
 Before you call a change done:
 
 ```bash
-bun run check:plain  # Tinker rules
+bunx tinker check    # types, then rules
 bun run check:style  # format and lint
 bun run check        # types, tests, build
 ```
@@ -72,7 +74,7 @@ bun run check        # types, tests, build
 
 ```bash
 bun add @tinkered/core @tinkered/react
-bun add -d @tinkered/analyze @tanstack/intent
+bun add -d @tinkered/cli
 ```
 
 Add `@tinkered/bun` for the server half.
@@ -102,39 +104,42 @@ For Claude Code, put `@AGENTS.md` in `CLAUDE.md`.
 See what you got:
 
 ```bash
-bunx intent list
+bunx tinker skill list
 ```
 
-```text
-PACKAGE          VERSION  SKILLS
-@tinkered/core   0.23.1   6
-@tinkered/react  0.23.1   1
+### 3. Turn on the check
+
+Extend the base config, and place the gates:
+
+```json
+{ "extends": "@tinkered/cli/tsconfig.json" }
 ```
 
-### 3. Turn on the checks
+```ts
+import { gates } from "@tinkered/cli/config";
+
+lint: {
+  overrides: [{ files: ["src/**"], rules: gates }],
+},
+```
 
 ```json
 "scripts": {
-  "check:plain": "bun --bun tinker-analyze check"
+  "check:tinker": "bun --bun tinker check"
 }
 ```
 
-A finding is one line. Then each broken rule
-names its next step and its skill:
+A finding is one line, then its fix:
 
 ```text
 src/add.ts:1 tinker/plain a plain function
+  Right: make it an operation and name it in
+  `depends`, as `double` above.
+  more: tinker skill load @tinkered/core#core/operation
 
-tinker/plain: make it an operation
-  read: @tinkered/core#core/operation
-
-1 findings in 1 files
-```
-
-Load that skill and fix the code:
-
-```bash
-bunx intent load @tinkered/core#core/operation
+tinker check: rules failed.
+Next: fix each finding, then run `tinker check`
+again.
 ```
 
 #### What `tinker/plain` asks
@@ -183,7 +188,7 @@ These functions pass with no change:
 - **A React component:** a capitalized function
   in a `.tsx` file that returns JSX.
 - **An entry:** each function the app lists in
-  `tinker-analyze.json` with a reason, such as
+  `tinker.json` with a reason, such as
   shadcn's `cn`.
 
 A function that passes is not called by name.
@@ -198,13 +203,13 @@ file, a function that starts with
 ([PR #36](https://github.com/lagz0ne/tinkered/pull/36),
 ADR 0148, not merged yet).
 
-Exit `0` is clean, `1` has findings, `2` is a
-bad call or config. So CI can gate on it.
+Exit `0` is done, `1` has findings, `2` is a
+bad call, config or tool. So CI can gate on it.
 
-An exception goes in `tinker-analyze.json`, with
-its reason as text. A finding that waits on a
+An exception goes in `tinker.json`, with its
+reason as text. A finding that waits on a
 Tinker change gets a gap marker. Both are in the
-[analyze README](packages/analyze/README.md).
+[cli README](packages/cli/README.md).
 
 ### 4. Add the lint rules (optional)
 
@@ -216,13 +221,13 @@ as steps.
 jsPlugins: [
   {
     name: "tinker",
-    specifier: "@tinkered/analyze/lint",
+    specifier: "@tinkered/cli/lint",
   },
 ],
 ```
 
 The rule list is in the
-[analyze README](packages/analyze/README.md#lint-rules).
+[cli README](packages/cli/README.md#lint-rules).
 
 ## Your first operation
 
@@ -255,7 +260,7 @@ await scope.close();
 - The scope owns every cell and every run.
   `close` ends them all.
 
-Next: `bunx intent load @tinkered/core#core`.
+Next: `bunx tinker skill load @tinkered/core#core`.
 
 ## Upgrade
 
@@ -263,7 +268,7 @@ Next: `bunx intent load @tinkered/core#core`.
 bun update --latest '@tinkered/*'
 ```
 
-Then run `bunx intent list` and the checks.
+Then run `bunx tinker check`.
 The skills move with the code. What changed is
 in the [changelog](CHANGELOG.md).
 
@@ -276,8 +281,9 @@ in the [changelog](CHANGELOG.md).
   hooks that read cells and run operations.
 - [`@tinkered/bun`](packages/bun/README.md):
   the server, the socket, and Bun's SQL drivers.
-- [`@tinkered/analyze`](packages/analyze/README.md):
-  `tinker-analyze check` and the lint plugin.
+- [`@tinkered/cli`](packages/cli/README.md):
+  `tinker check`, `tinker skill`, the gates and
+  the lint plugin.
 
 More to read:
 

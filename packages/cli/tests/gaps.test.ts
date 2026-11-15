@@ -42,7 +42,7 @@ function run(files: Record<string, string[]>) {
   const folder = mkdtempSync(join(tmpdir(), "analyze-gaps-"));
   folders.push(folder);
   const all: Record<string, string> = {
-    "tinker-analyze.json": JSON.stringify({ gaps: "docs/gaps.md" }),
+    "tinker.json": JSON.stringify({ gaps: "docs/gaps.md" }),
     "docs/gaps.md": doc,
   };
   for (const [path, lines] of Object.entries(files)) all[path] = lines.join("\n");
@@ -51,8 +51,9 @@ function run(files: Record<string, string[]>) {
     writeFileSync(join(folder, path), text);
   }
 
-  const { code, out, err } = main(["check", folder], "/");
-  return { code, out, hits: err.split("\n\n")[0] };
+  const { code, out } = main(["check", folder], "/");
+  const lines = out.split("\n");
+  return { code, out, hits: lines.filter((line) => /^\S+:\d+ /.test(line)).join("\n") };
 }
 
 test("a marker on an open row allows the finding below it; the run prints the counts", () => {
@@ -70,7 +71,7 @@ test("a marker on an open row allows the finding below it; the run prints the co
 
   expect(result).toEqual({
     code: 0,
-    out: "gaps: G1 1/2, G2 0/0 closed, G3 1/1\nno findings in 1 files\n",
+    out: "gaps: G1 1/2, G2 0/0 closed, G3 1/1\nran: rules (1 files)\nskipped: tsc (no tsconfig.json), lint (no vite.config)\ntinker check: OK\n",
     hits: "",
   });
 });
@@ -115,18 +116,18 @@ test("a row with more marked lines than its count breaks at the row's head", () 
     "src/b.ts": [`// tinker-gap: G3`, `fetch("/b"); fetch("/c");`],
   });
 
-  expect(result.out).toBe("gaps: G1 0/2, G2 0/0 closed, G3 2/1\n");
+  expect(result.out).toMatch(/^gaps: G1 0\/2, G2 0\/0 closed, G3 2\/1\n/);
   expect(result.hits).toBe("docs/gaps.md:18 tinker/gap G3: 2 marked lines, the row allows 1");
 });
 
 test("a gaps doc that does not exist stops the run with exit 2", () => {
   const folder = mkdtempSync(join(tmpdir(), "analyze-gaps-"));
   folders.push(folder);
-  writeFileSync(join(folder, "tinker-analyze.json"), JSON.stringify({ gaps: "docs/none.md" }));
+  writeFileSync(join(folder, "tinker.json"), JSON.stringify({ gaps: "docs/none.md" }));
 
   expect(main(["check", folder], "/")).toEqual({
     code: 2,
     out: "",
-    err: "tinker-analyze.json: the gaps doc docs/none.md does not exist\n",
+    err: "tinker.json: the gaps doc docs/none.md does not exist\n",
   });
 });

@@ -93,7 +93,7 @@ export default defineConfig({
     plugins: ["eslint", "typescript", "unicorn", "oxc", "import"],
     jsPlugins: [
       { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
-      { name: "tinker", specifier: "@tinkered/analyze/lint" },
+      { name: "tinker", specifier: "@tinkered/cli/lint" },
     ],
     rules: {
       "vite-plus/prefer-vite-plus-imports": "error",
@@ -123,6 +123,8 @@ export default defineConfig({
     // Type errors come from `bun run typecheck` (tsc), so the linter does not type check.
     options: { typeAware: true, typeCheck: false },
     overrides: [
+      // The one-door rule is for features; a test reads a feature's files (tests/play.test.ts).
+      { files: ["tests/**"], rules: { "no-restricted-imports": "off" } },
       // Plain Node scripts have no tsconfig, so `@/` cannot reach them.
       {
         files: ["**/*.mjs", "**/*.js", "**/*.cjs"],

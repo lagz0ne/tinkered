@@ -5,7 +5,8 @@ description: >
   @tinkered/core: an operation, a data cell, a
   resource, a capsule, rpc, remote data, or a
   test of them. Start here, then load one task
-  skill.
+  skill. Also when a check prints tinker/cast
+  or tinker/gap.
 metadata:
   purpose: >
     Entry skill for Tinker Core. It names the
@@ -85,19 +86,71 @@ id, fix the code, and run the check again.
 - `tinker/plain`: every named function is an
   operation. A Workflow SDK workflow or step in a
   `*.flow.ts` file passes. Check:
-  `bun run check:plain`. Skill: operation.
+  `tinker check`. Skill: operation.
 - `tinker/floating`: a root answers each call
   with a promise; await it. Check: lint
   `no-floating-promises`. Skill: operation.
 
-The page rules (`tinker/react-state`,
-`tinker/one-wire`) are in the `@tinkered/react`
-skill.
+- `tinker/cast`: no `as` but `as const`, no `!`,
+  no `any`. Check: `tinker check`. Skill: this
+  one.
+- `tinker/gap`: a gap marker sits on an open row
+  of the app's gaps doc. Check: `tinker check`.
+  Skill: this one.
+
+The page rules (`tinker/kind`,
+`tinker/react-state`, `tinker/one-wire`,
+`tinker/keyed-prop`) are in the
+`@tinkered/react` skill.
+
+## Common mistakes
+
+### HIGH: a cast [tinker/cast]
+
+A cast tells the checker to trust you. Then a
+wrong value gets through: `value as never` sends
+any string to the server.
+
+Wrong:
+
+```ts no-check
+const state = form.get("state") as State;
+const issue = data!.issue;
+const raw: any = message;
+```
+
+Right: narrow or parse. Do not cast:
+
+- a form field: `new FormData(form).get("x")`,
+  then `typeof value === "string"`;
+- a value of a list: find it in the list,
+  `states.find((s) => s === value)`;
+- a fault: `api.fault.is(error)`;
+- a payload: `schema.safeParse(payload)`;
+- a value that can be absent: `if (value)`.
+
+`as const` is not a cast. It may stay.
+
+### HIGH: a gap marker off its row [tinker/gap]
+
+Wrong:
+
+```ts no-check
+// tinker-gap: G9
+fetch("/auth");
+```
+
+Right: put the marker on the line above the
+finding. Name an open row of the gaps doc. Keep
+the marked lines within the row's `Lines:` count.
+Better: fix the finding and remove the marker.
 
 ## Completion
 
-1. Run the app's `bun run check`.
-2. Run `bun run check:plain`.
-3. For each id a check prints, load its skill.
+1. Run `tinker check`.
+2. For each finding, do what its fix says. To
+   read more, load the skill it names.
+3. Run `tinker check` again.
 
-A typecheck alone does not prove the rules.
+Only `tinker check: OK` with exit 0 says that the
+work is done.

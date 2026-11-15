@@ -1,61 +1,145 @@
-# @tinkered/analyze
+# @tinkered/cli
 
-The checks for a Tinker app (ADR 0129, ADR 0143).
-One command reads the app's files.
-It prints each broken rule with its rule id.
-Then it names the skill to read.
-It runs no app code.
+The `tinker` command (ADR 0156).
+It is made for an agent that writes the code.
+`tinker check` runs every fast gate.
+Each finding prints its fix.
+The fix text comes from the skill.
 
 ## Install
 
 ```bash
-bun add -d @tinkered/analyze
+bun add -d @tinkered/cli
 ```
 
 Each release also attaches tarballs to its
 GitHub release; the
 [changelog](../../CHANGELOG.md) lists them.
 
-## Check an app
-
-```bash
-bunx tinker-analyze check
-```
-
-A finding is one line: file, line, rule id, and
-what is there.
-After the findings, each broken rule gives its
-next step and its skill.
+## Commands
 
 ```text
-src/a.ts:1 tinker/plain a plain function
-
-tinker/plain: make it an operation
-  read: @tinkered/core#core/operation
-
-1 findings in 12 files
+tinker check [root] [--json]
+tinker skill list
+tinker skill load <skill>
 ```
 
-Load that skill with Intent:
-
-```bash
-bunx intent load @tinkered/core#core/operation
-```
-
-The command file starts with a `node` line.
 Where only Bun may run, call it with `--bun`:
 
 ```bash
-bun --bun tinker-analyze check
+bun --bun tinker check
 ```
+
+## The check loop
+
+`tinker check` runs two stages in order.
+
+1. **types:** the app's `tsc`, the kind gate and
+   the cast gate.
+2. **rules:** Tinker's rules, then the app's
+   other lint.
+
+- Only the first stage that fails prints.
+- At most 5 findings print.
+- One fault prints once.
+- A finding is one line, then its fix.
+- The last line is the next step.
+
+```text
+src/a.tsx:64 tinker/kind kind "locked" has no case
+  Right: a `switch` on `kind`, with a case for
+  each kind the check names. Do not add
+  `default:`. Do not cast.
+  more: tinker skill load @tinkered/react#react
+
+tinker check: types failed.
+Next: fix each finding, then run `tinker check`
+again. The rules stage runs once types pass.
+```
+
+Only this says the work is done:
+
+```text
+ran: tsc, lint, rules (66 files)
+tinker check: OK
+```
+
+`--json` prints the same report as data:
+`kind` is `ok` or `failed`.
 
 Exit codes:
 
-- `0`: no finding.
+- `0`: done.
 - `1`: one finding or more.
-- `2`: a wrong call, or a config it cannot read.
+- `2`: a wrong call, a config it cannot read, or
+  a tool it cannot run.
 
-## The rules it checks
+The check has no lint or type config of its own.
+It runs the app's own tools:
+
+- `tsc --noEmit`, when the app has a
+  `tsconfig.json`;
+- `vp lint`, when the app has a `vite.config`.
+
+A stage part with no config is skipped, and the
+`skipped:` line says so.
+
+## Where the fix comes from
+
+A skill has a section per mistake. Its heading
+holds the rule id:
+
+```md
+### HIGH: a cast [tinker/cast]
+
+Right: narrow or parse. Do not cast:
+```
+
+The check prints the `Right:` part of that
+section. It reads the skills the app has
+installed, through Intent. So the fix has the
+version of the code you have.
+
+A lint rule with no section prints the lint's own
+`help:` line.
+
+## The gates
+
+The package exports one base config. The app
+extends it, and says where it applies:
+
+```json
+{ "extends": "@tinkered/cli/tsconfig.json" }
+```
+
+```ts
+import { gates } from "@tinkered/cli/config";
+
+lint: {
+  overrides: [{ files: ["src/**"], rules: gates }],
+},
+```
+
+- **The kind gate, `tinker/kind`.** A `switch` on
+  a call's answer has a case for each kind, and
+  no `default`. `noImplicitReturns` makes `tsc`
+  fail on a kind with no case; the lint rule names
+  the kind.
+- **The cast gate, `tinker/cast`.** No `as` but
+  `as const`. No `!`. No `any`.
+
+## Skills
+
+```bash
+tinker skill list
+tinker skill load @tinkered/react#react
+```
+
+`list` names each skill the app has, with when
+to load it. `load` prints the skill's text.
+Intent finds them (ADR 0143).
+
+## Tinker's rules
 
 - `tinker/plain` — a named function in `src/`,
   `cmds/` or `tinker/` is an operation.
@@ -69,6 +153,10 @@ Exit codes:
   `useState`, `useReducer`, `useEffect` or
   `useLayoutEffect`.
   State lives in a Core cell.
+- `tinker/keyed-prop` — a list item gets its
+  member's key, not the member (ADR 0155).
+- `tinker/gap` — a gap marker sits on an open
+  row: see below.
 
 A page file is a file in `src/` with no `.server`
 in its name.
@@ -98,7 +186,7 @@ App code may call by name:
 - a closure: a function that reads a name of a
   function around it, so it holds that unit's
   state;
-- an entry in `tinker-analyze.json`.
+- an entry in `tinker.json`.
 
 ```ts
 factory: () => {
@@ -150,7 +238,7 @@ async function suggest() {
 
 ## The app's own exceptions
 
-`tinker-analyze.json`, at the app root.
+`tinker.json`, at the app root.
 Each exception carries its reason as text.
 
 ```json
@@ -212,13 +300,13 @@ Each run prints the counts:
 
 ## Lint rules
 
-`@tinkered/analyze/lint` is an Oxlint plugin.
+`@tinkered/cli/lint` is an Oxlint plugin.
 
 ```ts
 jsPlugins: [
   {
     name: "tinker",
-    specifier: "@tinkered/analyze/lint",
+    specifier: "@tinkered/cli/lint",
   },
 ],
 rules: {
@@ -236,10 +324,11 @@ rules: {
 ## From code
 
 ```ts
-import { check } from "@tinkered/analyze";
+import { check } from "@tinkered/cli";
 
 const report = check(process.cwd());
 ```
 
+`check` runs Tinker's rules only.
 `report.findings` holds each finding:
 `path`, `line`, `rule`, `what`.

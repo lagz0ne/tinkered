@@ -175,7 +175,7 @@ test("the page is src/ less its .server and .d files; cmds/ and tinker/ are not 
 test("the app's config names the page's files and skips a glob with a reason", () => {
   const call = `export const load = operation({ run: () => fetch("/api") });\n`;
   const hits = checkFiles({
-    "tinker-analyze.json": JSON.stringify({
+    "tinker.json": JSON.stringify({
       page: { files: ["src/frontend/**", "web/*.ts"], skip: { "src/frontend/bench/**": "Why." } },
     }),
     "src/frontend/a.ts": call,

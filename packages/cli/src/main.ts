@@ -1,0 +1,172 @@
+import { resolve } from "node:path";
+
+import { IntentCoreError } from "@tanstack/intent/core";
+
+import { check } from "./check";
+import type { Check } from "./check";
+import { isError } from "./errors";
+import { fixOf, listSkills, loadSkill, sectionsOf } from "./skills";
+import type { Skills } from "./skills";
+import { runTools } from "./tools";
+import type { Tools } from "./tools";
+
+export declare namespace Main {
+  /** What the command would print and exit with. Nothing is printed here. */
+  type Result = { code: number; out: string; err: string };
+  /** A finding as it prints: the skill's `Right:` lines, or the tool's own hint. */
+  type Finding = Omit<Tools.Found, "help"> & { fix: string[]; skill?: string };
+  /**
+   * The answer of `tinker check`. `ok` is the only answer that means done. `failed` names the
+   * first stage that failed, its first findings, and how many it has in all.
+   */
+  type Report =
+    | { kind: "ok"; ran: string[]; skipped: string[]; gaps: Check.Gap[] }
+    | {
+        kind: "failed";
+        stage: Tools.Stage;
+        total: number;
+        findings: Finding[];
+        gaps: Check.Gap[];
+      };
+}
+
+/** A writer fixes a few findings at a time: more than this is noise. */
+const shown = 5;
+
+const usage = `usage:
+  tinker check [root] [--json]
+  tinker skill list
+  tinker skill load <skill>
+
+check runs the app's types (tsc, the kind gate, the cast gate), then its rules (Tinker's
+rules and the app's other lint). Only the first stage that fails prints. Each finding
+prints its fix. "tinker check: OK" and exit 0 is the only sign that the work is done.
+`;
+
+/** One line per gaps row: marked lines over the row's count, as `G3 5/5`. */
+function gapLine(gaps: readonly Check.Gap[]) {
+  const rows = gaps.map(
+    ({ gap, marked, lines, open }) => `${gap} ${marked}/${lines}${open ? "" : " closed"}`,
+  );
+  return rows.length ? `gaps: ${rows.join(", ")}\n` : "";
+}
+
+function fixed({ help, ...found }: Tools.Found, sections: readonly Skills.Section[]): Main.Finding {
+  const fix = fixOf(sections, found.rule, found.what);
+  if (fix) return { ...found, fix: fix.right, skill: fix.skill };
+  return { ...found, fix: help ? [`help: ${help}`] : [] };
+}
+
+function failed(
+  root: string,
+  stage: Tools.Stage,
+  found: readonly Tools.Found[],
+  gaps: Check.Gap[],
+): Main.Report {
+  const first = [...found]
+    .sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line || a.rule.localeCompare(b.rule))
+    .slice(0, shown);
+  const sections = first.some(({ rule }) => rule.startsWith("tinker/")) ? sectionsOf(root) : [];
+
+  const findings = first.map((item) => fixed(item, sections));
+  return { kind: "failed", stage, total: found.length, findings, gaps };
+}
+
+/**
+ * Report the stages in order: the rules stage prints only when the types stage is clean. Tinker's
+ * own rules read the config, so they run first: a bad config stops the run before the tools.
+ */
+function stages(root: string): Main.Report {
+  const { files, findings, gaps } = check(root);
+  const tools = runTools(root);
+  if (tools.types.length) return failed(root, "types", tools.types, []);
+
+  const rules = [...findings, ...tools.rules];
+  if (rules.length) return failed(root, "rules", rules, gaps);
+
+  const ran = [...tools.ran, `rules (${files} files)`];
+  return { kind: "ok", ran, skipped: tools.skipped, gaps };
+}
+
+/** A finding's lines: the finding, then its fix once per rule, then the skill to load. */
+function block({ path, line, rule, what, fix, skill }: Main.Finding, first: boolean) {
+  const head = `${path}:${line} ${rule} ${what}`;
+  if (!first) return fix.length ? [head, "  fix: as above"] : [head];
+
+  const more = skill ? [`more: tinker skill load ${skill}`] : [];
+  return [head, ...[...fix, ...more].map((text) => `  ${text}`)];
+}
+
+function text(report: Main.Report) {
+  const gaps = gapLine(report.gaps);
+  switch (report.kind) {
+    case "ok": {
+      const skipped = report.skipped.length ? `skipped: ${report.skipped.join(", ")}\n` : "";
+      return `${gaps}ran: ${report.ran.join(", ")}\n${skipped}tinker check: OK\n`;
+    }
+    case "failed": {
+      const { stage, total, findings } = report;
+      const blocks = findings.map((finding, index) =>
+        block(finding, findings.findIndex(({ rule }) => rule === finding.rule) === index),
+      );
+      const count = total > findings.length ? `${total} findings, ${findings.length} shown` : "";
+      const after = stage === "types" ? " The rules stage runs once types pass." : "";
+      return [
+        gaps + blocks.map((lines) => lines.join("\n")).join("\n\n"),
+        "",
+        `tinker check: ${stage} failed${count ? `, ${count}` : ""}.`,
+        `Next: fix each finding, then run \`tinker check\` again.${after}`,
+        "",
+      ].join("\n");
+    }
+  }
+}
+
+function checkCommand(root: string, json: boolean): Main.Result {
+  try {
+    const report = stages(root);
+    const out = json ? `${JSON.stringify(report)}\n` : text(report);
+    return { code: report.kind === "ok" ? 0 : 1, out, err: "" };
+  } catch (error) {
+    if (isError(error, "BadConfig")) {
+      const { path, reason } = error.payload;
+      return { code: 2, out: "", err: `${path}: ${reason}\n` };
+    }
+    if (isError(error, "MissingTool")) {
+      const { tool, reason } = error.payload;
+      return { code: 2, out: "", err: `tinker check: no ${tool}: ${reason}\n` };
+    }
+    if (!isError(error, "ToolFailed")) throw error;
+    const { tool, output } = error.payload;
+    return { code: 2, out: "", err: `tinker check: ${tool} failed and named no file:\n${output}` };
+  }
+}
+
+function skillCommand(root: string, args: readonly string[]): Main.Result {
+  const [action, use, ...rest] = args;
+  try {
+    if (action === "list" && use === undefined) return { code: 0, out: listSkills(root), err: "" };
+    if (action === "load" && use && !rest.length) {
+      return { code: 0, out: loadSkill(root, use), err: "" };
+    }
+  } catch (error) {
+    if (!(error instanceof IntentCoreError)) throw error;
+    return { code: 2, out: "", err: `${error.message}\n` };
+  }
+  return { code: 2, out: "", err: usage };
+}
+
+/**
+ * The command, without the process: `argv` is what follows the program name, and `cwd` is
+ * the folder a relative root starts from. Exit 0 is done, 1 is a finding, 2 is a call, a
+ * config or a tool the command cannot use.
+ */
+export function main(argv: readonly string[], cwd: string): Main.Result {
+  const json = argv.includes("--json");
+  const [command, ...args] = argv.filter((arg) => arg !== "--json");
+
+  if (command === "skill" && !json) return skillCommand(cwd, args);
+  const [root = ".", ...rest] = args;
+  if (command !== "check" || rest.length) return { code: 2, out: "", err: usage };
+  return checkCommand(resolve(cwd, root), json);
+}

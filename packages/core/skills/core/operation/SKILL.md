@@ -160,7 +160,7 @@ function nextHue(seed: number) {
 Right: make it an operation and name it in
 `depends`, as `double` above.
 
-Check: `bun run check:plain` prints the file and
+Check: `tinker check` prints the file and
 the line of each plain function.
 
 ### HIGH: a helper behind a callback [tinker/plain]
@@ -184,7 +184,7 @@ closure: a function that reads a name of the
 function around it, such as a counter of its
 resource.
 
-Check: `bun run check:plain` prints the helper
+Check: `tinker check` prints the helper
 and the line that calls it.
 
 ### HIGH: `name` in place of `label`
@@ -220,7 +220,7 @@ argument.
 
 ## Completion
 
-- `bun run check:plain` prints no line.
+- `tinker check` prints `tinker check: OK`.
 - The lint prints no `no-floating-promises`.
 - A test calls the operation through a scope.
   Read [testing](../testing/SKILL.md).

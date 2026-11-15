@@ -1,25 +1,28 @@
 {
-  "name": "@tinkered/analyze",
+  "name": "@tinkered/cli",
   "version": "0.25.1",
-  "description": "Tinker's checks: one command reads an app and prints each broken rule with its id and the skill to read.",
+  "description": "The tinker command: one check that corrects the writer (types, then rules, each finding with its fix from the skill), and the skills.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lagz0ne/tinkered.git",
-    "directory": "packages/analyze"
+    "directory": "packages/cli"
   },
   "bin": {
-    "tinker-analyze": "./dist/cli.mjs"
+    "tinker": "./dist/cli.mjs"
   },
   "files": [
     "dist",
-    "lint"
+    "lint",
+    "base"
   ],
   "type": "module",
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
+    "./config": "./dist/config.mjs",
     "./lint": "./lint/index.mjs",
+    "./tsconfig.json": "./base/tsconfig.json",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -34,6 +37,7 @@
     "prepublishOnly": "vp run build"
   },
   "dependencies": {
+    "@tanstack/intent": "catalog:",
     "typescript-api": "npm:typescript@5.9.3"
   },
   "devDependencies": {

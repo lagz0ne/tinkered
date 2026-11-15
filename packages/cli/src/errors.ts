@@ -1,7 +1,11 @@
 /** The registry: the analyzer makes no error of its own outside it. */
 type Payloads = {
-  /** The app's `tinker-analyze.json` does not have the shape `Check.Config` names. */
+  /** The app's `tinker.json` does not have the shape `Check.Config` names. */
   BadConfig: { path: string; reason: string };
+  /** The app has a tool's config, but not the tool. */
+  MissingTool: { tool: string; reason: string };
+  /** A tool failed and printed no finding: its own output says why. */
+  ToolFailed: { tool: string; output: string };
 };
 
 export declare namespace Errors {

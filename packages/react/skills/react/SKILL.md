@@ -5,7 +5,7 @@ description: >
   component in a Tinker app: read a cell, run
   an operation from a button, show a pending or
   failed call, or mount the app. Also when a
-  check prints tinker/react-state,
+  check prints tinker/kind, tinker/react-state,
   tinker/one-wire or tinker/keyed-prop.
 metadata:
   purpose: >
@@ -175,7 +175,45 @@ function Form() {
 }
 ```
 
+### Show each kind of an answer
+
+A call can answer a union by `kind`. The page
+reads it in a `switch` with a case for each kind,
+and no `default`. A new kind in the contract then
+fails the check at this `switch`.
+
+```tsx no-check
+function Moved({ out }: { out?: MoveAnswer }) {
+  switch (out?.kind) {
+    case undefined:
+    case "moved":
+      return null;
+    case "stale":
+      return <small role="status">Changed.</small>;
+    case "gone":
+      return <small role="status">Gone.</small>;
+  }
+}
+```
+
+Read a field only in the case of a kind that has
+it. `out.version` in case `gone` fails the type
+check.
+
 ## Common mistakes
+
+### HIGH: a kind with no case [tinker/kind]
+
+Wrong:
+
+```tsx no-check
+if (out?.kind === "stale") return <Stale />;
+return null;
+```
+
+Right: a `switch` on `kind`, with a case for
+each kind the check names. Do not add `default:`.
+Do not cast.
 
 ### HIGH: `useState` or `useReducer` [tinker/react-state]
 
@@ -189,7 +227,7 @@ Right: a `data` cell, read with `useData`. For
 state that must end with a subtree, put the
 subtree in a `SessionProvider`.
 
-### HIGH: `useEffect` [tinker/react-state]
+### HIGH: `useEffect` or `useLayoutEffect` [tinker/react-state]
 
 Wrong:
 
@@ -235,8 +273,6 @@ third argument.
 
 ## Completion
 
-- The app's frontend check prints no
-  `tinker/react-state`, `tinker/one-wire` or
-  `tinker/keyed-prop`.
+- `tinker check` prints `tinker check: OK`.
 - A browser test clicks the control and reads
   the new text.

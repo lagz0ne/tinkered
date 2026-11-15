@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 import { afterAll, expect, test } from "vite-plus/test";
 
-import { main } from "@/index";
+import { check } from "@/index";
 
 const folders: string[] = [];
 
@@ -25,18 +25,21 @@ afterAll(() => {
   for (const folder of folders) rmSync(folder, { recursive: true, force: true });
 });
 
-/** Run the command on a fresh app folder that holds only these files and that config. */
+/** Check a fresh app folder that holds only these files and that config. */
 function checkFiles(files: Record<string, string>) {
   const folder = mkdtempSync(join(tmpdir(), "analyze-plain-"));
   folders.push(folder);
-  const all = { "tinker-analyze.json": JSON.stringify(config), ...files };
+  const all = { "tinker.json": JSON.stringify(config), ...files };
   for (const [path, text] of Object.entries(all)) {
     mkdirSync(dirname(join(folder, path)), { recursive: true });
     writeFileSync(join(folder, path), text);
   }
 
-  const result = main(["check", folder], "/");
-  return { ...result, hits: result.err.split("\n\n")[0] };
+  const report = check(folder);
+  const hits = report.findings.map(
+    ({ path, line, rule, what }) => `${path}:${line} ${rule} ${what}`,
+  );
+  return { files: report.files, hits: hits.join("\n") };
 }
 
 const hit = (path: string, line: number) => `${path}:${line} tinker/plain a plain function`;
@@ -47,9 +50,8 @@ test("a plain helper fails", () => {
     "tinker/util.ts": `export const twice = (n: number) => n * 2;\n`,
   });
 
-  expect(result.code).toBe(1);
-  expect(result.err).toContain(hit("src/api/greet.ts", 1));
-  expect(result.err).toContain(hit("tinker/util.ts", 1));
+  expect(result.hits).toContain(hit("src/api/greet.ts", 1));
+  expect(result.hits).toContain(hit("tinker/util.ts", 1));
 });
 
 test("an IIFE and an object of helpers fail", () => {
@@ -58,9 +60,8 @@ test("an IIFE and an object of helpers fail", () => {
     "src/b.ts": `export const util = Object.freeze({\n  shout(s: string) {\n    return s;\n  },\n});\n`,
   });
 
-  expect(result.code).toBe(1);
-  expect(result.err).toContain(hit("src/a.ts", 1));
-  expect(result.err).toContain(hit("src/b.ts", 2));
+  expect(result.hits).toContain(hit("src/a.ts", 1));
+  expect(result.hits).toContain(hit("src/b.ts", 2));
 });
 
 test("an operation passes, with its inline callbacks", () => {
@@ -75,7 +76,7 @@ export const shout = operation({
 `,
   });
 
-  expect(result).toMatchObject({ code: 0, out: "no findings in 1 files\n", err: "" });
+  expect(result).toEqual({ files: 1, hits: "" });
 });
 
 test("a derived passes: its depends and its factory, with their inline callbacks (ADR 0150)", () => {
@@ -94,7 +95,7 @@ export const count = derived({
 `,
   });
 
-  expect(result).toMatchObject({ code: 0, out: "no findings in 1 files\n", err: "" });
+  expect(result).toEqual({ files: 1, hits: "" });
 });
 
 test("a resource's returned methods pass; a helper only called inside it fails", () => {
@@ -115,7 +116,6 @@ export const counter = resource({
 `,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/counter.ts", 9));
 });
 
@@ -144,7 +144,6 @@ export const c = capsule({
 `,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/c.ts", 16));
 });
 
@@ -180,7 +179,7 @@ export const routes = capsule({
 `,
   });
 
-  expect(result).toMatchObject({ code: 0, err: "" });
+  expect(result.hits).toBe("");
 });
 
 test("cn and defineMain pass as entries, and defineMain takes the command's main", () => {
@@ -190,7 +189,7 @@ test("cn and defineMain pass as entries, and defineMain takes the command's main
     "cmds/server.ts": `import { defineMain } from "~/base/main";\n\nexport default defineMain(async () => ({ closed: Promise.resolve() }));\n`,
   });
 
-  expect(result).toMatchObject({ code: 0, err: "" });
+  expect(result.hits).toBe("");
 });
 
 test("defineMain outside tinker/base/main.ts fails", () => {
@@ -198,7 +197,6 @@ test("defineMain outside tinker/base/main.ts fails", () => {
     "src/main.ts": `export const defineMain = <R>(main: () => Promise<R>) => main;\n`,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("src/main.ts", 1));
 });
 
@@ -207,7 +205,6 @@ test("a plain helper beside createMainHost in main-host.ts still fails", () => {
     "tinker/base/main-host.ts": `export function createMainHost() {}\n\nexport const shout = (s: string) => s + "!";\n`,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/base/main-host.ts", 3));
 });
 
@@ -216,7 +213,6 @@ test("a third exported function name in main-host.ts is not exempt", () => {
     "tinker/base/main-host.ts": `export function createMainHost() {}\n\nexport function runMain() {}\n\nexport function runOther() {}\n`,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/base/main-host.ts", 5));
 });
 
@@ -225,9 +221,8 @@ test("createMainHost and runMain are exempt only in tinker/base/main-host.ts", (
     "tinker/base/host.ts": `export function createMainHost() {}\n\nexport function runMain() {}\n`,
   });
 
-  expect(result.code).toBe(1);
-  expect(result.err).toContain(hit("tinker/base/host.ts", 1));
-  expect(result.err).toContain(hit("tinker/base/host.ts", 3));
+  expect(result.hits).toContain(hit("tinker/base/host.ts", 1));
+  expect(result.hits).toContain(hit("tinker/base/host.ts", 3));
 });
 
 test("a definition maker is exempt only in its own file; a helper beside it still fails", () => {
@@ -237,7 +232,6 @@ test("a definition maker is exempt only in its own file; a helper beside it stil
     "tinker/components/memory/index.ts": `export function createWs() {}\n`,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits.split("\n")).toEqual([
     hit("tinker/components/memory/index.ts", 1),
     hit("tinker/components/rpc/index.ts", 3),
@@ -251,10 +245,9 @@ test("a function frozen or put in an array at the top level fails", () => {
     "src/c.ts": `export const names = Object.entries({ a: 1 }).map(([name]) => name);\n`,
   });
 
-  expect(result.code).toBe(1);
-  expect(result.err).toContain(hit("src/a.ts", 1));
-  expect(result.err).toContain(hit("src/b.ts", 1));
-  expect(result.err).toContain(hit("src/c.ts", 1));
+  expect(result.hits).toContain(hit("src/a.ts", 1));
+  expect(result.hits).toContain(hit("src/b.ts", 1));
+  expect(result.hits).toContain(hit("src/c.ts", 1));
 });
 
 test("a callback of a library value passes, here or through an app import", () => {
@@ -264,7 +257,7 @@ test("a callback of a library value passes, here or through an app import", () =
     "cmds/host.ts": `export const names = [...new Bun.Glob("*").scanSync(".")].filter((n) => n !== "x");\n`,
   });
 
-  expect(result).toMatchObject({ code: 0, err: "" });
+  expect(result.hits).toBe("");
 });
 
 test("a helper in an .mts or .cts file fails; a .d.mts file is skipped", () => {
@@ -274,10 +267,9 @@ test("a helper in an .mts or .cts file fails; a .d.mts file is skipped", () => {
     "src/types.d.mts": `export function typed(s: string) {\n  return s;\n}\n`,
   });
 
-  expect(result.code).toBe(1);
-  expect(result.err).toContain(hit("src/util.mts", 1));
-  expect(result.err).toContain(hit("tinker/util.cts", 1));
-  expect(result.err).not.toContain("types.d.mts");
+  expect(result.hits).toContain(hit("src/util.mts", 1));
+  expect(result.hits).toContain(hit("tinker/util.cts", 1));
+  expect(result.hits).not.toContain("types.d.mts");
 });
 
 test("Bun.serve's fetch and error pass", () => {
@@ -292,7 +284,7 @@ test("Bun.serve's fetch and error pass", () => {
 `,
   });
 
-  expect(result).toMatchObject({ code: 0, err: "" });
+  expect(result.hits).toBe("");
 });
 
 test("a React component passes", () => {
@@ -300,7 +292,7 @@ test("a React component passes", () => {
     "src/page.tsx": `export function Greeting({ name }: { name: string }) {\n  return <p>{name}</p>;\n}\n`,
   });
 
-  expect(result).toMatchObject({ code: 0, err: "" });
+  expect(result.hits).toBe("");
 });
 
 test("a top-level function handed to an event registration fails; written inline it passes", () => {
@@ -310,7 +302,6 @@ test("a top-level function handed to an event registration fails; written inline
     "src/ui/classes.ts": `export function cn(...names: string[]) {\n  return names.join(" ");\n}\n`,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe([hit("cmds/browser.ts", 1), hit("src/ui/classes.ts", 1)].join("\n"));
 });
 
@@ -380,13 +371,13 @@ test("a library reached through a module resource passes: betterAuth's options",
     "tinker/auth/auth.ts": authFile,
   });
 
-  expect(result).toMatchObject({ code: 0, err: "" });
+  expect(result.hits).toBe("");
 });
 
 test("new x.Kysely({...}) from a module resource passes, its options are native", () => {
   const result = checkFiles({ "tinker/db.ts": kyselyFile });
 
-  expect(result).toMatchObject({ code: 0, err: "" });
+  expect(result.hits).toBe("");
 });
 
 test("a top-level helper beside module-resource calls still fails, on its own line", () => {
@@ -396,7 +387,6 @@ test("a top-level helper beside module-resource calls still fails, on its own li
     "tinker/db.ts": `${kyselyFile}\nconst helper = (n: number) => n + 1;\n\nexport const two = helper(1);\n`,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/db.ts", 19));
 });
 
@@ -409,7 +399,6 @@ test("a named helper inside a module-resource factory still fails, on its own li
     ),
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/auth/auth.ts", 10));
 });
 
@@ -436,7 +425,6 @@ export const used = resource({
 `,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(
     [hit("tinker/use.ts", 9), hit("tinker/use.ts", 10), hit("tinker/x.ts", 1)].join("\n"),
   );
@@ -466,7 +454,6 @@ export const used = resource({
 `,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/use.ts", 8));
 });
 
@@ -492,7 +479,7 @@ export const guarded = new Proxy({ a: 1 }, {
 `,
   });
 
-  expect(result).toMatchObject({ code: 0, err: "" });
+  expect(result.hits).toBe("");
 });
 
 test("a const built on new Proxy is no library: a helper in its call's options fails", () => {
@@ -508,7 +495,6 @@ store.update({
 `,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/store.ts", 5));
 });
 
@@ -522,7 +508,6 @@ test("a plain helper in the options of a global not on the list fails", () => {
 `,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/sink.ts", 2));
 });
 
@@ -540,7 +525,6 @@ export const guarded = new Proxy({ a: 1 }, { get: (target, key) => Reflect.get(t
 `,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(hit("tinker/stream.ts", 1));
 });
 
@@ -565,7 +549,6 @@ test("a workflow and a step pass in a flow file; a helper beside them fails", ()
     "src/naming/naming.flow.server.ts": flow,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(
     [hit("src/naming/naming.flow.server.ts", 12), hit("src/naming/naming.flow.ts", 12)].join("\n"),
   );
@@ -577,7 +560,6 @@ test("a workflow and a step fail outside a flow file", () => {
     "src/naming/naming.flow.tsx": flow,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(
     ["src/naming/flows.server.ts", "src/naming/naming.flow.tsx"]
       .flatMap((path) => [1, 6, 12].map((line) => hit(path, line)))
@@ -606,7 +588,6 @@ export async function empty() {}
 `,
   });
 
-  expect(result.code).toBe(1);
   expect(result.hits).toBe(
     [1, 7, 12, 16].map((line) => hit("src/a.flow.server.ts", line)).join("\n"),
   );

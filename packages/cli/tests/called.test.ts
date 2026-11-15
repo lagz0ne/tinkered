@@ -220,7 +220,7 @@ test("a call the syntax cannot follow is no finding", () => {
 
 test("an entry called by name passes", () => {
   const hits = plainIn({
-    "tinker-analyze.json": JSON.stringify({
+    "tinker.json": JSON.stringify({
       plain: { entries: { "src/classes.ts": { cn: "shadcn's registry imports it." } } },
     }),
     "src/classes.ts": `export function cn(...names: string[]) {\n  return names.join(" ");\n}\n`,

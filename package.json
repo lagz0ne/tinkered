@@ -9,7 +9,7 @@
     "build": "vp run -r build",
     "validate": "node scripts/validate.mjs",
     "prose": "node scripts/prose-lint.mjs",
-    "skills": "intent validate",
+    "skills": "intent validate && node scripts/skill-rules.mjs",
     "example:export": "node scripts/export-example.mjs",
     "example:check": "node scripts/check-examples.mjs",
     "dev": "vp run site#dev",

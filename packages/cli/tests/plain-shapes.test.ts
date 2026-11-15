@@ -31,7 +31,7 @@ const cnEntry = JSON.stringify({ plain: { entries: { "src/a.ts": { cn: "A test e
 
 test("a name reaches its function through a cast, parens, or a branch, not a condition", () => {
   const hits = plainIn({
-    "tinker-analyze.json": cnEntry,
+    "tinker.json": cnEntry,
     "src/a.ts": [
       `export const cn = ((x: string) => x) as (x: string) => string;`,
       `export const b = { cn: ((x: string) => x) satisfies unknown };`,
@@ -52,7 +52,7 @@ test("a name reaches its function through a cast, parens, or a branch, not a con
 
 test("a function takes its name from a class field, an assignment, or a quoted key", () => {
   const hits = plainIn({
-    "tinker-analyze.json": JSON.stringify({
+    "tinker.json": JSON.stringify({
       plain: {
         entries: {
           "src/a.ts": { cn: "A test entry." },
@@ -276,7 +276,7 @@ test("a component is a capitalized function in a .tsx file with JSX of its own",
 
 test("an unnamed function is inline as a callback of Core, a library, or an event", () => {
   const hits = plainIn({
-    "tinker-analyze.json": cnEntry,
+    "tinker.json": cnEntry,
     "src/a.ts": [
       `import { operation as op } from "@tinkered/core";`,
       `import lib, { part } from "pkg";`,

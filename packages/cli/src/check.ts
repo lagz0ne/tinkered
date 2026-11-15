@@ -23,7 +23,7 @@ export declare namespace Check {
    * entry contract runs before any scope exists, so it cannot be an operation.
    */
   type Entries = Readonly<Record<string, Readonly<Record<string, string>>>>;
-  /** The app's `tinker-analyze.json`. Every key may be absent. */
+  /** The app's `tinker.json`. Every key may be absent. */
   type Config = {
     plain?: { entries?: Entries };
     /**
@@ -55,7 +55,10 @@ const pageFiles = ["src/**"];
 /** A page file by its ending; a `.server.` file never reaches the page. */
 const pageFile = /(?<!\.server|\.d)\.[mc]?[jt]sx?$/;
 
-const configName = "tinker-analyze.json";
+const configName = "tinker.json";
+
+/** The name before ADR 0156: a file by this name alone stops the run with the new name. */
+const oldName = "tinker-analyze.json";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -105,7 +108,11 @@ function readConfig(root: string): Check.Config {
 }
 
 function configOf(root: string): Check.Config {
-  return globSync(configName, { cwd: root }).length ? readConfig(root) : {};
+  if (globSync(configName, { cwd: root }).length) return readConfig(root);
+  if (globSync(oldName, { cwd: root }).length) {
+    raise("BadConfig", { path: oldName, reason: `rename this file to ${configName}` });
+  }
+  return {};
 }
 
 /** The files a glob names that `keep` accepts: a glob may also name a folder. */
@@ -137,7 +144,7 @@ function gapsDoc(root: string, path: string): Check.Source {
 
 /**
  * Read the app at `root` and answer every broken rule. It reads files and nothing else: it
- * runs no app code. A `tinker-analyze.json` at the root holds the app's own exceptions.
+ * runs no app code. A `tinker.json` at the root holds the app's own exceptions.
  *
  * @throws `BadConfig` when that file is not the shape `Check.Config` names.
  */
