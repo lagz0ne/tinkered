@@ -14,7 +14,7 @@ metadata:
     task skill to load next.
   type: core
   library: '@tinkered/core'
-  library_version: '0.26.0'
+  library_version: '0.27.0'
 sources:
   - 'lagz0ne/tinkered:packages/core/src/main.ts'
   - 'lagz0ne/tinkered:docs/best-practices.md'
@@ -99,8 +99,8 @@ id, fix the code, and run the check again.
   Skill: this one.
 
 The page rules (`tinker/kind`,
-`tinker/react-state`, `tinker/one-wire`,
-`tinker/keyed-prop`) are in the
+`tinker/react-state`, `tinker/one-wire`)
+are in the
 `@tinkered/react` skill.
 
 ## Common mistakes

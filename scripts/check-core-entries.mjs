@@ -70,7 +70,8 @@ const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // derived (ADR 0150) raised it by 1 KiB more (Duke 2026-11-13).
 // A slot that arrives as its value (ADR 0151) raised it by 320 B (Duke 2026-11-13: "Can increase a little bit"; the last 64 B keep the slot check off the paths that name no slot).
 // A window in a keyed read (ADR 0139 2) raised it by 192 B (Duke 2026-11-14: "Can do").
-const coreCap = 23040;
+// A keyed resource (ADR 0157: a span per build, `defer`) raised it by 128 B.
+const coreCap = 23168;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
 // derived (ADR 0150) raised this cap by 1 KiB too.

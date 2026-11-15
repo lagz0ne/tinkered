@@ -38,8 +38,8 @@
 - **load (of a keyed cell)** — An op on the server that gives the members of a part from a store. Its input says which fields a part must have. With a load, the server keeps no member (ADR 0138).
 - **projector** — A reader of a store's notices that calls `invalidate` for each one (`docs/keyed-projector.md`).
 - **dependency mode** — How a dep is taken: **read** (bare `data` → the value) or **write** (`data.controller` → get/set/watch handle). A bare resource slot delivers its **built value** — never a promise (ADR 0044); a bare operation delivers a subflow.
-- **derivation** — An operation/resource writes a `data` cell (write-mode dep) that others watch; or a `derived` computes a value from its sources (ADR 0150).
-- **derived** — A unit that computes a value from its sources, declared once: `derived({ ... })`. It takes `config` as a capsule does; the call with values is the read, and its config is the key: one entry per key, shared by every reader. With no config the bare unit reads (ADR 0150).
+- **derivation** — An operation/resource writes a `data` cell (write-mode dep) that others watch; or a keyed resource builds a value from its sources (ADR 0150, 0157).
+- **keyed resource** — A `resource` with a `config`: `resource({ config, depends, factory })`. The call with values is the read, and its config is the key: one build per key, shared by every reader. It builds again when a source changes, each build is a span, and `defer` gives it an end. With no required key the bare unit reads. It was `derived` before 0.27.0 (ADR 0150, 0157).
 - **round** — The telling of one write: its watchers hear it together. A write made in a round keeps its value at once; its own round runs after the rounds before it (ADR 0152).
 - **operation (command)** — An action run on demand, with typed input, dependencies, and a result.
 - **resource** — A reusable value built once per owner, with cleanup tied to its lifetime.

@@ -155,8 +155,6 @@ Intent finds them (ADR 0143).
   `useState`, `useReducer`, `useEffect` or
   `useLayoutEffect`.
   State lives in a Core cell.
-- `tinker/keyed-prop` — a list item gets its
-  member's key, not the member (ADR 0155).
 - `tinker/gap` — a gap marker sits on an open
   row: see below.
 

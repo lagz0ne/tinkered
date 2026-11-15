@@ -32,8 +32,9 @@ type Payloads = {
   /** One write set off a chain of writes more than the limit deep (ADR 0152). `cells` holds the
    * labels of the last cells written, oldest first. */
   UpdateDepth: { depth: number; cells: string[] };
-  /** A derived's factory wrote a cell while it computed (ADR 0152). */
-  WriteInDerived: { derived: string; cell: string };
+  /** A keyed resource's factory wrote a cell while a reader built it (ADR 0152, 0157). A build
+   * that a source's change set off may write. */
+  WriteInRead: { resource: string; cell: string };
 };
 
 export declare namespace Errors {

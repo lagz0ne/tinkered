@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, derived, isError, namespace, operation, resource } from "@/main";
+import { createScope, data, isError, namespace, operation, resource } from "@/main";
 
 /** The error `fn` raised, so a test reads it the way a caller does. */
 const caught = (fn: () => unknown): unknown => {
@@ -195,10 +195,11 @@ test("a keyed part's watcher that writes: the other part hears each write in ord
   expect(heard).toEqual(["first", "first,second"]);
 });
 
-test("a derived's watcher that writes a source: a later watcher hears the values in order", () => {
+test("a keyed resource's watcher that writes a source: a later watcher hears the values in order", () => {
   const cell = data({ label: "rounds.source", initial: 0 });
-  const double = derived({
+  const double = resource({
     label: "rounds.double",
+    config: {},
     depends: { cell },
     factory: ({ cell }) => cell * 2,
   });
@@ -218,7 +219,7 @@ test("a derived's watcher that writes a source: a later watcher hears the values
   ]);
 });
 
-test("a derived whose factory writes a cell is a fault named WriteInDerived, after one compute", () => {
+test("a keyed resource whose factory writes a cell is a fault named WriteInRead, after one compute", () => {
   const rows = data({ label: "rounds.rows", initial: 0 });
   let computes = 0;
   const bump = operation({
@@ -226,8 +227,9 @@ test("a derived whose factory writes a cell is a fault named WriteInDerived, aft
     depends: { rows: rows.controller },
     run: ({ rows }) => rows.set(rows.get() + 1),
   });
-  const loop = derived({
+  const loop = resource({
     label: "rounds.loop",
+    config: {},
     depends: { rows, bump },
     factory: ({ rows, bump }) => {
       computes++;
@@ -239,13 +241,13 @@ test("a derived whose factory writes a cell is a fault named WriteInDerived, aft
 
   const error = caught(() => scope.resolve(loop).get());
 
-  if (!isError(error, "WriteInDerived")) throw error;
-  expect(error.payload).toEqual({ derived: "rounds.loop", cell: "rounds.rows" });
+  if (!isError(error, "WriteInRead")) throw error;
+  expect(error.payload).toEqual({ resource: "rounds.loop", cell: "rounds.rows" });
   expect(computes).toBe(1);
   expect(scope.controller(rows).get()).toBe(0);
 });
 
-test("a derived whose factory writes a cell it does not read is a fault too", () => {
+test("a keyed resource whose factory writes a cell it does not read is a fault too", () => {
   const rows = data({ label: "rounds.read", initial: 0 });
   const log = data({ label: "rounds.log", initial: 0 });
   const note = operation({
@@ -253,8 +255,9 @@ test("a derived whose factory writes a cell it does not read is a fault too", ()
     depends: { log: log.controller },
     run: ({ log }) => log.set(log.get() + 1),
   });
-  const noisy = derived({
+  const noisy = resource({
     label: "rounds.noisy",
+    config: {},
     depends: { rows, note },
     factory: ({ rows, note }) => {
       note.run();
@@ -264,14 +267,15 @@ test("a derived whose factory writes a cell it does not read is a fault too", ()
 
   const error = caught(() => createScope().resolve(noisy).get());
 
-  if (!isError(error, "WriteInDerived")) throw error;
+  if (!isError(error, "WriteInRead")) throw error;
   expect(error.payload.cell).toBe("rounds.log");
 });
 
-test("a write after a derived's compute is a plain write again", () => {
+test("a write after a keyed resource's compute is a plain write again", () => {
   const rows = data({ label: "rounds.after", initial: 1 });
-  const twice = derived({
+  const twice = resource({
     label: "rounds.twice",
+    config: {},
     depends: { rows },
     factory: ({ rows }) => rows * 2,
   });
@@ -283,15 +287,17 @@ test("a write after a derived's compute is a plain write again", () => {
   expect(scope.resolve(twice).get()).toBe(10);
 });
 
-test("a derived that reads another derived computes inside the outer one, and neither writes", () => {
+test("a keyed resource that reads another keyed resource computes inside the outer one, and neither writes", () => {
   const rows = data({ label: "rounds.inner", initial: 1 });
-  const inner = derived({
+  const inner = resource({
     label: "rounds.inner.twice",
+    config: {},
     depends: { rows },
     factory: ({ rows }) => rows * 2,
   });
-  const outer = derived({
+  const outer = resource({
     label: "rounds.outer",
+    config: {},
     depends: { inner },
     factory: ({ inner }) => inner.get() + 1,
   });
@@ -303,7 +309,7 @@ test("a derived that reads another derived computes inside the outer one, and ne
   expect(scope.resolve(outer).get()).toBe(5);
 });
 
-test("a derived that waits for a build tells its watchers in a round when the build settles", async () => {
+test("a keyed resource that waits for a build tells its watchers in a round when the build settles", async () => {
   const cell = data({ label: "rounds.park.cell", initial: 0 });
   const slow = resource({
     label: "rounds.slow",
@@ -312,8 +318,9 @@ test("a derived that waits for a build tells its watchers in a round when the bu
       return 7;
     },
   });
-  const parked = derived({
+  const parked = resource({
     label: "rounds.parked",
+    config: {},
     depends: { slow, cell },
     factory: ({ slow, cell }) => slow + cell,
   });

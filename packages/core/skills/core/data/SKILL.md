@@ -13,7 +13,7 @@ metadata:
     cell read only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.26.0'
+  library_version: '0.27.0'
 requires:
   - core
 sources:
@@ -108,13 +108,14 @@ const press = operation({
 
 ### Compute a value from sources
 
-A `derived` computes a value from cells, reads,
-capsule exports, and resources. Its `config` is
-its key, as a capsule's config is. Every reader
-of the same config shares one entry.
+A `resource` with a `config` is keyed. It builds
+a value from cells, reads, capsule exports, and
+resources. Its `config` is its key, as a
+capsule's config is. Every reader of the same
+config shares one build.
 
 ```ts
-import { data, derived, tag } from "@tinkered/core";
+import { data, resource, tag } from "@tinkered/core";
 
 const waves = data({
   label: "sea.waves",
@@ -124,7 +125,7 @@ const waves = data({
 
 const room = tag<string>({ label: "sea.room" });
 
-const count = derived({
+const count = resource({
   label: "sea.count",
   config: { room: room.required },
   depends: (c) => ({
@@ -138,13 +139,25 @@ const read = count({ room: "a" });
 
 - The call is the read: `scope.resolve(read)`
   gives a reader. React reads it with `useData`.
-- It computes again only when a source changed.
+- It builds again only when a source changed.
+- Each build is a span with the label.
+- The factory's second argument has `config`
+  and `defer`. A deferred end runs before the
+  next build, when the last reader leaves, and
+  when the scope closes.
+- An operation reads it too: name the read in
+  `depends`.
 - A config value is a string, a number, or a
   slot: a cell, a read, a capsule export, a
   resource, or an operation.
 - An operation in a slot is a caller. It runs
-  only when the factory calls it. It must not
-  write a cell: that raises `WriteInDerived`.
+  only when the factory calls it.
+- A build that a reader starts must not write a
+  cell: that raises `WriteInRead`. A build that
+  a source's change sets off may write, so a
+  keyed resource can react to a cell.
+- With `config: {}` it has one key and still
+  follows its sources.
 - With no required key, the bare unit reads too.
 - The last reader leaves, and the entry goes.
 

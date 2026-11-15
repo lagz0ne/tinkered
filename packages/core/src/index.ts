@@ -149,33 +149,16 @@ export declare namespace Data {
     readonly [viewOf]?: T;
   };
 
-  /** A derived read (ADR 0150): the unit and the config values of one call. It makes no unit:
+  /** A keyed resource read (ADR 0150): the unit and the config values of one call. It makes no unit:
    * a scope keeps one entry per unit and per values as text. */
-  export type Derived<T> = {
+  export type Built<T> = {
     readonly [edge]: true;
-    readonly kind: "derived";
+    readonly kind: "built";
     readonly unit: object;
     readonly values: { readonly [key: string]: unknown };
     /** Type-only: the value type. */
     readonly [viewOf]?: T;
   };
-}
-
-export declare namespace Derived {
-  /** What a derived reads: a unit as a `depends` slot takes it, or another derived's read. */
-  export type Depends = Readonly<Record<string, Scope.Dependency | Data.Derived<unknown>>>;
-
-  /** A derived's read is delivered as its reader; every other slot as `depends` delivers it. */
-  export type SlotValues<D extends Depends> = {
-    [K in keyof D]: D[K] extends Data.Derived<infer T> ? Data.Reader<T> : Scope.SlotValue<D[K]>;
-  };
-
-  /** What `derived()` returns: a call with config values is a read. With no required key, the
-   * unit is its own read, as a capsule with no required key installs uncalled. */
-  export type Handle<C extends Scope.Config, T> = ((
-    ...values: Capsule.Args<C>
-  ) => Data.Derived<T>) &
-    ([Scope.Unfilled<C>] extends [never] ? Data.Derived<T> : unknown);
 }
 
 export declare namespace Tag {
@@ -397,6 +380,20 @@ export declare namespace Resource {
     readonly depends: Scope.Depends;
     factory(deps: Record<string, unknown>, ctx: Ctx): T;
   };
+
+  /** What a keyed resource's factory builds through (ADR 0157): its config values, and `defer`,
+   * which registers an end. An end runs before the next build, when the last reader leaves, and
+   * when the scope closes (Solid's `onCleanup`). */
+  export type KeyedCtx<C extends Scope.Config> = {
+    readonly config: Capsule.ConfigOf<C>;
+    readonly defer: (end: () => void) => void;
+  };
+
+  /** What `resource()` returns for a `config` (ADR 0157): a call with config values is a read.
+   * With no required key, the unit is its own read, as a capsule with no required key installs
+   * uncalled. */
+  export type Keyed<C extends Scope.Config, T> = ((...values: Capsule.Args<C>) => Data.Built<T>) &
+    ([Scope.Unfilled<C>] extends [never] ? Data.Built<T> : unknown);
 }
 
 /** Whether a config key must be filled: a required edge, or a tag with no default. */
@@ -614,6 +611,7 @@ export declare namespace Scope {
   export type NsArg = { readonly ns: Ns };
 
   export type Dependency =
+    | Data.Built<unknown>
     | Data.Cell<unknown>
     | Operation.Handle<unknown, unknown>
     | Resource.Handle<unknown>
@@ -631,33 +629,35 @@ export declare namespace Scope {
   export type SlotValue<D, Raw extends boolean = false> =
     D extends Data.View<infer T>
       ? Data.Reader<T>
-      : D extends Data.Read<infer T>
+      : D extends Data.Built<infer T>
         ? Data.Reader<T>
-        : D extends Edge<"controller", infer N>
-          ? N extends Data.Keyed<infer V, infer K>
-            ? KeyedController<V, K>
-            : N extends Data.Cell<infer T>
-              ? DataController<T>
-              : N extends Operation.Handle<infer T, infer I>
-                ? OperationController<T, I>
-                : never
-          : D extends Edge<"all", Tag.Handle<infer T>>
-            ? Held<T, Raw>[]
-            : D extends Edge<"optional", Tag.Handle<infer T>>
-              ? Tag.Presence<Held<T, Raw>>
-              : D extends Edge<"required", Tag.Handle<infer T>>
-                ? Held<T, Raw>
-                : D extends Tag.Handle<infer T>
+        : D extends Data.Read<infer T>
+          ? Data.Reader<T>
+          : D extends Edge<"controller", infer N>
+            ? N extends Data.Keyed<infer V, infer K>
+              ? KeyedController<V, K>
+              : N extends Data.Cell<infer T>
+                ? DataController<T>
+                : N extends Operation.Handle<infer T, infer I>
+                  ? OperationController<T, I>
+                  : never
+            : D extends Edge<"all", Tag.Handle<infer T>>
+              ? Held<T, Raw>[]
+              : D extends Edge<"optional", Tag.Handle<infer T>>
+                ? Tag.Presence<Held<T, Raw>>
+                : D extends Edge<"required", Tag.Handle<infer T>>
                   ? Held<T, Raw>
-                  : D extends Data.Cell<infer T>
-                    ? T
-                    : D extends Operation.Handle<infer T, infer I>
-                      ? OperationController<T, I>
-                      : D extends Resource.Handle<infer T>
-                        ? Awaited<T>
-                        : D extends Capsule.Binding<infer T>
-                          ? T
-                          : never;
+                  : D extends Tag.Handle<infer T>
+                    ? Held<T, Raw>
+                    : D extends Data.Cell<infer T>
+                      ? T
+                      : D extends Operation.Handle<infer T, infer I>
+                        ? OperationController<T, I>
+                        : D extends Resource.Handle<infer T>
+                          ? Awaited<T>
+                          : D extends Capsule.Binding<infer T>
+                            ? T
+                            : never;
 
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
 
@@ -862,9 +862,9 @@ export declare namespace Scope {
     resolve<T>(view: Data.View<T>, ns?: NsArg): Data.Reader<T>;
     /** A keyed read (ADR 0136) reads as its reader: one member or one part of the cell. */
     resolve<T>(read: Data.Read<T>): Data.Reader<T>;
-    /** A derived read (ADR 0150) reads as its reader: the entry for its config values. A read
+    /** A keyed resource read (ADR 0150) reads as its reader: the entry for its config values. A read
      * whose kind is not known here reads the same way. */
-    resolve<T>(read: Data.View<T> | Data.Read<T> | Data.Derived<T>): Data.Reader<T>;
+    resolve<T>(read: Data.View<T> | Data.Read<T> | Data.Built<T>): Data.Reader<T>;
     resolve<T>(res: Resource.Handle<T>, ns?: NsArg): ResourceValue<T>;
     resolve<T>(tag: Tag.Handle<T>, ns?: NsArg): T;
     /** A tag edge reads its bindings as bound (ADR 0020/0036): `.all` → every binding
@@ -1448,6 +1448,21 @@ export function operation<
 
 type BorrowFlag = { readonly borrows?: number };
 
+/** Declare a keyed resource (ADR 0157): with a `config`, a resource is keyed by its config
+ * values, as a keyed cell's part is. Call it with the values to read it. It builds again when a
+ * source in its `depends` changes: a cell, a keyed read, or another keyed resource. Its `depends`
+ * may follow a config value. */
+export function resource<
+  const C extends Scope.Config,
+  const D extends Scope.Depends = {},
+  T = unknown,
+>(config: {
+  label: string;
+  config: C;
+  depends?: D | ((config: Capsule.ConfigOf<C>) => D);
+  factory: (deps: Scope.SlotValues<D>, ctx: Resource.KeyedCtx<C>) => T;
+}): Resource.Keyed<C, T>;
+
 /** Declare a reusable resource: built once per owner, cleaned up when its owner closes. */
 export function resource<
   const D extends Scope.Depends = Record<string, never>,
@@ -1458,8 +1473,24 @@ export function resource<
   depends?: D;
   tags?: Tag.Bindings;
   factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T & Scope.AsyncBody<D>;
-}): Resource.Handle<T> {
-  const depends: Scope.Depends = config.depends ?? {};
+}): Resource.Handle<T>;
+
+export function resource(config: {
+  label: string;
+  config?: Scope.Config;
+  target?: "scope" | "namespace" | "session";
+  depends?: unknown;
+  tags?: Tag.Bindings;
+  factory: (deps: never, ctx: never) => unknown;
+}): unknown {
+  if (config.config !== undefined) {
+    const unit: object = Object.assign(
+      (values = NO_VALUES) => ({ [edge]: true, kind: "built", unit, values }),
+      { [edge]: true, kind: "built", values: NO_VALUES, def: config },
+    );
+    return Object.assign(unit, { unit });
+  }
+  const depends = (config.depends ?? {}) as Scope.Depends;
   const mayHook =
     config.factory.length >= 2 ||
     Object.values(depends).some((dep) => isResource(dep) && (dep as HookFlag).mayHook !== false);
@@ -1470,11 +1501,11 @@ export function resource<
     tags: readMany(config.tags),
     target: config.target ?? "scope",
     depends,
-    factory: config.factory as Resource.Handle<T>["factory"],
+    factory: config.factory as Resource.Handle<unknown>["factory"],
     capsule: undefined,
     passed: undefined,
     slots: seesResource(depends) === 2,
-  } as Resource.Handle<T> & Exported;
+  } as Resource.Handle<unknown> & Exported;
 }
 
 /** A resource whose `depends` name a slot (ADR 0151): its build swaps each slot for the unit it holds. */
@@ -1898,7 +1929,7 @@ function writeCell<T>(
   const value = admit(target.label, target.parse, next);
   if (cellEq(target, readCell(layer, target, chain), value)) return;
 
-  if (computing !== undefined) inDerived(computing, target);
+  if (computing !== undefined) inRead(computing, target);
 
   ownCell(layer, target, chain).value = value;
   tellWrite(layer, target, undefined);
@@ -1919,7 +1950,7 @@ function writeCellNs(
   if (cellEq(target, current, value)) return;
 
   const [key] = chain;
-  if (computing !== undefined) inDerived(computing, target);
+  if (computing !== undefined) inRead(computing, target);
 
   ownNsCell(layer, target, key, current).value = value;
   tellWrite(layer, target, key);
@@ -2205,8 +2236,8 @@ function resolveEdge(
   if (dep.kind === "reader") {
     return readerOf(layer, Capsules.cellOf(Capsules.check(layer, dep)), chain);
   }
-  if (dep.kind === "derived") {
-    return derivedReader(layer, dep as unknown as Data.Derived<unknown>, (slot) =>
+  if (dep.kind === "built") {
+    return builtReader(layer, chain, dep as unknown as Data.Built<unknown>, (slot) =>
       isData(slot)
         ? resolveControllerEdge(layer, slot, up, chain)
         : resolveDep(layer, slot, up, chain),
@@ -5068,9 +5099,9 @@ class ScopeHandle implements Scope.Handle {
   resolve<T>(ext: Capsule.Binding<T>): T;
   /** A keyed read (ADR 0136) reads as its reader: one member or one part of the cell. */
   resolve<T>(read: Data.Read<T>): Data.Reader<T>;
-  /** A derived read (ADR 0150) reads as its reader: the entry for its config values. A read
+  /** A keyed resource read (ADR 0150) reads as its reader: the entry for its config values. A read
    * whose kind is not known here reads the same way. */
-  resolve<T>(read: Data.View<T> | Data.Read<T> | Data.Derived<T>): Data.Reader<T>;
+  resolve<T>(read: Data.View<T> | Data.Read<T> | Data.Built<T>): Data.Reader<T>;
   resolve(
     target:
       | Data.Cell<unknown>
@@ -5079,7 +5110,7 @@ class ScopeHandle implements Scope.Handle {
       | Edge<string, Tag.Handle<unknown>>
       | Data.View<unknown>
       | Data.Read<unknown>
-      | Data.Derived<unknown>
+      | Data.Built<unknown>
       | Capsule.Binding,
     ns?: Scope.NsArg,
   ): unknown {
@@ -7741,7 +7772,7 @@ class Capsules {
     }
 
     if (isReader(dep) || !isEdge(dep)) return dep;
-    return dep.target as object;
+    return ((dep as { readonly target?: object }).target ?? dep) as object;
   }
 
   /** One start-value record per installed capsule, and one under the handle a binding was filled
@@ -8021,7 +8052,7 @@ type KeyedRead = {
 type KeyedListener = (read: "of" | "where", part: Data.Key, window?: KeyWindow) => () => void;
 
 /** A key or a part as text: fields sorted, then JSON, as TanStack Query does. Keyed data and a
- * derived's config share it (ADR 0135, 0150). */
+ * keyed resource's config share it (ADR 0135, 0150). */
 function keyText(label: string, key: Data.Key): string {
   if (typeof key === "string") return JSON.stringify(key);
 
@@ -8517,72 +8548,54 @@ function hexOf(h: number, l: number): string {
 /** The char codes of the 16 hex digits. */
 const HEX_CODES = new TextEncoder().encode("0123456789abcdef");
 
-/** A derived as `derived()` keeps it on its unit. */
-type DerivedDef = {
+/** A keyed resource as `resource()` keeps it on its unit. */
+type BuiltDef = {
   readonly label: string;
   readonly config?: Scope.Config;
-  readonly depends?: Derived.Depends | ((config: object) => Derived.Depends);
-  readonly factory: (deps: object, config: object) => unknown;
+  readonly depends?: Scope.Depends | ((config: object) => Scope.Depends);
+  readonly factory: (deps: object, ctx: Resource.KeyedCtx<Scope.Config>) => unknown;
 };
 
 /** Resolves one source on the reader's layer: a cell to its controller, any other unit as
  * `depends` delivers it. The layer's own `resolveEdge` makes it. */
-type DerivedSlot = (dep: Scope.Dependency) => unknown;
+type BuiltSlot = (dep: Scope.Dependency) => unknown;
 
 /** One source of an entry. `read` gives its input at each `get`: a cell's value, a reader's
  * value, a resource's built value (fixed until it builds again, ADR 0150 decision 7), any other
  * unit as it was when the entry built. A reader fills its slot with itself (`gives`); every other
  * source with its input. A cell or a reader is watched. */
-type DerivedSource = {
+type BuiltSource = {
   readonly key: string;
   readonly read: () => unknown;
   readonly watch: ((fn: () => void) => () => void) | undefined;
   readonly gives: Data.Reader<unknown> | undefined;
 };
 
-/** Declare a derived (ADR 0150): a computed read, declared once, keyed by its config. Call it
- * with config values to read it. Its sources are its `depends`, which may follow a config value. */
-export function derived<
-  const C extends Scope.Config = {},
-  const D extends Derived.Depends = {},
-  T = unknown,
->(def: {
-  readonly label: string;
-  readonly config?: C;
-  readonly depends?: D | ((config: Capsule.ConfigOf<C>) => D);
-  readonly factory: (deps: Derived.SlotValues<D>, config: Capsule.ConfigOf<C>) => T;
-}): Derived.Handle<C, T> {
-  const unit: object = Object.assign(
-    (values = NO_VALUES) => ({ [edge]: true, kind: "derived", unit, values }),
-    { [edge]: true, kind: "derived", values: NO_VALUES, def },
-  );
-  return Object.assign(unit, { unit }) as Derived.Handle<C, T>;
-}
-
 /** Each layer's entries, by unit number and config text. An entry is kept from its first read,
  * so readers that render together share it; its last watcher leaving drops it. An entry no one
  * ever watches lives as long as its layer. */
-const derivedKept = new WeakMap<object, Map<string, DerivedEntry>>();
+const builtKept = new WeakMap<object, Map<string, BuiltEntry>>();
 
 /** A number per unit, given once: a unit is declared once (ADR 0057), so it is stable. */
-const derivedIds = new WeakMap<object, number>();
-let derivedLast = 0;
+const builtIds = new WeakMap<object, number>();
+let builtLast = 0;
 
 function idOf(unit: object): number {
-  const known = derivedIds.get(unit);
+  const known = builtIds.get(unit);
   if (known !== undefined) return known;
 
-  derivedIds.set(unit, ++derivedLast);
-  return derivedLast;
+  builtIds.set(unit, ++builtLast);
+  return builtLast;
 }
 
-/** The entry for a derived read on a layer, kept or new. */
-function derivedReader(
-  layer: object,
-  read: Data.Derived<unknown>,
-  slot: DerivedSlot,
+/** The entry for a keyed resource read on a layer, kept or new. */
+function builtReader(
+  layer: Layer,
+  chain: readonly Namespace[] | undefined,
+  read: Data.Built<unknown>,
+  slot: BuiltSlot,
 ): Data.Reader<unknown> {
-  const def = (read.unit as { readonly def: DerivedDef }).def;
+  const def = (read.unit as { readonly def: BuiltDef }).def;
   const config: Record<string, unknown> = {};
   const key: Record<string, unknown> = {};
   for (const [field, entry] of Object.entries(def.config ?? NO_VALUES)) {
@@ -8591,12 +8604,12 @@ function derivedReader(
   }
 
   const text = `${idOf(read.unit)}${keyText(def.label, key as Data.Key)}`;
-  const own = derivedKept.get(layer) ?? new Map<string, DerivedEntry>();
-  derivedKept.set(layer, own);
+  const own = builtKept.get(layer) ?? new Map<string, BuiltEntry>();
+  builtKept.set(layer, own);
   const kept = own.get(text);
   if (kept !== undefined) return kept;
 
-  const entry = new DerivedEntry(own, text, def, config, slot);
+  const entry = new BuiltEntry(own, text, def, config, slot, layer, chain);
   own.set(text, entry);
   return entry;
 }
@@ -8609,7 +8622,7 @@ function valueOf(label: string, field: string, entry: Scope.ConfigEntry, given: 
   return value;
 }
 
-/** Whether a config value is a unit a derived slot takes whole: a cell, a resource, a capsule
+/** Whether a config value is a unit a keyed resource slot takes whole: a cell, a resource, a capsule
  * export, an operation. */
 const isSlotUnit = (value: unknown): value is object =>
   isData(value) || isResource(value) || isReader(value) || isOperation(value);
@@ -8617,7 +8630,7 @@ const isSlotUnit = (value: unknown): value is object =>
 /** A config value as key (ADR 0150, decisions 4, 8, 9): a string or a number as is; a slot (a
  * cell, a capsule export, a resource, an operation) as its unit's number; a keyed read as its
  * cell's number and its part. Anything else raises `InvalidKey`. An operation is a caller: the
- * factory may call it, and a cell write in it raises `WriteInDerived` (ADR 0152). */
+ * factory may call it, and a cell write in it raises `WriteInRead` (ADR 0152). */
 function partOf(label: string, field: string, value: unknown): unknown {
   if (typeof value === "string" || typeof value === "number") return value;
   if (isSlotUnit(value)) return [idOf(value)];
@@ -8627,17 +8640,25 @@ function partOf(label: string, field: string, value: unknown): unknown {
   return [idOf(read.cell), read.read, keyText(label, read.part), read.window];
 }
 
-/** One entry of a derived (ADR 0150): one per unit and per config as text, on one layer. It
- * computes again only when an input is not the same as the last time. The first watcher watches
+/** One entry of a keyed resource (ADR 0150): one per unit and per config as text, on one layer. It
+ * computes again only when an input is not the same as the last time. A compute is a build, so
+ * it makes a resource span with the keyed resource's label (ADR 0157). The first watcher watches
  * its sources; the last one leaves, and it goes, as a keyed part does (ADR 0136). It reads its
  * slots and owns none of them. */
-class DerivedEntry implements Data.Reader<unknown> {
-  private own: Map<string, DerivedEntry>;
+class BuiltEntry implements Data.Reader<unknown> {
+  private own: Map<string, BuiltEntry>;
   private text: string;
-  private def: DerivedDef;
-  private config: object;
-  private sources: DerivedSource[];
+  private def: BuiltDef;
+  private sources: BuiltSource[];
+  /** Where a compute's span opens: the layer of the first reader, and its namespace chain. */
+  private layer: Layer;
+  private chain: readonly Namespace[] | undefined;
   private watchers: Set<{ readonly fn: (next: unknown, prev: unknown) => void }>;
+  /** The ends the last compute registered, and the one context every compute gets. */
+  private ends: (() => void)[];
+  private ctx: Resource.KeyedCtx<Scope.Config>;
+  /** Whether the layer's close already knows this entry's ends. */
+  private hooked: boolean;
   private stops: (() => void)[];
   private inputs: unknown[] | undefined;
   private value: unknown;
@@ -8650,17 +8671,33 @@ class DerivedEntry implements Data.Reader<unknown> {
   private told: unknown;
   private toldFault: { readonly error: unknown } | undefined;
   constructor(
-    own: Map<string, DerivedEntry>,
+    own: Map<string, BuiltEntry>,
     text: string,
-    def: DerivedDef,
+    def: BuiltDef,
     config: object,
-    slot: DerivedSlot,
+    slot: BuiltSlot,
+    layer: Layer,
+    chain: readonly Namespace[] | undefined,
   ) {
+    this.layer = layer;
+    this.chain = chain;
     this.own = own;
     this.text = text;
     this.def = def;
-    this.config = config;
     this.watchers = new Set();
+    this.ends = [];
+    this.hooked = false;
+    this.ctx = {
+      config: config as Capsule.ConfigOf<Scope.Config>,
+      defer: (end) => {
+        if (!this.hooked) {
+          this.hooked = true;
+          addDefer(layer, { fn: () => this.end(), owned: undefined });
+        }
+
+        this.ends.push(end);
+      },
+    };
     this.stops = [];
     this.inputs = undefined;
     this.value = undefined;
@@ -8672,18 +8709,18 @@ class DerivedEntry implements Data.Reader<unknown> {
 
     const depends = typeof def.depends === "function" ? def.depends(config) : def.depends;
     this.sources = Object.entries(depends ?? NO_VALUES).map(([key, dep]) =>
-      DerivedEntry.source(key, dep as Scope.Dependency, slot),
+      BuiltEntry.source(key, dep as Scope.Dependency, slot),
     );
   }
 
-  private static source(key: string, dep: Scope.Dependency, slot: DerivedSlot): DerivedSource {
+  private static source(key: string, dep: Scope.Dependency, slot: BuiltSlot): BuiltSource {
     if (isResource(dep)) return { key, read: () => slot(dep), watch: undefined, gives: undefined };
 
     const value = slot(dep);
     const kind = (dep as { readonly kind?: string }).kind;
     if (
       isData(dep) ||
-      (isEdge(dep) && (kind === "reader" || kind === "read" || kind === "derived"))
+      (isEdge(dep) && (kind === "reader" || kind === "read" || kind === "built"))
     ) {
       const reader = value as Data.Reader<unknown>;
       const gives = isData(dep) ? undefined : reader;
@@ -8716,7 +8753,16 @@ class DerivedEntry implements Data.Reader<unknown> {
       if (!this.watchers.delete(watcher) || this.watchers.size !== 0) return;
       if (this.own.get(this.text) === this) this.own.delete(this.text);
       for (const stop of this.stops.splice(0)) stop();
+      if (this.ends.length === 0) return;
+
+      this.end();
+      this.inputs = undefined;
     };
+  }
+
+  /** Run the ends the last build registered, last first, as a resource's defers run. */
+  private end(): void {
+    for (const end of this.ends.splice(0).reverse()) end();
   }
 
   /** A source still builds: the entry waits for it, then reads it again. */
@@ -8736,7 +8782,7 @@ class DerivedEntry implements Data.Reader<unknown> {
 
   /** Compute again when an input changed: a failed compute is the entry's fault until the next.
    * An input that still builds parks the entry instead. */
-  private fresh(): void {
+  private fresh(woken = false): void {
     const inputs = this.sources.map((source) => source.read());
     const pending = inputs.find((input) => input instanceof Promise);
     if (pending !== undefined) return this.park(pending as Promise<unknown>);
@@ -8750,12 +8796,17 @@ class DerivedEntry implements Data.Reader<unknown> {
     });
     this.inputs = inputs;
     const outer = computing;
-    computing = this.def.label;
+    if (!woken) computing = this.def.label;
+    const obs = this.layer.obs;
+    const span = openSpan(obs, this.layer, undefined, this.def.label, "resource", this.chain);
     try {
-      this.value = this.def.factory(deps, this.config);
+      this.end();
+      this.value = this.def.factory(deps, this.ctx);
       this.fault = undefined;
+      closeSpan(obs, span, "ok");
     } catch (error) {
       this.fault = { error };
+      closeSpan(obs, span, "failed", error);
     } finally {
       computing = outer;
     }
@@ -8765,7 +8816,7 @@ class DerivedEntry implements Data.Reader<unknown> {
    * the fault is not what it last heard. Another reader may have computed first, so it compares
    * with what the watchers heard, not with what this entry held. */
   private wake(): void {
-    if (this.wait === undefined && this.failed === undefined) this.fresh();
+    if (this.wait === undefined && this.failed === undefined) this.fresh(true);
     if (this.wait !== undefined) return;
 
     const prev = this.told;
@@ -8778,7 +8829,7 @@ class DerivedEntry implements Data.Reader<unknown> {
   }
 }
 
-/** The label of the derived whose factory runs now (ADR 0152): a cell write raises while it is
+/** The label of the keyed resource whose factory runs now (ADR 0152): a cell write raises while it is
  * set. */
 let computing: string | undefined;
 
@@ -8823,10 +8874,10 @@ function watcherThrew(error: unknown): never {
   throw error;
 }
 
-/** A cell write while a derived computes (ADR 0152). Out of the write, so the write stays small
+/** A cell write while a reader builds a keyed resource (ADR 0152). Out of the write, so the write stays small
  * when V8 inlines it. */
-function inDerived(derived: string, target: Data.Cell<unknown>): never {
-  return raise("WriteInDerived", { derived, cell: target.label });
+function inRead(resource: string, target: Data.Cell<unknown>): never {
+  return raise("WriteInRead", { resource, cell: target.label });
 }
 
 /** A hot write's round, queued. The closure is made here, not in the write: a closure in the

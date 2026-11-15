@@ -7,6 +7,34 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.27.0
+
+`derived` is now a `resource` with a `config`
+(ADR 0157). This release breaks code that says
+`derived`.
+
+- `resource({ config, depends, factory })` is
+  keyed by its config values. It builds again
+  when a source changes.
+- Move each `derived({ ... })` to it. The
+  factory's second argument is `{ config }`:
+  `(deps, c)` becomes `(deps, { config: c })`.
+  A `derived` with no config takes `config: {}`.
+- Each build is a span of kind `resource`.
+- The factory also gets `defer`. An end runs
+  before the next build, when the last reader
+  leaves, and when the scope closes.
+- An operation may name the read in `depends`.
+- `WriteInDerived` is `WriteInRead`. Its payload
+  names `resource`. A build that a source's
+  change set off may now write a cell.
+- The analyze rule `tinker/keyed-prop` is
+  removed (ADR 0155 is withdrawn). A list reads
+  once and passes each member to its item.
+- `Data.Derived` is `Data.Built`. The namespace
+  `Derived` is gone: see `Resource.Keyed` and
+  `Resource.KeyedCtx`.
+
 ## 0.26.0
 
 One command, and its check corrects the writer

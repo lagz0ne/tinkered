@@ -1,4 +1,4 @@
-import { createScope, data, derived, tag } from "@tinkered/core";
+import { createScope, data, resource, tag } from "@tinkered/core";
 import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
@@ -8,17 +8,17 @@ import { ScopeProvider, useData } from "@/index";
 type Pr = { viewer: string; id: string; amount: number };
 
 const prs = data({
-  label: "derived.prs",
+  label: "keyed.prs",
   mode: "keyed",
   key: (pr: Pr) => ({ viewer: pr.viewer, id: pr.id }),
 });
 
-const viewer = tag<string>({ label: "derived.viewer" });
+const viewer = tag<string>({ label: "keyed.viewer" });
 
 const runs = { count: 0 };
 
-const total = derived({
-  label: "derived.total",
+const total = resource({
+  label: "keyed.total",
   config: { viewer: viewer.required },
   depends: (c) => ({ rows: prs.where({ viewer: c.viewer }) }),
   factory: ({ rows }) => {
@@ -35,7 +35,7 @@ function Total(props: { viewer: string }): React.ReactElement {
   return <p>{`${props.viewer}:${view.sum}`}</p>;
 }
 
-test("a component reads a derived, keeps its reference across renders, and follows a write", async () => {
+test("a component reads a keyed resource, keeps its reference across renders, and follows a write", async () => {
   const scope = createScope();
   const items = scope.controller(prs);
   items.set({ viewer: "a", id: "1", amount: 2 });

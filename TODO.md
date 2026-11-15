@@ -123,6 +123,11 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 - **cli/package, cli/gates, cli/check-loop, cli/skill-text, cli/skill** — done 2026-11-15 (ADR 0156; Duke 11:41 "move analyze to cli", 11:47 "agent first", 13:37 "In the skill, the tool reads it"). `@tinkered/cli`, bin `tinker`: `tinker check` runs the app's tsc and lint in stages types then rules, at most 5 findings, each with its skill's `Right:` text; `tinker skill list|load`; `@tinkered/cli/config` gates; base tsconfig. Reviews: Opus READY after one round; Fable READY after one round. Released as 0.26.0.
   Proof: cli 112 tests; `vp run -r test` green; `vp run skills` green; site `tinker check: OK` with the gates on `src/**`; mutation on f1cdef07: run stopped at 2352/2489 mutants by the 2 h job limit, 175 survived; with every untested mutant counted as survived the score is still 87.5 (floor 85).
+- **core/keyed-resource** — done 2026-11-15 (ADR 0157; Duke 13:37 to 14:24). `derived` is gone: a `resource` with a `config` is keyed, follows its sources, makes a span per build, has `defer`, and an operation can read it. A build a source change set off may write a cell; a build a reader started may not (`WriteInRead`).
+  Proof: Core 1,420 and React 120 tests; `tests/resource-keyed-life.test.ts` (span, defer at close, a reaction, a loop at the round limit).
+
+- **analyze/keyed-prop-removed** — done 2026-11-15 (Duke 16:37 "A. Pass the member, drop the rule"). The rule `tinker/keyed-prop` is gone in 0.27.0; ADR 0155 is withdrawn; the React skill says a list passes the member.
+  Proof: a 3-card browser test showed the same draws for a `memo` item with the member and an item that reads `of(key)`; analyze tests green.
 
 - **analyze/keyed-prop** — done 2026-11-15 (ADR 0155; Duke 11:01 "B. Skill + analyze rule"). `tinker/keyed-prop`: a keyed part's list, or one member of it, passed as a JSX prop is a finding; the React skill says a list item reads its own member by key. Released as 0.25.1.
   Proof: 3 new tests; analyze 89 tests; CUJ eval rung A: template 0 findings, each of the 6 writer runs 1; Hedl 1 (tasks/views.tsx:248), tinker-app 0.

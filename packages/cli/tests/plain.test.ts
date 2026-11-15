@@ -79,18 +79,18 @@ export const shout = operation({
   expect(result).toEqual({ files: 1, hits: "" });
 });
 
-test("a derived passes: its depends and its factory, with their inline callbacks (ADR 0150)", () => {
+test("a keyed resource passes: its depends and its factory, with their inline callbacks (ADR 0157)", () => {
   const result = checkFiles({
-    "src/api/count.ts": `import { data, derived, tag } from "@tinkered/core";
+    "src/api/count.ts": `import { data, resource, tag } from "@tinkered/core";
 
 const rows = data({ label: "rows", initial: [1, 2] });
 const min = tag<number>({ label: "min" });
 
-export const count = derived({
+export const count = resource({
   label: "count",
   config: { min: min.required },
   depends: (c) => ({ rows, min: c.min }),
-  factory: ({ rows }, c) => rows.filter((n) => n >= c.min).length,
+  factory: ({ rows }, { config }) => rows.filter((n) => n >= config.min).length,
 });
 `,
   });

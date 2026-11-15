@@ -236,10 +236,10 @@ export function useData<T>(view: Data.View<T>): T;
  * new key leaves the old part. Read-only: write through an op. */
 export function useData<T>(read: Data.Read<T>): T;
 
-/** Reactively read a derived (ADR 0150): `useData(prView({ viewer, mode }))`, or the bare unit
+/** Reactively read a keyed resource (ADR 0150): `useData(prView({ viewer, mode }))`, or the bare unit
  * when it needs no config. Every reader of the same config shares one entry; a new config leaves
  * the old one. */
-export function useData<T>(read: Data.Derived<T>): T;
+export function useData<T>(read: Data.Built<T>): T;
 
 /** Reactively read a slice of a capsule's cell export. */
 export function useData<T, S>(
@@ -355,11 +355,11 @@ function useHeld<T, S>(): Held<T, S> {
 }
 
 /** What `useData` reads: a cell, or a read edge (a capsule's cell export, ADR 0123; a keyed read,
- * ADR 0136; a derived read, ADR 0150). */
-type Source<T> = Data.Cell<T> | Data.View<T> | Data.Read<T> | Data.Derived<T>;
+ * ADR 0136; a keyed resource read, ADR 0150). */
+type Source<T> = Data.Cell<T> | Data.View<T> | Data.Read<T> | Data.Built<T>;
 
 /** A read edge: it has a `kind`, and a cell has none. */
-const isView = <T>(target: Source<T>): target is Data.View<T> | Data.Read<T> | Data.Derived<T> =>
+const isView = <T>(target: Source<T>): target is Data.View<T> | Data.Read<T> | Data.Built<T> =>
   (target as { kind?: unknown }).kind !== undefined;
 
 /** A writable pair only for a cell: a capsule's cell export answers the bare value. */
@@ -373,7 +373,7 @@ function wantsPair<T>(
 /** What a store reads through: a cell's controller, or a capsule export's reader (no `set`). */
 type Readable<T> = Data.Reader<T> & { readonly set?: (value: T) => void };
 
-/** A cell reads through its controller; a view, a keyed read, and a derived read through the
+/** A cell reads through its controller; a view, a keyed read, and a keyed resource read through the
  * reader the scope resolves them to. */
 function readableOf<T>(scope: Scope.Handle, cell: Source<T>): Readable<T> {
   return isView(cell) ? scope.resolve(cell) : scope.controller(cell);

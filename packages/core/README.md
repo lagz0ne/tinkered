@@ -991,13 +991,14 @@ const newest = tasks.where(
 - A new window starts `pending`, with no rows.
 - A board with no `load` fails a window (`failed`): nothing sorts.
 
-## Derived
+## A keyed resource
 
-A derived computes a value from its sources (ADR 0150). It is declared
-once. Its `config` is its key: the call with values names a read.
+A resource with a `config` builds a value from its sources (ADR 0150,
+0157). It is declared once. Its `config` is its key: the call with
+values names a read.
 
 ```ts
-import { createScope, data, derived, tag } from "@tinkered/core";
+import { createScope, data, resource, tag } from "@tinkered/core";
 
 type Pr = { viewer: string; id: string; amount: number };
 
@@ -1008,7 +1009,7 @@ const prs = data({
 });
 const viewer = tag<string>({ label: "prs.viewer" });
 
-const total = derived({
+const total = resource({
   label: "prs.total",
   config: { viewer: viewer.required },
   depends: (c) => ({
@@ -1026,8 +1027,9 @@ read.watch((next) => console.log(next));
 
 - `total({ viewer })` names a read; `scope.resolve` gives its reader,
   and React's `useData` takes it.
-- Two readers of one config share one entry and one compute.
-- It computes again only when a source changed. A cell, a read and a
+- Two readers of one config share one entry and one build.
+- Each build is a span of kind `resource`, with the label.
+- It builds again only when a source changed. A cell, a read and a
   capsule export are watched; a resource value is fixed until it builds
   again.
 - A config value is a string, a finite number, or a slot: a cell, a
@@ -1037,8 +1039,13 @@ read.watch((next) => console.log(next));
   caller: it runs only when the factory calls it.
 - With no required key, the bare unit reads too.
 - The last watcher leaves, and the entry goes.
-- A factory must not write a cell. The write raises `WriteInDerived`,
-  and the entry holds it as its fault (ADR 0152).
+- The factory gets `{ config, defer }`. A deferred end runs before the
+  next build, when the last reader leaves, and when the scope closes.
+- An operation and a resource may name the read in `depends`.
+- A build that a reader starts must not write a cell. The write raises
+  `WriteInRead`, and the entry holds it as its fault (ADR 0152).
+- A build that a source's change sets off may write a cell. A chain of
+  such writes ends at the round limit with `UpdateDepth`.
 
 ## Tags
 
@@ -1334,7 +1341,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A `refused` or `invalid` part waits: no ask again until an
   `invalidate` names it. A broken link asks again by itself.
 
-### Derived
+### A keyed resource
 
 - Two readers of one key share one entry and one compute.
 - A new key reads another entry, and the last reader leaving drops the
@@ -1342,20 +1349,27 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A source write computes again and wakes the watcher; a write elsewhere
   does not.
 - Config fields in another order name the same entry.
-- A derived with no required key reads bare, as its defaults; a missing
+- A keyed resource with no required key reads bare, as its defaults; a missing
   required key raises `MissingConfig`.
 - A slot keys the entry by its unit and is delivered as a `depends`
   slot.
 - An operation in a slot is a caller, and each operation is its own
   entry.
-- A factory that writes a cell is a fault named `WriteInDerived`, after
+- A factory that writes a cell is a fault named `WriteInRead`, after
   one compute.
 - A config value that is not a string, a number or a slot raises
   `InvalidKey`.
 - A failed compute is the entry's fault until a source changes.
 - A pending resource parks the entry; a built one is read; a failed one
   is a fault.
-- A derived reads another derived.
+- A keyed resource reads another keyed resource.
+- A compute is a resource span with the label; a read with no change
+  makes none.
+- A deferred end runs before the next build, at the last reader's
+  leave, and at the scope's close.
+- An operation reads a keyed resource.
+- A reaction writes a cell; one that writes its own source stops at
+  the round limit.
 
 ### Faults
 

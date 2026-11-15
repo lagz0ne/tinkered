@@ -1,11 +1,5 @@
 /** Tinker's own rules: `check` finds them in the app's files. */
-export const own = [
-  "tinker/plain",
-  "tinker/one-wire",
-  "tinker/react-state",
-  "tinker/keyed-prop",
-  "tinker/gap",
-] as const;
+export const own = ["tinker/plain", "tinker/one-wire", "tinker/react-state", "tinker/gap"] as const;
 
 /** A lint rule that is a gate, by its lint code: its Tinker rule id. It belongs to `types`. */
 export const gates: Readonly<Record<string, string>> = {

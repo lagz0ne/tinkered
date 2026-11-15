@@ -5,7 +5,6 @@ import {
   capsule,
   createScope,
   data,
-  derived,
   operation,
   resource,
   tag,
@@ -351,11 +350,12 @@ test("a cell that holds a promise arrives as that promise; only a resource or a 
   await scope.close();
 });
 
-test("a derived that reads a cell slot through .required gets the cell's value", async () => {
+test("a keyed resource that reads a cell slot through .required gets the cell's value", async () => {
   const count = data({ label: "slot.derived.count", initial: 3 });
   const held = tag<Data.Cell<number>>({ label: "slot.derived.cell" });
-  const doubled = derived({
+  const doubled = resource({
     label: "slot.derived.doubled",
+    config: {},
     depends: { n: held.required },
     factory: ({ n }) => n * 2,
   });

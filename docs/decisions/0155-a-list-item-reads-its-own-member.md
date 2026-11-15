@@ -1,7 +1,14 @@
 # 0155 A list item reads its own member
 
-Date: 2026-11-15. Status: accepted (Duke, 11:01,
-picked "B. Skill + analyze rule").
+Date: 2026-11-15. Status: withdrawn in 0.27.0
+(Duke, 16:37, picked "A. Pass the member, drop
+the rule"). It was accepted at 11:01.
+
+Why it went: a test with 3 cards showed the same
+draws for a `memo` item with the member as for
+an item that reads `of(key)`. On a window,
+`of` per item costs one more load per item.
+The rule `tinker/keyed-prop` is removed.
 Keeps: ADR 0145 (one analyze command), ADR 0136
 (keyed data, `of` and `where`).
 
