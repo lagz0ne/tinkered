@@ -12,8 +12,8 @@ afterAll(() => {
   for (const folder of folders) rmSync(folder, { recursive: true, force: true });
 });
 
-/** Check a fresh app folder that holds only these files; answer each page-rule finding as text. */
-function checkFiles(files: Record<string, string>) {
+/** A fresh app folder that holds only these files. */
+function appOf(files: Record<string, string>) {
   const folder = mkdtempSync(join(tmpdir(), "analyze-page-"));
   folders.push(folder);
   for (const [path, text] of Object.entries(files)) {
@@ -21,7 +21,12 @@ function checkFiles(files: Record<string, string>) {
     writeFileSync(join(folder, path), text);
   }
 
-  return check(folder)
+  return folder;
+}
+
+/** Check a fresh app folder that holds only these files; answer each page-rule finding as text. */
+function checkFiles(files: Record<string, string>) {
+  return check(appOf(files))
     .findings.filter(({ rule }) => rule !== "tinker/plain")
     .map(({ path, line, rule, what }) => [path, line, rule, what.split(":")[0]].join(" "));
 }
@@ -182,5 +187,76 @@ test("the app's config names the page's files and skips a glob with a reason", (
   expect(hits).toEqual([
     "src/frontend/a.ts 1 tinker/one-wire `fetch`",
     "web/d.ts 1 tinker/one-wire `fetch`",
+  ]);
+});
+
+test("a keyed part's list or one of its members, passed as a prop, breaks tinker/keyed-prop", () => {
+  const hits = checkFiles({
+    "src/board.tsx": [
+      `export function Board({ teamId }: { teamId: string }) {`,
+      `  const part = board.issues.where({ teamId });`,
+      `  const list = useData(part);`,
+      `  const done = useData(board.issues.where({ teamId, state: "done" }) as never);`,
+      `  return (`,
+      `    <main>`,
+      `      {list.map((issue) => <Card key={issue.id} issue={issue} />)}`,
+      `      {[...list].sort(byNumber).map((issue) => <Card {...issue} />)}`,
+      `      {(list ?? []).filter(open).toSorted(byNumber).map((one) => <Card one={one!} />)}`,
+      `      {done.flatMap(function (issue) { return [<Card issue={(issue)} />]; })}`,
+      `      <Lanes list={list} />`,
+      `    </main>`,
+      `  );`,
+      `}`,
+    ].join("\n"),
+  });
+
+  expect(hits).toEqual([
+    "src/board.tsx 7 tinker/keyed-prop `issue`",
+    "src/board.tsx 8 tinker/keyed-prop `issue`",
+    "src/board.tsx 9 tinker/keyed-prop `one`",
+    "src/board.tsx 10 tinker/keyed-prop `issue`",
+    "src/board.tsx 11 tinker/keyed-prop `list`",
+  ]);
+});
+
+test("the key, a field, a child read by key, and a plain list all pass tinker/keyed-prop", () => {
+  const hits = checkFiles({
+    "src/board.tsx": [
+      `export function Board({ teamId }: { teamId: string }) {`,
+      `  const list = useData(board.issues.where({ teamId }));`,
+      `  const states = ["todo", "done"];`,
+      `  const one = useData(board.issues.of({ teamId, id: "x" }));`,
+      `  const rows = list.map((issue) => issue.id);`,
+      `  return (`,
+      `    <main>`,
+      `      {list.map((issue) => <Card key={issue.id} teamId={teamId} id={issue.id} />)}`,
+      `      {list.map((issue) => <p title={issue.title}>{issue.title}</p>)}`,
+      `      {states.map((state) => <Lane state={state} />)}`,
+      `      {list.sort().map((issue) => <Card id={issue.id} />)}`,
+      `      {other(list).map((issue) => <Card issue={issue} />)}`,
+      `      {list.map(pick)}`,
+      `      {list.map(({ id }) => <Card id={id} />)}`,
+      `      <Card issue={one} rows={rows} />`,
+      `    </main>`,
+      `  );`,
+      `}`,
+    ].join("\n"),
+  });
+
+  expect(hits).toEqual([]);
+});
+
+test("the keyed-prop finding names a list apart from a member", () => {
+  const app = appOf({
+    "src/a.tsx": [
+      `const list = useData(board.issues.where({}));`,
+      `export const A = () => <B list={list}>{list.map((i) => <C i={i} />)}</B>;`,
+    ].join("\n"),
+  });
+  const found = check(app).findings.map(({ what }) => what);
+
+  expect(found).toEqual([
+    "`list`: a keyed part's list, passed as a prop",
+    "`i`: a member of a keyed part, passed as a prop",
   ]);
 });

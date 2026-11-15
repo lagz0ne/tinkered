@@ -118,6 +118,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **analyze/keyed-prop** — done 2026-11-15 (ADR 0155; Duke 11:01 "B. Skill + analyze rule"). `tinker/keyed-prop`: a keyed part's list, or one member of it, passed as a JSX prop is a finding; the React skill says a list item reads its own member by key. Released as 0.25.1.
+  Proof: 3 new tests; analyze 89 tests; CUJ eval rung A: template 0 findings, each of the 6 writer runs 1; Hedl 1 (tasks/views.tsx:248), tinker-app 0.
+
 - **core/write-path** — done 2026-11-14 (Duke: "use fable to review performance ... improve that 10% slower"; Duke 04:41 kept the try, Vue and Preact style). A throwing watcher is caught at the watcher loop, not around each write; the WriteInDerived raise left the write. Released as 0.23.1.
   Proof: box, 4M writes, 32 merged profiles per side: 0.21.1 75 ns, 0.22 81 ns, now 80 ns; a build with no try 77 ns, so the try costs about 5 ns wherever it sits; `var` flags (no hole checks) made `write` slower, dropped; `write` faster than before (0.994); 3 new tests; Core 1,399; mutation 86.08 (kills only 85.33) on 788ed7d6.
 - **core/slot-delivery** — done 2026-11-13 (ADR 0151, points 1-4; Duke 11:45: a list or record in one tag value stays as bound). A unit that depends on a slot tag gets what it would get from the unit in that slot: a resource built (async parks), a cell's value, an operation as a subflow; `.all` and `.optional` deliver each unit; `.controller` on a cell or op slot. `scope.resolve` and a start hook's config read the handle as bound. Released as 0.22.0.

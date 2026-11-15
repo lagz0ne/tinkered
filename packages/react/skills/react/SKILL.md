@@ -5,8 +5,8 @@ description: >
   component in a Tinker app: read a cell, run
   an operation from a button, show a pending or
   failed call, or mount the app. Also when a
-  check prints tinker/react-state or
-  tinker/one-wire.
+  check prints tinker/react-state,
+  tinker/one-wire or tinker/keyed-prop.
 metadata:
   purpose: >
     How React reads cells and runs operations
@@ -15,7 +15,7 @@ metadata:
   type: framework
   framework: react
   library: '@tinkered/react'
-  library_version: '0.25.0'
+  library_version: '0.25.1'
 requires:
   - '@tinkered/core#core'
 sources:
@@ -110,6 +110,23 @@ const one = useData(
 );
 ```
 
+A list item reads its own member by key. The
+list passes the key, never the member:
+
+```tsx no-check
+{list.map((wave) => (
+  <Wave key={wave.id} room={room} id={wave.id} />
+))}
+
+function Wave({ room, id }: WaveProps) {
+  const wave = useData(sea.board.waves.of({ room, id }));
+  // ...
+}
+```
+
+A write to one member then draws that item
+alone.
+
 ### A computed value with a stable reference
 
 Use a Core `derived`, not `useMemo`. Pass its
@@ -187,6 +204,19 @@ Right: a `resource` holds the timer and its
 cleanup. An operation or a capsule `start` hook
 depends on it.
 
+### HIGH: a member passed as a prop [tinker/keyed-prop]
+
+Wrong:
+
+```tsx no-check
+{list.map((wave) => <Wave wave={wave} />)}
+<Lanes list={list} />
+```
+
+Right: pass the key. The child reads
+`useData(part.of(key))`, or `part.where(key)`
+for a list.
+
 ### HIGH: `fetch` in a component [tinker/one-wire]
 
 The page talks to the server by rpc and remote
@@ -206,6 +236,7 @@ third argument.
 ## Completion
 
 - The app's frontend check prints no
-  `tinker/react-state` and no `tinker/one-wire`.
+  `tinker/react-state`, `tinker/one-wire` or
+  `tinker/keyed-prop`.
 - A browser test clicks the control and reads
   the new text.

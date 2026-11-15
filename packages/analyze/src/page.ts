@@ -124,6 +124,141 @@ function readDestructure(bound: Bound, node: ts.Node) {
   }
 }
 
+const keyed = (node: ts.Node, name: string, list: boolean): Hit => ({
+  node,
+  rule: "tinker/keyed-prop",
+  what: `\`${name}\`: ${list ? "a keyed part's list" : "a member of a keyed part"}, passed as a prop`,
+});
+
+/** The calls on a list that hand each member to a function: `list.map((issue) => ...)`. */
+const visits = new Set(["map", "flatMap", "forEach", "filter", "find", "some", "every"]);
+
+/** The calls on a list that give a list of the same members: `list.filter(...).toSorted()`. */
+const keeps = new Set(["filter", "toSorted", "sort", "slice", "toReversed", "reverse", "concat"]);
+
+/** Strip `(x)`, `x as T`, `x!` and `x satisfies T` off an expression. */
+function bare(node: ts.Expression): ts.Expression {
+  if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node)) return bare(node.expression);
+  if (ts.isNonNullExpression(node) || ts.isSatisfiesExpression(node)) return bare(node.expression);
+  return node;
+}
+
+/** The parameter of this name on a function, or the `const` of this name in a block. */
+function declaredIn(scope: ts.Node, name: string): ts.Node | undefined {
+  const named = (node: ts.ParameterDeclaration | ts.VariableDeclaration) =>
+    ts.isIdentifier(node.name) && node.name.text === name;
+  if (ts.isFunctionLike(scope)) return scope.parameters.find(named);
+  if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) return;
+
+  return scope.statements
+    .filter(ts.isVariableStatement)
+    .flatMap((statement) => statement.declarationList.declarations)
+    .find(named);
+}
+
+/**
+ * Where a name is declared, seen from where it is used: the nearest function parameter or
+ * `const` of that name, scope by scope outward. Two callbacks that both say `issue` are apart.
+ */
+function declarationOf(name: ts.Identifier): ts.Node | undefined {
+  for (let scope: ts.Node | undefined = name.parent; scope; scope = scope.parent) {
+    const found = declaredIn(scope, name.text);
+    if (found) return found;
+  }
+}
+
+/** The method a call runs, when it is `x.method(...)`: `{ name, on: x }`. */
+function methodCall(node: ts.Node) {
+  if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression)) return;
+
+  return { name: node.expression.name.text, on: node.expression.expression, call: node };
+}
+
+/** `[...list]`: the list it spreads. */
+function spreadOf(node: ts.Expression) {
+  if (!ts.isArrayLiteralExpression(node) || node.elements.length !== 1) return;
+  const [only] = node.elements;
+
+  return only && ts.isSpreadElement(only) ? only.expression : undefined;
+}
+
+/** The name a list comes from: `list`, `list.filter(...)`, `[...list].sort()`, `list ?? []`. */
+function listRoot(node: ts.Expression): ts.Identifier | undefined {
+  const at = bare(node);
+  if (ts.isIdentifier(at)) return at;
+  if (ts.isBinaryExpression(at)) return listRoot(at.left);
+  const spread = spreadOf(at);
+  if (spread) return listRoot(spread);
+  const method = methodCall(at);
+
+  return method && keeps.has(method.name) ? listRoot(method.on) : undefined;
+}
+
+/** What the page holds from keyed parts, by declaration: parts, lists, and members. */
+type Held = { parts: Set<ts.Node>; lists: Set<ts.Node>; members: Set<ts.Node> };
+
+/** Whether this name was declared as one of `set`. */
+function isHeld(set: Set<ts.Node>, name: ts.Identifier) {
+  const declared = declarationOf(name);
+  return !!declared && set.has(declared);
+}
+
+/** `x.where(...)`, or a name declared as one: a keyed part. */
+function isWhere(node: ts.Expression, held: Held): boolean {
+  const at = bare(node);
+  if (ts.isIdentifier(at)) return isHeld(held.parts, at);
+
+  return methodCall(at)?.name === "where";
+}
+
+/** `useData(part)` where the part is a `.where(...)`. */
+function isListRead(node: ts.Expression, held: Held) {
+  if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return false;
+  const [read] = node.arguments;
+
+  return node.expression.text === "useData" && !!read && isWhere(read, held);
+}
+
+/** `const part = x.where(...)` and `const list = useData(part)`. */
+function readLists(held: Held, node: ts.Node) {
+  if (!ts.isVariableDeclaration(node) || !node.initializer) return;
+  const value = bare(node.initializer);
+  if (!ts.isIdentifier(value) && isWhere(value, held)) held.parts.add(node);
+  if (isListRead(value, held)) held.lists.add(node);
+}
+
+/** The callback of `list.map(...)` and its kin, when `list` is a keyed part's list. */
+function visitOf(held: Held, node: ts.Node) {
+  const method = methodCall(node);
+  if (!method || !visits.has(method.name)) return;
+  const root = listRoot(method.on);
+  if (!root || !isHeld(held.lists, root)) return;
+  const [visit] = method.call.arguments;
+
+  return visit && (ts.isArrowFunction(visit) || ts.isFunctionExpression(visit)) ? visit : undefined;
+}
+
+/** The parameter a `list.map((issue) => ...)` callback binds to each member. */
+function readMembers(held: Held, node: ts.Node) {
+  const [member] = visitOf(held, node)?.parameters ?? [];
+  if (member && ts.isIdentifier(member.name)) held.members.add(member);
+}
+
+/** `<Card issue={issue} />`, `<Card {...issue} />`, or `<Board list={list} />`. */
+function keyedProp(held: Held, node: ts.Node): Hit | undefined {
+  const hit = (at: ts.Expression) => {
+    if (!ts.isIdentifier(at)) return;
+    if (isHeld(held.lists, at)) return keyed(node, at.text, true);
+    return isHeld(held.members, at) ? keyed(node, at.text, false) : undefined;
+  };
+  if (ts.isJsxSpreadAttribute(node)) return hit(bare(node.expression));
+  if (!ts.isJsxAttribute(node) || !node.initializer) return;
+  if (!ts.isJsxExpression(node.initializer) || !node.initializer.expression) return;
+  if (node.name.getText() === "key") return;
+
+  return hit(bare(node.initializer.expression));
+}
+
 /**
  * The page rules (Duke 2026-11-04). The syntax tree is walked, so text in a comment or a string
  * is not a finding.
@@ -134,6 +269,11 @@ function readDestructure(bound: Bound, node: ts.Node) {
  * `tinker/react-state`: state lives in Core cells, read through `@tinkered/react`. A finding is a
  * call of `useEffect`, `useLayoutEffect`, `useState` or `useReducer`, whatever name an import
  * gave it. The finding is the use, not the import.
+ *
+ * `tinker/keyed-prop`: a child reads its own member of a keyed part (Duke 2026-11-15, CUJ eval).
+ * A finding is a JSX prop that hands down a list read with `useData(x.where(...))`, or one member
+ * of it from a `.map` and its kin. Pass the key: the child reads `useData(x.of(key))`, so a write
+ * to one member draws that child alone.
  */
 export function findPage({ path, text }: Check.Source): Check.Finding[] {
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, kindOf(path));
@@ -141,8 +281,15 @@ export function findPage({ path, text }: Check.Source): Check.Finding[] {
   for (const statement of source.statements) readImport(bound, statement);
 
   const hits: Hit[] = [];
+  const held: Held = { parts: new Set(), lists: new Set(), members: new Set() };
   walk(source, (node) => {
-    const hit = plainCall(bound, node) ?? construction(node) ?? memberCall(bound, node);
+    readLists(held, node);
+    readMembers(held, node);
+    const hit =
+      plainCall(bound, node) ??
+      construction(node) ??
+      memberCall(bound, node) ??
+      keyedProp(held, node);
     if (hit) hits.push(hit);
     readDestructure(bound, node);
   });

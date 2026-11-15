@@ -17,6 +17,10 @@ export const rules: Readonly<Record<Check.Rule, { fix: string; skill: string }>>
     fix: "keep each marker above its finding, on an open row, within the row's count",
     skill: "@tinkered/core#core",
   },
+  "tinker/keyed-prop": {
+    fix: "pass the member's key; the child reads it with useData(part.of(key))",
+    skill: "@tinkered/react#react",
+  },
   "tinker/react-state": {
     fix: "hold the state in a Core cell and read it with @tinkered/react",
     skill: "@tinkered/react#react",
