@@ -6,6 +6,19 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.25.1
+
+A list item reads its own member (ADR 0155).
+
+- `@tinkered/analyze` has a new page rule,
+  `tinker/keyed-prop`. A keyed part's list, or
+  one member of it, passed as a JSX prop is a
+  finding. Pass the key; the child reads
+  `useData(part.of(key))`.
+- The React skill states the rule.
+- An app may see a new finding after the
+  upgrade. Hedl has one.
+
 ## 0.25.0
 
 Each backend owns its wire (ADR 0140 steps 2

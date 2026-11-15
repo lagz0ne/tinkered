@@ -13,7 +13,7 @@ metadata:
     on the client with remote data.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.25.0'
+  library_version: '0.25.1'
 requires:
   - core
   - capsule
