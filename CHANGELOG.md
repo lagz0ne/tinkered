@@ -6,6 +6,31 @@ Each section is one release of
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.25.0
+
+Each backend owns its wire (ADR 0140 steps 2
+and 3, ADR 0154). No change for an app that uses
+`ws` or `memory`.
+
+- Core keeps the meaning, in values: the faults,
+  the route table, `meta`, one `renew`.
+- The codec and the text envelope moved into
+  each backend: `ws` and `memory`.
+- `memory` still sends each value through the
+  codec, so a test sees what the wire does.
+- `watch` is required. A `remote` with no
+  `watch` fails the start (`remote.watch`).
+- The execution id is the call's own field,
+  `execution`, not `meta.execution`. A hook's
+  `meta` no longer has it.
+- On the socket it still rides as `m.execution`.
+  An open page and a new server agree.
+- For a backend author: `transport` lost
+  `sendInput`, `openInput`, `TextServe`,
+  `TextStream`. A client's `send` and `open` take
+  the call as a value and give a `Reply`.
+- Core with rpc: 35,071 to 34,696 B gzip.
+
 ## 0.24.0
 
 A client board can ask again on a clock, per keyed
