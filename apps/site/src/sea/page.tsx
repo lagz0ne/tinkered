@@ -50,7 +50,8 @@ function Room({ room }: { room: string }) {
       className="room"
       onSubmit={(event) => {
         event.preventDefault();
-        const field = event.currentTarget.elements.namedItem("room") as HTMLInputElement;
+        const field = event.currentTarget.elements.namedItem("room");
+        if (!(field instanceof HTMLInputElement)) return;
         const next = field.value
           .trim()
           .toLowerCase()

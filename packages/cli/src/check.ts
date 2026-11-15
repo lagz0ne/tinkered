@@ -5,15 +5,11 @@ import { raise } from "./errors";
 import { applyGaps } from "./gaps";
 import { findPage } from "./page";
 import { findPlain } from "./plain";
+import type { own } from "./rules";
 
 export declare namespace Check {
   /** A rule id, as the skills name it (ADR 0143 decision 4). */
-  type Rule =
-    | "tinker/plain"
-    | "tinker/one-wire"
-    | "tinker/react-state"
-    | "tinker/keyed-prop"
-    | "tinker/gap";
+  type Rule = (typeof own)[number];
   /** One file of the app: its path from the app root, with `/`, and its text. */
   type Source = { path: string; text: string };
   /** One broken rule at one line. `what` names the thing found there. */

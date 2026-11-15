@@ -14,7 +14,7 @@ afterAll(() => {
 
 /** Check a fresh app folder that holds only these files; answer `path:line` per plain function. */
 function plainIn(files: Record<string, string | string[]>) {
-  const folder = mkdtempSync(join(tmpdir(), "analyze-shapes-"));
+  const folder = mkdtempSync(join(tmpdir(), "tinker-shapes-"));
   folders.push(folder);
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(folder, path)), { recursive: true });

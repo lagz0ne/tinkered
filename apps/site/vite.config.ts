@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 
+import { gates } from "@tinkered/cli/config";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
@@ -123,6 +124,14 @@ export default defineConfig({
     // Type errors come from `bun run typecheck` (tsc), so the linter does not type check.
     options: { typeAware: true, typeCheck: false },
     overrides: [
+      // Tinker's gates (ADR 0156), on the code that writers copy.
+      { files: ["src/**"], rules: gates },
+      // Not yet: the bench drives other libraries through their own types, and the starter
+      // still casts its inputs (TODO.md cli/apps, site starter).
+      {
+        files: ["src/bench/**", "src/play/starter/**"],
+        rules: Object.fromEntries(Object.keys(gates).map((name) => [name, "off"])),
+      },
       // The one-door rule is for features; a test reads a feature's files (tests/play.test.ts).
       { files: ["tests/**"], rules: { "no-restricted-imports": "off" } },
       // Plain Node scripts have no tsconfig, so `@/` cannot reach them.

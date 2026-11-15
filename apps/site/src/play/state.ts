@@ -35,9 +35,12 @@ export const starter: readonly PlayFile[] = [
 /** What the bottom line says: compiling, running, ready, or the error. `ms` is the last compile. */
 export type Status = { kind: "ok" | "error" | "info"; text: string; ms?: number };
 
+/** A tab as it is kept. */
+const playFile = z.object({ name: z.string(), content: z.string() });
+
 /** A session as it is kept. `dirty` marks a changed project; a clean one yields to a new starter. */
 export const saved = z.object({
-  files: z.array(z.object({ name: z.string(), content: z.string() })).min(1),
+  files: z.tuple([playFile], playFile),
   active: z.string(),
   dirty: z.boolean(),
   theme: z.enum(["github-light", "github-dark", "one-dark"]).catch("github-light"),

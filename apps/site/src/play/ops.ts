@@ -126,9 +126,9 @@ export const closeFile = operation({
     files.update((list) => list.filter((f) => f.name !== input));
 
     const n = nav.get();
-    const shown = n.place.file === input;
+    const next = n.place.file === input ? left[Math.min(at, left.length - 1)] : undefined;
     nav.set({
-      place: shown ? { file: left[Math.min(at, left.length - 1)]!, offset: 0 } : n.place,
+      place: next ? { file: next, offset: 0 } : n.place,
       back: n.back.filter((p) => p.file !== input),
       forward: n.forward.filter((p) => p.file !== input),
     });

@@ -39,11 +39,13 @@ export const readPage = operation({
   depends: { book },
   run: ({ book }, { input }) => {
     const at = book.findIndex((page) => page.slug === input.slug);
-    if (at < 0) return { kind: "gone" as const };
-    const [prev, next] = [book[at - 1], book[at + 1]].map((page) =>
-      page ? { slug: page.slug, title: page.title, summary: page.summary } : null,
+
+    const page = book[at];
+    if (!page) return { kind: "gone" as const };
+    const [prev, next] = [book[at - 1], book[at + 1]].map((near) =>
+      near ? { slug: near.slug, title: near.title, summary: near.summary } : null,
     );
-    const { slug, title, html } = book[at]!;
+    const { slug, title, html } = page;
     return { kind: "found" as const, slug, title, html, prev: prev ?? null, next: next ?? null };
   },
 });

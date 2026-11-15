@@ -27,7 +27,7 @@ afterAll(() => {
 
 /** Check a fresh app folder that holds only these files and that config. */
 function checkFiles(files: Record<string, string>) {
-  const folder = mkdtempSync(join(tmpdir(), "analyze-plain-"));
+  const folder = mkdtempSync(join(tmpdir(), "tinker-plain-"));
   folders.push(folder);
   const all = { "tinker.json": JSON.stringify(config), ...files };
   for (const [path, text] of Object.entries(all)) {

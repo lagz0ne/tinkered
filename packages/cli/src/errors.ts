@@ -1,4 +1,4 @@
-/** The registry: the analyzer makes no error of its own outside it. */
+/** The registry: the command makes no error of its own outside it. */
 type Payloads = {
   /** The app's `tinker.json` does not have the shape `Check.Config` names. */
   BadConfig: { path: string; reason: string };
@@ -17,7 +17,7 @@ export declare namespace Errors {
   };
 }
 
-/** The only place the analyzer throws a registry error. */
+/** The only place the command throws a registry error. */
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
   throw Object.assign(new Error(kind), { kind, payload });
 }

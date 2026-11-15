@@ -104,7 +104,8 @@ test("each finding prints its rule id, then the Right part of its skill section"
       "  more: tinker skill load @tinkered/kit#kit",
       "",
       "src/b.tsx:4 tinker/react-state `useState`: React's own state or effect",
-      "  fix: as above",
+      "  Right: a `data` cell.",
+      "  more: tinker skill load @tinkered/kit#kit",
       "",
       "src/b.tsx:5 tinker/one-wire `fetch`: a page's own network call",
       "  fix: as above",
@@ -126,12 +127,13 @@ test("the fix is read from the skill on each run: a changed Right line prints", 
   expect(main(["check", folder], "/").out).toContain("\n  Right: the rpc client.\n");
 });
 
-test("a rule with no section prints the finding alone", () => {
+test("a rule with no section says so, and points at the skill list", () => {
   const folder = appOf({ "src/a.ts": `export function shout() {}\n` });
   skillPackage(folder, skill("Right: one wire."));
 
-  expect(main(["check", folder], "/").out.split("\n").slice(0, 2)).toEqual([
+  expect(main(["check", folder], "/").out.split("\n").slice(0, 3)).toEqual([
     "src/a.ts:1 tinker/plain a plain function",
+    "  No skill you have teaches this rule: run `tinker skill list`.",
     "",
   ]);
 });
@@ -212,7 +214,7 @@ test("clean rules with a tool skipped are no OK: the answer is not done, exit 2"
     out: [
       "ran: rules (1 files)",
       "skipped: tsc (no tsconfig.json), lint (no vite.config)",
-      "tinker check: not done. A stage did not run, so this is no OK.",
+      "tinker check: not done. A check did not run, so this is no OK.",
       "Next: add the config the skipped line names, then run `tinker check` again.",
       "",
     ].join("\n"),
@@ -232,6 +234,7 @@ test("a root that is not there exits 2, before any check", () => {
 
 test("an unknown command or a spare argument prints the usage and exits 2", () => {
   const folder = appOf({});
+  const { err: usage } = main([], folder);
 
   expect(main([], folder)).toMatchObject({ code: 2, out: "" });
   expect(main(["lint"], folder).err).toContain("tinker check [root] [--json]");
@@ -241,6 +244,7 @@ test("an unknown command or a spare argument prints the usage and exits 2", () =
   expect(main(["skill", "load"], folder).code).toBe(2);
   expect(main(["skill", "load", "a#b", "more"], folder).code).toBe(2);
   expect(main(["skill", "list", "--json"], folder).code).toBe(2);
+  expect(main(["check", "--help"], folder)).toMatchObject({ code: 2, err: usage });
 });
 
 test.each([

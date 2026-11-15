@@ -14,7 +14,7 @@ afterAll(() => {
 
 /** A fresh app folder that holds only these files. */
 function appOf(files: Record<string, string>) {
-  const folder = mkdtempSync(join(tmpdir(), "analyze-page-"));
+  const folder = mkdtempSync(join(tmpdir(), "tinker-page-"));
   folders.push(folder);
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(folder, path)), { recursive: true });

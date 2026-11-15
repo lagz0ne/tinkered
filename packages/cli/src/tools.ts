@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import ts from "typescript-api";
 
 import { raise } from "./errors";
+import { gates, taught } from "./rules";
 
 export declare namespace Tools {
   /** A stage of `tinker check`: `types` runs first, and `rules` only once it is clean. */
@@ -24,19 +25,6 @@ type Span = { offset: number; length: number; line: number };
 /** One lint error, as `vp lint --format json` prints it. A file-wide one has no span. */
 type Diagnostic = { code: string; message: string; help?: string; filename: string; span?: Span };
 
-/** A lint rule that is a gate: its Tinker rule id. A gate's error belongs to `types`. */
-const gates: Readonly<Record<string, string>> = {
-  "typescript(switch-exhaustiveness-check)": "tinker/kind",
-  "typescript(consistent-type-assertions)": "tinker/cast",
-  "typescript(no-non-null-assertion)": "tinker/cast",
-  "typescript(no-explicit-any)": "tinker/cast",
-};
-
-/** A lint rule a skill teaches under a Tinker rule id; it stays in `rules`. */
-const taught: Readonly<Record<string, string>> = {
-  "typescript(no-floating-promises)": "tinker/floating",
-};
-
 const tscLine = /^(?:(.+)\((\d+),\d+\): )?error (TS\d+): (.*)$/;
 
 const viteConfig = "vite.config.{ts,mts,js,mjs}";
@@ -54,11 +42,15 @@ function binOf(root: string, name: string): string | undefined {
   }
 }
 
-/** Run a tool in the app's folder. A tool that cannot start says why in its output. */
+/**
+ * Run a tool in the app's folder. `stdout` is the tool's answer; `output` is all it said, and
+ * why it could not start, for a failure.
+ */
 function run(root: string, bin: string, args: readonly string[]) {
   const done = spawnSync(bin, args, { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 });
   const error = done.error ? `${done.error.message}\n` : "";
-  return { status: done.status, output: `${error}${done.stdout ?? ""}${done.stderr ?? ""}` };
+  const stdout = done.stdout ?? "";
+  return { status: done.status, stdout, output: `${error}${stdout}${done.stderr ?? ""}` };
 }
 
 function needed(root: string, name: string, why: string) {
@@ -129,8 +121,8 @@ function parsed(text: string): unknown {
  * The lint report's errors. Text that is not the report, or a failed lint with no error in
  * it, means the lint did not run.
  */
-function lintReport({ status, output }: { status: number | null; output: string }) {
-  const report = parsed(output.slice(Math.max(0, output.indexOf("{"))));
+function lintReport({ status, stdout, output }: ReturnType<typeof run>) {
+  const report = parsed(stdout.slice(Math.max(0, stdout.search(/\{\s*"diagnostics"/))));
   const errors =
     isRecord(report) && Array.isArray(report.diagnostics)
       ? report.diagnostics.flatMap(diagnosticOf)
@@ -157,9 +149,31 @@ function gateWhat(root: string, rule: string, diagnostic: Diagnostic) {
     : diagnostic.message;
 }
 
+const isOn = (level: unknown): boolean =>
+  level === "deny" || level === "error" || (Array.isArray(level) && isOn(level[0]));
+
+/**
+ * The gates the app's lint config does not run: a gate rule that is at error nowhere, in its
+ * rules or in an override, and `typeAware`, which the kind gate needs.
+ */
+function offGates(root: string, bin: string) {
+  const { stdout, output } = run(root, bin, ["lint", "--print-config"]);
+  const config = parsed(stdout.slice(Math.max(0, stdout.search(/^\{\s*$/m))));
+  if (!isRecord(config)) return raise("ToolFailed", { tool: "vp lint --print-config", output });
+
+  const overrides = Array.isArray(config.overrides) ? config.overrides : [];
+  const sets: unknown[] = [config.rules, ...overrides.map((item) => isRecord(item) && item.rules)];
+  const off = Object.keys(gates)
+    .map((code) => code.replace(/^(.+)\((.+)\)$/, "$1/$2"))
+    .filter((name) => !sets.some((set) => isRecord(set) && isOn(set[name])));
+  const aware = isRecord(config.options) && config.options.typeAware === true;
+  return aware ? off : ["options.typeAware", ...off];
+}
+
 /** `vp lint`: a gate's error goes to `types`, every other error to `rules`. */
 function lint(root: string) {
   const bin = needed(root, "vp", "the app has a vite.config; add vite-plus");
+  const off = offGates(root, bin);
   const types: Tools.Found[] = [];
   const rules: Tools.Found[] = [];
 
@@ -175,7 +189,7 @@ function lint(root: string) {
     const rule = taught[code] ?? code.replace(/^(.+)\((.+)\)$/, "$1/$2");
     rules.push({ path, line, rule, what: message, ...(help ? { help } : {}) });
   }
-  return { types, rules };
+  return { types, rules, off };
 }
 
 /** The `switch` that starts on 1-based `line`, as the parser reads it. */
@@ -214,7 +228,8 @@ function headOf(root: string, { path, line }: Tools.Found) {
 
 /**
  * A kind with no case fails twice: lint names the kind at the `switch`, and `tsc` gives
- * TS7030 at the head of the function around it. Keep the one that names the kind.
+ * TS7030 (or TS2366, with a return type) at the head of the function around it. Keep the one
+ * that names the kind.
  */
 function once(root: string, found: readonly Tools.Found[]) {
   const heads = found
@@ -224,7 +239,7 @@ function once(root: string, found: readonly Tools.Found[]) {
       return head ? [head] : [];
     });
   const isHead = ({ path, line, rule }: Tools.Found) =>
-    rule === "TS7030" &&
+    (rule === "TS7030" || rule === "TS2366") &&
     heads.some((head) => head.path === path && head.from <= line && line <= head.to);
 
   const seen = new Set<string>();
@@ -259,6 +274,9 @@ export function runTools(root: string): Tools.Report {
     types.push(...found.types);
     rules.push(...found.rules);
     ran.push("lint");
+    if (found.off.length) {
+      skipped.push(`gates not at error in the lint config (${found.off.join(", ")})`);
+    }
   } else skipped.push("lint (no vite.config)");
 
   return { types: once(root, types), rules, ran, skipped };

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -295,6 +295,104 @@ test(
     const result = main(["check", folder], "/");
 
     expect(result.code).toBe(2);
-    expect(result.err).toMatch(/^tinker check: vp lint failed and named no file:\n/);
+    expect(result.err).toMatch(/^tinker check: vp lint --print-config failed and named no file:\n/);
+  },
+);
+
+test("a lint config with no gates, or with no typeAware, is no OK", { timeout: 60_000 }, () => {
+  const bare = appOf({
+    "src/read.ts": [`export const text = JSON.parse("1") as string;`],
+  });
+  writeFileSync(
+    join(bare, "vite.config.ts"),
+    `export default { lint: { ignorePatterns: ["node_modules/**"] } };\n`,
+  );
+  const blind = appOf({ "src/a.ts": [`export const one = 1;`] });
+  writeFileSync(
+    join(blind, "vite.config.ts"),
+    configs["vite.config.ts"].replace("    options: { typeAware: true },\n", ""),
+  );
+
+  const off = main(["check", bare], "/");
+  expect(off.code).toBe(2);
+  expect(off.out).toContain(
+    "skipped: gates not at error in the lint config (options.typeAware, typescript/switch-exhaustiveness-check, typescript/consistent-type-assertions, typescript/no-non-null-assertion, typescript/no-explicit-any)\n",
+  );
+  expect(main(["check", blind], "/").out).toContain("(options.typeAware)\n");
+});
+
+test("a kind with no case under a return type prints once", { timeout: 60_000 }, () => {
+  const folder = appOf({
+    "src/view.ts": [
+      ...answer,
+      `export const view = (out: Answer): string => {`,
+      `  switch (out.kind) {`,
+      `    case "moved":`,
+      `    case "stale":`,
+      `      return out.kind;`,
+      `  }`,
+      `};`,
+    ],
+  });
+
+  expect(heads(main(["check", folder], "/").out)).toEqual(["src/view.ts:4 tinker/kind"]);
+});
+
+test("a line the lint config prints does not hide the report", { timeout: 60_000 }, () => {
+  const folder = appOf({ "src/a.ts": [`export const one = 1;`] });
+  writeFileSync(
+    join(folder, "vite.config.ts"),
+    `console.log("{ plugin note");\nconsole.error("plugin note");\n${configs["vite.config.ts"]}`,
+  );
+
+  expect(main(["check", folder], "/").out).toBe(
+    "ran: tsc, lint, rules (1 files)\ntinker check: OK\n",
+  );
+});
+
+test("a tool that cannot start stops the run with exit 2 and the reason", () => {
+  const folder = appOf({ "src/a.ts": [`export const one = 1;`] }, false);
+  mkdirSync(join(folder, "node_modules/.bin"), { recursive: true });
+  writeFileSync(join(folder, "node_modules/.bin/tsc"), "not a program\n");
+  chmodSync(join(folder, "node_modules/.bin/tsc"), 0o644);
+
+  const result = main(["check", folder], "/");
+
+  expect(result.code).toBe(2);
+  expect(result.err).toMatch(/^tinker check: tsc failed and named no file:\n.*EACCES/);
+});
+
+test(
+  "a Tinker lint rule no skill teaches prints its own message, with no skill notice",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({
+      "vite.config.ts": [
+        `import { defineConfig } from "vite-plus";`,
+        ``,
+        `import { gates } from "${at("src/config.ts")}";`,
+        ``,
+        `export default defineConfig({`,
+        `  lint: {`,
+        `    ignorePatterns: ["node_modules/**"],`,
+        `    jsPlugins: [{ name: "tinker", specifier: "${at("lint/index.mjs")}" }],`,
+        `    options: { typeAware: true },`,
+        `    rules: { "tinker/body-steps": "error" },`,
+        `    overrides: [{ files: ["src/**"], rules: gates }],`,
+        `  },`,
+        `});`,
+      ],
+      "src/view.ts": [
+        `export let n = 0;`,
+        `if (n === 0) {`,
+        ...Array<string>(6).fill("  n++;"),
+        `}`,
+      ],
+    });
+
+    expect(main(["check", folder], "/").out.split("\n").slice(0, 2)).toEqual([
+      "src/view.ts:2 tinker/body-steps Split this block into steps with a blank line between them.",
+      "",
+    ]);
   },
 );

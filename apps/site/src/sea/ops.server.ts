@@ -20,7 +20,8 @@ const pressWave = operation({
     for (const w of list.get()) if (at - w.at > keep) list.delete({ room: w.room, id: w.id });
 
     const here = list.where({ room: input.room }).get();
-    if (here.length >= most) list.delete({ room: input.room, id: here[0]!.id });
+    const [oldest] = here;
+    if (oldest && here.length >= most) list.delete({ room: input.room, id: oldest.id });
 
     list.set({ ...input, power: input.power ?? 1, at });
     return { hue: input.hue };

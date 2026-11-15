@@ -26,6 +26,7 @@ const sent = data<string[]>({ label: "tide.sent", initial: [] });
  * cannot name a part whose key comes at run time (Core gap, docs/roadmap/core-feedback.md), so
  * `arrive` takes the cell's controller and joins `where({ room })` itself, as `useData` does.
  */
+// oxlint-disable-next-line typescript/consistent-type-assertions -- `cell` is not typed (Core gap)
 const copy = seaBoard.waves.where({}).cell as Data.Keyed<SeaWave, { room: string; id: string }>;
 
 /** The ids of the room's waves this tab has dealt with: each lands once, or not at all. */

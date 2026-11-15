@@ -6,6 +6,7 @@ import { IntentCoreError } from "@tanstack/intent/core";
 import { check } from "./check";
 import type { Check } from "./check";
 import { isError } from "./errors";
+import { rules } from "./rules";
 import { fixOf, listSkills, loadSkill, sectionsOf } from "./skills";
 import type { Skills } from "./skills";
 import { runTools } from "./tools";
@@ -57,6 +58,9 @@ function gapLine(gaps: readonly Check.Gap[]) {
 function fixed({ help, ...found }: Tools.Found, sections: readonly Skills.Section[]): Main.Finding {
   const fix = fixOf(sections, found.rule, found.what);
   if (fix) return { ...found, fix: fix.right, skill: fix.skill };
+  if (rules.includes(found.rule)) {
+    return { ...found, fix: ["No skill you have teaches this rule: run `tinker skill list`."] };
+  }
   return { ...found, fix: help ? [`help: ${help}`] : [] };
 }
 
@@ -84,8 +88,8 @@ function stages(root: string): Main.Report {
   const tools = runTools(root);
   if (tools.types.length) return failed(root, "types", tools.types, []);
 
-  const rules = [...findings, ...tools.rules];
-  if (rules.length) return failed(root, "rules", rules, gaps);
+  const broken = [...findings, ...tools.rules];
+  if (broken.length) return failed(root, "rules", broken, gaps);
 
   const ran = [...tools.ran, `rules (${files} files)`];
   if (tools.skipped.length) return { kind: "incomplete", ran, skipped: tools.skipped, gaps };
@@ -101,6 +105,9 @@ function block({ path, line, rule, what, fix, skill }: Main.Finding, first: bool
   return [head, ...[...fix, ...more].map((text) => `  ${text}`)];
 }
 
+/** Two findings print one fix once: the second points at the first. */
+const sameFix = (a: readonly string[], b: readonly string[]) => a.join("\n") === b.join("\n");
+
 function text(report: Main.Report) {
   const gaps = gapLine(report.gaps);
   switch (report.kind) {
@@ -110,14 +117,14 @@ function text(report: Main.Report) {
       return [
         `${gaps}ran: ${report.ran.join(", ")}`,
         `skipped: ${report.skipped.join(", ")}`,
-        "tinker check: not done. A stage did not run, so this is no OK.",
+        "tinker check: not done. A check did not run, so this is no OK.",
         "Next: add the config the skipped line names, then run `tinker check` again.",
         "",
       ].join("\n");
     case "failed": {
       const { stage, total, findings } = report;
       const blocks = findings.map((finding, index) =>
-        block(finding, findings.findIndex(({ rule }) => rule === finding.rule) === index),
+        block(finding, findings.findIndex(({ fix }) => sameFix(fix, finding.fix)) === index),
       );
       const count = total > findings.length ? `${total} findings, ${findings.length} shown` : "";
       const after = stage === "types" ? " The rules stage runs once types pass." : "";
@@ -178,6 +185,7 @@ function skillCommand(root: string, args: readonly string[]): Main.Result {
 export function main(argv: readonly string[], cwd: string): Main.Result {
   const json = argv.includes("--json");
   const [command, ...args] = argv.filter((arg) => arg !== "--json");
+  if (args.some((arg) => arg.startsWith("-"))) return { code: 2, out: "", err: usage };
 
   if (command === "skill" && !json) return skillCommand(cwd, args);
   const [root = ".", ...rest] = args;

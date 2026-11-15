@@ -39,7 +39,7 @@ const doc = [
 
 /** Run the command on an app with that doc named in its config, and these files. */
 function run(files: Record<string, string[]>) {
-  const folder = mkdtempSync(join(tmpdir(), "analyze-gaps-"));
+  const folder = mkdtempSync(join(tmpdir(), "tinker-gaps-"));
   folders.push(folder);
   const all: Record<string, string> = {
     "tinker.json": JSON.stringify({ gaps: "docs/gaps.md" }),
@@ -118,7 +118,7 @@ test("a row with more marked lines than its count breaks at the row's head", () 
 });
 
 test("a gaps doc that does not exist stops the run with exit 2", () => {
-  const folder = mkdtempSync(join(tmpdir(), "analyze-gaps-"));
+  const folder = mkdtempSync(join(tmpdir(), "tinker-gaps-"));
   folders.push(folder);
   writeFileSync(join(folder, "tinker.json"), JSON.stringify({ gaps: "docs/none.md" }));
 

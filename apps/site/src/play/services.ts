@@ -43,7 +43,7 @@ export type Compiled = { ok: true; code: string } | { ok: false; message: string
  */
 export const tabs = operation({
   label: "play.tabs",
-  input: (raw) => raw as PlayFile[],
+  input: z.array(z.object({ name: z.string(), content: z.string() })),
   run: (_, { input }): Plugin => {
     const byName = new Map(input.map((f) => [f.name, f.content]));
     return {
@@ -88,7 +88,8 @@ export const compile = operation({
         logLevel: "silent",
         plugins: [tabs.run({ input })],
       });
-      return { ok: true, code: result.outputFiles[0]!.text };
+      const [out] = result.outputFiles;
+      return out ? { ok: true, code: out.text } : { ok: false, message: "esbuild wrote no file" };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { ok: false, message: message.replace(/^.*?ERROR:\s*/s, "") };
@@ -179,7 +180,7 @@ export const persistence = resource({
       const { files: list, active } = kept.data;
       files.set(list);
       nav.set({
-        place: { file: list.some((f) => f.name === active) ? active : list[0]!.name, offset: 0 },
+        place: { file: list.some((f) => f.name === active) ? active : list[0].name, offset: 0 },
         back: [],
         forward: [],
       });
@@ -216,7 +217,7 @@ export const preview = resource({
   depends: { status: status.controller, inbox: inbox.required },
   factory: ({ status, inbox }, { defer }) => {
     const heard = (event: Event) => {
-      const said = signalled.safeParse((event as MessageEvent).data);
+      const said = signalled.safeParse(event instanceof MessageEvent ? event.data : undefined);
       if (!said.success) return;
       if ("text" in said.data) status.set({ kind: "error", text: said.data.text });
       else status.update((s) => ({ kind: "ok", text: "ready", ms: s.ms }));

@@ -1,4 +1,5 @@
 import { operation, resource } from "@tinkered/core";
+import { z } from "zod";
 
 import { entries, library } from "./sources";
 import { files } from "./state";
@@ -72,7 +73,7 @@ export const language = resource({
  */
 export const definition = operation({
   label: "play.definition",
-  input: (raw) => raw as Place,
+  input: z.object({ file: z.string(), offset: z.number() }),
   depends: { language },
   run: async ({ language }, { input }): Promise<Place | null> => {
     const found = language.service
