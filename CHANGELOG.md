@@ -2,9 +2,40 @@
 
 Each section is one release of
 `@tinkered/core`, `@tinkered/react`,
-`@tinkered/bun` and `@tinkered/analyze`.
+`@tinkered/bun` and `@tinkered/cli`.
+Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
+
+## 0.26.0
+
+One command, and its check corrects the writer
+(ADR 0156).
+
+- `@tinkered/analyze` is now `@tinkered/cli`.
+  Its bin is `tinker`.
+- `tinker check` runs two stages: types (the
+  app's `tsc`, the kind gate, the cast gate),
+  then rules (Tinker's rules and the app's other
+  lint). Only the first stage that fails prints.
+- Each finding prints its fix: the `Right:` part
+  of the skill section with its rule id.
+- `tinker check: OK` and exit 0 is the only sign
+  that the work is done. `--json` prints the same.
+- `tinker skill list` and `tinker skill load`
+  replace the two `intent` commands.
+- `@tinkered/cli/config` exports `gates`.
+  `@tinkered/cli/tsconfig.json` is the base
+  config.
+- New rule ids: `tinker/kind` and `tinker/cast`.
+
+To move an app:
+
+- `bun add -d @tinkered/cli`, and remove
+  `@tinkered/analyze`.
+- Rename `tinker-analyze.json` to `tinker.json`.
+- The lint plugin is `@tinkered/cli/lint`.
+- Run `bun --bun tinker check`.
 
 ## 0.25.1
 

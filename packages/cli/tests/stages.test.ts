@@ -228,3 +228,73 @@ test("a config with no tool to run it exits 2 with what to add", () => {
     err: "tinker check: no tsc: the app has a tsconfig.json; add typescript\n",
   });
 });
+
+test(
+  "TS7030 of another function stays: only the head around the switch goes",
+  {
+    timeout: 60_000,
+  },
+  () => {
+    const folder = appOf({
+      "src/view.ts": [
+        ...answer,
+        `export function one(on: boolean) {`,
+        `  if (on) return 1;`,
+        `}`,
+        `export function two(out: Answer) {`,
+        `  switch (out.kind) {`,
+        `    case "moved":`,
+        `      return;`,
+        `  }`,
+        `}`,
+      ],
+    });
+
+    expect(heads(main(["check", folder], "/").out)).toEqual([
+      "src/view.ts:3 TS7030",
+      "src/view.ts:7 tinker/kind",
+    ]);
+  },
+);
+
+test("two casts on one line are two findings", { timeout: 60_000 }, () => {
+  const folder = appOf({
+    "src/read.ts": [`export const read = (a: unknown, b: unknown) => [a as string, b as number];`],
+  });
+
+  const { out } = main(["check", folder, "--json"], "/");
+
+  expect(JSON.parse(out)).toMatchObject({
+    total: 2,
+    findings: [{ what: "`a as string` hides the type" }, { what: "`b as number` hides the type" }],
+  });
+});
+
+test("a solution tsconfig checks no file, so it stops the run with exit 2", () => {
+  const folder = appOf({ "src/a.ts": [`export const n: number = "x";`] });
+  writeFileSync(
+    join(folder, "tsconfig.json"),
+    `{ "files": [], "references": [{ "path": "./a" }] }`,
+  );
+
+  expect(main(["check", folder], "/")).toMatchObject({
+    code: 2,
+    err: expect.stringMatching(/^tsconfig\.json: it lists `references`/),
+  });
+});
+
+test(
+  "a lint that fails with no report stops the run with exit 2 and its output",
+  {
+    timeout: 60_000,
+  },
+  () => {
+    const folder = appOf({ "src/a.ts": [`export const one = 1;`] });
+    writeFileSync(join(folder, "vite.config.ts"), `throw new Error("broken config");\n`);
+
+    const result = main(["check", folder], "/");
+
+    expect(result.code).toBe(2);
+    expect(result.err).toMatch(/^tinker check: vp lint failed and named no file:\n/);
+  },
+);

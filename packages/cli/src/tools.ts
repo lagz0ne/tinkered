@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, globSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+
+import ts from "typescript-api";
 
 import { raise } from "./errors";
 
@@ -16,16 +18,11 @@ export declare namespace Tools {
   type Report = { types: Found[]; rules: Found[]; ran: string[]; skipped: string[] };
 }
 
-/** One lint diagnostic, as `vp lint --format json` prints it. */
-type Diagnostic = {
-  code: string;
-  message: string;
-  help?: string;
-  filename: string;
-  offset: number;
-  length: number;
-  line: number;
-};
+/** Where a lint diagnostic points. */
+type Span = { offset: number; length: number; line: number };
+
+/** One lint error, as `vp lint --format json` prints it. A file-wide one has no span. */
+type Diagnostic = { code: string; message: string; help?: string; filename: string; span?: Span };
 
 /** A lint rule that is a gate: its Tinker rule id. A gate's error belongs to `types`. */
 const gates: Readonly<Record<string, string>> = {
@@ -57,27 +54,29 @@ function binOf(root: string, name: string): string | undefined {
   }
 }
 
-/**
- * Run a tool in the app's folder. A script with a `node` line runs on the runtime that runs
- * this command, so `bun --bun tinker check` keeps Node out.
- */
+/** Run a tool in the app's folder. A tool that cannot start says why in its output. */
 function run(root: string, bin: string, args: readonly string[]) {
-  const file = realpathSync(bin);
-  const head = readFileSync(file, "utf8").slice(0, 120).split("\n")[0] ?? "";
-  const [command, rest] = /^#!.*\bnode\b/.test(head)
-    ? [process.execPath, [file, ...args]]
-    : [file, [...args]];
-  const done = spawnSync(command, rest, { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 });
-  return { status: done.status, output: `${done.stdout ?? ""}${done.stderr ?? ""}` };
+  const done = spawnSync(bin, args, { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 });
+  const error = done.error ? `${done.error.message}\n` : "";
+  return { status: done.status, output: `${error}${done.stdout ?? ""}${done.stderr ?? ""}` };
 }
 
 function needed(root: string, name: string, why: string) {
   return binOf(root, name) ?? raise("MissingTool", { tool: name, reason: why });
 }
 
-/** `tsc --noEmit`: each error line is one finding; a project error lands on its tsconfig. */
+/**
+ * `tsc --noEmit`: each error line is one finding; a project error lands on its tsconfig.
+ *
+ * @throws `BadConfig` for a solution tsconfig: with `references`, `tsc --noEmit` checks no file.
+ */
 function tsc(root: string): Tools.Found[] {
   const bin = needed(root, "tsc", "the app has a tsconfig.json; add typescript");
+  if (/"references"\s*:/.test(readFileSync(join(root, "tsconfig.json"), "utf8"))) {
+    const reason =
+      "it lists `references`, so `tsc --noEmit` checks no file; run the check per project";
+    raise("BadConfig", { path: "tsconfig.json", reason });
+  }
   const { status, output } = run(root, bin, ["--noEmit", "--pretty", "false"]);
 
   const found = output.split("\n").flatMap((text) => {
@@ -91,7 +90,7 @@ function tsc(root: string): Tools.Found[] {
 }
 
 /** Where a diagnostic points: its first label's span. */
-function spanOf(labels: unknown) {
+function spanOf(labels: unknown): Span | undefined {
   const label: unknown = Array.isArray(labels) ? labels[0] : undefined;
   const span = isRecord(label) ? label.span : undefined;
   if (!isRecord(span)) return undefined;
@@ -101,32 +100,47 @@ function spanOf(labels: unknown) {
   return numbers && typeof line === "number" ? { offset, length, line } : undefined;
 }
 
-function diagnosticOf(value: unknown): Diagnostic | undefined {
-  if (!isRecord(value) || value.severity !== "error") return undefined;
+/** An error diagnostic; a field it lacks reads as unknown, so no error is lost. */
+function diagnosticOf(value: unknown): Diagnostic[] {
+  if (!isRecord(value) || value.severity !== "error") return [];
   const { code, message, help, filename } = value;
   const span = spanOf(value.labels);
-  if (typeof code !== "string" || typeof message !== "string") return undefined;
-  if (typeof filename !== "string" || !span) return undefined;
 
-  return { code, message, filename, ...span, ...(typeof help === "string" ? { help } : {}) };
+  return [
+    {
+      code: typeof code === "string" ? code : "lint(unknown)",
+      message: typeof message === "string" ? message : "a lint error",
+      filename: typeof filename === "string" ? filename : ".",
+      ...(span ? { span } : {}),
+      ...(typeof help === "string" ? { help } : {}),
+    },
+  ];
 }
 
-/** The lint report's errors; text that is not the report means the lint did not run. */
-function lintReport(output: string): Diagnostic[] {
-  const start = output.indexOf("{");
+function parsed(text: string): unknown {
   try {
-    const report: unknown = JSON.parse(output.slice(start));
-    if (start >= 0 && isRecord(report) && Array.isArray(report.diagnostics)) {
-      return report.diagnostics.flatMap((value) => diagnosticOf(value) ?? []);
-    }
+    return JSON.parse(text);
   } catch {
-    // Not JSON: the tool failed before it linted.
+    return undefined;
   }
-  return raise("ToolFailed", { tool: "vp lint", output });
+}
+
+/**
+ * The lint report's errors. Text that is not the report, or a failed lint with no error in
+ * it, means the lint did not run.
+ */
+function lintReport({ status, output }: { status: number | null; output: string }) {
+  const report = parsed(output.slice(Math.max(0, output.indexOf("{"))));
+  const errors =
+    isRecord(report) && Array.isArray(report.diagnostics)
+      ? report.diagnostics.flatMap(diagnosticOf)
+      : undefined;
+  if (!errors || (status !== 0 && !errors.length)) raise("ToolFailed", { tool: "vp lint", output });
+  return errors ?? [];
 }
 
 /** The code a diagnostic points at, on one line and cut short. */
-function codeAt(root: string, { filename, offset, length }: Diagnostic) {
+function codeAt(root: string, filename: string, { offset, length }: Span) {
   const text = readFileSync(join(root, filename), "utf8").slice(offset, offset + length);
   const flat = text.replaceAll(/\s+/g, " ").trim();
   return flat.length > 48 ? `${flat.slice(0, 47)}…` : flat;
@@ -134,7 +148,8 @@ function codeAt(root: string, { filename, offset, length }: Diagnostic) {
 
 /** What a gate finding says: the kinds with no case, or the cast it found. */
 function gateWhat(root: string, rule: string, diagnostic: Diagnostic) {
-  if (rule === "tinker/cast") return `\`${codeAt(root, diagnostic)}\` hides the type`;
+  const { filename, span } = diagnostic;
+  if (rule === "tinker/cast" && span) return `\`${codeAt(root, filename, span)}\` hides the type`;
   const kinds = /Cases not matched: (.+)$/.exec(diagnostic.message)?.[1];
   if (kinds) return `kind ${kinds} has no case`;
   return /default case is unnecessary/.test(diagnostic.message)
@@ -148,8 +163,10 @@ function lint(root: string) {
   const types: Tools.Found[] = [];
   const rules: Tools.Found[] = [];
 
-  for (const diagnostic of lintReport(run(root, bin, ["lint", "--format", "json"]).output)) {
-    const { code, message, help, filename: path, line } = diagnostic;
+  for (const diagnostic of lintReport(run(root, bin, ["lint", "--format", "json"]))) {
+    const { code, message, help, filename: path, span } = diagnostic;
+    const line = span?.line ?? 1;
+
     const gate = gates[code];
     if (gate) {
       types.push({ path, line, rule: gate, what: gateWhat(root, gate, diagnostic) });
@@ -161,26 +178,59 @@ function lint(root: string) {
   return { types, rules };
 }
 
+/** The `switch` that starts on 1-based `line`, as the parser reads it. */
+function switchAt(source: ts.SourceFile, line: number): ts.SwitchStatement | undefined {
+  const lineOf = (node: ts.Node) => source.getLineAndCharacterOfPosition(node.getStart()).line;
+  const visit = (node: ts.Node): ts.SwitchStatement | undefined =>
+    ts.isSwitchStatement(node) && lineOf(node) === line - 1 ? node : ts.forEachChild(node, visit);
+  return visit(source);
+}
+
+/** A function's body, when the node is a function that has one. */
+function bodyOf(node: ts.Node): ts.Node | undefined {
+  const isFunction =
+    ts.isFunctionDeclaration(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isArrowFunction(node) ||
+    ts.isMethodDeclaration(node);
+  return isFunction ? node.body : undefined;
+}
+
+/**
+ * The lines from the start of the function around the `switch` on `line` to the start of its
+ * body. `tsc` puts TS7030 there: on the name, or on the arrow.
+ */
+function headOf(root: string, { path, line }: Tools.Found) {
+  const text = readFileSync(join(root, path), "utf8");
+  const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);
+  let node: ts.Node | undefined = switchAt(source, line);
+  while (node && !bodyOf(node)) node = node.parent;
+  const body = node && bodyOf(node);
+  if (!node || !body) return undefined;
+
+  const lineOf = (at: number) => source.getLineAndCharacterOfPosition(at).line + 1;
+  return { path, from: lineOf(node.getStart()), to: lineOf(body.getStart()) };
+}
+
 /**
  * A kind with no case fails twice: lint names the kind at the `switch`, and `tsc` gives
  * TS7030 at the head of the function around it. Keep the one that names the kind.
  */
-function once(found: readonly Tools.Found[]) {
-  const dropped = new Set<Tools.Found>();
-  const heads = found.filter(({ rule }) => rule === "TS7030");
+function once(root: string, found: readonly Tools.Found[]) {
+  const heads = found
+    .filter(({ rule }) => rule === "tinker/kind")
+    .flatMap((kind) => {
+      const head = headOf(root, kind);
+      return head ? [head] : [];
+    });
+  const isHead = ({ path, line, rule }: Tools.Found) =>
+    rule === "TS7030" &&
+    heads.some((head) => head.path === path && head.from <= line && line <= head.to);
 
-  for (const kind of found.filter(({ rule }) => rule === "tinker/kind")) {
-    const above = heads.filter(({ path, line }) => path === kind.path && line <= kind.line);
-    const nearest = above.reduce<Tools.Found | undefined>(
-      (best, head) => (best && best.line > head.line ? best : head),
-      undefined,
-    );
-    if (nearest) dropped.add(nearest);
-  }
   const seen = new Set<string>();
   return found.filter((item) => {
-    const key = `${item.path}:${item.line}:${item.rule}`;
-    if (dropped.has(item) || seen.has(key)) return false;
+    const key = `${item.path}:${item.line}:${item.rule}:${item.what}`;
+    if (isHead(item) || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
@@ -211,5 +261,5 @@ export function runTools(root: string): Tools.Report {
     ran.push("lint");
   } else skipped.push("lint (no vite.config)");
 
-  return { types: once(types), rules, ran, skipped };
+  return { types: once(root, types), rules, ran, skipped };
 }

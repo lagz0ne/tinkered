@@ -71,8 +71,8 @@ Exit codes:
 
 - `0`: done.
 - `1`: one finding or more.
-- `2`: a wrong call, a config it cannot read, or
-  a tool it cannot run.
+- `2`: a wrong call, a config it cannot read, a
+  tool it cannot run, or a tool with no config.
 
 The check has no lint or type config of its own.
 It runs the app's own tools:
@@ -81,8 +81,10 @@ It runs the app's own tools:
   `tsconfig.json`;
 - `vp lint`, when the app has a `vite.config`.
 
-A stage part with no config is skipped, and the
-`skipped:` line says so.
+A tool with no config is skipped, and the
+`skipped:` line says so. Then the answer is
+`tinker check: not done`, with exit 2: only a
+run of every stage can say OK.
 
 ## Where the fix comes from
 

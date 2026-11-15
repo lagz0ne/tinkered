@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { IntentCoreError } from "@tanstack/intent/core";
@@ -16,11 +17,13 @@ export declare namespace Main {
   /** A finding as it prints: the skill's `Right:` lines, or the tool's own hint. */
   type Finding = Omit<Tools.Found, "help"> & { fix: string[]; skill?: string };
   /**
-   * The answer of `tinker check`. `ok` is the only answer that means done. `failed` names the
-   * first stage that failed, its first findings, and how many it has in all.
+   * The answer of `tinker check`. `ok` is the only answer that means done: every stage ran
+   * and is clean. `failed` names the first stage that failed, its first findings, and how many
+   * it has in all. `incomplete` is clean, but a tool did not run for want of its config.
    */
   type Report =
-    | { kind: "ok"; ran: string[]; skipped: string[]; gaps: Check.Gap[] }
+    | { kind: "ok"; ran: string[]; gaps: Check.Gap[] }
+    | { kind: "incomplete"; ran: string[]; skipped: string[]; gaps: Check.Gap[] }
     | {
         kind: "failed";
         stage: Tools.Stage;
@@ -85,7 +88,8 @@ function stages(root: string): Main.Report {
   if (rules.length) return failed(root, "rules", rules, gaps);
 
   const ran = [...tools.ran, `rules (${files} files)`];
-  return { kind: "ok", ran, skipped: tools.skipped, gaps };
+  if (tools.skipped.length) return { kind: "incomplete", ran, skipped: tools.skipped, gaps };
+  return { kind: "ok", ran, gaps };
 }
 
 /** A finding's lines: the finding, then its fix once per rule, then the skill to load. */
@@ -100,10 +104,16 @@ function block({ path, line, rule, what, fix, skill }: Main.Finding, first: bool
 function text(report: Main.Report) {
   const gaps = gapLine(report.gaps);
   switch (report.kind) {
-    case "ok": {
-      const skipped = report.skipped.length ? `skipped: ${report.skipped.join(", ")}\n` : "";
-      return `${gaps}ran: ${report.ran.join(", ")}\n${skipped}tinker check: OK\n`;
-    }
+    case "ok":
+      return `${gaps}ran: ${report.ran.join(", ")}\ntinker check: OK\n`;
+    case "incomplete":
+      return [
+        `${gaps}ran: ${report.ran.join(", ")}`,
+        `skipped: ${report.skipped.join(", ")}`,
+        "tinker check: not done. A stage did not run, so this is no OK.",
+        "Next: add the config the skipped line names, then run `tinker check` again.",
+        "",
+      ].join("\n");
     case "failed": {
       const { stage, total, findings } = report;
       const blocks = findings.map((finding, index) =>
@@ -122,11 +132,15 @@ function text(report: Main.Report) {
   }
 }
 
+/** Exit 0 only for `ok`; a stage that did not run is a config the command cannot use. */
+const codes: Readonly<Record<Main.Report["kind"], number>> = { ok: 0, failed: 1, incomplete: 2 };
+
 function checkCommand(root: string, json: boolean): Main.Result {
+  if (!existsSync(root)) return { code: 2, out: "", err: `tinker check: no folder at ${root}\n` };
   try {
     const report = stages(root);
     const out = json ? `${JSON.stringify(report)}\n` : text(report);
-    return { code: report.kind === "ok" ? 0 : 1, out, err: "" };
+    return { code: codes[report.kind], out, err: "" };
   } catch (error) {
     if (isError(error, "BadConfig")) {
       const { path, reason } = error.payload;

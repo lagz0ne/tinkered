@@ -186,7 +186,9 @@ test("--json prints the same report as data", () => {
     ],
     gaps: [],
   });
-  expect(JSON.parse(main(["--json", "check", appOf({})], "/").out)).toMatchObject({ kind: "ok" });
+  expect(JSON.parse(main(["--json", "check", appOf({})], "/").out)).toMatchObject({
+    kind: "incomplete",
+  });
 });
 
 test("a file with a longer ending is not app code", () => {
@@ -201,15 +203,30 @@ test("a file with a longer ending is not app code", () => {
 test("the root defaults to the folder the command runs in", () => {
   const folder = appOf({ "cmds/a.ts": `export const one = 1;\n`, "src/b.ts": `export {};\n` });
 
-  expect(main(["check"], folder)).toEqual({
-    code: 0,
+  expect(main(["check"], folder).out).toContain("ran: rules (2 files)\n");
+});
+
+test("clean rules with a tool skipped are no OK: the answer is not done, exit 2", () => {
+  expect(main(["check", appOf({ "src/a.ts": `export {};\n` })], "/")).toEqual({
+    code: 2,
     out: [
-      "ran: rules (2 files)",
+      "ran: rules (1 files)",
       "skipped: tsc (no tsconfig.json), lint (no vite.config)",
-      "tinker check: OK",
+      "tinker check: not done. A stage did not run, so this is no OK.",
+      "Next: add the config the skipped line names, then run `tinker check` again.",
       "",
     ].join("\n"),
     err: "",
+  });
+});
+
+test("a root that is not there exits 2, before any check", () => {
+  const folder = join(appOf({}), "typo");
+
+  expect(main(["check", folder], "/")).toEqual({
+    code: 2,
+    out: "",
+    err: `tinker check: no folder at ${folder}\n`,
   });
 });
 
