@@ -15,6 +15,7 @@ afterEach(async () => {
 const api = rpc({
   big: { input: z.null(), output: z.object({ n: z.bigint() }) }, // JSON cannot carry a BigInt
   echo: { input: z.object({ n: z.unknown() }), output: z.unknown() },
+  ticks: { mode: "stream", input: z.object({ n: z.unknown() }), output: z.number() },
 });
 
 const faultOf = (p: Promise<unknown>) =>
@@ -58,4 +59,33 @@ test("decode on the client: a reply it cannot read is decode, side client (not l
   expect(
     lines.some((l) => l.startsWith("protocol decode failed") && l.includes('"side":"client"')),
   ).toBe(true);
+});
+
+test("encode on the client: a value the codec cannot carry is encode, side client; nothing is sent", async () => {
+  let frames = 0;
+  const quiet = Bun.serve({
+    port: 0,
+    fetch: (r, b) => (b.upgrade(r) ? undefined : new Response(null, { status: 400 })),
+    websocket: { message: () => void (frames += 1) },
+  });
+  closers.push(() => quiet.stop(true));
+  const client = await createScope({
+    capsules: [
+      wsClient.client({ url: `ws://localhost:${quiet.port}/api` }),
+      api({ remote: wsClient.client }),
+    ],
+  }).ready;
+  closers.push(() => client.close());
+  const watched = async () => {
+    for await (const n of await client.run(api.ticks, { input: { n: 1n } })) void n;
+  };
+
+  const call = await faultOf(client.run(api.echo, { input: { n: 1n } }));
+  const watch = await faultOf(watched());
+
+  expect([call, watch]).toEqual([
+    { fault: "encode", payload: { side: "client" } },
+    { fault: "encode", payload: { side: "client" } },
+  ]);
+  expect(frames).toBe(0);
 });

@@ -434,3 +434,16 @@ test("the execution id rides as m.execution, as before ADR 0154: the run gets it
   expect(s.got()).toEqual([{ i: 1, t: '{"ok":true,"value":"old-page-1"}' }]);
   expect(metas).toEqual([{}]);
 });
+
+test("a watch whose text the codec cannot read pushes decode, side server, then ends", async () => {
+  const { url } = await boot();
+  const s = await socketTo(url);
+
+  s.socket.send(JSON.stringify([{ i: 1, a: "forever", t: "{not json", w: 1 }]));
+  await s.until(() => s.got().length === 2);
+
+  expect(s.got()).toEqual([
+    { i: 1, t: '{"ok":false,"kind":"decode","payload":{"side":"server"}}' },
+    { i: 1, end: 1 },
+  ]);
+});

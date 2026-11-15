@@ -19,9 +19,18 @@ const tick = (ms = 10) => new Promise((r) => setTimeout(r, ms));
 const api = rpc({
   echo: { input: z.object({ n: z.number() }), output: z.object({ n: z.number() }) },
   count: { mode: "stream", input: z.null(), output: z.number() },
+  slow: { input: z.null(), output: z.null() },
 });
 
 const echo = operation({ label: "echo.here", input: api.echo.input, run: (_, { input }) => input });
+
+const slow = operation({
+  label: "slow.here",
+  input: z.null(),
+  run: async (): Promise<null> => {
+    throw await tick(40).then(() => new Error("slow broke"));
+  },
+});
 
 const count = operation({
   label: "count.here",
@@ -59,7 +68,7 @@ async function serverOf(logs: Observe.Log[] = []) {
     observe: { log: (entry) => void logs.push(entry) },
     capsules: [
       carried,
-      api({ implement: { echo, count }, onStart: [gate] }),
+      api({ implement: { echo, count, slow }, onStart: [gate] }),
       memory.server({ services: [api] }),
     ],
   }).ready;
@@ -169,7 +178,7 @@ test("a second refusal after a renew is the answer: no third send", async () => 
   });
   const server = await createScope({
     capsules: [
-      api({ implement: { echo, count }, onStart: [never] }),
+      api({ implement: { echo, count, slow }, onStart: [never] }),
       memory.server({ services: [api] }),
     ],
   }).ready;
@@ -181,6 +190,38 @@ test("a second refusal after a renew is the answer: no third send", async () => 
   });
   expect(asked).toEqual(["old", "fresh"]);
   expect(state.renewals.length).toBe(1);
+});
+
+test("only a refusal asks renew: a failed answer and a value push do not", async () => {
+  const { server } = await serverOf();
+  const { tab, state } = await clientOf(server);
+  state.token = "fresh";
+
+  const failed = await faultOf(tab.run(api.slow, { input: null }));
+  for await (const n of await tab.run(api.count, { input: null })) {
+    expect(n).toBe(1);
+    break;
+  }
+
+  expect(failed).toEqual({ fault: "failed", payload: {} });
+  expect(state.renewals).toEqual([]);
+});
+
+test("a server that closes under a call is link, sent: true: it may have run", async () => {
+  const { server } = await serverOf();
+  const { tab, state } = await clientOf(server);
+  state.token = "fresh";
+
+  const call = tab.run(api.slow, { input: null }).catch((e: unknown) => e);
+  await tick();
+  await server.close();
+  const failed = await call;
+
+  expect(api.fault.is(failed) && [failed.fault, failed.from, failed.sent]).toEqual([
+    "link",
+    "local",
+    true,
+  ]);
 });
 
 test("a refused push on a watch starts a renew", async () => {
@@ -216,7 +257,7 @@ test("a second memory transport reaches its own server: two pairs in one scope",
   const other = createMemory();
   const ghost = rpc({ gone: { input: z.null(), output: z.null() } });
   const server = await createScope({
-    capsules: [api({ implement: { echo, count } }), other.server({ services: [api] })],
+    capsules: [api({ implement: { echo, count, slow } }), other.server({ services: [api] })],
   }).ready;
   closers.push(() => server.close());
   const tab = await createScope({
