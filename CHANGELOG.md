@@ -28,6 +28,11 @@ One command, and its check corrects the writer
   `@tinkered/cli/tsconfig.json` is the base
   config.
 - New rule ids: `tinker/kind` and `tinker/cast`.
+- An exception to a gate is a gap row: a
+  `// tinker-gap: G<n>` marker now allows a gate
+  finding and counts it. A `lint-disable`
+  comment that turns a gate off is a finding.
+  A marker never allows a `tsc` error.
 
 To move an app:
 

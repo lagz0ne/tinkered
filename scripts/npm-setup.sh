@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # One-time npm setup for the @tinkered packages (ADR 0146). Duke runs it
 # once, on a laptop with an npm login that owns the "tinkered" org.
-# Then CI publishes every release by OIDC, with no token.
+# Then CI publishes every release by OIDC, with no token. From a phone, run
+# the workflow npm-first.yml instead: it does the same with a token secret.
 #
 #   scripts/npm-setup.sh            # the latest GitHub release
 #   scripts/npm-setup.sh 0.18.0     # one release

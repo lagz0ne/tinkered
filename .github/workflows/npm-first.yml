@@ -1,0 +1,67 @@
+# The first publish of a new @tinkered package, from a phone (ADR 0146).
+# npm takes OIDC only for a package that exists, so the first publish needs
+# a token. This is scripts/npm-setup.sh as a job:
+#
+# 1. npmjs.com: a granular token, read and write on @tinkered, bypass 2FA,
+#    short expiry. Save it as the repo secret NPM_TOKEN.
+# 2. Actions, "npm first publish", Run workflow, with the release version.
+# 3. Then delete the token and the secret. Every later release publishes by
+#    OIDC from release.yml, with no token.
+#
+# It publishes only a package that npm does not know yet. It skips one
+# that is there, so it is safe to run again.
+name: npm first publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, as 0.26.0
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  first:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: npm
+        run: npm install --global npm@12.2.2
+      - name: The token is there
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::No NPM_TOKEN secret. Add it, then run again."
+            exit 1
+          fi
+      - name: Download the npm tarballs
+        run: |
+          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'npm-tinkered-*.tgz'
+      - name: Publish each new package, then trust release.yml
+        run: |
+          for t in npm-tinkered-*-"$VERSION".tgz; do
+            name="@tinkered/$(basename "$t" | sed -E 's/^npm-tinkered-(.*)-[0-9.]+\.tgz$/\1/')"
+            if npm view "$name" name >/dev/null 2>&1; then
+              echo "$name is on npm already."
+              continue
+            fi
+            npm publish "$t" --access public
+            echo "$name: first publish done."
+            if npm trust github "$name" --repo "$GITHUB_REPOSITORY" \
+              --file release.yml --allow-publish --yes; then
+              echo "$name: release.yml is its trusted publisher."
+            else
+              echo "::warning::$name: set its trusted publisher on npmjs.com:" \
+                "package, Settings, Trusted publishing, GitHub Actions," \
+                "repo $GITHUB_REPOSITORY, workflow release.yml."
+            fi
+          done

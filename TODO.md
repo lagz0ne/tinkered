@@ -25,22 +25,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **cli/package** — ADR 0156 decisions 1, 2, 9. `packages/cli` = `@tinkered/cli`, bin `tinker`. Move the code of `packages/analyze` into it; `tinker check` prints what `tinker-analyze check` prints; `tinker.json` replaces `tinker-analyze.json`; the lint plugin is `@tinkered/cli/lint`. `packages/analyze` goes. Impact block first: the site, the template, Hedl and acountee import the old names.
-  Verify: the analyze tests pass under the new names; the site runs `tinker check` with `no findings`; mutation floor 85.
-
-- **cli/gates** — ADR 0156 decisions 5, 6, 7. `@tinkered/cli/config` exports `gates` (4 lint rules); `@tinkered/cli/tsconfig.json` has `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`. Scratch: project files `sure-right/base/`.
-  Verify: a planted case per gate fails: a kind with no case (TS7030 and the lint rule), `as T`, `!`, `any`; `as const` passes.
-
-- **cli/check-loop** — ADR 0156 decisions 3, 4. `tinker check` runs the app's `tsc` and lint beside the rules, in stages `types` then `rules`; a finding prints its fix; at most 5; one fault once; the last line is the next step; `--json`. Scratch: project files `sure-right/tinker-check-probe.mjs`. Needs `cli/package` and `cli/gates`.
-  Verify: on the template, the four cases of the ADR's proof print as in decision 4; a clean tree prints `tinker check: OK` and exits 0.
-
-- **cli/skill-text** — ADR 0156 decision 8. Skill sections `[tinker/kind]` (react) and `[tinker/cast]` (core), each with Wrong and Right; `tinker check` prints the `Right:` part of the section of a finding's rule id; `vp run skills` fails for a rule with no section.
-  Verify: change a `Right:` line in a skill and the check prints the new line; take a section out and `vp run skills` fails.
-
-- **cli/skill** — ADR 0156 decision 2. `tinker skill list` and `tinker skill load <skill>` over Intent.
-  Verify: in the template, both print what the two `intent` commands print today; `AGENTS.md` names only `tinker` commands.
-
-- **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Needs the cards above and a release.
+- **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
 - **skills/check-names-skill** — ADR 0143 decision 5. The template runs `tinker-analyze check` (tinker-app 0113472). Left: the lint messages for `tinker/one-door` and `tinker/floating`, and `MissingConfig` (`tinker/config`), name their skill. The template passes `roots: ["tinker/components", "src"]` to `tinker/cell-write`.
@@ -135,6 +120,9 @@ None.
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **cli/package, cli/gates, cli/check-loop, cli/skill-text, cli/skill** — done 2026-11-15 (ADR 0156; Duke 11:41 "move analyze to cli", 11:47 "agent first", 13:37 "In the skill, the tool reads it"). `@tinkered/cli`, bin `tinker`: `tinker check` runs the app's tsc and lint in stages types then rules, at most 5 findings, each with its skill's `Right:` text; `tinker skill list|load`; `@tinkered/cli/config` gates; base tsconfig. Reviews: Opus READY after one round; Fable READY after one round. Released as 0.26.0.
+  Proof: cli 112 tests; `vp run -r test` green; `vp run skills` green; site `tinker check: OK` with the gates on `src/**`; mutation on f1cdef07: run stopped at 2352/2489 mutants by the 2 h job limit, 175 survived; with every untested mutant counted as survived the score is still 87.5 (floor 85).
 
 - **analyze/keyed-prop** — done 2026-11-15 (ADR 0155; Duke 11:01 "B. Skill + analyze rule"). `tinker/keyed-prop`: a keyed part's list, or one member of it, passed as a JSX prop is a finding; the React skill says a list item reads its own member by key. Released as 0.25.1.
   Proof: 3 new tests; analyze 89 tests; CUJ eval rung A: template 0 findings, each of the 6 writer runs 1; Hedl 1 (tasks/views.tsx:248), tinker-app 0.
