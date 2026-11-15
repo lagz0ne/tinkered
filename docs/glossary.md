@@ -513,3 +513,6 @@ New sections are lists, one term per item (vertical layout,
 - **skill** — A `SKILL.md` file in a package's `skills/` folder that teaches an agent one task with that package: whole examples and common mistakes. Ships in the release, so it has the code's version (ADR 0143).
 - **rule id** — The name a check prints for one rule, `tinker/<name>` (`tinker/plain`). A mistake in a skill carries the same id, so a failed check leads to the skill (ADR 0143).
 - **Intent** — `@tanstack/intent`, the CLI that validates skills here and lists and loads them in an app (ADR 0143).
+- **kind gate** — The rule `tinker/kind`: a page reads a call's answer through a `switch` with a case for each `kind` and no `default`, so a new kind fails `tsc` and lint (ADR 0156).
+- **cast gate** — The rule `tinker/cast`: no `as` but `as const`, no `!`, no `any`; the writer narrows or parses (ADR 0156).
+- **correction loop** — An agent edits, the harness runs `tinker check`, the finding prints its fix from the skill, and the agent edits again until the check prints `OK` (ADR 0156).
