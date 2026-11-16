@@ -5,8 +5,7 @@ description: >
   give it settings, install it in a cmd, or
   import it from other code. Also when start
   fails with MissingConfig, or a check prints
-  tinker/seam, tinker/config, tinker/one-door
-  or tinker/barrel.
+  tinker/seam, tinker/config or tinker/barrel.
 metadata:
   purpose: >
     How to write a capsule, fill its config in
@@ -24,9 +23,8 @@ sources:
 
 # Capsule
 
-A capsule is a feature's one door. It holds the
-feature's config, its exports and its hooks. A cmd
-installs it with values.
+A capsule holds a feature's config, its exports
+and its hooks. A cmd installs it with values.
 
 ## Setup
 
@@ -108,19 +106,6 @@ export default defineMain(async ({ env, signal }) => {
   function builds it.
 - A feature never reads `process.env`.
 
-### One folder, one door
-
-```text
-src/sea/
-  index.ts          the capsule
-  index.server.ts   the server's door
-  contract.ts       rpc and remote data
-```
-
-Other features import `@/sea` only. They reach a
-unit as `sea.press`, never by a path into the
-folder.
-
 ## Common mistakes
 
 ### HIGH: root tags fill a capsule key [tinker/config]
@@ -152,18 +137,6 @@ const press = operation({
 
 Right: declare a `config` key, and let the cmd
 pass the value.
-
-### HIGH: an import past the door [tinker/one-door]
-
-Wrong:
-
-```ts no-check
-import { waves } from "@/sea/contract";
-```
-
-Right: `import { sea } from "@/sea";` then
-`sea.waves`. The lint rule
-`no-restricted-imports` finds the wrong form.
 
 ### HIGH: a barrel [tinker/barrel]
 
@@ -198,6 +171,5 @@ config.
 ## Completion
 
 - The app starts: no `MissingConfig`.
-- `bun run check:style` prints no
-  `no-restricted-imports`.
+- `tinker check` prints no `tinker/barrel`.
 - `grep -rn "process.env" src` prints no line.

@@ -34,7 +34,7 @@ the task crosses two of them.
   [operation](./operation/SKILL.md)
 - State, keyed members, where a write lands:
   [data](./data/SKILL.md)
-- A feature's one door, config, install:
+- A feature's capsule, config, install:
   [capsule](./capsule/SKILL.md)
 - A call or a live read between server and page:
   [rpc](./rpc/SKILL.md)
@@ -78,8 +78,6 @@ id, fix the code, and run the check again.
 - `tinker/config`: config goes in the capsule
   call. Check: `MissingConfig` at start.
   Skill: capsule.
-- `tinker/one-door`: reach a feature as
-  `@/<feature>`. Check: lint. Skill: capsule.
 - `tinker/barrel`: a file exports only what it
   declares. Check: `tinker check`. Skill:
   capsule.
