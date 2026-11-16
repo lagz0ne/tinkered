@@ -25,6 +25,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/round-stuck-after-eq-throw** — bug 5 in [docs/states](docs/states/round/README.md). A user `eq` that throws in a write's first round leaves `inRound` true (`tellWrite` has no `finally`); after that no watcher in the process hears any write. Next: move `paths/round-stuck.test.ts.txt` into Core's tests (it fails), then end the round on that throw. ADR 0152 keeps the try out of the hot write (about 5 ns per write, see the comment at `watcherThrew` in `packages/core/src/index.ts`), so the fix sits where `eq` is called (`flushOne`, `pendingNsWatchers`) or on the throw path; a timing claim goes through `N=61 bench/queued.sh`.
+  Verify: the round path test passes; the round check shows RoundEndsAtRest and EveryWatcherTold hold; the bench verdict is "no difference we can see".
+
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -87,6 +90,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` fails every waiter but does not empty `out`, so a call failed as `link, sent: false` is still sent, and the server runs it. Next: move `paths/statechart-rpc-call.test.ts.txt` into Bun's tests (it fails), then fix `drop()`.
   Verify: the rpc-call path test passes; the rpc-call check shows UnsentNeverRuns holds (both configs).
 
+- **core/resource-failed-stays** — bug 6 in [docs/states](docs/states/resource-life/README.md). After a failed sync build, `failed` stays on the instance; the next good build reuses it, so its release (or close) ends `failed` (ADR 0063 d3, d6). Next: move paths 1 and 2 of `paths/resource-life-paths.test.ts.txt` into Core's tests (they fail), then fix how `failed` stays (`settleResourceInstance`, `unlinkInstance` in `packages/core/src/index.ts`).
+  Verify: the path tests for paths 1 and 2 pass; the resource-life check shows GoodBuildReleaseEndsReleased and GoodBuildCloseEndsWithClose hold.
+
+- **core/resource-cycle-holds-close** — bug 7 in [docs/states](docs/states/resource-life/README.md). A reads B, B reads A: CircularResource is raised, but each instance holds the other, so `close()` stays open (ADR 0027, ADR 0011). Next: move path 3 of `paths/resource-life-paths.test.ts.txt` into Core's tests (it fails), then fix the holds the cycle leaves (`holdDependency` in `packages/core/src/index.ts`).
+  Verify: the path test for path 3 passes; the resource-life check with `cycle.cfg` shows CloseResolves holds.
+
 ## Doing
 
 None.
@@ -106,6 +115,11 @@ None.
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
+
+- **core/round-rules-undecided** — 3 cases with no ADR rule yet, found by the round and resource-life specs: UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8); an equal `set` in a reader's build raises no WriteInRead (ADR 0157 d7); a failed sync build's end waits for the release or close (ADR 0026 Q4).
+  Missing: Duke's rule for each of the 3 cases ([round](docs/states/round/README.md#no-rule-yet), [resource-life](docs/states/resource-life/README.md#no-rule-yet)).
+  Next once picked: each rule lands as a new ADR or a code change; change `paths/round-no-rule-yet.test.ts.txt` and the no-rule check in path 1 to the rule, then move them into Core's tests.
+  Verify: those tests pass; the round and resource-life checks carry the new rules.
 
 - **core/stop-signal-then-later-event** — bug 3 in [docs/states](docs/states/scope-life/README.md). A stop signal fires during start, then a start error, a timeout or a `close()` comes before the hooks return. The code reports the later event; ADR 0134 d2 says the signal wins.
   Missing: Duke's choice. Signal wins: the code changes. Later event wins: ADR 0134 d2 changes.

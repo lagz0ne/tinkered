@@ -29,8 +29,10 @@ Each `docs/states/<machine>/` holds:
 - `README.md` — the rules, the chart, each bug path,
   what the spec leaves out, and the rerun command.
 
-All five specs describe commit `3ff6778`
+The first five specs describe commit `3ff6778`
 (release 0.28.0).
+round and resource-life describe `c9c8817`;
+its Core lines match `3ff6778`.
 
 ## Run the check
 
@@ -82,6 +84,16 @@ so main stays green.
 - **session-provider** — 1 rule breaks.
   Card: `react/strict-session-suspense`.
 - **usedata-scope** — rules hold.
+- **round** — 2 rules break.
+  Card: `core/round-stuck-after-eq-throw`.
+  2 cases with no rule yet.
+- **resource-life** — 3 rules break.
+  Cards: `core/resource-failed-stays`,
+  `core/resource-cycle-holds-close`.
+  1 case with no rule yet.
+
+The 3 cases with no rule yet wait for Duke
+(card `core/round-rules-undecided`, Blocked).
 
 ## Bugs, by number
 
@@ -101,6 +113,18 @@ The cards on `TODO.md` use these numbers.
 4. `drop()` keeps the frames,
    so a call failed as `link, sent: false` still goes out.
    [rpc-call](rpc-call/README.md).
+5. An eq that throws in a write's first round
+   leaves the round flag on.
+   No watcher in the process hears a write after.
+   [round](round/README.md).
+6. A good build after a failed sync build
+   ends `failed`, not `released`
+   or the close's status.
+   [resource-life](resource-life/README.md).
+7. A reads B, B reads A:
+   each instance holds the other,
+   and `close()` stays open.
+   [resource-life](resource-life/README.md).
 
 The session loop under StrictMode is
 [session-provider](session-provider/README.md).

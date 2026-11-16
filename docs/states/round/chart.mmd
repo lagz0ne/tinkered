@@ -1,0 +1,49 @@
+---
+title: "A write in a round waits for the round (ADR 0152): cells A and B"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: rest
+    lg1: round
+    lg2: stuck
+    lg3: Breaks EveryWatcherTold or RoundEndsAtRest
+    lg4: Path to the EveryWatcherTold or RoundEndsAtRest bug
+  }
+  class lg0 blue
+  class lg1 yellow
+  class lg2 tan
+  class lg3 breaks
+  class lg4 bugPath
+  s0: Nothing runs
+  s1: A write's round: its watchers hear it
+  s2: Round flag stuck on, nothing runs
+  s3: A write's round: its watchers hear it, an error is held
+  s4: Round flag stuck on: a watcher missed a write
+  s5: Waiting rounds run
+  s6: Waiting rounds run, an error is held
+  [*] --> s0
+  s0 --> s1: you write a cell or you release a cell
+  s1 --> s2: the cell's eq throws [first round of a write]
+  s2 --> s4: you write a cell
+  s1 --> s3: a watcher throws or the cell's eq throws [caught]
+  s3 --> s0: the last round ends: the write throws the first error
+  s1 --> s0: the last round ends: the write returns
+  s1 --> s5: the next waiting round runs
+  s3 --> s6: the next waiting round runs
+  s5 --> s6: the cell's eq throws [caught] or a watcher throws
+  s6 --> s0: the last round ends: the write throws the first error or a round past the limit: UpdateDepth
+  s5 --> s0: a round past the limit: UpdateDepth or the last round ends: the write returns
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 blue
+  class s0 bugPath
+  class s1 yellow
+  class s1 bugPath
+  class s2 tan
+  class s2 breaks
+  class s2 bugPath
+  class s3 yellow
+  class s4 tan
+  class s4 breaks
+  class s4 bugPath
+  class s5 yellow
+  class s6 yellow

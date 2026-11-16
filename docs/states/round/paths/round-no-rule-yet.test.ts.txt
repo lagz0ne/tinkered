@@ -1,0 +1,57 @@
+// Two cases the Round model found where no ADR rule decides (/home/paseo/statechart/core2/round).
+// Each test pins what the code does today, so Duke can pick a rule.
+import { expect, test } from "vite-plus/test";
+
+import { createScope, data, isError, operation, resource } from "@/main";
+
+const caught = (fn: () => unknown): unknown => {
+  try {
+    fn();
+  } catch (error) {
+    return error;
+  }
+  return undefined;
+};
+
+test("no rule yet: a watcher throws, then the chain passes the limit; the watcher's error is lost", () => {
+  const cell = data({ label: "round.chain", initial: 0 });
+  const count = createScope().controller(cell);
+  const boom = new Error("watcher boom");
+  count.watch((next) => count.set(next + 1));
+  count.watch((next) => {
+    if (next === 1) throw boom;
+  });
+
+  // 1. You write the cell. Its first round starts.
+  // 2. Watcher 1 writes the cell: its round waits one deeper.
+  // 3. Watcher 2 throws (ADR 0152 d8: the first error goes to the first write).
+  // 4. Waiting rounds run, each one deeper, until depth 101.
+  // 5. A round past the limit: UpdateDepth (ADR 0152 d6).
+  const error = caught(() => count.set(1));
+
+  if (!isError(error, "UpdateDepth")) throw error;
+  expect(error).not.toBe(boom); // Today the first error is dropped.
+});
+
+test("no rule yet: a build a reader starts writes the value the cell holds; no WriteInRead", () => {
+  const rows = data({ label: "round.same", initial: 0 });
+  const touch = operation({
+    label: "round.touch",
+    depends: { rows: rows.controller },
+    run: ({ rows }) => rows.set(rows.get()),
+  });
+  const keyed = resource({
+    label: "round.keyed",
+    config: {},
+    depends: { rows, touch },
+    factory: ({ rows, touch }) => {
+      touch.run();
+      return rows;
+    },
+  });
+
+  // 1. A reader builds the keyed resource. 2. Its factory sets the cell to the value it holds.
+  const value = caught(() => createScope().resolve(keyed).get());
+
+  expect(value).toBeUndefined(); // Today: no WriteInRead (ADR 0157 d7 says "must not write").
+});

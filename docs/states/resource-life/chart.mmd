@@ -1,0 +1,72 @@
+---
+title: "Two resources, A reads B (B may read A), both factories defer an end"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: open
+    lg1: closing
+    lg2: closed
+    lg3: Breaks GoodBuildReleaseEndsReleased
+    lg4: Breaks GoodBuildCloseEndsWithClose or GoodBuildReleaseEndsReleased in some cases
+    lg5: Path to the GoodBuildCloseEndsWithClose or GoodBuildReleaseEndsReleased bug
+  }
+  class lg0 blue
+  class lg1 yellow
+  class lg2 tan
+  class lg3 breaks
+  class lg4 mayBreak
+  class lg5 bugPath
+  s0: A not built
+  s1: A built
+  s2: A failed, its instance kept
+  s3: Closed
+  s4: Closing, ends run
+  s5: Released, an end waits
+  s6: Closing, ends run, a good build's hook got "failed"
+  s7: A not built, a good build's hook got "failed"
+  s8: Released, an end waits, a good build's hook got "failed"
+  s9: Closed, a good build's hook got "failed"
+  [*] --> s0
+  s0 --> s1: you resolve A: it builds
+  s0 --> s2: you resolve A: A's factory throws or you resolve A: B's factory throws
+  s0 --> s3: you call close()
+  s1 --> s4: you call close()
+  s1 --> s5: you release A
+  s2 --> s1: you resolve A: it builds
+  s2 --> s5: you release A or you release B
+  s2 --> s4: you call close()
+  s5 --> s0: the released ends run
+  s5 --> s4: you call close()
+  s4 --> s6: an instance's ends run
+  s4 --> s3: an instance's ends run
+  s5 --> s7: the released ends run
+  s0 --> s4: you call close()
+  s5 --> s8: the released ends run
+  s6 --> s9: an instance's ends run
+  s7 --> s6: you call close()
+  s4 --> s9: an instance's ends run
+  s8 --> s7: the released ends run
+  s7 --> s9: you call close()
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  classDef mayBreak fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06
+  class s0 blue
+  class s0 bugPath
+  class s1 blue
+  class s1 bugPath
+  class s2 blue
+  class s2 bugPath
+  class s3 tan
+  class s4 yellow
+  class s4 bugPath
+  class s5 blue
+  class s5 bugPath
+  class s6 yellow
+  class s6 mayBreak
+  class s6 bugPath
+  class s7 blue
+  class s7 breaks
+  class s7 bugPath
+  class s8 blue
+  class s8 breaks
+  class s9 tan
+  class s9 mayBreak
