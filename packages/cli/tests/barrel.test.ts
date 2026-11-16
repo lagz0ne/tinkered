@@ -39,8 +39,7 @@ test("a re-export of values, of types, or of an imported name is a barrel", () =
       `  add,`,
       `};`,
       `export { remove as drop, type Row as Line };`,
-      `export { all };`,
-      `export default list;`,
+      `export { all, list };`,
     ].join("\n"),
   });
 
@@ -51,8 +50,7 @@ test("a re-export of values, of types, or of an imported name is a barrel", () =
     'src/todo/index.ts:6 tinker/barrel `export type { Row } from "./db"`: a re-export',
     "src/todo/index.ts:7 tinker/barrel `export { add, }`: a re-export",
     "src/todo/index.ts:10 tinker/barrel `export { remove as drop, type Row as Line }`: a re-export",
-    "src/todo/index.ts:11 tinker/barrel `export { all }`: a re-export",
-    "src/todo/index.ts:12 tinker/barrel `export default list`: a re-export",
+    "src/todo/index.ts:11 tinker/barrel `export { all, list }`: a re-export",
   ]);
 });
 
@@ -65,7 +63,6 @@ test("a file that exports what it declares passes, and only src and cmds are app
       `const view = () => <b>{add}</b>;`,
       `export const plus = add;`,
       `export { view };`,
-      `export default view;`,
     ].join("\n"),
     "cmds/serve.ts": reexport,
     "tinker/base.ts": reexport,

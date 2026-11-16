@@ -30,19 +30,16 @@ function passesOn(imported: Set<string>, statement: ts.ExportDeclaration) {
 
 /** A statement that exports what another module declares. */
 function isBarrel(imported: Set<string>, statement: ts.Statement) {
-  if (ts.isExportDeclaration(statement)) {
-    return Boolean(statement.moduleSpecifier) || passesOn(imported, statement);
-  }
-  if (!ts.isExportAssignment(statement)) return false;
+  if (!ts.isExportDeclaration(statement)) return false;
 
-  return ts.isIdentifier(statement.expression) && imported.has(statement.expression.text);
+  return Boolean(statement.moduleSpecifier) || passesOn(imported, statement);
 }
 
 /**
  * `tinker/barrel` (ADR 0160): app code has no barrel. A barrel hides which file an import
  * reaches, so a page can take server code by accident. A finding is `export … from "…"` of
- * values or of types, and `export { name }` or `export default name` of an imported name. A
- * file that exports what it declares passes. Only top-level statements can export.
+ * values or of types, and `export { name }` of an imported name. A file that exports what it
+ * declares passes, as `export const plus = add` does. Only top-level statements can export.
  */
 export function findBarrel({ path, text }: Check.Source): Check.Finding[] {
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);

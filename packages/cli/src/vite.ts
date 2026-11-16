@@ -7,7 +7,7 @@ import type { Plugin } from "vite-plus";
  * `@tinkered/bun/client` is the one entry of `@tinkered/bun` a page may import.
  */
 const serverCode = [
-  /\.server\.[cm]?[jt]sx?$/,
+  /\.server\./,
   /^(?:bun|node):/,
   /^@tinkered\/entry(?:\/|$)/,
   /^@tinkered\/bun(?!\/client$)(?:\/|$)/,
@@ -26,10 +26,11 @@ export function pageGuard(): Plugin {
     applyToEnvironment: (environment) => environment.config.consumer === "client",
     async resolveId(source, importer, options) {
       if (!importer) return null;
-      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+      const resolved = await this.resolve(source, importer, options);
 
-      const id = resolved?.id ?? source;
-      if (serverCode.some((code) => code.test(source) || code.test(id))) {
+      const isServer = (code: RegExp) =>
+        code.test(source) || (resolved !== null && code.test(resolved.id));
+      if (serverCode.some(isServer)) {
         const from = relative(this.environment.config.root, importer).replaceAll("\\", "/");
         this.error(`page imports server code "${source}" from ${from}`);
       }

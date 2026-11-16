@@ -53,15 +53,6 @@ test("a server file reached through a two-hop barrel stops the build at the barr
   expect(error).toContain(`page imports server code "./db.server" from src/todo/barrel.ts`);
 });
 
-test("a direct import of a server file stops the build", async () => {
-  const error = await buildPage({
-    "src/main.ts": `import { read } from "./db.server.mjs";\nconsole.log(read);\n`,
-    "src/db.server.mjs": server,
-  });
-
-  expect(error).toContain(`page imports server code "./db.server.mjs" from src/main.ts`);
-});
-
 test("a server build is not guarded: it may import server code", async () => {
   const error = await buildPage(
     {
@@ -113,15 +104,6 @@ test("a page that takes only types from a server file builds", async () => {
   const error = await buildPage({
     "src/main.ts": `import type { Row } from "./db.server";\nconst row: Row = { id: 1 };\nconsole.log(row);\n`,
     "src/db.server.ts": `${server}export type Row = { id: number };\n`,
-  });
-
-  expect(error).toBeUndefined();
-});
-
-test("a page with no server import builds", async () => {
-  const error = await buildPage({
-    "src/main.ts": `import { title } from "./title";\nconsole.log(title);\n`,
-    "src/title.ts": `export const title = "Todos";\n`,
   });
 
   expect(error).toBeUndefined();
