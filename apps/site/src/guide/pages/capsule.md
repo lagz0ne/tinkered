@@ -1,8 +1,7 @@
 # Capsule
 
-A capsule is a feature's one door. It holds the
-feature's config, its exports and its hooks. A cmd
-installs it with values.
+A capsule holds a feature's config, its exports
+and its hooks. A cmd installs it with values.
 
 ## Write one
 
@@ -46,13 +45,8 @@ const live = await app.ready;
 - The cmd is one top-level `createScope`. No
   wrapper function builds it.
 
-## One folder, one door
+## No barrel
 
-```text
-src/sea/
-  index.ts          the capsule + pages
-  index.server.ts   the server's door
-  contract.ts       rpc + remote data
-```
-
-Other features import `@/sea` only.
+A file exports only what it declares. Import a
+name from the file that declares it:
+`import { sea } from "@/sea/contract"`.

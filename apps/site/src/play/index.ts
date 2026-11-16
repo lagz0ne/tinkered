@@ -3,15 +3,11 @@ import { lazy } from "react";
 
 import { debounce, files, inbox, status, storage, wasm } from "./state";
 
-export type { PlayFile, Status } from "./state";
-/** The starter's ocean, as the playground runs it: the capsule, with its page as `View`. `/live` runs it too. */
-export { ocean } from "./starter/ocean";
-
 /** The page carries the editor and the compiler, so it comes as its own chunk on first visit. */
 export const PlayPage = lazy(() => import("./page").then((m) => ({ default: m.PlayPage })));
 
 /**
- * The playground's one door: others and the cmds import `@/play` only.
+ * The playground's capsule.
  * - config `storage`: where a session is kept; the page's cmd passes `localStorage`.
  * - config `debounce`: ms of quiet after an edit before a compile.
  * - config `wasm`: the URL of esbuild.wasm, or null where esbuild needs none (Bun).

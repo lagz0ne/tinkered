@@ -14,8 +14,8 @@ Core runs the graph, traces each call, and closes it.
   a socket or a timer. It is built once and
   cleaned up on close.
 - **tag**: a typed key a capsule reads.
-- **capsule**: a feature's one door. It holds
-  config, exports and hooks.
+- **capsule**: a feature's config, exports and
+  hooks.
 
 ## The app
 

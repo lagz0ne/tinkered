@@ -8,7 +8,7 @@ import { bundler, compile, persistence, preview } from "@/play/services";
 import { bundle, dirty, entry, files, nav, starter, status, theme } from "@/play/state";
 
 // The playground at its seam: real esbuild (Bun runs it with no wasm file), a Map as the storage,
-// and the scope's own clock. The lint's one-door rule is for features; a test reads the files.
+// and the scope's own clock.
 
 /** Web Storage over a Map, so a test reads what was kept. */
 const memory = (seed: Record<string, string> = {}) => {

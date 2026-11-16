@@ -6,8 +6,7 @@ import { report, sample } from "@/bench/harness";
 import type { Sampler } from "@/bench/harness";
 import type { Lib } from "@/bench/subjects";
 
-// The bench harness, run with a hand-driven timer and a library that renders on demand. The
-// lint's one-door rule is for features; a test reads the harness file as the page does.
+// The bench harness, run with a hand-driven timer and a library that renders on demand.
 
 /** A timer that answers each `now()` from a list: the batch's start, then its end, and so on. */
 const timer = (reads: number[]) => ({ now: () => reads.shift() ?? 0 });

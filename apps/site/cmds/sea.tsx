@@ -3,8 +3,9 @@ import { createScope } from "@tinkered/core";
 import { ScopeProvider } from "@tinkered/react";
 import { createRoot } from "react-dom/client";
 
-import { ocean } from "@/play";
-import { roomName, sea, tide } from "@/sea";
+import { ocean } from "@/play/starter/ocean";
+import { roomName, sea } from "@/sea/contract";
+import { tide } from "@/sea/tide";
 import { abortReasons } from "~/components/errors";
 
 // The shared sea, one frame of `/live`: the playground's ocean as its main.tsx installs it, plus

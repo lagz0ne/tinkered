@@ -3,10 +3,11 @@ import type { Scope } from "@tinkered/core";
 import { makeTestClock } from "@tinkered/core/testing";
 import { afterAll, expect, test } from "vite-plus/test";
 
-import { ocean } from "@/play";
+import { ocean } from "@/play/starter/ocean";
 import type { Frames } from "@/play/starter/state";
-import { sea, tide } from "@/sea";
-import { seaOps } from "@/sea/index.server";
+import { sea } from "@/sea/contract";
+import { seaOps } from "@/sea/ops.server";
+import { tide } from "@/sea/tide";
 
 import { listen, wsClient as tab, wsServer as server } from "./support/ws";
 

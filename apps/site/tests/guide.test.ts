@@ -5,7 +5,7 @@ import { memory } from "@tinkered/core/testing";
 import { afterAll, expect, test } from "vite-plus/test";
 
 import { guide } from "@/guide";
-import { guideOps } from "@/guide/index.server";
+import { guideOps } from "@/guide/ops.server";
 
 // The guide, both ways in: people read pages over rpc, agents read markdown over plain GET.
 

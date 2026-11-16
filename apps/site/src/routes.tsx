@@ -2,9 +2,11 @@ import { createRootRouteWithContext, createRoute, notFound } from "@tanstack/rea
 import type { Scope } from "@tinkered/core";
 
 import { BenchPage } from "@/bench";
-import { guide, GuideHome, GuidePage } from "@/guide";
+import { guide } from "@/guide";
+import { GuideHome, GuidePage } from "@/guide/guide";
 import { PlayPage } from "@/play";
-import { LivePage, roomName } from "@/sea";
+import { LivePage } from "@/sea";
+import { roomName } from "@/sea/contract";
 import { Shell } from "@/shell";
 
 const root = createRootRouteWithContext<{ scope: Scope.Handle }>()({ component: Shell });

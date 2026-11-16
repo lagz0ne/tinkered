@@ -2,8 +2,9 @@ import { serve, ws } from "@tinkered/bun";
 import { createScope } from "@tinkered/core";
 
 import { guide } from "@/guide";
-import { guideOps, guidePaths, guideRoutes } from "@/guide/index.server";
-import { sea, seaOps } from "@/sea/index.server";
+import { guideOps, guidePaths, guideRoutes } from "@/guide/ops.server";
+import { sea } from "@/sea/contract";
+import { seaOps } from "@/sea/ops.server";
 import { defineMain } from "~/base/main";
 import { observeServerPanics } from "~/base/panics.server";
 import { health } from "~/components/health";

@@ -56,8 +56,8 @@ export const seaApi = rpc({
 });
 
 /**
- * The shared sea's one capsule, for both sides. The page's door is `@/sea`; the server's is
- * `@/sea/index.server`, so the server never pulls the ocean or the page.
+ * The shared sea's one capsule, for both sides. It lives in this file, not beside the ocean or
+ * the page, so the server that imports it never pulls either.
  * - `board`: each room's waves (remote data, keyed by room).
  * - `api`: a press, as a call (rpc).
  */

@@ -10,9 +10,8 @@ reading every line.
 - **Config is a capsule key**: the cmd calls
   `x({ ... })`. Root `tags` never fill a key.
   Check: `MissingConfig` at start.
-- **One door**: a feature is reached as
-  `@/<feature>`. Check: lint
-  `no-restricted-imports`.
+- **No barrel**: a file exports only what it
+  declares. Check: `bun run check:plain`.
 - **Exports state intent**: a cell export is
   read only. Check: `InvalidDependency` and lint
   `tinker/cell-write`.

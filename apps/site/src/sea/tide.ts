@@ -1,7 +1,7 @@
 import { capsule, data, operation, resource, tag } from "@tinkered/core";
 import type { Data } from "@tinkered/core";
 
-import { ocean } from "@/play";
+import { ocean } from "@/play/starter/ocean";
 
 import { seaApi, seaBoard, seaPress } from "./contract";
 import type { SeaWave } from "./contract";
