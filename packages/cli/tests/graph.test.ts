@@ -179,7 +179,8 @@ test("a stale path that writes is one finding at the operation", { timeout: 60_0
 
   expect(code).toBe(1);
   expect(findings(out)).toEqual([
-    "src/ops.ts:10 tinker/graph issue.move.do stale: writes{issues.list.set}, tinker.graph says writes{}",
+    "src/ops.ts:10 tinker/graph issue.move.do stale: " +
+      "writes{issues.list.set}, tinker.graph says writes{}",
   ]);
   expect(out).toContain("\ntinker check: graph failed.\n");
 });
@@ -191,7 +192,8 @@ test("no tinker.graph is one finding that says to write it", { timeout: 60_000 }
 
   expect(code).toBe(1);
   expect(findings(out)).toEqual([
-    "tinker.graph:1 tinker/graph there is no tinker.graph: run `tinker graph --write` and commit it",
+    "tinker.graph:1 tinker/graph there is no tinker.graph: " +
+      "run `tinker graph --write` and commit it",
   ]);
 });
 

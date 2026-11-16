@@ -262,10 +262,10 @@ function skillCommand(root: string, args: readonly string[]): Main.Result {
 }
 
 /** The one flag each command takes: `--json` prints data, `--write` writes the file. */
-const flags: ReadonlyMap<string, string> = new Map([
-  ["check", "--json"],
-  ["graph", "--write"],
-]);
+function flagOf(command: string) {
+  if (command === "check") return "--json";
+  return command === "graph" ? "--write" : undefined;
+}
 
 /**
  * The command, without the process: `argv` is what follows the program name, and `cwd` is
@@ -274,7 +274,7 @@ const flags: ReadonlyMap<string, string> = new Map([
  */
 export function main(argv: readonly string[], cwd: string): Main.Result {
   const [command = "", ...args] = argv.filter((arg) => !arg.startsWith("-"));
-  const flag = flags.get(command);
+  const flag = flagOf(command);
   const on = argv.some((arg) => arg === flag);
   if (argv.some((arg) => arg.startsWith("-") && arg !== flag)) {
     return { code: 2, out: "", err: usage };

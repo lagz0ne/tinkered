@@ -24,15 +24,15 @@ type Unit = { made: string; label: string; read?: string };
 /** What the path to one exit touches: each fact is a label, then a kind (`issues.list.set`). */
 type Facts = { reads: Set<string>; writes: Set<string>; calls: Set<string> };
 
-const writeKinds = new Set(["set", "update", "delete"]);
+const writeKinds = ["set", "update", "delete"];
 
-const readKinds = new Set(["get", "of", "where"]);
+const readKinds = ["get", "of", "where"];
 
 /** A dep that reads one part of a keyed cell: `issues.where({ teamId })`. */
-const partKinds = new Set(["of", "where"]);
+const partKinds = ["of", "where"];
 
 /** The call kinds that run an operation a dep names. */
-const runKinds = new Set(["run", "settle"]);
+const runKinds = ["run", "settle"];
 
 const noFacts = (): Facts => ({ reads: new Set(), writes: new Set(), calls: new Set() });
 
@@ -72,7 +72,7 @@ function partOf(checker: ts.TypeChecker, value: ts.CallExpression) {
   if (!ts.isPropertyAccessExpression(value.expression)) return undefined;
   const read = value.expression.name.text;
   const unit = unitAt(checker, checker.getSymbolAtLocation(value.expression.expression));
-  return unit && partKinds.has(read) ? { ...unit, read } : undefined;
+  return unit && partKinds.includes(read) ? { ...unit, read } : undefined;
 }
 
 /** The unit a dep's value names: an operation, a cell's `controller`, or a part of a cell. */
@@ -104,14 +104,14 @@ function depsOf(checker: ts.TypeChecker, options: ts.ObjectLiteralExpression) {
 
 /** Add what one call on a unit does: it runs an operation, or reads or writes a cell. */
 function record({ made, label, read }: Unit, kind: string, facts: Facts) {
-  if (made === "operation" && runKinds.has(kind)) facts.calls.add(label);
+  if (made === "operation" && runKinds.includes(kind)) facts.calls.add(label);
   if (made !== "data") return;
   if (read) {
     if (kind === "get") facts.reads.add(`${label}.${read}`);
     return;
   }
-  if (writeKinds.has(kind)) facts.writes.add(`${label}.${kind}`);
-  if (readKinds.has(kind)) facts.reads.add(`${label}.${kind}`);
+  if (writeKinds.includes(kind)) facts.writes.add(`${label}.${kind}`);
+  if (readKinds.includes(kind)) facts.reads.add(`${label}.${kind}`);
 }
 
 /** Each `return` of a function's own body: one in a nested function returns from that one. */
@@ -237,7 +237,7 @@ class Reader {
   }
 
   /** Each return of a block body; a body whose end runs gives a plain return of all its code. */
-  block(body: ts.Block, exits: readonly string[]) {
+  block(body: ts.Block, exits: string[]) {
     for (const statement of returnsIn(body)) {
       const path = this.pathTo(body, statement);
       if (statement.expression) this.returned(statement.expression, path);
@@ -265,7 +265,8 @@ function factsOf(checker: ts.TypeChecker, { options, run, exits }: Exits.Operati
   const body = fn?.body;
   if (!fn || !body) return new Map<string, Facts>();
 
-  const reader = new Reader(checker, depsOf(checker, options), fn.parameters[0]);
+  const [deps] = fn.parameters;
+  const reader = new Reader(checker, depsOf(checker, options), deps);
   if (ts.isBlock(body)) reader.block(body, exits);
   else reader.returned(body, noFacts());
   return reader.found;
@@ -299,7 +300,7 @@ export function graphOf(root: string): Graph.Line[] {
 }
 
 /** The graph as `tinker.graph` holds it: one line per exit, and an end of line after each. */
-export function graphText(lines: readonly Graph.Line[]) {
+export function graphText(lines: Graph.Line[]) {
   return lines.map((line) => `${[keyOf(line), ...line.parts].join(" ")}\n`).join("");
 }
 
@@ -314,7 +315,7 @@ function linesIn(text: string) {
 }
 
 /** What a code line says that the file's line does not: each part that differs. */
-function changed(code: readonly string[], file: readonly string[]) {
+function changed(code: string[], file: string[]) {
   return code.flatMap((part, index) => {
     const said = file[index] ?? "nothing";
     return part === said ? [] : [`${part}, ${graphFile} says ${said}`];
@@ -326,7 +327,7 @@ function changed(code: readonly string[], file: readonly string[]) {
  * `tinker.graph` differ (ADR 0161). A code line points at its operation; a line only the file
  * has points at the file. An app with no exit needs no file.
  */
-export function graphFindings(root: string, code: readonly Graph.Line[]): Tools.Found[] {
+export function graphFindings(root: string, code: Graph.Line[]): Tools.Found[] {
   const path = join(root, graphFile);
   const rule = "tinker/graph";
   if (!existsSync(path)) {

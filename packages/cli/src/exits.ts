@@ -187,11 +187,7 @@ const said: Readonly<Record<string, string>> = {
 };
 
 /** A finding for each exit in `declared` that no test reached. */
-export function unreached(
-  root: string,
-  file: string,
-  declared: readonly Exits.Exit[],
-): Tools.Found[] {
+export function unreached(root: string, file: string, declared: Exits.Exit[]): Tools.Found[] {
   const reached = reachedIn(root, file);
 
   return declared

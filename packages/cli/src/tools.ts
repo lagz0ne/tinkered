@@ -349,11 +349,7 @@ export function runTools(root: string, sources: readonly Check.Source[]): Tools.
  * read. A page test leaves its exits in `pageExits`, which is emptied first, so an old run says
  * nothing. A red run names no exit: its tests are the finding.
  */
-export function runTests(
-  root: string,
-  command: string,
-  declared: readonly Exits.Exit[],
-): Tools.Tested {
+export function runTests(root: string, command: string, declared: Exits.Exit[]): Tools.Tested {
   const folder = mkdtempSync(join(tmpdir(), "tinker-exits-"));
   const file = join(folder, "exits.tsv");
   const env = { ...process.env, TINKER_EXITS: file };
