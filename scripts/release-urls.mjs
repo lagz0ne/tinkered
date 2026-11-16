@@ -2,7 +2,7 @@
  * The packages one tag ships, tested together: Core, React, Tinker on Bun (ADR 0130) and the
  * `tinker` CLI (ADR 0156).
  */
-export const releasePackages = ["core", "react", "bun", "cli"];
+export const releasePackages = ["core", "react", "bun", "cli", "entry"];
 
 /**
  * One tag names every release package, tested together (ADR 0122).

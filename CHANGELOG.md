@@ -2,10 +2,24 @@
 
 Each section is one release of
 `@tinkered/core`, `@tinkered/react`,
-`@tinkered/bun` and `@tinkered/cli`.
+`@tinkered/bun`, `@tinkered/cli` and
+`@tinkered/entry` (from 0.29.1).
 Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
+
+## 0.29.1
+
+A new package, `@tinkered/entry`: the backend of
+a Tinker app. This release sets it up. Its
+entries are empty.
+
+- `@tinkered/entry/cmd`: a command, a program
+  with no port.
+- `@tinkered/entry/server`: a server, a program
+  that listens on a port.
+- The code moves in from the template next. Then
+  `@tinkered/bun` moves in as `@tinkered/entry/bun`.
 
 ## 0.29.0
 
