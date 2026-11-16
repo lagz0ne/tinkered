@@ -8,6 +8,8 @@ type Payloads = {
   };
   /** A command's main answered with no `closed` promise, so the host cannot wait for its root. */
   MainClosedMissing: Record<string, never>;
+  /** A page loaded a backend entry; only a program on Bun or Node may import it. */
+  BackendInPage: Record<string, never>;
 };
 
 export declare namespace Errors {

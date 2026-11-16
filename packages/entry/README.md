@@ -22,6 +22,22 @@ Later, one entry per runtime:
   `@tinkered/bun`.
 - `@tinkered/entry/node`: Node.
 
+## A page cannot import an entry
+
+Each entry is backend code.
+A page bundler reads the `browser` export
+condition first.
+For `cmd` and `server` it gets an empty file.
+
+- A page that imports a value fails its build:
+  `"routes" is not exported by not-in-page.mjs`.
+- A page that loads it anyway stops with
+  `BackendInPage`.
+- `import type` still works.
+- Bun and Node get the real code.
+
+The model is Next.js `server-only`.
+
 ## What each entry holds
 
 `@tinkered/entry/cmd`:
@@ -52,8 +68,9 @@ Later, one entry per runtime:
 - `health`, `baseVersion`: the health route
   and this package's version.
 - `Errors`, `isError`: the kinds this
-  package raises, `HttpRequestFailed` and
-  `MainClosedMissing`, and their payloads.
+  package raises, `HttpRequestFailed`,
+  `MainClosedMissing`, `BackendInPage`, and
+  their payloads.
 - `abortReasons`: the shared abort reason
   `closed`.
 

@@ -1,6 +1,6 @@
 {
   "name": "@tinkered/entry",
-  "version": "0.29.2",
+  "version": "0.29.3",
   "description": "Tinker's backend entries: a command, a server, and the runtime under them.",
   "license": "MIT",
   "repository": {
@@ -17,8 +17,14 @@
     "#package.json": "./package.json"
   },
   "exports": {
-    "./cmd": "./dist/cmd.mjs",
-    "./server": "./dist/server.mjs",
+    "./cmd": {
+      "browser": "./dist/not-in-page.mjs",
+      "default": "./dist/cmd.mjs"
+    },
+    "./server": {
+      "browser": "./dist/not-in-page.mjs",
+      "default": "./dist/server.mjs"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

@@ -8,6 +8,20 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.29.3
+
+A page cannot import `@tinkered/entry/cmd` or
+`@tinkered/entry/server` by mistake.
+
+- Both entries get a `browser` export condition.
+  It points to an empty file.
+- A page build that imports a value from them
+  fails at that name.
+- A page that loads one anyway stops with
+  `BackendInPage`.
+- `import type` still works.
+- Bun and Node get the same code as before.
+
 ## 0.29.2
 
 `@tinkered/entry` gets its code, moved from the

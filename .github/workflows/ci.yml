@@ -73,6 +73,10 @@ jobs:
       - name: Lint rules
         run: node --test packages/cli/tests/cell-write.node-test.mjs
 
+      # A page build that names a backend entry export fails (`browser` condition); needs dist.
+      - name: Backend entries stay out of a page
+        run: node --test packages/entry/tests/page.node-test.mjs
+
   # Bun is the main runtime: Core and React tests, then the built dist, on Bun.
   # pnpm installs (bun install cannot read this pnpm workspace) and the build runs
   # on Node (Core's build plugin uses the TypeScript API, which needs Node).
