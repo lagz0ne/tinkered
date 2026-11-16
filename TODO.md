@@ -128,10 +128,11 @@ None.
 ## Review
 
 - **entry/cmd-server** — `@tinkered/entry` gets its code from the template (tinker-app d13daed).
-  Owner: Opus lead; Opus writer.
-  Built: `/cmd` (defineMain, createMainHost, runMain, observeServerPanics) and `/server` (routes, request lifetime and body, http, health, abortReasons, Errors), with the template's tests and new tests for a panic's exit and a request's end.
+  Owner: Opus lead; Opus writer. Fix round done.
+  Built: `/cmd` (defineMain, createMainHost, runMain, observeServerPanics) and `/server` (routes, request lifetime and body, http, health, abortReasons, Errors, isError), with one error registry, the template's tests, and new tests for a panic's exit, a request's end, http, trace and quiet rows.
+  No `exits` capsule: ADR 0159 is for apps; this package proves itself by its mutation floor (85).
   Next: the lead reviews and lands it.
-  Verify: `vp check` clean; `bun --bun vp test` in `packages/entry` passes 43 tests; `git diff main --stat -- packages/core packages/react packages/bun packages/cli` prints nothing.
+  Verify: `vp check` clean; `bun --bun vp test` in `packages/entry` passes; the mutation lane clears 85 on kills; `git diff main --stat -- packages/core packages/react packages/bun packages/cli` prints nothing.
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.

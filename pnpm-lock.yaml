@@ -542,6 +542,12 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@hughescr/stryker-bun-runner':
+        specifier: 'catalog:'
+        version: 1.6.0(@stryker-mutator/core@10.0.0(@types/node@26.5.1))(typescript@7.0.2)
+      '@stryker-mutator/core':
+        specifier: 'catalog:'
+        version: 10.0.0(@types/node@26.5.1)
       '@types/bun':
         specifier: ^1.3.0
         version: 1.4.4

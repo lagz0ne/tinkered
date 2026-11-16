@@ -30,6 +30,8 @@ Later, one entry per runtime:
   It runs nothing.
 - `createMainHost`, `runMain`: the host.
   It owns the signals and the exit code.
+  A main that answers with no `closed`
+  exits 1 with `MainClosedMissing`.
 - `observeServerPanics`: an unhandled
   rejection closes the root, then exits 1.
 - The types `MainClosed`, `MainContext`,
@@ -49,8 +51,11 @@ Later, one entry per runtime:
   outbound HTTP.
 - `health`, `baseVersion`: the health route
   and this package's version.
-- `abortReasons`, `Errors`: the shared abort
-  reasons and error payloads.
+- `Errors`, `isError`: the kinds this
+  package raises, `HttpRequestFailed` and
+  `MainClosedMissing`, and their payloads.
+- `abortReasons`: the shared abort reason
+  `closed`.
 
 `zod` is a peer: the server entry needs it.
 
@@ -99,7 +104,8 @@ export default defineMain(
 );
 ```
 
-`run` from `@tinkered/bun` starts it.
+`run` from `@tinkered/bun`, or `runMain`,
+starts it.
 
 ## State
 
