@@ -3,7 +3,7 @@ import type { Ns, Operation, RunResult, Scope } from "@tinkered/core";
 
 import { backendStop, requestStop } from "./lifetime";
 
-/** One row of the route table: "METHOD /path/{param}" names the operation that answers it. */
+/** One row of the route table: `METHOD /path/{param}` names the operation that answers it. */
 export type Routes = Readonly<Record<`${string} /${string}`, Operation.Handle<any, any>>>;
 
 /**
@@ -31,7 +31,7 @@ const failures: Readonly<Record<string, number>> = { DataValidationFailed: 400, 
 
 /**
  * The cmd's one route table, compiled once at start. A row with no param is one Map read by
- * "METHOD /path", as a static route in Hono's router; a row with a param keeps its URLPattern,
+ * `METHOD /path`, as a static route in Hono's router; a row with a param keeps its URLPattern,
  * matched once. The first row that fits wins, by table order, in both. A route's
  * raw input is its query plus its path params. Its reply: a Response as is, nothing as 204, a
  * value as JSON. Bad input is 400, a cancel 503, anything else 500. No row: undefined. A route
@@ -41,8 +41,9 @@ const failures: Readonly<Record<string, number>> = { DataValidationFailed: 400, 
  * open until the run ends. A row whose op has a `routes.ns` binding opens it in that namespace.
  * A subflow the route op does not await is cut off when the run ends: Core aborts its signal.
  * To keep work running past the reply, reply with `reply` and await that work in the op.
- * Only the first reply counts. After an early `reply`, a second `reply` is dropped; a Response
- * the op returns is dropped too, and its body is cancelled. An op that replies with a stream must
+ * Only the first reply counts. Every later reply, and a Response the op returns after an early
+ * `reply`, is dropped and its body cancelled. The root waits for those cancels when it closes; a
+ * cancel that fails is a warning in the root's log, with its error. An op that replies with a stream must
  * close or error it in a `finally`: if the op throws first, the client waits for the 60 s idle
  * timeout.
  */
@@ -51,8 +52,29 @@ export const routes = capsule({
   config: { table: table.required, stop: backendStop.required, ns: ns.all },
   exports: { request, reply, ns, stop: requestStop },
   hooks: {
-    async start({ config, next }) {
+    async start({ config, next, defer, log }) {
       await next();
+
+      /** Body cancels still running: the root owns them, and waits for them when it closes. */
+      const cancels = new Set<Promise<void>>();
+      defer(async () => {
+        await Promise.all(cancels);
+      });
+
+      /** A reply that is not the answer reaches no one: cancel its body, so a stream stops. */
+      const discard = async (late: Response | Promise<Response>, answer: Promise<Response>) => {
+        const dropped = await late;
+        if (dropped === (await answer)) return;
+        try {
+          await dropped.body?.cancel();
+        } catch (error) {
+          log.warn("routes: a dropped reply's body did not cancel", { error });
+        }
+      };
+      const own = (cancel: Promise<void>) => {
+        const owned = cancel.finally(() => cancels.delete(owned));
+        cancels.add(owned);
+      };
 
       type Row = {
         method: string;
@@ -100,14 +122,22 @@ export const routes = capsule({
         const signal = AbortSignal.any([incoming.signal, config.stop]);
         const trace = transport.traceparentOf(incoming.headers.get("traceparent"));
         const early = Promise.withResolvers<Response>();
-        // A closing root throws `Disposed` from createSession: answer it as a failed run.
+        /** The request's answer, once the first reply came or the run ended. */
+        let answer: Promise<Response> | undefined;
+        /** The op's `reply`: the first one answers; any later one is dropped. */
+        const send = (response: Response) => {
+          if (answer) return own(discard(response, answer));
+          answer = early.promise;
+          early.resolve(response);
+        };
+        /** A closing root throws `Disposed` from createSession: answer it as a failed run. */
         let session: Scope.Handle | undefined;
         const settled = Promise.resolve()
           .then(() =>
             (session = scope.createSession({ trace, ns: row.ns })).settle(row.op, {
               rawInput: { ...Object.fromEntries(url.searchParams), ...params },
               signal,
-              tags: [request(incoming), requestStop(signal), reply(early.resolve)],
+              tags: [request(incoming), requestStop(signal), reply(send)],
             }),
           )
           .catch((error: unknown): RunResult<never> => ({ status: "failed", error, kind: "error" }))
@@ -124,12 +154,8 @@ export const routes = capsule({
           });
 
         const winner = await Promise.race([early.promise, settled]);
-        // The reply that loses the race answers no one: cancel its body, so a stream stops.
-        for (const loser of [early.promise, settled]) {
-          void loser.then((late) =>
-            late === winner ? undefined : late.body?.cancel().catch(() => undefined),
-          );
-        }
+        answer ??= settled;
+        own(discard(settled, answer));
         return winner;
       };
       return { fetch };

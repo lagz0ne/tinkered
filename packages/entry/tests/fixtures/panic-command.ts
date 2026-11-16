@@ -1,7 +1,7 @@
-import { observeServerPanics, runMain } from "@/cmd";
+import { defineMain, observeServerPanics, runMain } from "@/cmd";
 
 /** A server command whose root close fails: a panic aborts it, and its close then rejects. */
-await runMain(async ({ signal, exit, stderr }) => {
+const main = defineMain(async ({ signal, exit, stderr }) => {
   const closed = new Promise<void>((_, reject) =>
     signal.addEventListener("abort", () => reject(new Error("close failed"))),
   );
@@ -10,3 +10,5 @@ await runMain(async ({ signal, exit, stderr }) => {
   setTimeout(() => Promise.reject(new Error("panic")));
   return { closed };
 });
+
+await runMain(main);

@@ -3,8 +3,8 @@
  * outbound HTTP, health, and the shared abort reasons and error payloads.
  */
 
-export { abortReasons } from "@/server/errors";
-export type { Errors } from "@/server/errors";
+export { abortReasons, isError } from "@/errors";
+export type { Errors } from "@/errors";
 export { baseVersion, health } from "@/server/health";
 export { httpBackend } from "@/server/backend";
 export { http, httpRequest } from "@/server/http";

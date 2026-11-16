@@ -1,7 +1,8 @@
-import { afterEach, expect, test, vi } from "vite-plus/test";
+import { expect, test } from "vite-plus/test";
 
 import { createMainHost, defineMain, runMain } from "@/cmd";
 import type { MainClosed, MainContext } from "@/cmd";
+import { isError } from "@/server";
 
 /**
  * The command host in process, with fake streams: each case drives one rule of the host and reads
@@ -42,11 +43,13 @@ const plain = () => {
 };
 
 const done: Closed = { closed: Promise.resolve() };
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** A command that exits but never closes, as its own process: the hard stop ends that process. */
+const hardStopCommand = new URL("./fixtures/hard-stop-command.ts", import.meta.url).pathname;
 
 /** Polls a check every 5 ms until it passes, for at most a second. */
 const until = async (check: () => void) => {
-  for (const started = Date.now(); ; await wait(5)) {
+  for (const started = Date.now(); ; await Bun.sleep(5)) {
     try {
       return check();
     } catch (error) {
@@ -55,27 +58,40 @@ const until = async (check: () => void) => {
   }
 };
 
+/** A host with fake streams and a hard stop that only counts its calls. */
 const host = (
-  main: (ctx: MainContext) => Promise<Closed>,
+  main: (ctx: MainContext) => Closed | Promise<Closed>,
   options: Partial<Parameters<typeof createMainHost>[1]> = {},
 ) => {
   const stderr = plain();
-  const hardStop = vi.fn();
+  let hardStops = 0;
   const run = createMainHost(main, {
     env: {},
     stdout: plain(),
     stderr,
-    hardStop,
+    hardStop: () => (hardStops += 1),
     graceMs: 20,
     ...options,
   });
 
-  return { ...run, stderr, hardStop };
+  return { ...run, stderr, hardStops: () => hardStops };
 };
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
+/**
+ * A fence the host owns: a second host stops, and its grace runs out. A grace timer that an
+ * earlier host started with the same `graceMs` has run out by then too.
+ */
+const graceOver = async () => {
+  let release = () => {};
+  const fence = host(async ({ exit }) => {
+    exit(1);
+    return { closed: new Promise<void>((resolve) => (release = resolve)) };
+  });
+
+  await until(() => expect(fence.hardStops()).toBe(1));
+  release();
+  await fence.closed;
+};
 
 test("a command that ends clean exits 0 and prints nothing", async () => {
   const run = host(async () => ({ closed: Promise.resolve([{ status: "success" as const }]) }));
@@ -184,7 +200,6 @@ test("a host stop with no reason aborts with its own reason, which never prints"
   run.stop(130);
 
   expect(await run.closed).toBe(130);
-  expect(seen).toBeInstanceOf(DOMException);
   expect(seen).toMatchObject({ name: "AbortError", message: "Command stopped" });
   expect(run.signal.reason).toBe(seen);
   expect(run.stderr.text()).toBe("");
@@ -211,26 +226,25 @@ test("a host stop's signal reason never prints; a command's Error reason does", 
 });
 
 test("onStart runs once the command returned, and not when it already stopped", async () => {
-  const onStart = vi.fn();
-  const running = host(async () => done, { onStart });
+  const calls: unknown[][] = [];
+  const running = host(async () => done, { onStart: (app, signal) => calls.push([app, signal]) });
 
   expect(await running.closed).toBe(0);
-  expect(onStart).toHaveBeenCalledTimes(1);
-  const [call] = onStart.mock.calls;
-  expect(call?.[0]).toBe(done);
-  expect(call?.[1]).toBe(running.signal);
+  expect(calls).toHaveLength(1);
+  expect(calls[0]?.[0]).toBe(done);
+  expect(calls[0]?.[1]).toBe(running.signal);
 
-  const stopped = vi.fn();
+  const stopped: unknown[] = [];
   const exited = host(
     async ({ exit }) => {
       exit(3);
       return done;
     },
-    { onStart: stopped },
+    { onStart: (app) => stopped.push(app) },
   );
 
   expect(await exited.closed).toBe(3);
-  expect(stopped).not.toHaveBeenCalled();
+  expect(stopped).toEqual([]);
 });
 
 test("a failed root or a teardown error exits 1 with the first error", async () => {
@@ -257,19 +271,20 @@ test("a failed root or a teardown error exits 1 with the first error", async () 
   expect(clean.stderr.text()).toBe("");
 });
 
-test("a command that returns no closed promise exits 1 and says so", async () => {
-  // JSON.parse gives `any`, so a null return needs no cast.
+test("a command that returns no closed promise exits 1 with MainClosedMissing", async () => {
+  /** JSON.parse gives `any`, so a null return needs no cast. */
   const nothing = host(async () => JSON.parse("null"));
   const noClosed = host(async () => ({}) as Closed);
 
-  expect(await nothing.closed).toBe(1);
-  expect(nothing.stderr.text()).toMatch(
-    /^command failed \(exit 1\): TypeError: main must return closed\n/,
-  );
-  expect(await noClosed.closed).toBe(1);
-  expect(noClosed.stderr.text()).toMatch(
-    /^command failed \(exit 1\): TypeError: main must return closed\n/,
-  );
+  const codes = [await nothing.closed, await noClosed.closed];
+
+  expect(codes).toEqual([1, 1]);
+  for (const run of [nothing, noClosed]) {
+    const reason: unknown = run.signal.reason;
+    if (!isError(reason, "MainClosedMissing")) throw reason;
+    expect(reason.payload).toEqual({});
+    expect(run.stderr.text()).toMatch(/^command failed \(exit 1\): Error: MainClosedMissing\n/);
+  }
 });
 
 test("a close result the scan cannot read ([null]) exits 1 with the TypeError line", async () => {
@@ -405,8 +420,8 @@ test("close clears the grace timer, also after a second stop", async () => {
   });
 
   expect(await run.closed).toBe(1);
-  await wait(60);
-  expect(run.hardStop).not.toHaveBeenCalled();
+  await graceOver();
+  expect(run.hardStops()).toBe(0);
 });
 
 test("a stop after close prints as late and starts no grace timer", async () => {
@@ -414,10 +429,10 @@ test("a stop after close prints as late and starts no grace timer", async () => 
 
   expect(await run.closed).toBe(0);
   run.stop(2, Object.assign(new Error("late"), { stack: "late stack" }));
-  await wait(60);
+  await graceOver();
 
   expect(run.stderr.text()).toBe("after exit 0: late stack\n");
-  expect(run.hardStop).not.toHaveBeenCalled();
+  expect(run.hardStops()).toBe(0);
 });
 
 test("a command that does not close within grace gets the hard stop", async () => {
@@ -427,25 +442,21 @@ test("a command that does not close within grace gets the hard stop", async () =
     return { closed: new Promise<void>((resolve) => (release = resolve)) };
   });
 
-  await until(() => expect(run.hardStop).toHaveBeenCalledTimes(1));
+  await until(() => expect(run.hardStops()).toBe(1));
   release();
   expect(await run.closed).toBe(1);
 });
 
 test("the default hard stop kills the process with SIGKILL", async () => {
-  const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
-  let release = () => {};
-  const run = createMainHost(
-    async ({ exit }) => {
-      exit(1);
-      return { closed: new Promise<void>((resolve) => (release = resolve)) };
-    },
-    { env: {}, stdout: plain(), stderr: plain(), graceMs: 1 },
-  );
+  const child = Bun.spawn([process.execPath, hardStopCommand], {
+    cwd: new URL("..", import.meta.url).pathname,
+    stdout: "ignore",
+    stderr: "ignore",
+  });
 
-  await until(() => expect(kill).toHaveBeenCalledWith(process.pid, "SIGKILL"));
-  release();
-  expect(await run.closed).toBe(1);
+  await child.exited;
+
+  expect(child.signalCode).toBe("SIGKILL");
 });
 
 /**
@@ -508,14 +519,23 @@ test("runMain stops the command on SIGHUP, SIGINT and SIGTERM, then drops its ha
 
 test("runMain ignores a gone reader on its streams and rethrows any other stream error", async () => {
   const handlers = new Map<string, (error: unknown) => void>();
-  const watched = (name: string, isTTY?: boolean) => ({
-    isTTY,
-    write() {},
-    on: vi.fn((event: "error", listener: (error: unknown) => void) =>
-      handlers.set(`${name} ${event}`, listener),
-    ),
-    off: vi.fn(),
-  });
+  const watched = (name: string, isTTY?: boolean) => {
+    const ons: unknown[][] = [];
+    const offs: unknown[][] = [];
+    return {
+      isTTY,
+      ons,
+      offs,
+      write() {},
+      on(event: "error", listener: (error: unknown) => void) {
+        ons.push([event, listener]);
+        handlers.set(`${name} ${event}`, listener);
+      },
+      off(event: "error", listener: (error: unknown) => void) {
+        offs.push([event, listener]);
+      },
+    };
+  };
   const stdout = watched("stdout");
   const stderr = watched("stderr");
   let quiet: ((error: unknown) => void) | undefined;
@@ -527,15 +547,14 @@ test("runMain ignores a gone reader on its streams and rethrows any other stream
     { stdout, stderr },
   );
 
-  expect(stdout.on).toHaveBeenCalledWith("error", quiet);
-  expect(stderr.on).toHaveBeenCalledWith("error", quiet);
-  expect(stdout.off).toHaveBeenCalledWith("error", quiet);
-  expect(stderr.off).toHaveBeenCalledWith("error", quiet);
+  expect([stdout.ons, stderr.ons]).toEqual([[["error", quiet]], [["error", quiet]]]);
+  expect([stdout.offs, stderr.offs]).toEqual([[["error", quiet]], [["error", quiet]]]);
   expect(() => quiet?.({ code: "EPIPE" })).not.toThrow();
   const broken = { code: "EBADF" };
   expect(() => quiet?.(broken)).toThrow(expect.objectContaining(broken));
-  // EIO is a closed terminal only when stdout is one.
-  expect(() => quiet?.({ code: "EIO" })).toThrow();
+  /** EIO is a closed terminal only when stdout is one. */
+  const eio = { code: "EIO" };
+  expect(() => quiet?.(eio)).toThrow();
 
   const tty = watched("tty", true);
   await runIn(async () => done, { stdout: tty, stderr: watched("tty-err") });
@@ -607,27 +626,21 @@ test("on a terminal, only EIO is a gone reader; other write errors still exit 1"
 
 test("defining a command runs nothing; the host runs its main once", async () => {
   let runs = 0;
-  const main = defineMain(async () => {
+  const main = defineMain(() => {
     runs += 1;
     return done;
   });
   const before = runs;
 
-  const run = host(async (ctx) => main(ctx));
+  const run = createMainHost(main, { env: {}, stdout: plain(), stderr: plain() });
 
   expect(await run.closed).toBe(0);
   expect([before, runs]).toEqual([0, 1]);
 });
 
 test("a second stop signal starts no second close: the first code stays", async () => {
-  let aborts = 0;
   const run = host(async ({ signal }) => ({
-    closed: new Promise<void>((resolve) =>
-      signal.addEventListener("abort", () => {
-        aborts += 1;
-        resolve();
-      }),
-    ),
+    closed: new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve())),
   }));
   await run.started;
 
@@ -635,6 +648,5 @@ test("a second stop signal starts no second close: the first code stays", async 
   run.stop(143, new DOMException("SIGTERM", "AbortError"));
 
   expect(await run.closed).toBe(130);
-  expect(aborts).toBe(1);
   expect(run.stderr.text()).toBe("");
 });

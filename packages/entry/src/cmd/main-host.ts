@@ -1,3 +1,5 @@
+import { raise } from "@/errors";
+
 import type { MainClosed, MainContext } from "./main";
 
 type Output = MainContext["stdout"] & {
@@ -9,7 +11,8 @@ type Output = MainContext["stdout"] & {
   off?(event: "error", listener: (error: unknown) => void): unknown;
 };
 
-type Main<R> = (ctx: MainContext) => Promise<R>;
+/** A command's main, as `defineMain` gives it: it may answer at once or later. */
+type Main<R> = (ctx: MainContext) => R | Promise<R>;
 
 export declare namespace MainHost {
   type Options = {
@@ -48,19 +51,26 @@ export function createMainHost<R extends { closed: MainClosed }>(
   const controller = new AbortController();
   const printed = new Set<unknown>();
   const hostReasons = new WeakSet<object>();
-  // The first stop's code; `stopped` says there was one.
+  /** The first stop's code; `stopped` says there was one. */
   let code = 0;
   let stopped = false;
   let savedReason: unknown;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let finished = false;
 
-  // The first stop starts the grace timer: a command still open when it ends gets the hard stop.
-  controller.signal.addEventListener("abort", () => {
+  /** The first stop starts the grace timer: a command still open when it ends gets the hard stop. */
+  const startGrace = () => {
     timer = setTimeout(hardStop, graceMs);
     timer.unref?.();
-  });
+  };
+  controller.signal.addEventListener("abort", startGrace);
 
+  /**
+   * The first stop sets the code and prints a failing reason; a later one prints a new reason as
+   * late. Each reason prints once, and a host stop's own reason never. The code is set before the
+   * print, so a stop from inside the print (a getter, a `toJSON`) is late. A broken output stream
+   * must not block abort or the grace deadline, so a failed write is left as is.
+   */
   const stop = (next: number, reason?: unknown) => {
     if (reason === undefined) {
       const own = new DOMException("Command stopped", "AbortError");
@@ -68,9 +78,6 @@ export function createMainHost<R extends { closed: MainClosed }>(
       reason = own;
     }
 
-    // The first stop sets the code and prints a failing reason; a later one prints a new reason
-    // as late. Each reason prints once, and a host stop's own reason never. The code is set
-    // before the print, so a stop from inside the print (a getter, a `toJSON`) is late.
     const late = stopped || finished;
     if (late && reason === savedReason) return;
     const prefix = late ? `after exit ${code}` : `command failed (exit ${next})`;
@@ -92,24 +99,21 @@ export function createMainHost<R extends { closed: MainClosed }>(
         const value = Object(given);
         const { kind, payload, stack } = value;
 
-        // Error text is best effort; a bad payload must never interrupt a stop. The stack (or
-        // the reason's text) is the fallback when the payload cannot print.
+        /**
+         * Error text is best effort; a bad payload must never interrupt a stop. The stack (or the
+         * reason's text) is the fallback when the payload cannot print, and a fixed line when
+         * neither can.
+         */
         let detail = "Unprintable command failure";
         try {
           detail = stack ?? String(value);
-        } catch {
-          // The fixed line stays.
-        }
+        } catch {}
         try {
           if (next !== 1 && kind && payload) detail = `${kind}: ${JSON.stringify(payload)}`;
-        } catch {
-          // The fallback stays.
-        }
+        } catch {}
         try {
           stderr.write(`${prefix}: ${detail}\n`);
-        } catch {
-          // A broken output stream must not block abort or the grace deadline.
-        }
+        } catch {}
       });
     if (late) return;
 
@@ -122,11 +126,13 @@ export function createMainHost<R extends { closed: MainClosed }>(
 
   const settled = started.then(
     async (app) => {
-      // The first failure in the root close results, app first: a failed root's error, else
-      // that root's first teardown error. One `catch` covers the whole read, so a throw in the
-      // scan (a result of null, a getter that throws) is a failure too.
+      /**
+       * The first failure in the root close results, app first: a failed root's error, else that
+       * root's first teardown error. One `catch` covers the whole read, so a throw in the scan (a
+       * result of null, a getter that throws) is a failure too.
+       */
       const ended = Promise.resolve().then(async () => {
-        if (!(app?.closed instanceof Promise)) throw new TypeError("main must return closed");
+        if (!(app?.closed instanceof Promise)) raise("MainClosedMissing", {});
         if (!controller.signal.aborted) await options.onStart?.(app, controller.signal);
 
         const failure = [(await app.closed) ?? []]
@@ -139,7 +145,7 @@ export function createMainHost<R extends { closed: MainClosed }>(
       });
 
       return ended.catch(async (error: unknown) => {
-        // A stop's own reason is no failure; a close error that is not this error prints late.
+        /** A stop's own reason is no failure; a close error that is not this error prints late. */
         let failed = !controller.signal.aborted || error !== controller.signal.reason;
         if (failed) stop(1, error);
         if (!(app?.closed instanceof Promise)) return failed;
@@ -152,7 +158,7 @@ export function createMainHost<R extends { closed: MainClosed }>(
       });
     },
     (error: unknown) => {
-      // A startup throw: 78 for a config error, else 1. A stop's own reason is no failure.
+      /** A startup throw: 78 for a config error, else 1. A stop's own reason is no failure. */
       const failed = !controller.signal.aborted || error !== controller.signal.reason;
       const config = ["MissingTag", "MissingConfig", "DataValidationFailed"].includes(
         Object(error).kind,
@@ -164,14 +170,16 @@ export function createMainHost<R extends { closed: MainClosed }>(
 
   const closed = settled.then(async (failed) => {
     for (const stream of [stdout, stderr]) {
-      // A callback after an empty write fences all prior writes on that stream.
+      /** A callback after an empty write fences all prior writes on that stream. */
       const fence = new Promise<void>((resolve, reject) => {
         if (typeof stream.writable !== "boolean" || stream.destroyed) return resolve();
         stream.write("", (error) => (error ? reject(error) : resolve()));
       });
       await fence.catch((error: unknown) => {
-        // A gone reader is no failure: a closed pipe (EPIPE), or a closed terminal (EIO on a
-        // terminal). On a file or a pipe, EIO is a real write failure.
+        /**
+         * A gone reader is no failure: a closed pipe (EPIPE), or a closed terminal (EIO on a
+         * terminal). On a file or a pipe, EIO is a real write failure.
+         */
         const { code: why } = Object(error);
         if (why !== "EPIPE" && !(why === "EIO" && stream.isTTY === true)) failed = true;
       });
@@ -186,8 +194,8 @@ export function createMainHost<R extends { closed: MainClosed }>(
     started,
     closed,
     signal: controller.signal,
+    /** Only native host stops own these abort reasons; a command's exit does not. */
     stop(next: number, reason?: unknown) {
-      // Only native host stops own these abort reasons; a command's exit does not.
       if (reason instanceof DOMException && reason.name === "AbortError") hostReasons.add(reason);
       stop(next, reason);
     },

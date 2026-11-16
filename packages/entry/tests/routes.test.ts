@@ -1,4 +1,4 @@
-import { createScope, operation } from "@tinkered/core";
+import { createScope, namespace, operation } from "@tinkered/core";
 import type { Observe } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 import { z } from "zod";
@@ -94,9 +94,23 @@ test("a fixed path after a param row that also fits it: the param row still wins
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-/** Waits up to `ms` for a promise; "late" when it is still pending then: the reply waited. */
-const within = <T>(promise: Promise<T>, ms = 1000) =>
-  Promise.race([promise, Bun.sleep(ms).then(() => "late" as const)]);
+/** Polls a check every 5 ms until it passes, for at most a second. */
+const until = async (check: () => void) => {
+  for (const started = Date.now(); ; await Bun.sleep(5)) {
+    try {
+      return check();
+    } catch (error) {
+      if (Date.now() - started > 1000) throw error;
+    }
+  }
+};
+
+/** The one span a run of `name` exported; it fails when there is none. */
+const named = (spans: Observe.Span[], name: string) => {
+  const span = spans.find((s) => s.name === name);
+  if (!span) throw new Error(`no span named ${name}`);
+  return span;
+};
 
 test("an early reply streams while its op runs; the op's span ends after the body ends", async () => {
   const spans: Observe.Span[] = [];
@@ -128,9 +142,7 @@ test("an early reply streams while its op runs; the op's span ends after the bod
   });
 
   try {
-    const response = await within(fetch(`${http.url}stream`));
-    expect(response).toBeInstanceOf(Response);
-    if (response === "late") return;
+    const response = await fetch(`${http.url}stream`);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/event-stream");
 
@@ -145,11 +157,7 @@ test("an early reply streams while its op runs; the op's span ends after the bod
       rest += decoder.decode(next.value);
     }
     expect(rest).toBe("data: two\n\n");
-    for (let i = 0; i < 50 && !spans.some((span) => span.name === "stream"); i++) {
-      await Bun.sleep(10);
-    }
-    const span = spans.find((span) => span.name === "stream");
-    expect(span?.status).toBe("ok");
+    await until(() => expect(named(spans, "stream").status).toBe("ok"));
   } finally {
     more.resolve();
     await http.stop(true);
@@ -159,12 +167,13 @@ test("an early reply streams while its op runs; the op's span ends after the bod
 
 test("an op that replies early and then fails keeps its reply", async () => {
   const spans: Observe.Span[] = [];
+  const replied = Promise.withResolvers<void>();
   const late = operation({
     label: "late",
     depends: { reply: routes.reply.required },
     run: async ({ reply }) => {
       reply(new Response("sent", { status: 202 }));
-      await Bun.sleep(5);
+      await replied.promise;
       throw new Error("after the reply");
     },
   });
@@ -173,25 +182,25 @@ test("an op that replies early and then fails keeps its reply", async () => {
     capsules: [routes({ stop: new AbortController().signal, table: { "GET /late": late } })],
   }).ready;
 
-  const response = await within(app.resolve(routes).fetch(new Request("http://t/late"), app));
-  expect(response).toBeInstanceOf(Response);
-  if (!(response instanceof Response)) return;
-  expect(response.status).toBe(202);
-  expect(await response.text()).toBe("sent");
-  await Bun.sleep(20);
-  expect(spans.find((span) => span.name === "late")?.status).toBe("failed");
+  const response = await app.resolve(routes).fetch(new Request("http://t/late"), app);
+  replied.resolve();
+
+  expect(response?.status).toBe(202);
+  expect(await response?.text()).toBe("sent");
+  await until(() => expect(named(spans, "late").status).toBe("failed"));
 
   await app.close();
 });
 
 test("after an early reply, a Response the op returns is dropped and its body cancelled", async () => {
   const cancelled = Promise.withResolvers<unknown>();
+  const replied = Promise.withResolvers<void>();
   const twice = operation({
     label: "twice",
     depends: { reply: routes.reply.required },
     run: async ({ reply }) => {
       reply(new Response("first", { status: 202 }));
-      await Bun.sleep(5);
+      await replied.promise;
       return new Response(new ReadableStream({ cancel: (reason) => cancelled.resolve(reason) }));
     },
   });
@@ -199,12 +208,12 @@ test("after an early reply, a Response the op returns is dropped and its body ca
     capsules: [routes({ stop: new AbortController().signal, table: { "GET /twice": twice } })],
   }).ready;
 
-  const response = await within(app.resolve(routes).fetch(new Request("http://t/twice"), app));
-  expect(response).toBeInstanceOf(Response);
-  if (!(response instanceof Response)) return;
-  expect(response.status).toBe(202);
-  expect(await response.text()).toBe("first");
-  expect(await within(cancelled.promise, 200)).not.toBe("late");
+  const response = await app.resolve(routes).fetch(new Request("http://t/twice"), app);
+  replied.resolve();
+
+  expect(response?.status).toBe(202);
+  expect(await response?.text()).toBe("first");
+  expect(await cancelled.promise).toBeUndefined();
 
   await app.close();
 });
@@ -268,5 +277,128 @@ test("a request body a route opens ends when the server stops", async () => {
 
   expect(await ended.promise).toBe(true);
   expect((await waiting)?.status).toBe(503);
+  await app.close();
+});
+
+test("a second reply is dropped and its body cancelled; the first one answers", async () => {
+  const cancelled = Promise.withResolvers<unknown>();
+  const both = operation({
+    label: "both",
+    depends: { reply: routes.reply.required },
+    run: ({ reply }) => {
+      reply(new Response("first"));
+      reply(new Response(new ReadableStream({ cancel: (reason) => cancelled.resolve(reason) })));
+    },
+  });
+  const app = await createScope({
+    capsules: [routes({ stop: new AbortController().signal, table: { "GET /both": both } })],
+  }).ready;
+
+  const response = await app.resolve(routes).fetch(new Request("http://t/both"), app);
+
+  expect(await response?.text()).toBe("first");
+  expect(await cancelled.promise).toBeUndefined();
+  await app.close();
+});
+
+const remote = { traceId: "4bf92f3577b34da6a3ce929d0e0e4736", spanId: "00f067aa0ba902b7" };
+const valid = `00-${remote.traceId}-${remote.spanId}-01`;
+
+/** Bad headers: each one is ignored, so the request starts a fresh trace. */
+const malformed = [
+  "",
+  "garbage",
+  valid.toUpperCase(),
+  `ff-${remote.traceId}-${remote.spanId}-01`,
+  `01-${remote.traceId}-${remote.spanId}-01`,
+  `00-${"0".repeat(32)}-${remote.spanId}-01`,
+  `00-${remote.traceId}-${"0".repeat(16)}-01`,
+  `00-${remote.traceId.slice(2)}-${remote.spanId}-01`,
+  `${valid}-extra`,
+];
+
+const traced = operation({ label: "trace.echo", run: () => ({ ok: true }) });
+
+test("a request with a valid traceparent gives a route span that is its child", async () => {
+  const spans: Observe.Span[] = [];
+  const app = await createScope({
+    observe: { export: (span) => void spans.push(span) },
+    capsules: [routes({ stop: new AbortController().signal, table: { "GET /echo": traced } })],
+  }).ready;
+
+  const response = await app
+    .resolve(routes)
+    .fetch(new Request("http://t/echo", { headers: { traceparent: valid } }), app);
+
+  expect(response?.status).toBe(200);
+  const span = named(spans, "trace.echo");
+  expect(span.traceId).toBe(remote.traceId);
+  expect(span.parentSpanId).toBe(remote.spanId);
+  expect(span.sampled).toBe(true);
+  await app.close();
+});
+
+test("a missing or malformed traceparent starts a fresh trace; the request still answers 200", async () => {
+  const spans: Observe.Span[] = [];
+  const app = await createScope({
+    observe: { export: (span) => void spans.push(span) },
+    capsules: [routes({ stop: new AbortController().signal, table: { "GET /echo": traced } })],
+  }).ready;
+  const fetch = app.resolve(routes).fetch;
+
+  for (const header of [undefined, ...malformed]) {
+    const headers: Record<string, string> = header === undefined ? {} : { traceparent: header };
+    spans.length = 0;
+
+    const response = await fetch(new Request("http://t/echo", { headers }), app);
+
+    expect(response?.status).toBe(200);
+    const span = named(spans, "trace.echo");
+    expect(span.traceId).not.toBe(remote.traceId);
+    expect(span.parentSpanId).toBeUndefined();
+  }
+  await app.close();
+});
+
+test("a request after the root closed answers 500, it does not reject", async () => {
+  const closing = await createScope({
+    capsules: [routes({ stop: new AbortController().signal, table: { "GET /echo": traced } })],
+  }).ready;
+  const answer = closing.resolve(routes).fetch;
+  await closing.close();
+
+  const response = await answer(new Request("http://t/echo"), closing);
+
+  expect(response?.status).toBe(500);
+});
+
+test("a row bound to a quiet namespace makes no span, even when it fails", async () => {
+  const spans: Observe.Span[] = [];
+  const hushed = operation({
+    label: "hushed",
+    run: () => {
+      throw new Error("quiet failure");
+    },
+  });
+  const loud = operation({ label: "loud", run: () => ({ ok: true }) });
+  const app = await createScope({
+    observe: { export: (span) => void spans.push(span) },
+    tags: [routes.ns({ op: hushed, ns: namespace({ observe: false }) })],
+    capsules: [
+      routes({
+        stop: new AbortController().signal,
+        table: { "GET /hushed": hushed, "GET /loud": loud },
+      }),
+    ],
+  }).ready;
+  const fetch = app.resolve(routes).fetch;
+
+  const statuses = [
+    (await fetch(new Request("http://t/hushed"), app))?.status,
+    (await fetch(new Request("http://t/loud"), app))?.status,
+  ];
+
+  expect(statuses).toEqual([500, 200]);
+  expect(spans.map((span) => span.name)).toEqual(["loud"]);
   await app.close();
 });
