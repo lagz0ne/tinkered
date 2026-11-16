@@ -127,6 +127,12 @@ None.
 
 ## Review
 
+- **entry/cmd-server** — `@tinkered/entry` gets its code from the template (tinker-app d13daed).
+  Owner: Opus lead; Opus writer.
+  Built: `/cmd` (defineMain, createMainHost, runMain, observeServerPanics) and `/server` (routes, request lifetime and body, http, health, abortReasons, Errors), with the template's tests and new tests for a panic's exit and a request's end.
+  Next: the lead reviews and lands it.
+  Verify: `vp check` clean; `bun --bun vp test` in `packages/entry` passes 43 tests; `git diff main --stat -- packages/core packages/react packages/bun packages/cli` prints nothing.
+
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).

@@ -20,8 +20,6 @@ export default defineConfig({
   fmt: {},
   test: {
     exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**"],
-    /** The entries are empty until the code moves in from the template (card entry/cmd-server). */
-    passWithNoTests: true,
     server: { deps: { inline: ["vite-plus"] } },
   },
 });

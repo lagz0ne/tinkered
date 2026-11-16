@@ -535,6 +535,9 @@ importers:
 
   packages/entry:
     dependencies:
+      '@tinkered/bun':
+        specifier: workspace:*
+        version: link:../bun
       '@tinkered/core':
         specifier: workspace:*
         version: link:../core
@@ -551,6 +554,9 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 5.0.1(@types/node@26.5.1)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(happy-dom@20.14.5)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.2
 
   packages/react:
     dependencies:
