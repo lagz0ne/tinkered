@@ -26,6 +26,7 @@ await test("a tag that does not match the tree names every problem", () => {
     `@tinkered/react is ${version}, not 9.9.9`,
     `@tinkered/bun is ${version}, not 9.9.9`,
     `@tinkered/cli is ${version}, not 9.9.9`,
+    `@tinkered/entry is ${version}, not 9.9.9`,
     'CHANGELOG.md has no "## 9.9.9" section',
   ]);
 });
