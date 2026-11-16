@@ -14,6 +14,7 @@ export default defineConfig({
       cli: "src/cli.ts",
       config: "src/config.ts",
       test: "src/test.ts",
+      vite: "src/vite.ts",
     },
     dts: { generator: "tsgo" },
     exports: false,

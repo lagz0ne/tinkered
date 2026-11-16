@@ -22,6 +22,7 @@
     ".": "./dist/index.mjs",
     "./config": "./dist/config.mjs",
     "./test": "./dist/test.mjs",
+    "./vite": "./dist/vite.mjs",
     "./lint": "./lint/index.mjs",
     "./tsconfig.json": "./base/tsconfig.json",
     "./package.json": "./package.json"
