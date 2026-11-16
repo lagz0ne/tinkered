@@ -4,7 +4,7 @@ import { getHeapStatistics } from "node:v8";
 
 import { Container } from "@inferdi/inferdi";
 // Standalone core probe: ONE scenario per process (min ns/iter + bytes/iter), pinned to one core.
-// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opsink|oplog|opobs|opres|hooked|asyncsub|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl|inline|tagged|session>
+// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opsink|oplog|opobs|opobssession|opres|hooked|asyncsub|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl|inline|tagged|session>
 // CORE_DIST=<path to a core dist/index.mjs> measures that build with this probe (bench/ab.sh runs
 // one probe against both trees); unset, it measures this tree's build.
 // Every scenario is timed in mitata's batch mode: 4096 calls per sample. Left to itself, mitata
@@ -70,6 +70,11 @@ const loggingOp = operation({
 
 const loggingC = sinkScope.controller(loggingOp);
 const observedC = createScope({ observe: { export: () => {} } }).controller(op);
+
+const observedSessionC = createScope({ observe: { export: () => {} } })
+  .createSession()
+  .controller(op);
+
 const runHook = declare({ label: "probe run hook", hooks: { run: (event) => event.next() } });
 const hookedScope = createScope(install([runHook]));
 await hookedScope.ready;
@@ -162,6 +167,7 @@ const fns = {
   opsink: () => sinkC.run(),
   oplog: () => loggingC.run(),
   opobs: () => observedC.run(),
+  opobssession: () => observedSessionC.run(),
   opres: () => opResC.run(),
   depctl: () => depCtlC.run(),
   hooked: () => hookedScope.run(op),
