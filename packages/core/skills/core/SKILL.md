@@ -80,6 +80,9 @@ id, fix the code, and run the check again.
   Skill: capsule.
 - `tinker/one-door`: reach a feature as
   `@/<feature>`. Check: lint. Skill: capsule.
+- `tinker/barrel`: a file exports only what it
+  declares. Check: `tinker check`. Skill:
+  capsule.
 - `tinker/cell-write`: an exported cell is read
   only. Check: lint and `InvalidDependency`.
   Skill: data.

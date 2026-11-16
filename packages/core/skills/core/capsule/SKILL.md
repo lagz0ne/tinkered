@@ -5,7 +5,8 @@ description: >
   give it settings, install it in a cmd, or
   import it from other code. Also when start
   fails with MissingConfig, or a check prints
-  tinker/seam, tinker/config or tinker/one-door.
+  tinker/seam, tinker/config, tinker/one-door
+  or tinker/barrel.
 metadata:
   purpose: >
     How to write a capsule, fill its config in
@@ -163,6 +164,28 @@ import { waves } from "@/sea/contract";
 Right: `import { sea } from "@/sea";` then
 `sea.waves`. The lint rule
 `no-restricted-imports` finds the wrong form.
+
+### HIGH: a barrel [tinker/barrel]
+
+A barrel passes on what other files export. Its
+importer cannot see which files it reaches. One
+of them can be a `.server.` file, and then the
+page build takes server code.
+
+Wrong:
+
+```ts no-check
+export * from "./todo-list";
+export type { Todo } from "./todo.schema";
+```
+
+Right: delete the re-export. Import the name from
+the file that declares it, as
+`import { TodoList } from "@/todo/todo-list";`.
+A file exports only what it declares.
+
+Check: `tinker check` prints each re-export and
+its line.
 
 ### MEDIUM: a function that makes units
 

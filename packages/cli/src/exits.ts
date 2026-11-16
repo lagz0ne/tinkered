@@ -23,7 +23,7 @@ const refusal = "Refused";
  * The app's own code. The base under `tinker/` is Tinker's, and moves into a package that has
  * its own tests (ADR 0159).
  */
-const appCode = /^(?:src|cmds)\//;
+export const appCode = /^(?:src|cmds)\//;
 
 /** A test file declares no exit: its operations are fixtures. */
 const testFile = /\.test\.[mc]?tsx?$/;

@@ -1,7 +1,9 @@
 import { globSync, readFileSync } from "node:fs";
 import { join, matchesGlob } from "node:path";
 
+import { findBarrel } from "./barrel";
 import { raise } from "./errors";
+import { appCode } from "./exits";
 import { applyGaps } from "./gaps";
 import { findPage } from "./page";
 import { findPlain } from "./plain";
@@ -155,7 +157,11 @@ export function readApp(root: string) {
   const app = sourcesOf(root, appFiles, appFile);
   const page = pageSources(root, config.page ?? {});
 
-  const found = [...findPlain(app, config.plain?.entries ?? {}), ...page.flatMap(findPage)];
+  const found = [
+    ...findPlain(app, config.plain?.entries ?? {}),
+    ...page.flatMap(findPage),
+    ...app.filter(({ path }) => appCode.test(path)).flatMap(findBarrel),
+  ];
   const sources = [...new Map([...app, ...page].map((source) => [source.path, source])).values()];
   return {
     sources,

@@ -228,6 +228,11 @@ Intent finds them (ADR 0143).
   State lives in a Core cell.
 - `tinker/gap` — a gap marker sits on an open
   row: see below.
+- `tinker/barrel` — a file in `src/` or `cmds/`
+  exports only what it declares. A re-export is
+  a finding: `export … from "…"`, of values or
+  types, or `export { name }` of an imported
+  name (ADR 0160).
 
 A page file is a file in `src/` with no `.server`
 in its name.
@@ -368,6 +373,40 @@ const answer = await fetch("/api/auth");
 
 Each run prints the counts:
 `gaps: G1 3/3, G3 5/5`.
+
+## The page guard
+
+A page build can take server code by accident,
+through an import or a re-export. `pageGuard()`
+stops it (ADR 0160).
+
+```ts
+import { pageGuard } from "@tinkered/cli/vite";
+
+export default defineConfig({
+  plugins: [pageGuard()],
+});
+```
+
+It runs only where the page is built: in dev, in
+the build, and in browser tests. It refuses an
+import of:
+
+- a file with a `.server.` part in its name;
+- a `node:` or `bun:` name;
+- `@tinkered/entry`, or one of its entries;
+- `@tinkered/bun`, but not `@tinkered/bun/client`.
+
+The build error names the import and its file:
+
+```text
+page imports server code "./db.server"
+from src/todo/barrel.ts
+```
+
+An `import type` is gone before the build reads
+imports. So a page may take types from a server
+file.
 
 ## Lint rules
 
