@@ -32,6 +32,11 @@ export declare namespace Check {
      * above is allowed while row `G<n>` of that doc is open and within its count.
      */
     gaps?: string;
+    /**
+     * The command that runs the app's tests, as a shell line. With it, the tests are a stage of
+     * the check, and each exit an operation declares must be reached by a test (ADR 0159).
+     */
+    tests?: string;
   };
   /** One row of the gaps doc: its id, whether it is open, its count, and its marked lines. */
   type Gap = { gap: string; open: boolean; lines: number; marked: number };
@@ -81,6 +86,7 @@ const parts: readonly [keys: readonly string[], ok: (value: unknown) => boolean,
   [["page", "files"], isGlobs, "`page.files` is a list of globs"],
   [["page", "skip"], isReasons, "`page.skip` maps a glob to a reason"],
   [["gaps"], (value) => typeof value === "string", "`gaps` is the path of the gaps doc"],
+  [["tests"], (value) => typeof value === "string", "`tests` is the command that runs the tests"],
 ];
 
 function parse(text: string): unknown {
@@ -151,7 +157,12 @@ export function readApp(root: string) {
 
   const found = [...findPlain(app, config.plain?.entries ?? {}), ...page.flatMap(findPage)];
   const sources = [...new Map([...app, ...page].map((source) => [source.path, source])).values()];
-  return { sources, found, ...(config.gaps ? { doc: gapsDoc(root, config.gaps) } : {}) };
+  return {
+    sources,
+    found,
+    ...(config.gaps ? { doc: gapsDoc(root, config.gaps) } : {}),
+    ...(config.tests ? { tests: config.tests } : {}),
+  };
 }
 
 /**

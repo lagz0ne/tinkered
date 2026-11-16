@@ -20,4 +20,6 @@ export const taught: Readonly<Record<string, string>> = {
  * in its heading, and the check prints that section's `Right:` part as the fix (ADR 0156
  * decision 8). `vp run skills` fails for an id with no section.
  */
-export const rules = [...new Set([...own, ...Object.values(gates), ...Object.values(taught)])];
+export const rules = [
+  ...new Set([...own, ...Object.values(gates), ...Object.values(taught), "tinker/exit"]),
+];

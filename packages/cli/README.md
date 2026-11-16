@@ -32,7 +32,7 @@ bun --bun tinker check
 
 ## The check loop
 
-`tinker check` runs two stages in order.
+`tinker check` runs these stages in order.
 
 1. **types:** the app's `tsc`, the kind gate and
    the cast gate.
@@ -85,6 +85,51 @@ A tool with no config is skipped, and the
 `skipped:` line says so. Then the answer is
 `tinker check: not done`, with exit 2: only a
 run of every stage can say OK.
+
+## The tests and the exits
+
+An exit is one way out of an operation: each
+`kind` of its answer, a refusal, or a plain
+return (ADR 0159). A test must reach each one.
+
+Name the test command in `tinker.json`:
+
+```json
+{ "tests": "bun run test" }
+```
+
+Then the check runs two more stages:
+
+3. **tests:** the command. Red tests print the
+   end of their output.
+4. **exits:** each exit that the types declare
+   and no test reached is a finding.
+
+```text
+src/todos.server.ts:41 tinker/exit `todo.remove.do`
+answers `gone`, and no test reaches it
+  Right: a test for each exit the check names.
+```
+
+A test scope lists the capsule that writes the
+exits. A scope with no `exits` reaches none.
+
+```ts
+import { exits } from "@tinkered/cli/test";
+
+const scope = createScope({
+  capsules: [
+    exits({ file: process.env.TINKER_EXITS }),
+  ],
+});
+```
+
+- The check sets `TINKER_EXITS` for the command.
+  In a plain test run it is not set, and the
+  capsule writes nothing.
+- The check reads the label of an operation as
+  a literal, and the return type of its `run`.
+- A thrown error is not an exit.
 
 ## Where the fix comes from
 

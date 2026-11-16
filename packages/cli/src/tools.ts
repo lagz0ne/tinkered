@@ -1,16 +1,23 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, globSync, readFileSync } from "node:fs";
+import { existsSync, globSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import ts from "typescript-api";
 
 import type { Check } from "./check";
 import { raise } from "./errors";
+import { unreached } from "./exits";
 import { gates, taught } from "./rules";
 
 export declare namespace Tools {
-  /** A stage of `tinker check`: `types` runs first, and `rules` only once it is clean. */
-  type Stage = "types" | "rules";
+  /**
+   * A stage of `tinker check`: `types` runs first, `rules` only once it is clean, and `exits`
+   * only once the app's tests pass.
+   */
+  type Stage = "types" | "rules" | "exits";
+  /** A run of the app's tests: its exit status, all it said, and the exits no test reached. */
+  type Tested = { status: number | null; output: string; unreached: Found[] };
   /**
    * One error from the app's own tools. `rule` is a Tinker rule id, a `TS` code, or a lint
    * rule as `<plugin>/<rule>`. `help` is the tool's own hint, when it gives one.
@@ -333,4 +340,28 @@ export function runTools(root: string, sources: readonly Check.Source[]): Tools.
   } else skipped.push("lint (no vite.config)");
 
   return { types: once(root, types), rules, ran, skipped };
+}
+
+/**
+ * Run the app's tests by its own command, in its folder. `TINKER_EXITS` names a new file: the
+ * `exits` capsule of a test scope writes each exit it sees there, and the file goes after the
+ * read. A red run names no exit: its tests are the finding.
+ */
+export function runTests(root: string, command: string): Tools.Tested {
+  const folder = mkdtempSync(join(tmpdir(), "tinker-exits-"));
+  const file = join(folder, "exits.tsv");
+  const env = { ...process.env, TINKER_EXITS: file };
+
+  const done = spawnSync(command, {
+    cwd: root,
+    env,
+    shell: true,
+    encoding: "utf8",
+    maxBuffer: 1 << 28,
+  });
+  const output = `${done.error ? `${done.error.message}\n` : ""}${done.stdout ?? ""}${done.stderr ?? ""}`;
+  const missed = done.status === 0 ? unreached(root, file) : [];
+
+  rmSync(folder, { recursive: true, force: true });
+  return { status: done.status, output, unreached: missed };
 }

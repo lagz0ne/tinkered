@@ -516,3 +516,5 @@ New sections are lists, one term per item (vertical layout,
 - **kind gate** — The rule `tinker/kind`: a page reads a call's answer through a `switch` with a case for each `kind` and no `default`, so a new kind fails `tsc` and lint (ADR 0156).
 - **cast gate** — The rule `tinker/cast`: no `as` but `as const`, no `!`, no `any`; the writer narrows or parses (ADR 0156).
 - **correction loop** — An agent edits, the harness runs `tinker check`, the finding prints its fix from the skill, and the agent edits again until the check prints `OK` (ADR 0156).
+- **exit** — One way out of an operation, as the return type of its `run` declares it: each `kind` of an answer, `refused` for a hook's refusal, or `value` for every other return (ADR 0159).
+- **exit gate** — The rule `tinker/exit`: `tinker check` runs the app's tests, and each declared exit that no test reached is a finding (ADR 0159, as Jest `coverageThreshold`).

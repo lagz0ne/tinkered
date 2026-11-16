@@ -10,7 +10,7 @@ import { applyGaps } from "./gaps";
 import { rules } from "./rules";
 import { fixOf, listSkills, loadSkill, sectionsOf } from "./skills";
 import type { Skills } from "./skills";
-import { runTools } from "./tools";
+import { runTests, runTools } from "./tools";
 import type { Tools } from "./tools";
 
 export declare namespace Main {
@@ -21,11 +21,13 @@ export declare namespace Main {
   /**
    * The answer of `tinker check`. `ok` is the only answer that means done: every stage ran
    * and is clean. `failed` names the first stage that failed, its first findings, and how many
-   * it has in all. `incomplete` is clean, but a tool did not run for want of its config.
+   * it has in all. `incomplete` is clean, but a tool did not run for want of its config. `red`
+   * is the app's tests failing: `output` is the end of what they said.
    */
   type Report =
     | { kind: "ok"; ran: string[]; gaps: Check.Gap[] }
     | { kind: "incomplete"; ran: string[]; skipped: string[]; gaps: Check.Gap[] }
+    | { kind: "red"; output: string; gaps: Check.Gap[] }
     | {
         kind: "failed";
         stage: Tools.Stage;
@@ -38,13 +40,21 @@ export declare namespace Main {
 /** A writer fixes a few findings at a time: more than this is noise. */
 const shown = 5;
 
+/** The end of a red test run: where a test runner names what failed. */
+const lines = 40;
+
+function tail(output: string) {
+  return output.trimEnd().split("\n").slice(-lines).join("\n");
+}
+
 const usage = `usage:
   tinker check [root] [--json]
   tinker skill list
   tinker skill load <skill>
 
 check runs the app's types (tsc, the kind gate, the cast gate), then its rules (Tinker's
-rules and the app's other lint). Only the first stage that fails prints. Each finding
+rules and the app's other lint), then its tests when tinker.json names their command: each
+exit an operation declares must be reached by a test. Only the first stage that fails prints. Each finding
 prints its fix. "tinker check: OK" and exit 0 is the only sign that the work is done.
 `;
 
@@ -87,7 +97,7 @@ function failed(
  * error; its own findings are rules.
  */
 function stages(root: string): Main.Report {
-  const { sources, found, doc } = readApp(root);
+  const { sources, found, doc, tests } = readApp(root);
   const tools = runTools(root, sources);
   const all = [...tools.types, ...found, ...tools.rules];
   const isOwn = ({ rule }: Tools.Found) => rule.startsWith("tinker/");
@@ -106,7 +116,12 @@ function stages(root: string): Main.Report {
 
   const ran = [...tools.ran, `rules (${sources.length} files)`];
   if (tools.skipped.length) return { kind: "incomplete", ran, skipped: tools.skipped, gaps };
-  return { kind: "ok", ran, gaps };
+  if (!tests) return { kind: "ok", ran, gaps };
+
+  const tested = runTests(root, tests);
+  if (tested.status !== 0) return { kind: "red", output: tail(tested.output), gaps };
+  if (tested.unreached.length) return failed(root, "exits", tested.unreached, gaps);
+  return { kind: "ok", ran: [...ran, "tests", "exits"], gaps };
 }
 
 /** A finding's lines: the finding, then its fix once per rule, then the skill to load. */
@@ -121,6 +136,23 @@ function block({ path, line, rule, what, fix, skill }: Main.Finding, first: bool
 /** Two findings print one fix once: the second points at the first. */
 const sameFix = (a: readonly string[], b: readonly string[]) => a.join("\n") === b.join("\n");
 
+function failedText({ stage, total, findings, gaps }: Main.Report & { kind: "failed" }) {
+  const blocks = findings.map((finding, index) =>
+    block(finding, findings.findIndex(({ fix }) => sameFix(fix, finding.fix)) === index),
+  );
+  const count = total > findings.length ? `${total} findings, ${findings.length} shown` : "";
+
+  const after = stage === "types" ? " The rules stage runs once types pass." : "";
+  const next = stage === "exits" ? "add a test for each finding" : "fix each finding";
+  return [
+    gapLine(gaps) + blocks.map((lines) => lines.join("\n")).join("\n\n"),
+    "",
+    `tinker check: ${stage} failed${count ? `, ${count}` : ""}.`,
+    `Next: ${next}, then run \`tinker check\` again.${after}`,
+    "",
+  ].join("\n");
+}
+
 function text(report: Main.Report) {
   const gaps = gapLine(report.gaps);
   switch (report.kind) {
@@ -134,26 +166,26 @@ function text(report: Main.Report) {
         "Next: add the config the skipped line names, then run `tinker check` again.",
         "",
       ].join("\n");
-    case "failed": {
-      const { stage, total, findings } = report;
-      const blocks = findings.map((finding, index) =>
-        block(finding, findings.findIndex(({ fix }) => sameFix(fix, finding.fix)) === index),
-      );
-      const count = total > findings.length ? `${total} findings, ${findings.length} shown` : "";
-      const after = stage === "types" ? " The rules stage runs once types pass." : "";
+    case "red":
       return [
-        gaps + blocks.map((lines) => lines.join("\n")).join("\n\n"),
+        report.output,
         "",
-        `tinker check: ${stage} failed${count ? `, ${count}` : ""}.`,
-        `Next: fix each finding, then run \`tinker check\` again.${after}`,
+        "tinker check: tests failed.",
+        "Next: make the tests pass, then run `tinker check` again.",
         "",
       ].join("\n");
-    }
+    case "failed":
+      return failedText(report);
   }
 }
 
 /** Exit 0 only for `ok`; a stage that did not run is a config the command cannot use. */
-const codes: Readonly<Record<Main.Report["kind"], number>> = { ok: 0, failed: 1, incomplete: 2 };
+const codes: Readonly<Record<Main.Report["kind"], number>> = {
+  ok: 0,
+  failed: 1,
+  red: 1,
+  incomplete: 2,
+};
 
 function checkCommand(root: string, json: boolean): Main.Result {
   if (!existsSync(root)) return { code: 2, out: "", err: `tinker check: no folder at ${root}\n` };

@@ -21,6 +21,7 @@
   "exports": {
     ".": "./dist/index.mjs",
     "./config": "./dist/config.mjs",
+    "./test": "./dist/test.mjs",
     "./lint": "./lint/index.mjs",
     "./tsconfig.json": "./base/tsconfig.json",
     "./package.json": "./package.json"
@@ -43,9 +44,19 @@
   "devDependencies": {
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
+    "@tinkered/core": "workspace:*",
     "@types/node": "^26.1.1",
     "vite-plus": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "@tinkered/core": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@tinkered/core": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22.5"

@@ -175,6 +175,41 @@ and assert on the result.
 that fails by chance. Use `makeTestClock` and
 `clock.advance`.
 
+### HIGH: an exit that no test reaches [tinker/exit]
+
+An operation's `run` type declares its exits:
+each answer `kind`, a hook's refusal, and a plain
+return. `tinker check` runs the tests and names
+each exit that no test reached.
+
+Wrong:
+
+```ts no-check
+// run answers "moved" | "stale" | "gone"
+const out = await tab.run(api["issue.move"], call);
+expect(out).toEqual({ kind: "moved", version: 2 });
+// no test gets "stale" or "gone"
+```
+
+Right: a test for each exit the check names. The
+test makes the state that gives that answer, runs
+the operation through a scope, and asserts on the
+answer. The scope lists the `exits` capsule first:
+
+```ts no-check
+import { exits } from "@tinkered/cli/test";
+
+const scope = createScope({
+  capsules: [
+    exits({ file: process.env.TINKER_EXITS }),
+    board.api({ implement: ops }),
+  ],
+});
+```
+
+If no state can give the answer, remove it from
+the operation.
+
 ### MEDIUM: a scope that stays open
 
 An open scope keeps timers and sockets. Close

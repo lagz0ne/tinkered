@@ -123,7 +123,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-None.
+- **cli/exit-gate** — ADR 0159. `tinker check` runs the app's tests as a stage (`tinker.json` `tests`), then prints a `tinker/exit` finding for each exit an operation declares and no test reached. Declared exits come from the type checker (`packages/cli/src/exits.ts`); reached exits from the capsule `exits` of `@tinkered/cli/test`, listed by the test scope.
+  Owner: CUJ eval thread (Fable lead).
+  Next: the template lists `exits` in its test scopes and names `tests`; then show Duke the result before a release.
+  Verify: `vp check` and the cli tests pass; cli mutation at 85 or more; in the template the check prints the `todo.remove.do` `gone` finding, then `tinker check: OK` once a test reaches it.
 
 ## Review
 
