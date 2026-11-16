@@ -50,8 +50,7 @@ function declarationOf(checker: ts.TypeChecker, symbol: ts.Symbol | undefined) {
 
 /** The Core function a call names, by Core's own name for it: `data`, `operation`. */
 function coreName({ expression }: ts.CallExpression) {
-  if (!ts.isIdentifier(expression)) return undefined;
-  const local = expression.text;
+  const local = expression.getText();
   const item = coreImports(expression.getSourceFile()).find(({ name }) => name.text === local);
   return item && (item.propertyName ?? item.name).text;
 }
@@ -75,11 +74,14 @@ function partOf(checker: ts.TypeChecker, value: ts.CallExpression) {
   return unit && partKinds.includes(read) ? { ...unit, read } : undefined;
 }
 
-/** The unit a dep's value names: an operation, a cell's `controller`, or a part of a cell. */
+/**
+ * The unit a dep's value names: an operation, an edge of a unit (a cell's `controller`, a tag's
+ * `required`), or a part of a cell. `record` keeps only the calls each kind of unit has.
+ */
 function unitOf(checker: ts.TypeChecker, value: ts.Expression): Unit | undefined {
   if (ts.isIdentifier(value)) return unitAt(checker, checker.getSymbolAtLocation(value));
   if (ts.isCallExpression(value)) return partOf(checker, value);
-  if (!ts.isPropertyAccessExpression(value) || value.name.text !== "controller") return undefined;
+  if (!ts.isPropertyAccessExpression(value)) return undefined;
   return unitAt(checker, checker.getSymbolAtLocation(value.expression));
 }
 
@@ -176,7 +178,7 @@ class Reader {
 
   private memberKey({ expression, name }: ts.PropertyAccessExpression) {
     const owner = this.checker.getSymbolAtLocation(expression)?.valueDeclaration;
-    return this.deps && owner === this.deps ? name.text : undefined;
+    return owner === this.deps ? name.text : undefined;
   }
 
   private touch({ expression }: ts.CallExpression, facts: Facts) {
@@ -236,15 +238,18 @@ class Reader {
     return facts;
   }
 
-  /** Each return of a block body; a body whose end runs gives a plain return of all its code. */
-  block(body: ts.Block, exits: string[]) {
+  /**
+   * Each return of a block body; a body whose end runs gives a plain return of all its code. A
+   * plain return the type does not declare prints no line.
+   */
+  block(body: ts.Block) {
     for (const statement of returnsIn(body)) {
       const path = this.pathTo(body, statement);
       if (statement.expression) this.returned(statement.expression, path);
       else this.add("value", path);
     }
 
-    if (endRuns(body) && exits.includes("value")) this.add("value", this.scan(body, noFacts()));
+    if (endRuns(body)) this.add("value", this.scan(body, noFacts()));
   }
 }
 
@@ -260,28 +265,24 @@ function functionOf(run: ts.ObjectLiteralElementLike) {
  * The facts of each exit of one operation. A return adds its path to the exits its type gives.
  * A `run` written elsewhere gives none.
  */
-function factsOf(checker: ts.TypeChecker, { options, run, exits }: Exits.Operation) {
+function factsOf(checker: ts.TypeChecker, { options, run }: Exits.Operation) {
   const fn = functionOf(run);
-  const body = fn?.body;
-  if (!fn || !body) return new Map<string, Facts>();
+  if (!fn?.body) return new Map<string, Facts>();
 
   const [deps] = fn.parameters;
   const reader = new Reader(checker, depsOf(checker, options), deps);
-  if (ts.isBlock(body)) reader.block(body, exits);
-  else reader.returned(body, noFacts());
+  if (ts.isBlock(fn.body)) reader.block(fn.body);
+  else reader.returned(fn.body, noFacts());
   return reader.found;
 }
 
 const keyOf = ({ label, exit }: Pick<Exits.Exit, "label" | "exit">) => `${label} ${exit}`;
 
-/** Code-unit order: the file's order is the same on every machine. */
-const order = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-
 const listed = (name: string, items: Set<string>) => `${name}{${[...items].sort().join(",")}}`;
 
 /**
  * The app's graph, from its code: one line per operation and exit its type declares (ADR 0159),
- * sorted by label, then exit.
+ * sorted by label, then exit, in code-unit order: the same on every machine.
  */
 export function graphOf(root: string): Graph.Line[] {
   const app = readOperations(root);
@@ -296,7 +297,7 @@ export function graphOf(root: string): Graph.Line[] {
       return { path, line, label, exit, parts };
     });
   });
-  return lines.sort((a, b) => order(keyOf(a), keyOf(b)));
+  return lines.sort((a, b) => (keyOf(a) < keyOf(b) ? -1 : 1));
 }
 
 /** The graph as `tinker.graph` holds it: one line per exit, and an end of line after each. */
@@ -304,12 +305,15 @@ export function graphText(lines: Graph.Line[]) {
   return lines.map((line) => `${[keyOf(line), ...line.parts].join(" ")}\n`).join("");
 }
 
-/** Each line of the committed file by its key, and its line number. */
+/**
+ * Each line of the committed file by its key, and its line number. A line may end in `\r`: a
+ * checkout on Windows can give the file those ends.
+ */
 function linesIn(text: string) {
   const lines = new Map<string, { line: number; parts: string[] }>();
   text.split("\n").forEach((row, index) => {
-    const [label, exit, ...parts] = row.trim().split(/\s+/);
-    if (label && exit) lines.set(`${label} ${exit}`, { line: index + 1, parts });
+    const [label, exit, ...parts] = row.trim().split(" ");
+    if (exit) lines.set(`${label} ${exit}`, { line: index + 1, parts });
   });
   return lines;
 }

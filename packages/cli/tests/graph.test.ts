@@ -24,7 +24,7 @@ const move = [
   `  run: ({ list, ok }, { random }) => {`,
   `    const now = ok.run() ? list.of({ id: "a" }).get() : undefined;`,
   `    if (!now) return { kind: "gone" as const };`,
-  `    if (random.next() < 0.5) return { kind: "stale" as const };`,
+  `    if (list.where({}).get().length > random.next()) return { kind: "stale" as const };`,
   ``,
   `    list.set({ ...now, version: now.version + 1 });`,
   `    return { kind: "moved" as const };`,
@@ -36,48 +36,57 @@ const move = [
 const staleWrites = [
   ...move.slice(0, 6),
   `    list.set({ ...now, version: now.version + 1 });`,
-  `    if (random.next() < 0.5) return { kind: "stale" as const };`,
+  `    if (list.where({}).get().length > random.next()) return { kind: "stale" as const };`,
   ``,
   `    return { kind: "moved" as const };`,
   `  },`,
   `});`,
 ];
 
-/** Operations that name their cells and calls in each way a `run` can. */
+/** Operations that name their cells, tags and calls in each way a `run` can. */
 const ops = (moveLines: readonly string[]) =>
   [
     `import { operation, transport } from "@tinkered/core";`,
     ``,
-    `import { count, issues } from "./cells";`,
-    ``,
-    `export const inTeam = operation({`,
-    `  label: "issues.inTeam",`,
-    `  run: (_, { random }) => random.next() < 0.5,`,
-    `});`,
+    `import { count, flags, inTeam, issues } from "./units";`,
     ``,
     ...moveLines,
     ``,
     `export const guard = operation({`,
     `  label: "guard",`,
     `  input: transport.hook.start,`,
-    `  depends: { inTeam },`,
-    `  run: (deps, { input }) => (input.meta.who ? deps.inTeam.run() : input.refuse({})),`,
+    `  depends: { inTeam, list: issues.controller, on: flags.required },`,
+    `  run: (deps, { input }) =>`,
+    `    deps.list.get().length > 0 && deps.on.get("open")`,
+    `      ? deps.inTeam.run()`,
+    `      : input.refuse({}),`,
     `});`,
     ``,
     `export const tick = operation({`,
     `  label: "count.tick",`,
     `  depends: { total: count.controller, open: issues.where({}) },`,
     `  run({ total, open }) {`,
-    `    if (open.get().length === 0) return;`,
+    `    if (open.get().length === total.get()) return;`,
     `    total.update((n) => n + 1);`,
+    `  },`,
+    `});`,
+    ``,
+    `export const look = operation({`,
+    `  label: "issue.look",`,
+    `  depends: { one: issues.of({ id: "a" }), list: issues.controller },`,
+    `  run({ one, list }) {`,
+    `    const found = one.get();`,
+    `    if (found) return;`,
+    `    list.delete({ id: String(found) });`,
+    `    throw new Error("no issue a");`,
     `  },`,
     `});`,
     ``,
     `export const clear = operation({`,
     `  label: "issue.clear.do",`,
-    `  depends: { list: issues.controller },`,
-    `  run: ({ list }, { random }) => {`,
-    `    const pick = random.next() < 0.5 ? "drop" : "keep";`,
+    `  depends: { list: issues.controller, ok: inTeam },`,
+    `  run: ({ list, ok }) => {`,
+    `    const pick = ok.settle().status === "success" ? "drop" : "keep";`,
     `    switch (pick) {`,
     `      case "drop":`,
     `        list.delete({ id: "a" });`,
@@ -91,14 +100,16 @@ const ops = (moveLines: readonly string[]) =>
 
 /** The graph of `ops(move)`: each name is a label, never the local name. */
 const golden = [
-  "count.tick value reads{issues.list.where} writes{count.update} calls{}",
-  "guard refused reads{} writes{} calls{}",
-  "guard value reads{} writes{} calls{issues.inTeam}",
-  "issue.clear.do cleared reads{} writes{issues.list.delete} calls{}",
-  "issue.clear.do kept reads{} writes{} calls{}",
+  "count.tick value reads{count.get,issues.list.where} writes{count.update} calls{}",
+  "guard refused reads{issues.list.get} writes{} calls{}",
+  "guard value reads{issues.list.get} writes{} calls{issues.inTeam}",
+  "issue.clear.do cleared reads{} writes{issues.list.delete} calls{issues.inTeam}",
+  "issue.clear.do kept reads{} writes{} calls{issues.inTeam}",
+  "issue.look value reads{issues.list.of} writes{} calls{}",
   "issue.move.do gone reads{issues.list.of} writes{} calls{issues.inTeam}",
-  "issue.move.do moved reads{issues.list.of} writes{issues.list.set} calls{issues.inTeam}",
-  "issue.move.do stale reads{issues.list.of} writes{} calls{issues.inTeam}",
+  "issue.move.do moved reads{issues.list.of,issues.list.where} writes{issues.list.set} " +
+    "calls{issues.inTeam}",
+  "issue.move.do stale reads{issues.list.of,issues.list.where} writes{} calls{issues.inTeam}",
   "issues.inTeam value reads{} writes{} calls{}",
   "",
 ].join("\n");
@@ -123,8 +134,8 @@ const configs = {
     `  },`,
     `});`,
   ].join("\n"),
-  "src/cells.ts": [
-    `import { data } from "@tinkered/core";`,
+  "src/units.ts": [
+    `import { data, operation, tag } from "@tinkered/core";`,
     ``,
     `type Issue = { id: string; version: number };`,
     ``,
@@ -135,6 +146,13 @@ const configs = {
     `});`,
     ``,
     `export const count = data({ label: "count", initial: 0 });`,
+    ``,
+    `export const flags = tag<Map<string, boolean>>({ label: "flags" });`,
+    ``,
+    `export const inTeam = operation({`,
+    `  label: "issues.inTeam",`,
+    `  run: (_, { random }) => random.next() < 0.5,`,
+    `});`,
   ].join("\n"),
 };
 
@@ -163,14 +181,21 @@ test("`tinker graph` prints each exit's reads, writes and calls, by label", () =
   expect(out).toBe(golden);
 });
 
-test("code that matches its tinker.graph passes the graph stage", { timeout: 60_000 }, () => {
-  const folder = appOf({ "src/ops.ts": ops(move), "tinker.graph": golden });
+test(
+  "code that matches its tinker.graph passes, with Windows line ends too",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({
+      "src/ops.ts": ops(move),
+      "tinker.graph": golden.replaceAll("\n", "\r\n"),
+    });
 
-  const { code, out } = main(["check", folder], "/");
+    const { code, out } = main(["check", folder], "/");
 
-  expect(code).toBe(0);
-  expect(out).toBe("ran: tsc, lint, rules (2 files), graph (9 exits)\ntinker check: OK\n");
-});
+    expect(code).toBe(0);
+    expect(out).toBe("ran: tsc, lint, rules (2 files), graph (10 exits)\ntinker check: OK\n");
+  },
+);
 
 test("a stale path that writes is one finding at the operation", { timeout: 60_000 }, () => {
   const folder = appOf({ "src/ops.ts": ops(staleWrites), "tinker.graph": golden });
@@ -179,14 +204,15 @@ test("a stale path that writes is one finding at the operation", { timeout: 60_0
 
   expect(code).toBe(1);
   expect(findings(out)).toEqual([
-    "src/ops.ts:10 tinker/graph issue.move.do stale: " +
+    "src/ops.ts:5 tinker/graph issue.move.do stale: " +
       "writes{issues.list.set}, tinker.graph says writes{}",
   ]);
   expect(out).toContain("\ntinker check: graph failed.\n");
 });
 
 test("an exit the file lacks and a line the code lacks are findings", { timeout: 60_000 }, () => {
-  const stale = "issue.move.do stale reads{issues.list.of} writes{} calls{issues.inTeam}\n";
+  const stale =
+    "issue.move.do stale reads{issues.list.of,issues.list.where} writes{} calls{issues.inTeam}\n";
   const file = `${golden.replace(stale, "")}issue.old.do gone reads{} writes{} calls{}\n`;
   const folder = appOf({ "src/ops.ts": ops(move), "tinker.graph": file });
 
@@ -194,8 +220,8 @@ test("an exit the file lacks and a line the code lacks are findings", { timeout:
 
   expect(code).toBe(1);
   expect(findings(out)).toEqual([
-    "src/ops.ts:10 tinker/graph issue.move.do stale: not in tinker.graph",
-    "tinker.graph:9 tinker/graph issue.old.do gone: in tinker.graph, not in the code",
+    "src/ops.ts:5 tinker/graph issue.move.do stale: not in tinker.graph",
+    "tinker.graph:10 tinker/graph issue.old.do gone: in tinker.graph, not in the code",
   ]);
 });
 
@@ -217,9 +243,10 @@ test("`tinker graph --write` writes the file the check then passes", { timeout: 
   const wrote = main(["graph", folder, "--write"], "/");
   const { code } = main(["check", folder], "/");
 
-  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 9 exits\n", err: "" });
+  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 10 exits\n", err: "" });
   expect(readFileSync(join(folder, "tinker.graph"), "utf8")).toContain(
-    "issue.move.do stale reads{issues.list.of} writes{issues.list.set} calls{issues.inTeam}\n",
+    "issue.move.do stale reads{issues.list.of,issues.list.where} writes{issues.list.set} " +
+      "calls{issues.inTeam}\n",
   );
   expect(code).toBe(0);
 });
