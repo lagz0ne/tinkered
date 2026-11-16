@@ -230,6 +230,11 @@ test("a root that is not there exits 2, before any check", () => {
     out: "",
     err: `tinker check: no folder at ${folder}\n`,
   });
+  expect(main(["graph", folder], "/")).toEqual({
+    code: 2,
+    out: "",
+    err: `tinker graph: no folder at ${folder}\n`,
+  });
 });
 
 test("an unknown command or a spare argument prints the usage and exits 2", () => {
@@ -244,6 +249,8 @@ test("an unknown command or a spare argument prints the usage and exits 2", () =
   expect(main(["skill", "load"], folder).code).toBe(2);
   expect(main(["skill", "load", "a#b", "more"], folder).code).toBe(2);
   expect(main(["skill", "list", "--json"], folder).code).toBe(2);
+  expect(main(["check", ".", "--write"], folder).code).toBe(2);
+  expect(main(["graph", ".", "--json"], folder).code).toBe(2);
   expect(main(["check", "--help"], folder)).toMatchObject({ code: 2, err: usage });
 });
 

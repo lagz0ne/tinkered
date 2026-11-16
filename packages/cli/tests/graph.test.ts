@@ -185,6 +185,20 @@ test("a stale path that writes is one finding at the operation", { timeout: 60_0
   expect(out).toContain("\ntinker check: graph failed.\n");
 });
 
+test("an exit the file lacks and a line the code lacks are findings", { timeout: 60_000 }, () => {
+  const stale = "issue.move.do stale reads{issues.list.of} writes{} calls{issues.inTeam}\n";
+  const file = `${golden.replace(stale, "")}issue.old.do gone reads{} writes{} calls{}\n`;
+  const folder = appOf({ "src/ops.ts": ops(move), "tinker.graph": file });
+
+  const { code, out } = main(["check", folder], "/");
+
+  expect(code).toBe(1);
+  expect(findings(out)).toEqual([
+    "src/ops.ts:10 tinker/graph issue.move.do stale: not in tinker.graph",
+    "tinker.graph:9 tinker/graph issue.old.do gone: in tinker.graph, not in the code",
+  ]);
+});
+
 test("no tinker.graph is one finding that says to write it", { timeout: 60_000 }, () => {
   const folder = appOf({ "src/ops.ts": ops(move) });
 
