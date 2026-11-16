@@ -102,6 +102,9 @@ So the depth of a re-export does not matter.
 - Hedl and acountee have feature doors. Each gets
   `tinker/barrel` findings. They move on their own
   card.
+- `apps/site` had 10 findings. Card
+  `cli/page-guard` moved it: each import names the
+  file that declares it, and the door lint is gone.
 - An import path names a file, so a file move
   changes its importers. `@/` paths keep that
   change to one line each (ADR 0112).
