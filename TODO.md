@@ -123,7 +123,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-None.
+- **cli/page-guard** (lead: CUJ eval thread; writer: Opus on Paseo).
+  ADR 0160: `pageGuard()` from `@tinkered/cli/vite`, rule
+  `tinker/barrel`, skill section.
+  Next: writer builds it on branch `page-guard`.
+  Verify: a page build that imports a `.server.` file through a
+  barrel fails with the plugin; `tinker check` finds `export … from`
+  in `src`; `vp check`, cli tests, `vp run skills` green; mutation 85.
 
 ## Review
 
