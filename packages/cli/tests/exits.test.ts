@@ -56,6 +56,13 @@ const configs = {
     `  run: (_, { input }) => (input.meta.who ? undefined : input.refuse({})),`,
     `});`,
   ].join("\n"),
+  "tinker.graph": [
+    "guard refused reads{} writes{} calls{}",
+    "guard value reads{} writes{} calls{}",
+    "move.do gone reads{} writes{} calls{}",
+    "move.do moved reads{} writes{} calls{}",
+    "",
+  ].join("\n"),
 };
 
 /** A fresh app whose test run writes these exits, then ends with `status`. */

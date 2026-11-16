@@ -8,14 +8,15 @@ import ts from "typescript-api";
 import type { Check } from "./check";
 import { raise } from "./errors";
 import { pageExits, unreached } from "./exits";
+import type { Exits } from "./exits";
 import { gates, taught } from "./rules";
 
 export declare namespace Tools {
   /**
-   * A stage of `tinker check`: `types` runs first, `rules` only once it is clean, and `exits`
-   * only once the app's tests pass.
+   * A stage of `tinker check`: `types` runs first, `rules` only once it is clean, `graph` only
+   * once the rules are, and `exits` only once the app's tests pass.
    */
-  type Stage = "types" | "rules" | "exits";
+  type Stage = "types" | "rules" | "graph" | "exits";
   /** A run of the app's tests: its exit status, all it said, and the exits no test reached. */
   type Tested = { status: number | null; output: string; unreached: Found[] };
   /**
@@ -348,7 +349,11 @@ export function runTools(root: string, sources: readonly Check.Source[]): Tools.
  * read. A page test leaves its exits in `pageExits`, which is emptied first, so an old run says
  * nothing. A red run names no exit: its tests are the finding.
  */
-export function runTests(root: string, command: string): Tools.Tested {
+export function runTests(
+  root: string,
+  command: string,
+  declared: readonly Exits.Exit[],
+): Tools.Tested {
   const folder = mkdtempSync(join(tmpdir(), "tinker-exits-"));
   const file = join(folder, "exits.tsv");
   const env = { ...process.env, TINKER_EXITS: file };
@@ -362,7 +367,7 @@ export function runTests(root: string, command: string): Tools.Tested {
     maxBuffer: 1 << 28,
   });
   const output = `${done.error ? `${done.error.message}\n` : ""}${done.stdout ?? ""}${done.stderr ?? ""}`;
-  const missed = done.status === 0 ? unreached(root, file) : [];
+  const missed = done.status === 0 ? unreached(root, file, declared) : [];
 
   rmSync(folder, { recursive: true, force: true });
   return { status: done.status, output, unreached: missed };

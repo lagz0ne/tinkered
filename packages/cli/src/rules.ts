@@ -27,5 +27,11 @@ export const taught: Readonly<Record<string, string>> = {
  * decision 8). `vp run skills` fails for an id with no section.
  */
 export const rules = [
-  ...new Set([...own, ...Object.values(gates), ...Object.values(taught), "tinker/exit"]),
+  ...new Set([
+    ...own,
+    ...Object.values(gates),
+    ...Object.values(taught),
+    "tinker/exit",
+    "tinker/graph",
+  ]),
 ];

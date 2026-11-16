@@ -11,6 +11,17 @@ export declare namespace Exits {
    * `kind`, `refused` for a hook's refusal, or `value` for every other return.
    */
   type Exit = { path: string; line: number; label: string; exit: string };
+  /** One operation of the app, as the checker reads it: where it is, its `run`, and its exits. */
+  type Operation = {
+    path: string;
+    line: number;
+    label: string;
+    options: ts.ObjectLiteralExpression;
+    run: ts.ObjectLiteralElementLike;
+    exits: string[];
+  };
+  /** The app's operations, and the checker that read them: it resolves the names they use. */
+  type App = { checker: ts.TypeChecker; operations: Operation[] };
 }
 
 /** The exit of a return with no `kind` of its own. */
@@ -38,7 +49,7 @@ function kindsOf(checker: ts.TypeChecker, type: ts.Type) {
 }
 
 /** Each exit a return type holds: a union gives one per member, and a promise gives its value's. */
-function exitsOf(checker: ts.TypeChecker, returned: ts.Type) {
+export function exitsOf(checker: ts.TypeChecker, returned: ts.Type) {
   const type = checker.getAwaitedType(returned) ?? returned;
   if (type.flags & ts.TypeFlags.Never) return [];
 
@@ -55,7 +66,7 @@ function exitsOf(checker: ts.TypeChecker, returned: ts.Type) {
 }
 
 /** The names a file imports from Core. */
-function coreImports(source: ts.SourceFile) {
+export function coreImports(source: ts.SourceFile) {
   return source.statements.flatMap((statement) => {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
       return [];
@@ -73,7 +84,7 @@ function coreOperation(source: ts.SourceFile) {
   )?.name.text;
 }
 
-function member(options: ts.ObjectLiteralExpression, name: string) {
+export function member(options: ts.ObjectLiteralExpression, name: string) {
   return options.properties.find(
     (property) => property.name && ts.isIdentifier(property.name) && property.name.text === name,
   );
@@ -97,15 +108,15 @@ function optionsOf(node: ts.Node, operation: string) {
 }
 
 /** An operation's label, when it is a literal: a tool cannot name a label made at run time. */
-function labelOf(options: ts.ObjectLiteralExpression) {
+export function labelOf(options: ts.ObjectLiteralExpression) {
   const label = member(options, "label");
   if (!label || !ts.isPropertyAssignment(label)) return undefined;
   return ts.isStringLiteralLike(label.initializer) ? label.initializer.text : undefined;
 }
 
-function exitsIn(checker: ts.TypeChecker, source: ts.SourceFile, path: string) {
+function operationsIn(checker: ts.TypeChecker, source: ts.SourceFile, path: string) {
   const operation = coreOperation(source);
-  const found: Exits.Exit[] = [];
+  const found: Exits.Operation[] = [];
   if (!operation) return found;
 
   const visit = (node: ts.Node) => {
@@ -117,36 +128,36 @@ function exitsIn(checker: ts.TypeChecker, source: ts.SourceFile, path: string) {
 
     const returned = returnOf(checker, run);
     const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-    for (const exit of returned ? exitsOf(checker, returned) : []) {
-      found.push({ path, line, label, exit });
-    }
+    const exits = returned ? exitsOf(checker, returned) : [];
+    found.push({ path, line, label, options, run, exits });
   };
   visit(source);
   return found;
 }
 
 /**
- * Each exit the app's operations declare, read from the types of the app's own `tsconfig.json`.
- * An app with no `tsconfig.json` declares none.
+ * The app's operations, read with the types of the app's own `tsconfig.json`. An app with no
+ * `tsconfig.json` has none.
  */
-export function declaredExits(root: string): Exits.Exit[] {
+export function readOperations(root: string): Exits.App | undefined {
   const config = join(root, "tsconfig.json");
-  if (!existsSync(config)) return [];
+  if (!existsSync(config)) return undefined;
 
   const parsed = ts.getParsedCommandLineOfConfigFile(
     config,
     {},
     { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => undefined },
   );
-  if (!parsed) return [];
+  if (!parsed) return undefined;
   const program = ts.createProgram(parsed.fileNames, parsed.options);
   const checker = program.getTypeChecker();
 
-  return program.getSourceFiles().flatMap((source) => {
+  const operations = program.getSourceFiles().flatMap((source) => {
     const path = relative(root, source.fileName).replaceAll("\\", "/");
     if (source.isDeclarationFile || !appCode.test(path) || testFile.test(path)) return [];
-    return exitsIn(checker, source, path);
+    return operationsIn(checker, source, path);
   });
+  return { checker, operations };
 }
 
 /** Where a page test leaves its store's text: one `.json` file a test file, under the app. */
@@ -175,11 +186,15 @@ const said: Readonly<Record<string, string>> = {
   [plain]: "returns",
 };
 
-/** A finding for each declared exit that no test reached. */
-export function unreached(root: string, file: string): Tools.Found[] {
+/** A finding for each exit in `declared` that no test reached. */
+export function unreached(
+  root: string,
+  file: string,
+  declared: readonly Exits.Exit[],
+): Tools.Found[] {
   const reached = reachedIn(root, file);
 
-  return declaredExits(root)
+  return declared
     .filter(({ label, exit }) => !reached.has(`${label}\t${exit}`))
     .map(({ path, line, label, exit }) => ({
       path,

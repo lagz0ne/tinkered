@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 import { IntentCoreError } from "@tanstack/intent/core";
 
@@ -7,6 +7,7 @@ import { readApp } from "./check";
 import type { Check } from "./check";
 import { isError } from "./errors";
 import { applyGaps } from "./gaps";
+import { graphFile, graphFindings, graphOf, graphText } from "./graph";
 import { rules } from "./rules";
 import { fixOf, listSkills, loadSkill, sectionsOf } from "./skills";
 import type { Skills } from "./skills";
@@ -49,13 +50,18 @@ function tail(output: string) {
 
 const usage = `usage:
   tinker check [root] [--json]
+  tinker graph [root] [--write]
   tinker skill list
   tinker skill load <skill>
 
 check runs the app's types (tsc, the kind gate, the cast gate), then its rules (Tinker's
-rules and the app's other lint), then its tests when tinker.json names their command: each
-exit an operation declares must be reached by a test. Only the first stage that fails prints. Each finding
-prints its fix. "tinker check: OK" and exit 0 is the only sign that the work is done.
+rules and the app's other lint), then its graph (the code's graph must match tinker.graph),
+then its tests when tinker.json names their command: each exit an operation declares must be
+reached by a test. Only the first stage that fails prints. Each finding prints its fix.
+"tinker check: OK" and exit 0 is the only sign that the work is done.
+
+graph prints the app's graph: one line per operation and exit, with what the path to that exit
+reads, writes and calls. --write writes it to tinker.graph, for the app to commit.
 `;
 
 /** One line per gaps row: marked lines over the row's count, as `G3 5/5`. */
@@ -94,7 +100,8 @@ function failed(
  * Report the stages in order: the rules stage prints only when the types stage is clean. Tinker's
  * own rules read the config, so they run first: a bad config stops the run before the tools.
  * The gap rule allows a marked Tinker finding of either stage, never a `tsc` or other lint
- * error; its own findings are rules.
+ * error; its own findings are rules. The graph stage runs no app code, so it comes before the
+ * tests (ADR 0161); no gap allows a graph finding.
  */
 function stages(root: string): Main.Report {
   const { sources, found, doc, tests } = readApp(root);
@@ -115,10 +122,31 @@ function stages(root: string): Main.Report {
   if (broken.length) return failed(root, "rules", broken, gaps);
 
   const ran = [...tools.ran, `rules (${sources.length} files)`];
-  if (tools.skipped.length) return { kind: "incomplete", ran, skipped: tools.skipped, gaps };
+  return afterRules(root, { ran, skipped: tools.skipped, gaps, ...(tests ? { tests } : {}) });
+}
+
+/**
+ * The stages after clean rules: the graph, then the tests and their exits. `ran` names the
+ * graph only when the app has an exit: an app with none needs no `tinker.graph`.
+ */
+function afterRules(
+  root: string,
+  {
+    ran,
+    skipped,
+    gaps,
+    tests,
+  }: { ran: string[]; skipped: string[]; gaps: Check.Gap[]; tests?: string },
+): Main.Report {
+  const graph = graphOf(root);
+  const changed = graphFindings(root, graph);
+  if (changed.length) return failed(root, "graph", changed, gaps);
+
+  if (graph.length) ran.push(`graph (${graph.length} exits)`);
+  if (skipped.length) return { kind: "incomplete", ran, skipped, gaps };
   if (!tests) return { kind: "ok", ran, gaps };
 
-  const tested = runTests(root, tests);
+  const tested = runTests(root, tests, graph);
   if (tested.status !== 0) return { kind: "red", output: tail(tested.output), gaps };
   if (tested.unreached.length) return failed(root, "exits", tested.unreached, gaps);
   return { kind: "ok", ran: [...ran, "tests", "exits"], gaps };
@@ -208,6 +236,17 @@ function checkCommand(root: string, json: boolean): Main.Result {
   }
 }
 
+/** Print the app's graph, or write it to `tinker.graph` with `--write`. */
+function graphCommand(root: string, write: boolean): Main.Result {
+  if (!existsSync(root)) return { code: 2, out: "", err: `tinker graph: no folder at ${root}\n` };
+  const lines = graphOf(root);
+  const text = graphText(lines);
+  if (!write) return { code: 0, out: text, err: "" };
+
+  writeFileSync(join(root, graphFile), text);
+  return { code: 0, out: `wrote ${graphFile}: ${lines.length} exits\n`, err: "" };
+}
+
 function skillCommand(root: string, args: readonly string[]): Main.Result {
   const [action, use, ...rest] = args;
   try {
@@ -222,18 +261,28 @@ function skillCommand(root: string, args: readonly string[]): Main.Result {
   return { code: 2, out: "", err: usage };
 }
 
+/** The one flag each command takes: `--json` prints data, `--write` writes the file. */
+const flags: ReadonlyMap<string, string> = new Map([
+  ["check", "--json"],
+  ["graph", "--write"],
+]);
+
 /**
  * The command, without the process: `argv` is what follows the program name, and `cwd` is
  * the folder a relative root starts from. Exit 0 is done, 1 is a finding, 2 is a call, a
  * config or a tool the command cannot use.
  */
 export function main(argv: readonly string[], cwd: string): Main.Result {
-  const json = argv.includes("--json");
-  const [command, ...args] = argv.filter((arg) => arg !== "--json");
-  if (args.some((arg) => arg.startsWith("-"))) return { code: 2, out: "", err: usage };
+  const [command = "", ...args] = argv.filter((arg) => !arg.startsWith("-"));
+  const flag = flags.get(command);
+  const on = argv.some((arg) => arg === flag);
+  if (argv.some((arg) => arg.startsWith("-") && arg !== flag)) {
+    return { code: 2, out: "", err: usage };
+  }
 
-  if (command === "skill" && !json) return skillCommand(cwd, args);
+  if (command === "skill") return skillCommand(cwd, args);
   const [root = ".", ...rest] = args;
-  if (command !== "check" || rest.length) return { code: 2, out: "", err: usage };
-  return checkCommand(resolve(cwd, root), json);
+  if (!flag || rest.length) return { code: 2, out: "", err: usage };
+  const at = resolve(cwd, root);
+  return command === "graph" ? graphCommand(at, on) : checkCommand(at, on);
 }

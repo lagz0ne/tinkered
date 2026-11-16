@@ -4,8 +4,9 @@ description: >
   Use when you add or change an action in a
   Tinker app: its label, input shape, deps, run
   body, how to call it, or how it fails. Also
-  when a check prints tinker/plain or
-  tinker/floating, or for a Workflow SDK flow.
+  when a check prints tinker/plain,
+  tinker/floating or tinker/graph, or for a
+  Workflow SDK flow.
 metadata:
   purpose: >
     How to write, call and fail an operation,
@@ -211,6 +212,33 @@ scope.run(press, { input: { x: 1, y: 2 } });
 
 Right: `await scope.run(...)`, or keep the
 promise and await it later.
+
+### HIGH: the code graph differs from tinker.graph [tinker/graph]
+
+`tinker.graph` holds one line per operation and
+exit. The line lists what the path to that exit
+reads, writes and calls. `tinker check` builds the
+graph from the code. Each line that differs from
+the file is a finding.
+
+Wrong: a stale move that still writes.
+
+```ts no-check
+list.set({ ...now, state: input.state });
+if (now.version !== input.version) {
+  return { kind: "stale" as const };
+}
+```
+
+```text
+issue.move.do stale: writes{issues.list.set},
+  tinker.graph says writes{}
+```
+
+Right: if you meant the change, run
+`tinker graph --write` and commit the file. The
+reviewer reads its diff. If you did not mean it,
+fix the code.
 
 ### MEDIUM: `Date.now()` or `Math.random()` in a run
 

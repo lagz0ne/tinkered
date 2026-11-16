@@ -20,6 +20,7 @@ GitHub release; the
 
 ```text
 tinker check [root] [--json]
+tinker graph [root] [--write]
 tinker skill list
 tinker skill load <skill>
 ```
@@ -38,6 +39,8 @@ bun --bun tinker check
    the cast gate.
 2. **rules:** Tinker's rules, then the app's
    other lint.
+3. **graph:** the graph of the code must match
+   `tinker.graph`.
 
 - Only the first stage that fails prints.
 - At most 5 findings print.
@@ -86,6 +89,43 @@ A tool with no config is skipped, and the
 `tinker check: not done`, with exit 2: only a
 run of every stage can say OK.
 
+## The graph
+
+`tinker graph` prints the app's graph. It has one
+line per operation and exit (ADR 0161). The line
+says what the path to that exit does:
+
+- `reads`: each cell read, and how;
+- `writes`: each cell write, and how;
+- `calls`: each operation it runs.
+
+```text
+issue.move.do stale reads{issues.list.of}
+  writes{} calls{issues.inTeam}
+```
+
+- A name is the label, never a local name.
+- A write counts for an exit when it runs before
+  that return.
+- The graph reads `src` and `cmds` only.
+
+`tinker graph --write` writes the graph to
+`tinker.graph`. Commit that file. Then the check
+builds the graph again and compares. Each line
+that differs is a finding at the operation:
+
+```text
+src/issues/ops.server.ts:83 tinker/graph
+issue.move.do stale: writes{issues.list.set},
+tinker.graph says writes{}
+```
+
+- Meant the change? Run `--write` again. The
+  reviewer reads the diff of the file.
+- Did not mean it? Fix the code.
+- No `tinker.graph` is one finding, when the app
+  has an operation.
+
 ## The tests and the exits
 
 An exit is one way out of an operation: each
@@ -100,9 +140,9 @@ Name the test command in `tinker.json`:
 
 Then the check runs two more stages:
 
-3. **tests:** the command. Red tests print the
+4. **tests:** the command. Red tests print the
    end of their output.
-4. **exits:** each exit that the types declare
+5. **exits:** each exit that the types declare
    and no test reached is a finding.
 
 ```text
