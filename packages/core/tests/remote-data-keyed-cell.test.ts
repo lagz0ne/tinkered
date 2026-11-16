@@ -150,8 +150,7 @@ test("a write from a request session lands at the root, and no session keeps a c
     operation({
       label: "tasks.rename",
       depends: { items: tasks.controller },
-      run: ({ items }) =>
-        items.update({ project: "p1", id: "a" }, (t) => ({ ...t, title: "renamed" })),
+      run: ({ items }) => items.set({ project: "p1", id: "a", title: "renamed" }),
     }),
   );
   await session.close();

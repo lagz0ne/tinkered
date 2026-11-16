@@ -54,10 +54,10 @@ test("of reads one member and where reads the members of a part", () => {
   expect(none).toBe(undefined);
 });
 
-test("update and delete change one member by its key", () => {
+test("set replaces one member by its key, and delete removes one", () => {
   const items = seeded();
 
-  items.update({ project: "p1", id: "a" }, (t) => ({ ...t, title: "done" }));
+  items.set(task("p1", "a", "done"));
   items.delete({ project: "p2", id: "c" });
   items.delete({ project: "p2", id: "gone" });
 
@@ -88,7 +88,7 @@ test("a write wakes the watchers of its member and of its parts, and no other", 
   watch("a", items.where({ id: "a" }));
   watch("p1&a", items.where({ id: "a", project: "p1" }));
 
-  items.update({ project: "p1", id: "a" }, (t) => ({ ...t, title: "done" }));
+  items.set(task("p1", "a", "done"));
 
   expect(woke.sort()).toEqual(["a", "all", "p1", "p1&a", "p1/a"]);
 });
@@ -98,7 +98,7 @@ test("a reader's watcher gets the new and the old member", () => {
   const seen: [Task | undefined, Task | undefined][] = [];
   items.of({ project: "p1", id: "a" }).watch((next, prev) => seen.push([next, prev]));
 
-  items.update({ project: "p1", id: "a" }, (t) => ({ ...t, title: "done" }));
+  items.set(task("p1", "a", "done"));
   items.delete({ project: "p1", id: "a" });
 
   expect(seen).toEqual([
@@ -202,39 +202,9 @@ test("two keys with the same fields in another order name one member", () => {
   );
 
   items.set(task("p1", "a"));
-  items.update({ project: "p1", id: "a" }, (t) => ({ ...t, title: "one" }));
+  items.set(task("p1", "a", "one"));
 
   expect(items.get()).toEqual([task("p1", "a", "one")]);
-});
-
-test("an update of a key that is not there raises MissingMember", () => {
-  const items = seeded();
-
-  let thrown: unknown;
-  try {
-    items.update({ project: "p9", id: "a" }, (t) => t);
-  } catch (error) {
-    thrown = error;
-  }
-
-  if (!isError(thrown, "MissingMember")) throw thrown;
-  expect(thrown.payload).toEqual({ label: "task.items", key: '[["id","a"],["project","p9"]]' });
-});
-
-test("an update whose result has another key raises KeyChanged and writes nothing", () => {
-  const items = seeded();
-  const before = items.get();
-
-  let thrown: unknown;
-  try {
-    items.update({ project: "p1", id: "a" }, (t) => ({ ...t, project: "p2" }));
-  } catch (error) {
-    thrown = error;
-  }
-
-  if (!isError(thrown, "KeyChanged")) throw thrown;
-  expect(thrown.payload.next).toBe('[["id","a"],["project","p2"]]');
-  expect(items.get()).toBe(before);
 });
 
 test("a key with a number that is not finite raises InvalidKey", () => {
@@ -262,21 +232,13 @@ test("a number and a string with the same text are two keys", () => {
   expect(items.get()).toEqual([{ id: 1 }, { id: "1" }]);
 });
 
-test("a string key reads one member and is named as its JSON text", () => {
+test("a string key reads one member", () => {
   const items = createScope().controller(
     data({ label: "names", mode: "keyed", key: (row: { name: string }) => row.name }),
   );
   items.set({ name: "x" });
 
-  let thrown: unknown;
-  try {
-    items.update("y", (row) => row);
-  } catch (error) {
-    thrown = error;
-  }
-
-  if (!isError(thrown, "MissingMember")) throw thrown;
-  expect(thrown.payload.key).toBe('"y"');
+  expect(items.of("y").get()).toBeUndefined();
   expect(items.of("x").get()).toEqual({ name: "x" });
 });
 

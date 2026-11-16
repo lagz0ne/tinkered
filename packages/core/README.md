@@ -913,10 +913,7 @@ const tasks = data({
 
 const items = scope.controller(tasks);
 items.set(task);
-items.update({ project, id }, (t) => ({
-  ...t,
-  done: true,
-}));
+items.set({ ...task, done: true });
 items.delete({ project, id });
 ```
 
@@ -926,9 +923,9 @@ items.delete({ project, id });
 - `tasks.of(key)` and `tasks.where(part)` name a read; `scope.resolve`
   gives its reader, and React's `useData` takes it.
 - A write wakes the readers of its member and of its parts, and no other.
-- `update` of a missing key raises `MissingMember`; a result with another
-  key raises `KeyChanged`; a number in a key that is not finite raises
-  `InvalidKey`.
+- `set(member)` is the one way to change a member: it replaces the member
+  with that key.
+- A number in a key that is not finite raises `InvalidKey`.
 
 On a `remoteData` board, a keyed cell is served by part: the first reader
 of a part asks for it, and the guard runs at each ask. `board.invalidate`
@@ -1321,7 +1318,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 - A keyed cell starts empty and reads all members in the order they came.
 - `of` reads one member and `where` reads the members of a part.
-- `update` and `delete` change one member by its key.
+- `set` replaces one member by its key, and `delete` removes one.
 - A write wakes the watchers of its member and of its parts, and no other.
 - Two keys with the same fields in another order name one member.
 - A served keyed cell is read by part: a client asks for a part, and the

@@ -126,6 +126,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 - **core/keyed-resource** — done 2026-11-15 (ADR 0157; Duke 13:37 to 14:24). `derived` is gone: a `resource` with a `config` is keyed, follows its sources, makes a span per build, has `defer`, and an operation can read it. A build a source change set off may write a cell; a build a reader started may not (`WriteInRead`).
   Proof: Core 1,420 and React 120 tests; `tests/resource-keyed-life.test.ts` (span, defer at close, a reaction, a loop at the round limit).
 
+- **core/keyed-set-only** — done 2026-11-16 (ADR 0158; Duke 03:14 "let's keep the set"). A keyed controller has no `update`; `set(member)` is the one way to change a member. `MissingMember` and `KeyChanged` are gone. Released as 0.28.0.
+  Proof: Core 1,418, React 120, Bun 130 tests; `vp check` 0 errors; size 23,058 B (81 B less). CUJ eval run 3: 3 of 6 Sonnet runs wrote `set` where the golden had `update`.
+
 - **skills/rpc-guard** — done 2026-11-15 (CUJ eval run 2). The `core/rpc` skill teaches a guard: `transport.hook.start`, `input.meta`, `input.refuse`, bound tags, `board.part(input)`. Released as 0.27.1.
   Proof: run 2 writer Sonnet 2 guessed the read hook's input and failed 9 of 14 journeys; `vp run skills` and `vp run prose` green.
 

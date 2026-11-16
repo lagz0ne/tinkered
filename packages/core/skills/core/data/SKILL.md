@@ -13,7 +13,7 @@ metadata:
     cell read only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.27.2'
+  library_version: '0.28.0'
 requires:
   - core
 sources:
@@ -85,7 +85,7 @@ const press = operation({
   run: ({ waves }, { input }) => {
     waves.set(input);
     const { room, id } = input;
-    waves.update({ room, id }, (w) => ({ ...w, hue: 1 }));
+    waves.set({ ...input, hue: 1 });
     const one = waves.of({ room, id }).get();
     const here = waves.where({ room }).get();
     waves.delete({ room, id });
@@ -94,7 +94,9 @@ const press = operation({
 });
 ```
 
-- `set(member)` adds or replaces one member.
+- `set(member)` adds or replaces one member. It
+  is the one way to change a member: read it,
+  then `set({ ...member, hue: 1 })`.
 - `of(key)` reads one member.
 - `where(part)` reads the members whose key
   holds those fields.

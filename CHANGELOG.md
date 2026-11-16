@@ -7,6 +7,20 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.28.0
+
+A keyed cell has one way to change a member
+(ADR 0158). This release breaks code that says
+`list.update(key, fn)`.
+
+- A keyed controller has no `update`. Read the
+  member, then `set` it:
+  `list.set({ ...member, state })`.
+- `set(member)` replaces the member with that key.
+- The errors `MissingMember` and `KeyChanged` are
+  gone.
+- A plain cell keeps `update(fn)`.
+
 ## 0.27.2
 
 No change to the packages. This release is the

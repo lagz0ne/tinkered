@@ -444,16 +444,15 @@ export declare namespace Scope {
     watch(listener: (next: T, prev: T) => void): () => void;
   };
 
-  /** A keyed cell's handle (ADR 0135, 0138). `set` takes a member and reads its key from it;
-   * `update` and `delete` take a key. `get` and `watch` read all members. A reader from `of` or
-   * `where` reads one member or one part, and its watcher wakes only for a change there. An
-   * `update` of a key that is not there raises `MissingMember`; an `update` whose result has
-   * another key raises `KeyChanged`; a key with a number that is not finite raises `InvalidKey`. */
+  /** A keyed cell's handle (ADR 0135, 0138). `set` takes a member and reads its key from it: it
+   * adds the member or replaces the one with that key (ADR 0158: the one way to change a member).
+   * `delete` takes a key. `get` and `watch` read all members. A reader from `of` or `where` reads
+   * one member or one part, and its watcher wakes only for a change there. A key with a number
+   * that is not finite raises `InvalidKey`. */
   export type KeyedController<V, K extends Data.Key> = {
     get(): readonly V[];
     watch(listener: (next: readonly V[], prev: readonly V[]) => void): () => void;
     set(member: V): void;
-    update(key: K, fn: (previous: V) => V): void;
     delete(key: K): void;
     of(key: K): Data.Reader<V | undefined>;
     where(part: Data.Part<K>, window?: Exclude<Data.Key, string>): Data.Reader<readonly V[]>;
@@ -8213,21 +8212,6 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     const next = admit(this.spec.label, this.spec.parse, member);
     const key = this.spec.key(next);
     this.put(this.spec.text(key), key, next);
-  }
-
-  update(key: Data.Key, fn: (previous: unknown) => unknown): void {
-    const text = this.spec.text(key);
-    const slot = this.spec.indexOf(this.get()).slots.get(text);
-    if (slot === undefined) raise("MissingMember", { label: this.spec.label, key: text });
-
-    const next = admit(this.spec.label, this.spec.parse, fn(slot.member));
-    const nextKey = this.spec.key(next);
-    const nextText = this.spec.text(nextKey);
-    if (nextText !== text) {
-      raise("KeyChanged", { label: this.spec.label, key: text, next: nextText });
-    }
-
-    this.put(text, nextKey, next);
   }
 
   delete(key: Data.Key): void {
