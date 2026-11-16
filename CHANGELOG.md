@@ -7,6 +7,31 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.29.0
+
+`tinker check` can run the tests, and a test must
+reach each exit of an operation (ADR 0159). An
+app with no `tests` in `tinker.json` runs as
+before.
+
+- An exit is one way out of an operation: each
+  `kind` of its answer, a refusal, or a plain
+  return.
+- `tinker.json` names the test command:
+  `{ "tests": "bun run test" }`. The check then
+  runs two more stages: tests, then exits.
+- A declared exit that no test reached is a
+  `tinker/exit` finding.
+- New entry `@tinkered/cli/test`: the capsule
+  `exits`. A server test scope lists
+  `exits({ file: process.env.TINKER_EXITS })`.
+- A page scope lists
+  `exits({ store: localStorage })`. The exits go
+  to the key `tinker.exits`, as counts. A setup
+  file of the browser tests leaves them in
+  `.tinker/exits/`.
+- The gate reads `src` and `cmds`.
+
 ## 0.28.0
 
 A keyed cell has one way to change a member

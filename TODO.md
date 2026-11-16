@@ -123,10 +123,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **cli/exit-gate** — ADR 0159. `tinker check` runs the app's tests as a stage (`tinker.json` `tests`), then prints a `tinker/exit` finding for each exit an operation declares and no test reached. Declared exits come from the type checker (`packages/cli/src/exits.ts`); reached exits from the capsule `exits` of `@tinkered/cli/test`, listed by the test scope.
-  Owner: CUJ eval thread (Fable lead).
-  Next: the template lists `exits` in its test scopes and names `tests`; then show Duke the result before a release.
-  Verify: `vp check` and the cli tests pass; cli mutation at 85 or more; in the template the check prints the `todo.remove.do` `gone` finding, then `tinker check: OK` once a test reaches it.
+None.
 
 ## Review
 
@@ -177,6 +174,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **cli/exit-gate** — done 2026-11-16 (ADR 0159; Duke 05:21 "Spans against the shape", 06:20 "Tests are a stage of the check", 06:59 the page store, 07:11 "we should release continuously"). `tinker.json` `tests` makes the tests a stage; a declared exit that no test reached is a `tinker/exit` finding; `exits` from `@tinkered/cli/test` writes a file (server) or `localStorage["tinker.exits"]` (page). Proof on the template (tinker-app branch `claude/project-thread-1la25p`, 6ab0823): the finding for `todo.remove.do` `gone`, then `tinker check: OK`; browser journeys alone reach 15 of 24 app exits. 122 cli tests. Owed on the box: the full cli mutation lane (about 3 hours). Released as 0.29.0.
 
 - **cli/package, cli/gates, cli/check-loop, cli/skill-text, cli/skill** — done 2026-11-15 (ADR 0156; Duke 11:41 "move analyze to cli", 11:47 "agent first", 13:37 "In the skill, the tool reads it"). `@tinkered/cli`, bin `tinker`: `tinker check` runs the app's tsc and lint in stages types then rules, at most 5 findings, each with its skill's `Right:` text; `tinker skill list|load`; `@tinkered/cli/config` gates; base tsconfig. Reviews: Opus READY after one round; Fable READY after one round. Released as 0.26.0.
   Proof: cli 112 tests; `vp run -r test` green; `vp run skills` green; site `tinker check: OK` with the gates on `src/**`; mutation on f1cdef07: run stopped at 2352/2489 mutants by the 2 h job limit, 175 survived; with every untested mutant counted as survived the score is still 87.5 (floor 85).
