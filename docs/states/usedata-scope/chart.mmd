@@ -1,0 +1,33 @@
+---
+title: "useData holds its scope, and a new scope mounts the subtree again"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: start
+    lg1: mount
+    lg2: ok
+    lg3: error
+  }
+  class lg0 tan
+  class lg1 purple
+  class lg2 teal
+  class lg3 orange
+  s0: No scope given yet
+  s1: A new scope: the child mounts again
+  s2: The child shows data
+  s3: The child raised Disposed
+  s4: The child shows data from before its scope closed
+  [*] --> s0
+  s0 --> s1: the provider gives a scope
+  s1 --> s2: the child renders the first time
+  s1 --> s3: the child renders and its scope is closed
+  s2 --> s1: the provider gives another scope
+  s2 --> s4: the given scope closes
+  s3 --> s1: the provider gives another scope
+  s4 --> s1: the provider gives another scope
+  s4 --> s3: the child renders and its scope is closed
+  class s0 tan
+  class s1 purple
+  class s2 teal
+  class s3 orange
+  class s4 teal

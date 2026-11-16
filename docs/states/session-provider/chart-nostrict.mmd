@@ -1,0 +1,41 @@
+---
+title: "SessionProvider inside Suspense, under StrictMode"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: off
+    lg1: wait
+    lg2: ok
+    lg3: busy
+  }
+  class lg0 tan
+  class lg1 yellow
+  class lg2 teal
+  class lg3 purple
+  s0: Not on the page
+  s1: Mounted, no session yet
+  s2: New session open, child not drawn yet
+  s3: Fallback shows, data loads
+  s4: Fallback shows, data loaded
+  s5: Child shows the session's data
+  s6: Child shows, about to render again
+  [*] --> s0
+  s0 --> s1: the page mounts the provider
+  s1 --> s2: the effect opens a session
+  s2 --> s0: the page removes the provider
+  s2 --> s3: the child asks for the session's data and suspends
+  s3 --> s0: the page removes the provider
+  s3 --> s4: the session's data loads
+  s4 --> s0: the page removes the provider
+  s4 --> s5: the child shows again
+  s5 --> s0: the page removes the provider
+  s5 --> s6: the page above re-renders
+  s6 --> s0: the page removes the provider
+  s6 --> s5: the child renders
+  class s0 tan
+  class s1 purple
+  class s2 purple
+  class s3 yellow
+  class s4 yellow
+  class s5 teal
+  class s6 purple

@@ -59,8 +59,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: Hedl gives the 5 GET routes and 21 loop sites of the proof.
 
 - **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop.
-  Seen in the ADR 0124 proof (`strict.test.tsx`).
-  Verify: that test renders `ok` with one build.
+  Seen in the ADR 0124 proof (`strict.test.tsx`). Spec, chart and path: [docs/states/session-provider](docs/states/session-provider/README.md) (ReachesStable breaks). Next: move `paths/session-provider-loop.test.tsx.txt` into React's tests.
+  Verify: that test renders `ok` with one build; the path test `session-provider-loop.test.tsx` passes; the session-provider check shows ReachesStable holds.
 
 - **jev/review-enobufs** — `tools/jev/lib.mjs:80` runs `git` through `execSync` with the default `maxBuffer`, so a big range crashes with `spawnSync /bin/sh ENOBUFS`.
   Seen on `node tools/jev/review.mjs 5a9f13a9..154f5a2b` (a 123k-line diff).
@@ -77,6 +77,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
+
+- **core/keyed-entry-dropped** — bug 1 in [docs/states](docs/states/keyed-resource/README.md). The last watcher leaves, so the entry leaves the map, but a holder can subscribe to it again. The next reader of that key builds a second entry. Next: move `paths/keyed-resource-react.test.tsx.txt` and paths 1 and 2 of `paths/keyed-resource-paths.test.ts.txt` into the packages' tests (they fail), then fix `builtReader` and `class BuiltEntry` in `packages/core/src/index.ts`.
+  Verify: the two React path tests and the Core path tests for paths 1 and 2 pass; the keyed-resource check shows 0 breaks for OneEntryPerKey, NoChangeNoBuild, EndBeforeNextBuild.
+
+- **core/keyed-watch-after-close** — bug 2 in [docs/states](docs/states/keyed-resource/README.md). A held reader that subscribes after the scope closed builds once (`watch()` runs `fresh()` before `Disposed`), and that build's end never runs. Next: move paths 3 and 4 of `paths/keyed-resource-paths.test.ts.txt` into Core's tests (they fail), then fix the keyed `watch()` path in `packages/core/src/index.ts`.
+  Verify: its path tests (paths 3 and 4) pass; the keyed-resource check shows EndsRunWhenScopeCloses and EndWhenLastReaderLeaves hold.
+
+- **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` fails every waiter but does not empty `out`, so a call failed as `link, sent: false` is still sent, and the server runs it. Next: move `paths/statechart-rpc-call.test.ts.txt` into Bun's tests (it fails), then fix `drop()`.
+  Verify: the rpc-call path test passes; the rpc-call check shows UnsentNeverRuns holds (both configs).
 
 ## Doing
 
@@ -97,6 +106,11 @@ None.
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
+
+- **core/stop-signal-then-later-event** — bug 3 in [docs/states](docs/states/scope-life/README.md). A stop signal fires during start, then a start error, a timeout or a `close()` comes before the hooks return. The code reports the later event; ADR 0134 d2 says the signal wins.
+  Missing: Duke's choice. Signal wins: the code changes. Later event wins: ADR 0134 d2 changes.
+  Next once picked: move `paths/statechart-scope-life.test.ts.txt` into Core's tests (changed to the new rule if the ADR wins).
+  Verify: its 3 path tests and the control pass; the scope-life check shows 0 breaks.
 
 ## Parked
 

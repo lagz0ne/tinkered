@@ -1,0 +1,121 @@
+/**
+ * Cause A of the ADR 0157 model (/home/paseo/statechart/keyed-resource/report.md) in real React:
+ * a reader subscribes to an entry the scope already dropped, so a later reader of the same key
+ * gets a second entry. Each `expect` is the ADR rule; a failing test means the bug is real.
+ */
+import { createScope, data, resource, tag } from "@tinkered/core";
+import { StrictMode, act, useState } from "react";
+import { expect, test } from "vite-plus/test";
+import { render } from "vitest-browser-react";
+
+import { ScopeProvider, useData } from "@/index";
+
+const key = tag<string>({ label: "scr.key" });
+
+function setup(label: string) {
+  const src = data({ label: `${label}.src`, initial: 0 });
+  const log: string[] = [];
+  const unit = resource({
+    label,
+    config: { k: key.required },
+    depends: { src },
+    factory: ({ src }, { defer }) => {
+      log.push(`build ${src}`);
+      defer(() => void log.push(`end ${src}`));
+      return src;
+    },
+  });
+  const Reader = (props: { name: string }): React.ReactElement => (
+    <p>{`${props.name}:${useData(unit({ k: "A" }))}`}</p>
+  );
+  return { src, log, Reader };
+}
+
+const builds = (log: string[]) => log.filter((l) => l.startsWith("build")).length;
+
+test("StrictMode: a second reader of key A gets a second entry and a build with no change (ADR 0157 d4, ADR 0150 d5)", async () => {
+  const { src, log, Reader } = setup("scr.strict");
+  const scope = createScope();
+  let showB: () => void = () => undefined;
+  function App(): React.ReactElement {
+    const [b, setB] = useState(false);
+    showB = () => setB(true);
+    return (
+      <>
+        <Reader name="a" />
+        {b ? <Reader name="b" /> : null}
+      </>
+    );
+  }
+  const screen = await render(
+    <StrictMode>
+      <ScopeProvider scope={scope}>
+        <App />
+      </ScopeProvider>
+    </StrictMode>,
+  );
+  await expect.element(screen.getByText("a:0")).toBeVisible();
+  const before = builds(log);
+
+  // reader b mounts on key A; the source has not changed
+  await act(async () => showB());
+  await expect.element(screen.getByText("b:0")).toBeVisible();
+  const afterB = builds(log);
+
+  // the source changes once
+  await act(async () => scope.controller(src).set(1));
+  await expect.element(screen.getByText("b:1")).toBeVisible();
+  const afterChange = builds(log);
+
+  expect({ log, newBuildsForB: afterB - before, buildsForOneChange: afterChange - afterB }).toEqual({
+    log,
+    newBuildsForB: 0,
+    buildsForOneChange: 1,
+  });
+});
+
+test("No StrictMode: a page swap keeps a dropped entry; the next reader of key A builds again (ADR 0157 d4, ADR 0150 d5)", async () => {
+  const { src, log, Reader } = setup("scr.swap");
+  const scope = createScope();
+  let swap: () => void = () => undefined;
+  let showC: () => void = () => undefined;
+  function App(): React.ReactElement {
+    const [page, setPage] = useState(1);
+    const [c, setC] = useState(false);
+    swap = () => setPage(2);
+    showC = () => setC(true);
+    return (
+      <>
+        {page === 1 ? <Reader key="p1" name="page1" /> : <Reader key="p2" name="page2" />}
+        {c ? <Reader name="c" /> : null}
+      </>
+    );
+  }
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <App />
+    </ScopeProvider>,
+  );
+  await expect.element(screen.getByText("page1:0")).toBeVisible();
+
+  // page 1 (a reader of key A) is swapped for page 2 (a reader of key A) in one commit
+  await act(async () => swap());
+  await expect.element(screen.getByText("page2:0")).toBeVisible();
+  const afterSwap = builds(log);
+
+  // reader c mounts on key A; the source has not changed
+  await act(async () => showC());
+  await expect.element(screen.getByText("c:0")).toBeVisible();
+  const afterC = builds(log);
+
+  // the source changes once
+  await act(async () => scope.controller(src).set(1));
+  await expect.element(screen.getByText("c:1")).toBeVisible();
+  const afterChange = builds(log);
+
+  expect({ log, newBuildsForC: afterC - afterSwap, buildsForOneChange: afterChange - afterC }).toEqual({
+    log,
+    newBuildsForC: 0,
+    buildsForOneChange: 1,
+  });
+});

@@ -1,0 +1,29 @@
+---
+title: "rpc calls over one ws link"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Breaks UnsentNeverRuns
+    lg1: Path to the UnsentNeverRuns bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  s0: Both calls: not called
+  s1: not called / waits to go out
+  s2: Both calls: waits to go out
+  s3: ended with a fault / failed as not sent, its frame still waits
+  s4: ended with a fault / failed as not sent, but the server ran it
+  [*] --> s0
+  s0 --> s1: the app calls
+  s1 --> s1: the frame goes out
+  s1 --> s2: the app calls
+  s2 --> s3: the link closes
+  s3 --> s3: the frame goes out or the link opens
+  s3 --> s4: the server answers
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 bugPath
+  class s2 bugPath
+  class s3 bugPath
+  class s4 breaks
+  class s4 bugPath

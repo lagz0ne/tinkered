@@ -1,0 +1,85 @@
+---
+title: "A resource with config is keyed (ADR 0157): one resource, keys A and B, two readers"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: reading
+    lg1: building
+    lg2: closed
+    lg3: Breaks EndBeforeNextBuild or EndWhenLastReaderLeaves or EndsRunWhenScopeCloses or NoChangeNoBuild or OneEntryPerKey
+    lg4: Path to the EndBeforeNextBuild or EndWhenLastReaderLeaves or EndsRunWhenScopeCloses or NoChangeNoBuild or OneEntryPerKey bug
+  }
+  class lg0 blue
+  class lg1 yellow
+  class lg2 tan
+  class lg3 breaks
+  class lg4 bugPath
+  s0: No reader
+  s1: A reader rendered, not subscribed, a build runs (a reader started it)
+  s2: A reader rendered, not subscribed
+  s3: A reader watches
+  s4: No reader, a reader holds an entry the scope dropped
+  s5: Scope closed, a reader rendered, not subscribed
+  s6: A reader rendered, not subscribed, a reader holds an entry the scope dropped
+  s7: A reader rendered, not subscribed, a reader holds an entry the scope dropped, a build runs (a reader started it)
+  s8: Scope closed, a reader rendered, not subscribed, a build runs (a reader started it)
+  s9: A reader rendered, not subscribed, one key has two entries, a build runs with no change (a reader started it)
+  s10: Scope closed, no reader, a reader holds an entry the scope dropped
+  s11: Scope closed, a reader rendered, not subscribed, an end never runs
+  s12: Scope closed, no reader, a reader holds an entry the scope dropped, a build runs (a reader started it)
+  s13: Scope closed, no reader, a reader holds an entry the scope dropped, an end never runs
+  s14: A reader rendered, not subscribed, a reader holds an entry the scope dropped, a build runs while the other entry's end waits (a reader started it)
+  [*] --> s0
+  s0 --> s1: a reader renders the key [no entry: a new one]
+  s0 --> s0: the source changes
+  s1 --> s2: the build throws
+  s2 --> s2: a reader renders the key [the entry is there]
+  s2 --> s3: the reader subscribes
+  s3 --> s4: a reader leaves
+  s2 --> s5: the scope closes
+  s3 --> s6: a reader leaves
+  s4 --> s7: a reader renders the key [no entry: a new one]
+  s5 --> s8: the reader subscribes [after the scope closed]
+  s6 --> s9: a reader renders the key [no entry: a new one]
+  s7 --> s6: the build finishes
+  s4 --> s10: the scope closes
+  s8 --> s11: the build finishes
+  s6 --> s6: the source changes
+  s10 --> s12: the reader that left subscribes again (StrictMode) [after the scope closed]
+  s12 --> s13: the build finishes
+  s6 --> s14: the reader that left subscribes again (StrictMode)
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 blue
+  class s0 bugPath
+  class s1 yellow
+  class s1 bugPath
+  class s2 blue
+  class s2 bugPath
+  class s3 blue
+  class s3 bugPath
+  class s4 blue
+  class s4 bugPath
+  class s5 tan
+  class s5 bugPath
+  class s6 blue
+  class s6 bugPath
+  class s7 yellow
+  class s7 bugPath
+  class s8 tan
+  class s8 bugPath
+  class s9 yellow
+  class s9 breaks
+  class s9 bugPath
+  class s10 tan
+  class s10 bugPath
+  class s11 tan
+  class s11 breaks
+  class s11 bugPath
+  class s12 tan
+  class s12 bugPath
+  class s13 tan
+  class s13 breaks
+  class s13 bugPath
+  class s14 yellow
+  class s14 breaks
+  class s14 bugPath

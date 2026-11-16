@@ -1,0 +1,52 @@
+---
+title: "rpc calls over one ws link"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Breaks UnsentNeverRuns
+    lg1: Path to the UnsentNeverRuns bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  s0: The call not called
+  s1: The call waits to go out, no link
+  s2: The call waits to go out, link opening
+  s3: The call on the wire
+  s4: The call ended with a fault
+  s5: The call got its reply
+  s6: The call waits for renew
+  s7: The call waits to go out, link up
+  s8: The call failed as not sent, its frame still waits, no link
+  s9: The call failed as not sent, its frame still waits, link opening
+  s10: The call failed as not sent, its frame still waits, link up
+  s11: The call failed as not sent, but the server ran it
+  [*] --> s0
+  s0 --> s1: the app calls
+  s1 --> s2: the frame goes out
+  s2 --> s3: the link opens
+  s2 --> s4: the link closes
+  s3 --> s3: the server refuses
+  s3 --> s4: the link closes or a fault arrives
+  s3 --> s6: a refusal arrives, renew starts
+  s3 --> s5: the reply arrives
+  s6 --> s4: renew says no
+  s6 --> s6: renew says yes
+  s6 --> s7: the call is sent again, same id
+  s7 --> s3: the frame goes out
+  s7 --> s8: the link closes
+  s6 --> s1: the call is sent again, same id
+  s8 --> s9: the frame goes out
+  s9 --> s10: the link opens
+  s10 --> s11: the server answers or the server refuses
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 bugPath
+  class s2 bugPath
+  class s3 bugPath
+  class s6 bugPath
+  class s7 bugPath
+  class s8 bugPath
+  class s9 bugPath
+  class s10 bugPath
+  class s11 breaks
+  class s11 bugPath

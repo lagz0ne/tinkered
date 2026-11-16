@@ -1,0 +1,48 @@
+---
+title: "SessionProvider inside Suspense, under StrictMode"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: off
+    lg1: wait
+    lg2: busy
+    lg3: Path to the ReachesStable bug
+    lg4: Repeats forever, so ReachesStable breaks
+  }
+  class lg0 tan
+  class lg1 yellow
+  class lg2 purple
+  class lg3 bugPath
+  class lg4 repeats
+  s0: Not on the page
+  s1: Mounted, no session yet
+  s2: Session open, StrictMode replays the effect
+  s3: New session open, child not drawn yet
+  s4: Fallback shows, data loads
+  s5: Fallback shows, data loaded
+  s6: Child shows, StrictMode replays the effect
+  [*] --> s0
+  s0 --> s1: the page mounts the provider
+  s1 --> s2: the effect opens a session
+  s2 --> s3: StrictMode closes the session and opens a new one
+  s3 --> s0: the page removes the provider
+  s3 --> s4: the child asks for the session's data and suspends
+  s4 --> s0: the page removes the provider
+  s4 --> s5: the session's data loads
+  s5 --> s0: the page removes the provider
+  s5 --> s6: the child shows again
+  s6 --> s3: StrictMode closes the session and opens a new one
+  class s0 tan
+  class s0 bugPath
+  class s1 purple
+  class s1 bugPath
+  class s2 purple
+  class s2 bugPath
+  class s3 purple
+  class s3 repeats
+  class s4 yellow
+  class s4 repeats
+  class s5 yellow
+  class s5 repeats
+  class s6 purple
+  class s6 repeats

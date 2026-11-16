@@ -1,0 +1,62 @@
+// Walks the main path of /home/paseo/statechart/react/usedata-scope on the real code, one step
+// for each action. No rule breaks in that model; this checks that the model matches the code.
+// Not committed.
+import type { Scope } from "@tinkered/core";
+import { createScope, data, isError } from "@tinkered/core";
+import { useState } from "react";
+import { expect, test } from "vite-plus/test";
+import { render } from "vitest-browser-react";
+
+import { ScopeProvider, useData } from "@/index";
+
+import { Catch } from "../support/boundary";
+
+const cell = data({ label: "cell", initial: "?" });
+
+test("useData holds its scope; a new scope mounts the subtree again; a closed scope raises Disposed", async () => {
+  const A = createScope();
+  const B = createScope();
+  A.controller(cell).set("from A");
+  B.controller(cell).set("from B");
+  let mounts = 0;
+  let give: (s: Scope.Handle) => void = () => {};
+  let rerender: () => void = () => {};
+
+  function Child(): React.ReactElement {
+    const [, bump] = useState(0);
+    const [mount] = useState(() => ++mounts);
+    rerender = () => bump((n) => n + 1);
+    return <p>{`mount ${mount}: ${useData(cell)}`}</p>;
+  }
+  function App(): React.ReactElement {
+    const [scope, setScope] = useState<Scope.Handle>(A);
+    give = setScope;
+    return (
+      <ScopeProvider scope={scope}>
+        <Catch fallback={(error) => <p>{isError(error, "Disposed") ? "raised Disposed" : "other"}</p>}>
+          <Child />
+        </Catch>
+      </ScopeProvider>
+    );
+  }
+
+  // 1. the provider gives a scope (A)
+  const screen = await render(<App />);
+  // 2. the child renders the first time
+  await expect.element(screen.getByText("mount 1: from A")).toBeVisible();
+  // 3. the provider gives another scope (B)
+  give(B);
+  // 4. the child renders the first time (it mounted again)
+  await expect.element(screen.getByText("mount 2: from B")).toBeVisible();
+  // 5. an old scope closes (A)
+  await A.close();
+  // 6. the child renders again: it reads B, the scope its provider gives now
+  rerender();
+  await expect.element(screen.getByText("mount 2: from B")).toBeVisible();
+  // 7. the given scope closes (B)
+  await B.close();
+  // 8. the child renders and its scope is closed: Disposed, no stale "from B"
+  rerender();
+  await expect.element(screen.getByText("raised Disposed")).toBeVisible();
+  expect(mounts).toBe(2);
+});
