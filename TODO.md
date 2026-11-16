@@ -127,13 +127,6 @@ None.
 
 ## Review
 
-- **entry/cmd-server** — `@tinkered/entry` gets its code from the template (tinker-app d13daed).
-  Owner: Opus lead; Opus writer. Fix round done.
-  Built: `/cmd` (defineMain, createMainHost, runMain, observeServerPanics) and `/server` (routes, request lifetime and body, http, health, abortReasons, Errors, isError), with one error registry, the template's tests, and new tests for a panic's exit, a request's end, http, trace and quiet rows.
-  No `exits` capsule: ADR 0159 is for apps; this package proves itself by its mutation floor (85).
-  Next: the lead reviews and lands it.
-  Verify: `vp check` clean; `bun --bun vp test` in `packages/entry` passes; the mutation lane clears 85 on kills; `git diff main --stat -- packages/core packages/react packages/bun packages/cli` prints nothing.
-
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
@@ -181,6 +174,10 @@ None.
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **entry/cmd-server** — done 2026-11-16, release 0.29.2. `@tinkered/entry` holds `/cmd` and `/server`, moved from tinker-app d13daed.
+  Proof: 58 tests pass on Bun; mutation 86.24 (main lane) and 87.50 (panics lane), on kills alone; reviewer NOT READY, then one fix round.
+  No `exits` capsule: ADR 0159 is for apps; this package proves itself by its mutation floor.
 
 - **core/g6-stale-plant** — done 2026-11-16. `build/private-fields.test.ts` G6 planted `"built"`, a runtime string since 0.27.0 (ADR 0157), so the guard refused it as "a string in the runtime" and G6's text never came. G6 now plants `"layer"`, as G60 and G61 do.
   Proof: `vp run core#test:dist` 1,662 passed (was 1 failed on `de83a2d9`).

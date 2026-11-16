@@ -8,6 +8,31 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.29.2
+
+`@tinkered/entry` gets its code, moved from the
+template's `tinker/` base. An app gets it by
+version, not by copy. The names and behavior are
+the template's, with one change in `routes`.
+
+- `@tinkered/entry/cmd`: `defineMain`, `runMain`,
+  `createMainHost`, `observeServerPanics`.
+- A main that answers with no `closed` exits 1
+  with `MainClosedMissing`.
+- `runMain` and `createMainHost` take
+  `defineMain(...)` as it is.
+- `@tinkered/entry/server`: `routes`,
+  `requestBody`, `backendStop`, `requestStop`,
+  `http`, `httpRequest`, `httpBackend`, `health`,
+  `baseVersion`, `abortReasons`, `Errors`,
+  `isError`.
+- `baseVersion` is the package's own version.
+- The change: every reply after the first has
+  its body cancelled. The `routes` capsule owns
+  each cancel; the root's close waits for them.
+- A cancel that fails is a warning in the root's
+  log.
+
 ## 0.29.1
 
 A new package, `@tinkered/entry`: the backend of
