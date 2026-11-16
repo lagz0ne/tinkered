@@ -1,5 +1,6 @@
 import { parse, resource } from "./index";
 import type { Data, Operation, Tag } from "./index";
+import { refusedBrand } from "./refused-symbol";
 import * as z from "./rpc-shape";
 import type { Fault } from "./rpc-wire";
 
@@ -34,7 +35,6 @@ export type Outcome =
  * A hook that says no returns `refuse(payload)`: a value, not a throw. The call stops and
  * answers the `refused` fault with that payload (like HTTP 401/403).
  */
-const refusedBrand = Symbol("refused");
 export type Refused = { readonly [refusedBrand]: true; readonly payload: unknown };
 
 const refusable = z.custom<(payload: unknown) => Refused>((v) => typeof v === "function");

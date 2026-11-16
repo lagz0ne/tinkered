@@ -141,6 +141,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
+- **core/session-id-exit** — ADR 0162 (Duke 2026-11-16 07:11 "session.id attribute, no span", 07:49 "Raise the cap by 64 B"). With a tap on, a span in a session carries `session.id`; `Scope.Handle.id` reads it; an operation span that ends ok carries `tinker.exit`. Core cap 23,168 → 23,232 B.
+  Owner: Claude Opus 5.5 lead. Branch `land/session-id-exit`.
+  Blocked on: Duke's call on the tap-on cost. Queued bench vs main (N=61): `session`, `tagged`, `lifecycle`, `op` no difference we can see; `opobs` +1.7% and `opobssession` +1.8%, b is slower (the 2026-09-30 precedent accepted `opobs` +4%).
+  Next once accepted: fast-forward main, push, release 0.30.0.
+  Verify: core tests and `scripts/ticket.sh` exit 0; core size 23,202 B within 23,232 B; mutation ≥ 85; npm has 0.30.0.
+
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).

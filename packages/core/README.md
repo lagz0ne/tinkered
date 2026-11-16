@@ -1108,6 +1108,15 @@ Each call returns a list that keeps its entries when later runs replace the hist
 Each resource build emits a `resource` span, so tests can count builds without a test-only
 hook. If you keep the scope handle, its retained history is still readable after close.
 
+With a tap on, each span opened in a session carries `attributes["session.id"]`: a number per
+root, the innermost session's (ADR 0162). Root spans carry none. A session handle's `id` reads the same
+number, so a `session` hook pairs `handle.id` at open and at close with the session's spans.
+The root, and a session opened with no tap, read `undefined`. An exporter writes the id as a
+string and adds a name for the root, as OpenTelemetry's `session.id` is a string.
+
+An operation span that ends `ok` carries `attributes["tinker.exit"]`: the answer's `kind`, or
+`"refused"` for an rpc refusal. A plain value carries none.
+
 When a driver creates its own scope and returns only its result (as the CLI does), pass
 `observe.export` in the scope options before starting it. The callback receives each span
 as it ends, including spans that finish during close; save those spans outside the driver.

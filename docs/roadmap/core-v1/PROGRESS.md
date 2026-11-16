@@ -4709,3 +4709,34 @@ Proof folder: `docs/roadmap/core-v1/start-timeout-and-hose/`.
 - Mutation stays with the lander; calibration is not run.
 - The observer setup and span opening code are unchanged in this round.
 - Proof: `docs/roadmap/core-v1/start-timeout-and-hose/final-round/`.
+
+## core/session-id-exit (ADR 0162)
+
+Duke, 2026-11-16: 07:11 "session.id attribute, no span"; 07:49 "Raise the
+cap by 64 B".
+
+```impact core/session-id-exit
+core  Scope/Handle#typeLiteral404:id  src/index.ts tests/session-id.test.ts
+core  refusedBrand                    src/refused-symbol.ts src/index.ts src/rpc-lifecycle.ts
+```
+
+SCIP `refs` on both: no package outside Core reads them. `vp check` on
+the whole repo: 0 errors.
+
+### Size
+
+- Core without rpc: 23,058 → 23,202 B (cap 23,168 → 23,232 B).
+- With rpc: 34,720 → 34,861 B (cap 35,072 B).
+
+### Bench (queued, N=61, A = main `ac3f00cc`)
+
+- `session`, `tagged`, `lifecycle`: no difference we can see.
+- `op`: no difference we can see on a re-run; one run said +0.8% at
+  p=0.04, and a main-vs-main control was clean.
+- `opobs` +1.2%, `opobssession` +2.0%: b is slower (tap on).
+- Duke, 12:07: "Accept, land and release" (precedent: `opobs` +4%,
+  accepted 2026-09-30).
+- Split by part: the exit read is most of the tap-on cost; the span's
+  one more field (`sessionId`) is the rest.
+- `opobssession` is a new probe scenario: an op in a session of an
+  observed root.

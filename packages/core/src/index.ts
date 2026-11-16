@@ -2,6 +2,7 @@ import { isError, makeError, raise } from "./errors";
 import { causesOf, closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } from "./errors";
 import type { Origin, RunResult } from "./errors";
 import type { presetSym } from "./preset-symbol";
+import { refusedBrand } from "./refused-symbol";
 import { nextTraceWord, seededTraceRandom } from "./trace-random";
 
 export { originOf };
@@ -925,6 +926,9 @@ export declare namespace Scope {
     onClose(fn: () => void | PromiseLike<void>): void;
     /** The retained span history (bounded by `observe.history`; empty when observation is off). */
     spans(): readonly Observe.Span[];
+    /** This session's id, as its spans carry it in `session.id`: given at open while a tap is
+     * on. The root and a session opened with no tap have none. */
+    readonly id: number | undefined;
     /** Resolve once all in-flight operation work owned by this scope has settled. */
     settled(): Promise<void>;
     /** Shut this scope down: close children, join owned calls and their cleanup, seal state,
@@ -1709,6 +1713,9 @@ type Layer = {
   lastController: unknown;
   obs: Obs;
   trace: Observe.Trace | undefined;
+  /** The innermost session's id (`session.id`), given at open while a tap is on. A tagged frame
+   * shares its parent's; the root has none. */
+  sessionId: number | undefined;
   clock: Clock.Handle;
   random: Random.Handle;
   ctx: Resource.Ctx | undefined;
@@ -2291,6 +2298,8 @@ type Obs = {
   log: ((entry: Observe.Log) => void) | undefined;
   level: number;
   id: number;
+  /** The last session id given out on this root. */
+  lastSessionId: number;
   /** The logger for runs with no span and no capsule label: built once, shared. */
   plain?: Observe.Logger;
 };
@@ -2362,6 +2371,8 @@ class SpanImpl implements Observe.Span {
   declare private text: string | undefined;
   declare private parentHex: string | undefined;
   declare private attrs: Record<string, unknown> | undefined;
+  /** The session's id; `attributes` writes it as `session.id` when first read. */
+  declare private sessionId: number | undefined;
   declare private marks: Observe.Event[] | undefined;
 
   constructor(obs: Obs, layer: Layer, up: SpanImpl | undefined, name: string, kind: Observe.Kind) {
@@ -2396,6 +2407,7 @@ class SpanImpl implements Observe.Span {
     this.name = name;
     this.kind = kind;
     this.start = obs.clock();
+    this.sessionId = layer.sessionId;
   }
 
   get traceId(): string {
@@ -2412,7 +2424,8 @@ class SpanImpl implements Observe.Span {
   }
 
   get attributes(): Record<string, unknown> {
-    return (this.attrs ??= {});
+    const id = this.sessionId;
+    return (this.attrs ??= id === undefined ? {} : { "session.id": id });
   }
 
   get events(): Observe.Event[] {
@@ -2472,18 +2485,37 @@ function isolate(run: () => unknown): void {
   }
 }
 
+/** Name how a run's value answered: `"refused"` for an rpc `Refused`, else a string `kind`. */
+function markExit(span: SpanImpl, value: object | null): void {
+  if (value === null) return;
+
+  /** A span never changes the run: a `kind` getter or a Proxy trap that throws names no exit. */
+  let exit: unknown;
+  try {
+    exit = refusedBrand in value ? "refused" : (value as { kind?: unknown }).kind;
+  } catch (error) {
+    void error;
+    return;
+  }
+
+  if (typeof exit === "string") span.attributes["tinker.exit"] = exit;
+}
+
+/** `out` is the error when failed, else the run's value. A value that answers with a string
+ * `kind`, or an rpc `Refused`, names its exit in `tinker.exit`; a plain value names none. */
 function closeSpan(
   obs: Obs,
   span: SpanImpl | undefined,
   status: "ok" | "failed",
-  error?: unknown,
+  out?: unknown,
 ): void {
   if (!span || span.end !== undefined) return;
 
   const end = obs.clock();
   span.end = end;
   span.status = status;
-  if (status === "failed") span.error = error;
+  if (status === "failed") span.error = out;
+  else if (typeof out === "object") markExit(span, out);
 
   if (obs.limit > 0) {
     obs.history.push(span);
@@ -2704,16 +2736,16 @@ function track(
   layer: Layer,
   result: unknown,
   onReject: (error: unknown) => void,
-  onSettle?: (status: "ok" | "failed", error?: unknown) => void,
+  onSettle?: (status: "ok" | "failed", out?: unknown) => void,
 ): void {
   if (!isThenable(result)) {
     onSettle?.("ok");
     return;
   }
   const tracked: Promise<unknown> = Promise.resolve(result).then(
-    () => {
+    (value) => {
       layer.pending.delete(tracked);
-      onSettle?.("ok");
+      onSettle?.("ok", value);
     },
     (error: unknown) => {
       layer.pending.delete(tracked);
@@ -3070,6 +3102,11 @@ class TaggedFrame {
     this.stack = previous;
     this.lazy = true;
   }
+  /** A frame is in its parent's session. Read only when a span opens, so a tagged call with no
+   * tap does no work for it. */
+  get sessionId(): number | undefined {
+    return this.up.sessionId;
+  }
 }
 
 /** The untouched-frame shortcut saves allocation; the full idle path gives the same outcome. */
@@ -3215,10 +3252,10 @@ function finishAsyncRun<T>(
   ctx: OperationCtx<unknown> | undefined,
   held: HeldBorrows | undefined,
 ): unknown {
-  const onSettle = (status: "ok" | "failed", error?: unknown): void => {
-    if (status === "failed") stampRunOrigin(error, label, span, ctx, caller, replay);
-    if (span) closeSpan(obs, span, status, error);
-    finishRun(layer, ctx, held, status, error);
+  const onSettle = (status: "ok" | "failed", out?: unknown): void => {
+    if (status === "failed") stampRunOrigin(out, label, span, ctx, caller, replay);
+    if (span) closeSpan(obs, span, status, out);
+    finishRun(layer, ctx, held, status, out);
   };
   const ready = Promise.resolve(result);
   track(layer, ready, runFailure(layer, caller), onSettle);
@@ -3306,7 +3343,7 @@ function runOnce<T, I>(
   }
 
   if (!isThenable(result)) {
-    closeSpan(obs, span, "ok");
+    closeSpan(obs, span, "ok", result);
     finishRun(layer, ctx, held, "ok");
     return result;
   }
@@ -4303,6 +4340,7 @@ function makeLayer(up: Layer, options?: Scope.Options): Layer {
     layer.reason = up.reason;
   }
 
+  if (layer.obs.on) layer.sessionId = ++layer.obs.lastSessionId;
   return layer;
 }
 
@@ -4347,6 +4385,7 @@ function layerRecord(
     lastController: undefined,
     obs,
     trace: obs.on ? traceFor(up, options?.trace) : undefined,
+    sessionId: undefined,
     clock,
     random,
     ctx: undefined,
@@ -5204,6 +5243,9 @@ class ScopeHandle implements Scope.Handle {
   }
   spans(): readonly Observe.Span[] {
     return this.layer.obs.history.slice();
+  }
+  get id(): number | undefined {
+    return this.layer.sessionId;
   }
   get capsules(): readonly Capsule.Record[] {
     return Capsules.linesOf(this.layer);
@@ -6624,6 +6666,9 @@ class StartingFace {
   get capsules(): readonly Capsule.Record[] {
     return this.target.capsules;
   }
+  get id(): number | undefined {
+    return this.target.id;
+  }
   /** A root's `close` is its own closure; a session's is a method, so bind it to the session. */
   get close(): Scope.Handle["close"] {
     const target = this.target;
@@ -6740,6 +6785,7 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
     log: c.log,
     level: c.level ?? 0,
     id: 1,
+    lastSessionId: 0,
   };
 }
 
@@ -7094,7 +7140,7 @@ function runHookChain<T, I>(
   }
 
   if (!isThenable(result)) {
-    finishHookRun(run, "ok");
+    finishHookRun(run, "ok", result);
     return result;
   }
 
@@ -7209,13 +7255,13 @@ function failHookRun(run: HookRun, error: unknown): void {
 
 /** A hook may start `next()` then return a substitute. That body still owns its cleanup and
  * resource holds. Its tracked promise prevents close from dropping the unreturned work. */
-function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): void {
+function finishHookRun(run: HookRun, status: "ok" | "failed", out?: unknown): void {
   if (run.work !== undefined) {
     const pending = run.work;
     run.work = undefined;
     track(
       run.layer,
-      Promise.allSettled(pending).then(() => finishHookRun(run, status, error)),
+      Promise.allSettled(pending).then(() => finishHookRun(run, status, out)),
       noop,
     );
     return;
@@ -7223,13 +7269,13 @@ function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): 
 
   if (run.failed !== undefined) {
     status = "failed";
-    error = run.failed.error;
+    out = run.failed.error;
   }
-  closeSpan(run.layer.obs, run.span, status, error);
+  closeSpan(run.layer.obs, run.span, status, out);
 
   const fns = run.ctx?.hooks;
   const tail =
-    fns === undefined ? undefined : runDefers(run.layer, fns, endFor(run.layer, status, error));
+    fns === undefined ? undefined : runDefers(run.layer, fns, endFor(run.layer, status, out));
   if (tail === undefined) finishHookDone(run);
   else void thenDone(tail, () => finishHookDone(run));
 }

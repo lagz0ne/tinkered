@@ -517,6 +517,8 @@ New sections are lists, one term per item (vertical layout,
 - **cast gate** — The rule `tinker/cast`: no `as` but `as const`, no `!`, no `any`; the writer narrows or parses (ADR 0156).
 - **correction loop** — An agent edits, the harness runs `tinker check`, the finding prints its fix from the skill, and the agent edits again until the check prints `OK` (ADR 0156).
 - **exit** — One way out of an operation, as the return type of its `run` declares it: each `kind` of an answer, `refused` for a hook's refusal, or `value` for every other return (ADR 0159).
+- **`session.id`** — The span attribute that names a span's session: a number per root, given when the session opens with a tap on; `Scope.Handle.id` reads it (ADR 0162, after OpenTelemetry's `session.id`).
+- **`tinker.exit`** — The span attribute that names how an operation ended `ok`: the answer's `kind`, or `refused`; absent for a plain value (ADR 0162).
 - **exit gate** — The rule `tinker/exit`: `tinker check` runs the app's tests, and each declared exit that no test reached is a finding (ADR 0159, as Jest `coverageThreshold`).
 - **page guard** — The Vite plugin `pageGuard()`: a page build fails when its module graph holds server code (ADR 0160, as TanStack Start import protection).
 - **barrel** — A file that re-exports other files (`export … from`). App code has none: rule `tinker/barrel` (ADR 0160).
