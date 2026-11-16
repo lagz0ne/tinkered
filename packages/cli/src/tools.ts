@@ -7,7 +7,7 @@ import ts from "typescript-api";
 
 import type { Check } from "./check";
 import { raise } from "./errors";
-import { unreached } from "./exits";
+import { pageExits, unreached } from "./exits";
 import { gates, taught } from "./rules";
 
 export declare namespace Tools {
@@ -345,12 +345,14 @@ export function runTools(root: string, sources: readonly Check.Source[]): Tools.
 /**
  * Run the app's tests by its own command, in its folder. `TINKER_EXITS` names a new file: the
  * `exits` capsule of a test scope writes each exit it sees there, and the file goes after the
- * read. A red run names no exit: its tests are the finding.
+ * read. A page test leaves its exits in `pageExits`, which is emptied first, so an old run says
+ * nothing. A red run names no exit: its tests are the finding.
  */
 export function runTests(root: string, command: string): Tools.Tested {
   const folder = mkdtempSync(join(tmpdir(), "tinker-exits-"));
   const file = join(folder, "exits.tsv");
   const env = { ...process.env, TINKER_EXITS: file };
+  rmSync(join(root, pageExits), { recursive: true, force: true });
 
   const done = spawnSync(command, {
     cwd: root,

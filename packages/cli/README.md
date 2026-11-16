@@ -124,6 +124,32 @@ const scope = createScope({
 });
 ```
 
+A page has no file. Its scope passes a store:
+
+```ts
+exits({ store: localStorage });
+```
+
+- The exits go to the key `tinker.exits`, as
+  counts by `label<tab>exit`. One write for
+  each burst; a run does not wait for it.
+- A setup file of the browser tests leaves the
+  store's text in `.tinker/exits/`:
+
+```ts
+afterAll(async () => {
+  const exits = localStorage.getItem("tinker.exits");
+  if (!exits) return;
+  const name = crypto.randomUUID();
+  await commands.writeFile(
+    `.tinker/exits/${name}.json`,
+    exits,
+  );
+});
+```
+
+- The check empties `.tinker/exits/` before the
+  tests. Put `.tinker/` in `.gitignore`.
 - The check sets `TINKER_EXITS` for the command.
   In a plain test run it is not set, and the
   capsule writes nothing.

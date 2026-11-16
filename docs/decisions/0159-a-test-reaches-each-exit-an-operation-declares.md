@@ -78,14 +78,47 @@ check-coverage`). A stale file says OK for
   seen only when it lists the capsule. Nothing
   is hidden.
 
+## A page
+
+Duke, 06:59: "storing into a non blocking
+localstorage for later track. Especially when it
+comes to devtools".
+
+8. A page has no file. Its test scope lists
+   `exits({ store: localStorage })`.
+9. The store has one key, `tinker.exits`: a JSON
+   object. A key is `label<tab>exit`. A value is
+   how many times it was reached.
+
+   ```json
+   { "todo.remove.do\tgone": 1 }
+   ```
+
+10. A run does not wait for the store. The exits
+    of one burst go in one write, in a microtask.
+11. The test run leaves the store's text in
+    `.tinker/exits/`, one file for each test
+    file. The check empties that folder before
+    the tests, and reads it after. This is the
+    Istanbul model: the page keeps
+    `window.__coverage__`, the runner collects it.
+12. The file that collects is the app's own setup
+    file. `tinker new` writes it. The package
+    does not import a test runner.
+13. Devtools reads the same key for its "exits
+    reached" view. The span log of devtools is
+    another store, and the state map work owns
+    it. Each browser key starts with `tinker.`.
+
+The store is a set with counts, not a log. It
+stays small, so `localStorage` holds it.
+
 ## Not decided
 
-- An exit that only a browser test reaches. The
-  capsule writes with `node:fs`. A page needs a
-  sink of its own.
 - Core may put the exit on the operation's span
-  (`tinker.exit`). The state map work owns that.
-  Then the capsule reads the span, and no longer
+  (`tinker.exit`), in the same words: a `kind`,
+  `refused`, or none for `value`. The state map
+  work owns that. Then the capsule no longer
   looks for the refusal's brand.
 
 ## Consequences

@@ -207,6 +207,10 @@ const scope = createScope({
 });
 ```
 
+In a browser test the scope has no file. It
+passes the page's store:
+`exits({ store: localStorage })`.
+
 If no state can give the answer, remove it from
 the operation.
 

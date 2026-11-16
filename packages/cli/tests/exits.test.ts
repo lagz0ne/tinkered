@@ -186,3 +186,40 @@ test("the capsule writes the exit of each run of a scope that lists it", async (
   expect(lines).toContain("later\tvalue");
   expect(lines).toContain("guard\trefused");
 });
+
+test("a page's exits go to its store in one write, as counts by exit", async () => {
+  const writes: string[] = [];
+  const kept = new Map<string, string>();
+  const store = {
+    getItem: (key: string) => kept.get(key) ?? null,
+    setItem: (key: string, text: string) => void (kept.set(key, text), writes.push(text)),
+  };
+  const answer = operation({ label: "answer", run: () => ({ kind: "stale" as const }) });
+  const scope = createScope({
+    capsules: [exits({ file: process.env.TINKER_EXITS_NOT_SET, store })],
+  });
+
+  await Promise.all([scope.run(answer), scope.run(answer)]);
+  await scope.close();
+
+  expect(writes).toEqual([JSON.stringify({ "answer\tstale": 2 })]);
+  expect([...kept.keys()]).toEqual(["tinker.exits"]);
+});
+
+test("an exit that a page test left in the app's folder is reached", { timeout: 60_000 }, () => {
+  const folder = appOf(all.filter((line) => line !== "move.do\tgone"));
+  const script = [
+    `import { mkdirSync, writeFileSync } from "node:fs";`,
+    `mkdirSync(".tinker/exits", { recursive: true });`,
+    `writeFileSync(".tinker/exits/a.json", JSON.stringify({ "move.do\\tgone": 1 }));`,
+  ].join("\n");
+  writeFileSync(
+    join(folder, "tests.mjs"),
+    `${readFileSync(join(folder, "tests.mjs"), "utf8").replace(/process\.exit.*/, "")}\n${script}`,
+  );
+
+  const { code, out } = main(["check", folder], "/");
+
+  expect(out).toMatch(/tinker check: OK\n$/);
+  expect(code).toBe(0);
+});

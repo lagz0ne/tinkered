@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import ts from "typescript-api";
@@ -149,9 +149,25 @@ export function declaredExits(root: string): Exits.Exit[] {
   });
 }
 
-/** The exits a test run reached, as the `exits` capsule wrote them: one `label<tab>exit` a line. */
-function reachedIn(file: string) {
-  return new Set(existsSync(file) ? readFileSync(file, "utf8").split("\n") : []);
+/** Where a page test leaves its store's text: one `.json` file a test file, under the app. */
+export const pageExits = ".tinker/exits";
+
+/** The exits of one page file: the keys of the store's JSON object. */
+function keysIn(path: string) {
+  const counts: unknown = JSON.parse(readFileSync(path, "utf8"));
+  return typeof counts === "object" && counts !== null ? Object.keys(counts) : [];
+}
+
+/**
+ * The exits a test run reached. The `exits` capsule wrote `file`: one `label<tab>exit` a line.
+ * A page test wrote its store's JSON to a file in `pageExits`.
+ */
+function reachedIn(root: string, file: string) {
+  const folder = join(root, pageExits);
+  const pages = existsSync(folder) ? readdirSync(folder) : [];
+  const lines = existsSync(file) ? readFileSync(file, "utf8").split("\n") : [];
+
+  return new Set([...lines, ...pages.flatMap((name) => keysIn(join(folder, name)))]);
 }
 
 const said: Readonly<Record<string, string>> = {
@@ -161,7 +177,7 @@ const said: Readonly<Record<string, string>> = {
 
 /** A finding for each declared exit that no test reached. */
 export function unreached(root: string, file: string): Tools.Found[] {
-  const reached = reachedIn(file);
+  const reached = reachedIn(root, file);
 
   return declaredExits(root)
     .filter(({ label, exit }) => !reached.has(`${label}\t${exit}`))
