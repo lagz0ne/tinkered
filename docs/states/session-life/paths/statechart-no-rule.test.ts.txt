@@ -1,0 +1,103 @@
+/** "No rule yet" cases from statechart/core3. Each test pins TODAY's behavior and passes.
+ * No ADR decides these; Duke picks. */
+import { expect, test } from "vite-plus/test";
+
+import { capsule, createScope, operation, type Scope } from "@/index";
+
+function gate() {
+  let release = (): void => undefined;
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+
+const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
+
+function managed(message: string): Error {
+  return Object.assign(new Error(message), { kind: "Caught", payload: { message } });
+}
+
+for (const closeFirst of [false, true]) {
+  test(`no rule 1: a caught grandchild error, ${closeFirst ? "during" : "with no"} root close`, async () => {
+    const root = createScope();
+    const grandchildGate = gate();
+    const sessionGate = gate();
+
+    // The session body opens a grandchild, catches its managed error, then returns.
+    const flight = root.session(async (s) => {
+      try {
+        await s.session(async () => {
+          await grandchildGate.promise;
+          throw managed("grandchild");
+        });
+      } catch {
+        // handled
+      }
+      await sessionGate.promise;
+      return "session ok";
+    });
+
+    const closing = closeFirst ? root.close({ graceful: true }) : undefined;
+    await tick();
+    grandchildGate.release();
+    await tick();
+    sessionGate.release();
+
+    const session = await flight.then(
+      (value) => value,
+      (error: Error) => `rejected: ${error.message}`,
+    );
+    const result = await (closing ?? root.close({ graceful: true }));
+
+    // Today: the same caught error fails the session and the root only when a root close
+    // was in flight (swept push, ADR 0028), and is ignored otherwise.
+    expect({ session, root: result.status }).toEqual(
+      closeFirst
+        ? { session: "rejected: grandchild", root: "failed" }
+        : { session: "session ok", root: "success" },
+    );
+  });
+}
+
+test("no rule 2: a re-entrant close's Result differs from the close it starts", async () => {
+  const root = createScope();
+  let ack: Promise<Scope.Result> | undefined;
+  await root.session((s) => {
+    s.onClose(() => {
+      ack = root.close();
+    });
+  });
+  const first = await ack!;
+  const real = await root.close();
+
+  // Today: the ack (ADR 0026 d3) says success; the close it started ends cancelled.
+  expect({ ack: first.status, real: real.status }).toEqual({ ack: "success", real: "cancelled" });
+});
+
+test("no rule 3: a run hook that calls next() twice runs the body twice", async () => {
+  let bodies = 0;
+  const outer = operation({
+    label: "outer",
+    run: () => {
+      bodies++;
+      return bodies;
+    },
+  });
+  const twice = capsule({
+    label: "twice",
+    hooks: {
+      run: (event) => {
+        void event.next();
+        return event.next();
+      },
+    },
+  });
+  const root = createScope({ capsules: [twice] });
+  await root.ready;
+
+  // Today: both bodies run; the run returns the second body's value.
+  expect(await root.run(outer)).toBe(2);
+  expect(bodies).toBe(2);
+  await root.close();
+});

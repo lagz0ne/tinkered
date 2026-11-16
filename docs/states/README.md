@@ -29,10 +29,16 @@ Each `docs/states/<machine>/` holds:
 - `README.md` — the rules, the chart, each bug path,
   what the spec leaves out, and the rerun command.
 
+remote-part and react-run-resource hold two specs each,
+as their source did.
+Each spec there has its own `.cfg`, view and chart.
+
 The first five specs describe commit `3ff6778`
 (release 0.28.0).
-round and resource-life describe `c9c8817`;
-its Core lines match `3ff6778`.
+round, resource-life, session-life, run-life,
+remote-part, rpc-stream and react-run-resource
+describe `c9c8817`;
+its Core and React lines match `3ff6778`.
 
 ## Run the check
 
@@ -91,9 +97,29 @@ so main stays green.
   Cards: `core/resource-failed-stays`,
   `core/resource-cycle-holds-close`.
   1 case with no rule yet.
+- **session-life** — 3 rules break.
+  Cards: `core/close-from-defer-skips-hooks`,
+  `core/session-handle-after-body`.
+  2 cases with no rule yet.
+- **run-life** — 2 rules break.
+  Card: `core/own-signal-leaves-closing`.
+  The other break waits for a rule:
+  1 case with no rule yet.
+- **remote-part** — RemotePart: 3 rules break;
+  KeyStream: 1 rule breaks.
+  Cards: `core/remote-parked-part-wakes`,
+  `core/invalidate-refused-returns-early`,
+  `core/refused-key-reopens`.
+  1 case with no rule yet.
+- **rpc-stream** — 1 rule breaks.
+  Card: `core/own-signal-stream-failed`.
+  Its test also pins `core/local-stream-signal`.
+- **react-run-resource** — UseRun: 2 rules break;
+  UseResource: rules hold.
+  Card: `react/use-run-hidden`.
 
-The 3 cases with no rule yet wait for Duke
-(card `core/round-rules-undecided`, Blocked).
+The 7 cases with no rule yet wait for Duke
+(card `core/states-rules-undecided`, Blocked).
 
 ## Bugs, by number
 
@@ -125,6 +151,37 @@ The cards on `TODO.md` use these numbers.
    each instance holds the other,
    and `close()` stays open.
    [resource-life](resource-life/README.md).
+8. A session's defer calls `root.close()`:
+   the root's close hook never runs,
+   and a graceful close turns forced.
+   [session-life](session-life/README.md).
+9. In a graceful root close,
+   a leaked session handle still takes `onClose`
+   after its body ended.
+   [session-life](session-life/README.md).
+10. A call stopped by its own signal
+    does not abort `ctx.closing`,
+    so a wait on it hangs.
+    [run-life](run-life/README.md).
+11. A parked part wakes from a late answer:
+    refused turns `ready` with no stream,
+    and a link fault never heals.
+    [remote-part](remote-part/README.md).
+12. `await invalidate` on a refused part
+    returns before any ask.
+    [remote-part](remote-part/README.md).
+13. A plain key the server refuses
+    opens its stream again by itself.
+    [remote-part](remote-part/README.md).
+14. Your own `signal` ends a remote stream
+    as `failed`.
+    [rpc-stream](rpc-stream/README.md).
+15. A Suspense hide and show
+    clears a running `useRun` to `idle`.
+    [react-run-resource](react-run-resource/README.md).
+16. `onSuccess` never fires when a run ends
+    while hidden or after unmount.
+    [react-run-resource](react-run-resource/README.md).
 
 The session loop under StrictMode is
 [session-provider](session-provider/README.md).

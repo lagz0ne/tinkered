@@ -1,0 +1,65 @@
+---
+title: "Two parts of one keyed board (ADR 0136-0139): A and B on tasks"
+---
+stateDiagram-v2
+  direction LR
+  state "Legend" as legend {
+    lg0: Breaks InvalidateAwaitsItsAsk or LinkFaultHeals
+    lg1: Path to the InvalidateAwaitsItsAsk or LinkFaultHeals or RefusedWaitsForTrigger bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  state "At the same time" as all {
+    state "Part A" as r0 {
+      s0: Not read
+      s1: Pending, stream opening
+      s2: Refused, no stream, waits for a trigger
+      s3: Pending, stream opening, your invalidate waits
+      s4: Refused, stream opening, your invalidate waits
+      s5: Refused, no stream, waits for a trigger, your invalidate waits
+      s6: Refused, stream opening
+      s7: Link fault, no stream, waits for a trigger, your invalidate waits
+      s8: Ready, no stream, waits for a trigger, your invalidate waits
+      [*] --> s0
+      s0 --> s1: a reader reads the part
+      s1 --> s2: the server refuses the stream
+      s1 --> s3: you invalidate the part
+      s2 --> s4: you invalidate the part
+      s3 --> s5: the server refuses the stream
+      s4 --> s6: your invalidate returns
+      s5 --> s7: the link drops
+      s5 --> s8: an answer comes
+    }
+    --
+    state "Part B" as r1 {
+      s9: Not read
+      [*] --> s9
+    }
+    --
+    state "board.faults.tasks" as r2 {
+      s10: No fault
+      s11: refused
+      s12: link
+      [*] --> s10
+      s10 --> s11: the server refuses the stream [when Part A is one of Pending, stream opening, Pending, stream opening, your invalidate waits]
+      s11 --> s12: the link drops [when Part A is Refused, no stream, waits for a trigger, your invalidate waits]
+      s11 --> s10: an answer comes [when Part A is Refused, no stream, waits for a trigger, your invalidate waits]
+    }
+  }
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 bugPath
+  class s2 bugPath
+  class s3 bugPath
+  class s4 bugPath
+  class s5 bugPath
+  class s6 breaks
+  class s6 bugPath
+  class s7 breaks
+  class s7 bugPath
+  class s8 bugPath
+  class s9 bugPath
+  class s10 bugPath
+  class s11 bugPath
+  class s12 breaks
+  class s12 bugPath

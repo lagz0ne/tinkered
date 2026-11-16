@@ -1,0 +1,64 @@
+---
+title: "A root with a close hook, a session, and a grandchild"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: open
+    lg1: closing
+    lg2: closed
+    lg3: Breaks CloseHookRunsOnce or FirstModeWins or HandleDeadAfterBody
+    lg4: Path to the CloseHookRunsOnce or FirstModeWins or HandleDeadAfterBody bug
+  }
+  class lg0 blue
+  class lg1 yellow
+  class lg2 tan
+  class lg3 breaks
+  class lg4 bugPath
+  s0: Root open, session body runs
+  s1: Root open, session closing
+  s2: Root close hook runs, session body runs
+  s3: Root close hook runs, session closing
+  s4: Root closing (graceful), session body runs
+  s5: Root closing (forced), session closed
+  s6: Root closing (forced), session closed, graceful turned forced
+  s7: Root closing (graceful), session closing
+  s8: Root closed: cancelled, session closed, close hook skipped
+  s9: Root closing (graceful), session closing, late onClose taken
+  [*] --> s0
+  s0 --> s2: the app calls root.close({ graceful: true })
+  s0 --> s1: the session body returns
+  s1 --> s3: the app calls root.close({ graceful: true })
+  s1 --> s1: the forced close aborts the subtree
+  s2 --> s4: the close hook calls next()
+  s3 --> s3: the forced close aborts the subtree
+  s1 --> s5: the session's defer calls root.close()
+  s4 --> s4: the close reaches the session
+  s5 --> s5: the forced close aborts the subtree
+  s3 --> s6: the session's defer calls root.close()
+  s4 --> s7: the session body returns
+  s5 --> s8: the root's defers run
+  s7 --> s9: code calls onClose on the leaked handle
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 blue
+  class s0 bugPath
+  class s1 blue
+  class s1 bugPath
+  class s2 yellow
+  class s2 bugPath
+  class s3 yellow
+  class s3 bugPath
+  class s4 yellow
+  class s4 bugPath
+  class s5 yellow
+  class s5 bugPath
+  class s6 yellow
+  class s6 breaks
+  class s6 bugPath
+  class s7 yellow
+  class s7 bugPath
+  class s8 tan
+  class s8 breaks
+  class s8 bugPath
+  class s9 yellow
+  class s9 breaks
+  class s9 bugPath

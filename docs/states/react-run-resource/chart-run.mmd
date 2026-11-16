@@ -1,0 +1,65 @@
+---
+title: "useRun: one component, async runs (ADR 0032)"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: shown
+    lg1: hidden
+    lg2: gone
+    lg3: Breaks CallbacksFirePerRun or ShownStateIsLatest in some cases
+    lg4: Path to the CallbacksFirePerRun or ShownStateIsLatest bug
+  }
+  class lg0 blue
+  class lg1 tan
+  class lg2 purple
+  class lg3 mayBreak
+  class lg4 bugPath
+  s0: Shown: idle
+  s1: Unmounted
+  s2: Hidden by Suspense
+  s3: Shown: pending
+  s4: Unmounted, a run in flight
+  s5: Hidden by Suspense, a run in flight
+  s6: Shown: success or error
+  [*] --> s0
+  s0 --> s1: it unmounts
+  s0 --> s2: a Suspense above hides it
+  s0 --> s3: you run
+  s2 --> s0: the layout effect runs (mount or show)
+  s2 --> s1: it unmounts
+  s3 --> s4: it unmounts
+  s3 --> s5: a Suspense above hides it
+  s3 --> s6: a run settles
+  s3 --> s0: you reset
+  s4 --> s1: a run settles
+  s5 --> s4: it unmounts
+  s5 --> s2: a run settles
+  s5 --> s0: the layout effect runs (mount or show)
+  s6 --> s1: it unmounts
+  s6 --> s2: a Suspense above hides it
+  s6 --> s0: you reset
+  s6 --> s3: you run
+  s0 --> s4: it unmounts
+  s0 --> s5: a Suspense above hides it
+  s0 --> s6: a run settles
+  s6 --> s4: it unmounts
+  s6 --> s5: a Suspense above hides it
+  classDef mayBreak fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06
+  class s0 blue
+  class s0 mayBreak
+  class s0 bugPath
+  class s1 purple
+  class s1 mayBreak
+  class s2 tan
+  class s2 mayBreak
+  class s2 bugPath
+  class s3 blue
+  class s3 mayBreak
+  class s3 bugPath
+  class s4 purple
+  class s4 mayBreak
+  class s5 tan
+  class s5 mayBreak
+  class s5 bugPath
+  class s6 blue
+  class s6 mayBreak

@@ -76,6 +76,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: the e2e flows pass; a task change sends one member to a reader of that project; a reader of another project gets nothing.
 
 - **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
+  Pinned today by the second test of [`docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`](docs/states/rpc-stream/README.md#no-rule-yet) (it passes: the call answers only when the signal aborts, then the loop throws `AbortError`). Next: change that test to the fix, then move it into Core's tests.
   Verify: that call answers its values; a `break` ends the op.
 
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
@@ -95,6 +96,30 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **core/resource-cycle-holds-close** — bug 7 in [docs/states](docs/states/resource-life/README.md). A reads B, B reads A: CircularResource is raised, but each instance holds the other, so `close()` stays open (ADR 0027, ADR 0011). Next: move path 3 of `paths/resource-life-paths.test.ts.txt` into Core's tests (it fails), then fix the holds the cycle leaves (`holdDependency` in `packages/core/src/index.ts`).
   Verify: the path test for path 3 passes; the resource-life check with `cycle.cfg` shows CloseResolves holds.
+
+- **core/close-from-defer-skips-hooks** — bug 8 in [docs/states](docs/states/session-life/README.md). A session's defer calls `root.close()`: the root sees a re-entrant close (`closeWouldReenter`), skips the capsule close hook (ADR 0104), and starts a forced close, so the app's `close({ graceful: true })` turns forced (ADR 0029 d1). One cause, two rules. Next: move the CloseHookRunsOnce and FirstModeWins tests of `paths/statechart-session-life.test.ts.txt` into Core's tests (they fail), then fix the re-entrant close path (`closeWouldReenter`, `watchRootClose` in `packages/core/src/index.ts`).
+  Verify: those two path tests pass; the session-life check shows CloseHookRunsOnce and FirstModeWins hold.
+
+- **core/session-handle-after-body** — bug 9 in [docs/states](docs/states/session-life/README.md). In a graceful root close, a session's body ends but `Layer.closed` stays false until the drain, and `ensureOpen` reads only `closed`, so a leaked session handle still takes `onClose` (ADR 0071 d1). Next: move the HandleDeadAfterBody test and its control of `paths/statechart-session-life.test.ts.txt` into Core's tests (the path test fails), then fix `ensureOpen` or the body end (`settleSessionWith` in `packages/core/src/index.ts`).
+  Verify: the HandleDeadAfterBody path test and the control pass; the session-life check shows HandleDeadAfterBody holds.
+
+- **core/own-signal-leaves-closing** — bug 10 in [docs/states](docs/states/run-life/README.md). A call stopped by its own signal aborts its `ctx.signal` but not its `ctx.closing` (ADR 0104 with ADR 0090), so a resource that waits on `closing` keeps the call pending until the root closes. Next: move the ClosingFiresWhenStopped test of `paths/statechart-run-life.test.ts.txt` into Core's tests (it fails), then fire the closing signal on a call-signal stop (`runSessionWith` in `packages/core/src/index.ts`).
+  Verify: the ClosingFiresWhenStopped path test passes; the run-life check shows ClosingFiresWhenStopped holds.
+
+- **core/remote-parked-part-wakes** — bug 11 in [docs/states](docs/states/remote-part/README.md). A late answer runs `apply` on a parked part: a refused part turns `ready` with no stream (ADR 0139 d4), and a link fault on a parked part never heals (ADR 0139 d4, ADR 0141). One card, two path tests. Next: move the RefusedWaitsForTrigger and LinkFaultHeals tests of `paths/remote-part-paths.test.ts.txt` into Core's tests (they fail), then make `settle` and `apply` in `packages/core/src/remote-data.ts` respect a parked part.
+  Verify: the two path tests pass; the remote-part check shows RefusedWaitsForTrigger and LinkFaultHeals hold.
+
+- **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused part returns before any ask: `reask` calls `wake()` and adds no ask to the list it awaits (ADR 0147 d4). Next: move the InvalidateAwaitsItsAsk test of `paths/remote-part-paths.test.ts.txt` into Core's tests (it fails), then fix `reask` in `packages/core/src/remote-data.ts`.
+  Verify: the InvalidateAwaitsItsAsk path test passes; the remote-part check shows InvalidateAwaitsItsAsk holds.
+
+- **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself, with back-off (ADR 0140). Next: move `paths/key-stream-paths.test.ts.txt` into Core's tests (it fails), then stop the `loop` in `packages/core/src/remote-data.ts` on a fault that is an answer.
+  Verify: the key-stream path test passes; the remote-part check with `KeyStream.cfg` shows RefusedEndsAsking holds.
+
+- **core/own-signal-stream-failed** — bug 14 in [docs/states](docs/states/rpc-stream/README.md). Your own `signal` ends a remote stream as `failed`: `bug` in `packages/core/src/rpc-protocol.ts` checks the watch's own leave signal, not the call's (ADR 0133 d1, ADR 0154 d2). Next: move the OwnStopIsNotFailed test of `paths/rpc-stream-paths.test.ts.txt` into Core's tests (it fails), then fix `watchOver`'s `bug` in `rpc-protocol.ts`.
+  Verify: the OwnStopIsNotFailed path test passes; the rpc-stream check shows OwnStopIsNotFailed holds.
+
+- **react/use-run-hidden** — bugs 15 and 16 in [docs/states](docs/states/react-run-resource/README.md). A Suspense hide and show clears a running run to `idle` (`attach` resets it); `onSuccess` never fires when the run ends while hidden or unmounted (`finish` calls `notify` only while `live`) (ADR 0032 d2). One card, two path tests: the hide-and-show test, and the `onSuccess` test in its hidden and unmounted forms. Next: move `paths/use-run-paths.test.tsx.txt` into React's tests (they fail), then fix `attach` and `finish` in `RunOwner` (`packages/react/src/index.ts`).
+  Verify: the use-run path tests pass; the react-run-resource check with `UseRun.cfg` shows ShownStateIsLatest and CallbacksFirePerRun hold.
 
 ## Doing
 
@@ -116,10 +141,11 @@ None.
 
 ## Blocked
 
-- **core/round-rules-undecided** — 3 cases with no ADR rule yet, found by the round and resource-life specs: UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8); an equal `set` in a reader's build raises no WriteInRead (ADR 0157 d7); a failed sync build's end waits for the release or close (ADR 0026 Q4).
-  Missing: Duke's rule for each of the 3 cases ([round](docs/states/round/README.md#no-rule-yet), [resource-life](docs/states/resource-life/README.md#no-rule-yet)).
-  Next once picked: each rule lands as a new ADR or a code change; change `paths/round-no-rule-yet.test.ts.txt` and the no-rule check in path 1 to the rule, then move them into Core's tests.
-  Verify: those tests pass; the round and resource-life checks carry the new rules.
+- **core/states-rules-undecided** — 7 cases with no ADR rule yet, found by the specs in [docs/states](docs/states/README.md). What the code does today: (1) UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8): the write throws UpdateDepth; the error is lost; (2) an equal `set` in a reader's build (ADR 0157 d7): it is dropped before the check; no WriteInRead; (3) a failed sync build's end (ADR 0026 Q4): it runs only at the release or the close; (4) a session catches its grandchild's managed error (ADR 0028 d3 vs ADR 0067): the session and the root fail only when a root close is in flight; else both succeed; (5) a close called from a defer (ADR 0026 d3 vs ADR 0027): it returns `success` at once; the close it starts ends `cancelled`; (6) a run hook calls `next()` twice (ADR 0050 d1): the body runs twice; the run returns the second value. A finished run's first ctx stays live, so its leaked `deps.inner` runs on a closing scope. ADR 0127 d2 may or may not cover a scope still closing (FinishedRunStartsNothing breaks in the run-life check); (7) one part's good answer clears the key's fault in `board.faults` (ADR 0139 d1 is silent): `board.faults.tasks` is gone while another part still shows refused.
+  Also: `core/local-stream-signal` (Ready) now has a pinned test, the second test of `docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`.
+  Missing: Duke's rule for each case ([round](docs/states/round/README.md#no-rule-yet): 1, 2; [resource-life](docs/states/resource-life/README.md#no-rule-yet): 3; [session-life](docs/states/session-life/README.md#no-rule-yet): 4, 5; [run-life](docs/states/run-life/README.md#no-rule-yet): 6; [remote-part](docs/states/remote-part/README.md#no-rule-yet): 7).
+  Next once picked: each rule lands as a new ADR or a code change; change the pinning tests to the rule (`round-no-rule-yet`, the no-rule check in resource-life path 1, `statechart-no-rule`, the FinishedRunStartsNothing test and its control, the last test of `remote-part-paths`), then move them into Core's tests.
+  Verify: those tests pass; the checks carry the new rules.
 
 - **core/stop-signal-then-later-event** — bug 3 in [docs/states](docs/states/scope-life/README.md). A stop signal fires during start, then a start error, a timeout or a `close()` comes before the hooks return. The code reports the later event; ADR 0134 d2 says the signal wins.
   Missing: Duke's choice. Signal wins: the code changes. Later event wins: ADR 0134 d2 changes.

@@ -157,7 +157,7 @@ The path test sets it up this way:
 Card `core/round-stuck-after-eq-throw`
 moves `round-stuck` in, without the `.txt`.
 `round-no-rule-yet` waits for Duke's rule
-(card `core/round-rules-undecided`).
+(card `core/states-rules-undecided`).
 
 Once moved, run:
 
@@ -170,7 +170,7 @@ vp test tests/statechart/round-stuck.test.ts
 
 Two cases where no ADR names a winner.
 Duke picks a rule
-(card `core/round-rules-undecided`).
+(card `core/states-rules-undecided`).
 The third case is in
 [resource-life](../resource-life/README.md#no-rule-yet).
 

@@ -293,7 +293,7 @@ vp test \
 
 One case where no ADR names a rule.
 Duke picks a rule
-(card `core/round-rules-undecided`).
+(card `core/states-rules-undecided`).
 The other two cases are in
 [round](../round/README.md#no-rule-yet).
 

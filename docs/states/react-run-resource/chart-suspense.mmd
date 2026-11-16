@@ -1,0 +1,35 @@
+---
+title: "useResource: one component, one resource (ADR 0032)"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: suspense
+  }
+  class lg0 teal
+  s0: Not rendered yet
+  s1: Error boundary shows, build failed (kept)
+  s2: Value shows
+  s3: Fallback shows
+  s4: Error boundary shows
+  s5: Fallback shows, build failed (kept)
+  [*] --> s0
+  s0 --> s1: it renders: a new build
+  s0 --> s2: it renders: a new build
+  s0 --> s3: it renders: a new build
+  s1 --> s0: the scope changes: it mounts again
+  s1 --> s4: you release (useRelease)
+  s2 --> s0: the scope changes: it mounts again
+  s3 --> s0: the scope changes: it mounts again
+  s3 --> s5: the build fails
+  s4 --> s1: you reset the error boundary
+  s4 --> s2: you reset the error boundary
+  s4 --> s3: you reset the error boundary
+  s5 --> s0: the scope changes: it mounts again
+  s5 --> s1: React renders it again
+  s3 --> s2: React renders it again
+  class s0 teal
+  class s1 teal
+  class s2 teal
+  class s3 teal
+  class s4 teal
+  class s5 teal

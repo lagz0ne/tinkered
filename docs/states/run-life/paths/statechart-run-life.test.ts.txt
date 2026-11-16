@@ -1,0 +1,144 @@
+/** Replays of the run-life model's bug paths (statechart/core3/run-life).
+ * One block per model step. Each test asserts the ADR rule, so a failure shows the bug. */
+import { expect, test } from "vite-plus/test";
+
+import { capsule, createScope, operation, resource } from "@/index";
+
+function gate() {
+  let release = (): void => undefined;
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+
+const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
+
+/** ADR 0104's own example: a session resource ends its open waits from `ctx.closing`. */
+const http = resource({
+  label: "http",
+  target: "session",
+  factory: (_deps, ctx) => {
+    const waits = new Set<() => void>();
+    ctx.closing.addEventListener("abort", () => waits.forEach((stop) => stop()), { once: true });
+    return {
+      closing: ctx.closing,
+      signal: ctx.signal,
+      send: () => new Promise<string>((resolve) => waits.add(() => resolve("stopped"))),
+    };
+  },
+});
+
+test("ClosingFiresWhenStopped: a call stopped by its signal keeps its closing signal (ADR 0104, 0090)", async () => {
+  let seen: { closing: AbortSignal; signal: AbortSignal } | undefined;
+  const inner = operation({
+    label: "inner",
+    depends: { http },
+    run: async ({ http }) => {
+      seen = http;
+      return http.send();
+    },
+  });
+  const stop = new AbortController();
+  const outer = operation({
+    label: "outer",
+    depends: { inner },
+    run: async ({ inner }) =>
+      inner.run({ signal: stop.signal }).catch((error: unknown) => `caught ${String(error)}`),
+  });
+  const hook = capsule({ label: "hook", hooks: { run: (event) => event.next() } });
+  const root = createScope({ capsules: [hook] });
+  await root.ready;
+
+  // 0. Outer's run hook runs. 1. The hook calls next(). 2. Outer calls inner with a signal.
+  const running = root.run(outer);
+  await tick();
+  expect(seen).toBeDefined();
+
+  // 3. The caller aborts inner's signal.
+  stop.abort();
+  await tick();
+
+  const settled = await Promise.race([running, tick().then(() => "still pending")]);
+  const report = { signal: seen!.signal.aborted, closing: seen!.closing.aborted, settled };
+  await root.close();
+
+  expect(report).toEqual({
+    signal: true,
+    closing: true,
+    settled: expect.stringMatching(/^caught/),
+  });
+});
+
+function leakTest(nexts: 1 | 2) {
+  const inner = operation({ label: "inner", run: () => "inner ran" });
+  const kept: { run: () => unknown }[] = [];
+  const outer = operation({
+    label: "outer",
+    depends: { inner },
+    run: async ({ inner }) => {
+      kept.push(inner as { run: () => unknown });
+      inner.run();
+      return "outer";
+    },
+  });
+  const hook = capsule({
+    label: "hook",
+    hooks: {
+      run: (event) => {
+        if (!event.is(outer)) return event.next();
+        if (nexts === 2) void event.next();
+        return event.next();
+      },
+    },
+  });
+  return { inner, outer, kept, hook };
+}
+
+test("FinishedRunStartsNothing: after next() twice, a finished run starts inner on a closing scope (ADR 0127 d2)", async () => {
+  const { outer, kept, hook } = leakTest(2);
+  const root = createScope({ capsules: [hook] });
+  await root.ready;
+  const hold = gate();
+  const slow = operation({ label: "slow", run: () => hold.promise });
+
+  // 0. Outer's run hook runs. 1. The hook calls next() twice. 2-3. Outer calls inner; it returns.
+  // 4. Outer's body returns. 5. Outer's defers run, the run ends.
+  expect(await root.run(outer)).toBe("outer");
+
+  // 6. The app calls close({ graceful: true }) (other work keeps the close open).
+  const running = root.run(slow);
+  const closing = root.close({ graceful: true });
+  await tick();
+
+  // 7. Code calls the leaked deps.inner of the first body.
+  let answer: string;
+  try {
+    answer = String(kept[0].run());
+  } catch (error) {
+    answer = (error as Error).message;
+  }
+
+  hold.release();
+  await running;
+  await closing;
+
+  expect(answer).toBe("Disposed");
+});
+
+test("control: with next() once, the finished run's deps.inner is refused", async () => {
+  const { outer, kept, hook } = leakTest(1);
+  const root = createScope({ capsules: [hook] });
+  await root.ready;
+  const hold = gate();
+  const slow = operation({ label: "slow", run: () => hold.promise });
+  await root.run(outer);
+  const running = root.run(slow);
+  const closing = root.close({ graceful: true });
+  await tick();
+
+  expect(() => kept[0].run()).toThrow("Disposed");
+  hold.release();
+  await running;
+  await closing;
+});

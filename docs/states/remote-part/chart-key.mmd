@@ -1,0 +1,38 @@
+---
+title: "A plain key's stream on a reading root (ADR 0140)"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Path to the RefusedEndsAsking bug
+  }
+  class lg0 bugPath
+  s0: Stream opening
+  s1: Reading values
+  s2: Waits, then opens again
+  s3: Waits, then opens again, key shows refused
+  s4: Stopped (root closed)
+  s5: Stream opening, key shows refused
+  s6: Reading values, key shows refused
+  [*] --> s0
+  s0 --> s1: the stream opens
+  s0 --> s2: the stream ends or the link breaks
+  s0 --> s3: the server refuses it
+  s0 --> s4: the root closes
+  s1 --> s2: the stream ends or the link breaks
+  s1 --> s3: the server refuses it
+  s1 --> s4: the root closes
+  s2 --> s4: the root closes
+  s2 --> s0: the wait ends: it opens again
+  s3 --> s4: the root closes
+  s3 --> s5: the wait ends: it opens again
+  s5 --> s6: the stream opens
+  s5 --> s2: the stream ends or the link breaks
+  s5 --> s3: the server refuses it
+  s5 --> s4: the root closes
+  s6 --> s2: the stream ends or the link breaks
+  s6 --> s3: the stream ends or the link breaks or the server refuses it
+  s6 --> s4: the root closes
+  s6 --> s1: a value comes
+  class s0 bugPath
+  class s3 bugPath
+  class s5 bugPath

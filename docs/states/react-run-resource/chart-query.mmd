@@ -1,0 +1,29 @@
+---
+title: "useResource: one component, one resource (ADR 0032)"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: query
+  }
+  class lg0 blue
+  s0: Not rendered yet
+  s1: status error
+  s2: status success
+  s3: status pending
+  [*] --> s0
+  s0 --> s1: it renders: a new build
+  s0 --> s2: it renders: a new build
+  s0 --> s3: it renders: a new build
+  s1 --> s0: the scope changes: it mounts again
+  s1 --> s2: you refetch: a new build
+  s1 --> s3: you refetch: a new build
+  s2 --> s1: you refetch: a new build
+  s2 --> s0: the scope changes: it mounts again
+  s2 --> s3: you refetch: a new build
+  s3 --> s1: you refetch: a new build or the build fails
+  s3 --> s0: the scope changes: it mounts again
+  s3 --> s2: you refetch: a new build or the build resolves
+  class s0 blue
+  class s1 blue
+  class s2 blue
+  class s3 blue
