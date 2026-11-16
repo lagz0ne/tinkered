@@ -61,7 +61,7 @@ const ops = (moveLines: readonly string[]) =>
     `  label: "guard",`,
     `  input: transport.hook.start,`,
     `  depends: { inTeam },`,
-    `  run: (deps, { input }) => (deps.inTeam.run() ? undefined : input.refuse({})),`,
+    `  run: (deps, { input }) => (input.meta.who ? deps.inTeam.run() : input.refuse({})),`,
     `});`,
     ``,
     `export const tick = operation({`,
@@ -92,7 +92,7 @@ const ops = (moveLines: readonly string[]) =>
 /** The graph of `ops(move)`: each name is a label, never the local name. */
 const golden = [
   "count.tick value reads{issues.list.where} writes{count.update} calls{}",
-  "guard refused reads{} writes{} calls{issues.inTeam}",
+  "guard refused reads{} writes{} calls{}",
   "guard value reads{} writes{} calls{issues.inTeam}",
   "issue.clear.do cleared reads{} writes{issues.list.delete} calls{}",
   "issue.clear.do kept reads{} writes{} calls{}",
