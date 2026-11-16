@@ -8,6 +8,25 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.30.1
+
+A page build refuses server code, and app code
+has no barrel (ADR 0160).
+
+- `pageGuard()` from `@tinkered/cli/vite`: a
+  Vite plugin for the page build. It refuses an
+  import of a `.server.` file, a `bun:` or
+  `node:` name, `@tinkered/entry`, or
+  `@tinkered/bun` other than `/client`. The
+  error names the import and its file.
+- `tinker check` has a new rule,
+  `tinker/barrel`. A file in `src/` or `cmds/`
+  exports only what it declares.
+- The skills no longer teach a feature door.
+- `apps/site` has no barrel.
+- `vite-plus` is an optional peer of
+  `@tinkered/cli`.
+
 ## 0.30.0
 
 A span says its session and its exit (ADR 0162).

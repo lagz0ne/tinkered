@@ -131,16 +131,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **cli/page-guard** (lead: CUJ eval thread; writer: Opus on Paseo).
-  ADR 0160: `pageGuard()` from `@tinkered/cli/vite`, rule
-  `tinker/barrel`, skill section.
-  Next: lead reviews the fix round on branch `page-guard`
-  (site moved, door skills gone; full cli mutation lane run
-  on the branch head, score in the writer's report).
-  Verify: a page build that imports a `.server.` file through a
-  barrel fails with the plugin; `tinker check` finds `export … from`
-  in `src`; `vp check`, cli tests, `vp run skills` green; mutation 85.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -190,6 +180,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **cli/page-guard** — done 2026-11-16 (ADR 0160). `pageGuard()` from `@tinkered/cli/vite` refuses server code in a page build; `tinker check` has `tinker/barrel` for `src` and `cmds`; no skill teaches a feature door; `apps/site` has no barrel. Released as 0.30.1.
+  Proof: cli 129 tests, site 145 tests and `tinker check: OK`; cli mutation by part on `5bcd25bc` (cli source byte-identical after the rebase): part C (the changed files and the small ones) 92.59, kills alone 71.97 (timeouts are slow `tsc` stage tests on a busy box); part A (`plain`, `closure`, `tree`) 89.82, kills alone 84.74; part B (`tools`, `main`) follows as confirmation.
 
 - **core/session-id-exit** — done 2026-11-16 (ADR 0162; Duke 07:11 "session.id attribute, no span", 07:49 "Raise the cap by 64 B", 12:07 "Accept, land and release"). With a tap on, a span in a session carries `session.id`; `Scope.Handle.id` reads it; an operation span that ends ok carries `tinker.exit`. Landed `9a068df1`. Released as 0.30.0.
   Proof: core 1,430 tests; `scripts/ticket.sh --check-only --no-mutation` exit 0 on `9a068df1`; core mutation 86.09 on `bbeccf20` (core source and tests byte-identical to `9a068df1`); size 23,202 B within the new 23,232 B cap; `pnpm validate` fails only the 3 lanes that fail on main (fast-code engine, graph `bun`, two hands `bun`). Opus convention-review READY after one fix round. Queued bench vs main (N=61): `session`, `tagged`, `lifecycle` no difference; `op` no difference on a re-run (one run +0.8% at p=0.04, a main-vs-main control clean); tap on: `opobs` +1.2%, `opobssession` +2.0%, accepted (precedent: `opobs` +4%, 2026-09-30).
