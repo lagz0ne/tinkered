@@ -56,6 +56,10 @@ So the depth of a re-export does not matter.
 2. It runs only where the page is built: the
    client environment, in dev, in the build, and
    in browser tests.
+   - A browser test that runs the server in the
+     page on purpose leaves the guard out.
+   - The template does that: it adds the guard
+     only when `process.env.VITEST` is unset.
 3. It refuses a module in the page graph when:
    - its path has a `.server.` part;
    - its name starts with `bun:` or `node:`;
