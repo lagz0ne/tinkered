@@ -520,3 +520,4 @@ New sections are lists, one term per item (vertical layout,
 - **exit gate** — The rule `tinker/exit`: `tinker check` runs the app's tests, and each declared exit that no test reached is a finding (ADR 0159, as Jest `coverageThreshold`).
 - **page guard** — The Vite plugin `pageGuard()`: a page build fails when its module graph holds server code (ADR 0160, as TanStack Start import protection).
 - **barrel** — A file that re-exports other files (`export … from`). App code has none: rule `tinker/barrel` (ADR 0160).
+- **graph** — `tinker.graph`: one line per operation and exit, with the cells it reads and writes and the ops it calls; `tinker check` compares the code to it (ADR 0161, as API Extractor `.api.md`).

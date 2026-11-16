@@ -25,6 +25,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **cli/graph** (lead: CUJ eval thread). ADR 0161: `tinker graph --write`,
+  stage `graph`, rule `tinker/graph`, skill section.
+  Next: after cli/page-guard lands, a writer builds it (scratch proof:
+  /mnt/project-files/cuj-eval/static-graph/exit-writes.cjs).
+  Verify: the stale-writes and exists-joins seeded apps each give one
+  `tinker/graph` finding; the golden app gives none; cli tests, skills,
+  mutation 85.
+
 - **core/round-stuck-after-eq-throw** — bug 5 in [docs/states](docs/states/round/README.md). A user `eq` that throws in a write's first round leaves `inRound` true (`tellWrite` has no `finally`); after that no watcher in the process hears any write. Next: move `paths/round-stuck.test.ts.txt` into Core's tests (it fails), then end the round on that throw. ADR 0152 keeps the try out of the hot write (about 5 ns per write, see the comment at `watcherThrew` in `packages/core/src/index.ts`), so the fix sits where `eq` is called (`flushOne`, `pendingNsWatchers`) or on the throw path; a timing claim goes through `N=61 bench/queued.sh`.
   Verify: the round path test passes; the round check shows RoundEndsAtRest and EveryWatcherTold hold; the bench verdict is "no difference we can see".
 
