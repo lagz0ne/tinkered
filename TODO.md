@@ -175,6 +175,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/g6-stale-plant** — done 2026-11-16. `build/private-fields.test.ts` G6 planted `"built"`, a runtime string since 0.27.0 (ADR 0157), so the guard refused it as "a string in the runtime" and G6's text never came. G6 now plants `"layer"`, as G60 and G61 do.
+  Proof: `vp run core#test:dist` 1,662 passed (was 1 failed on `de83a2d9`).
+
 - **cli/exit-gate** — done 2026-11-16 (ADR 0159; Duke 05:21 "Spans against the shape", 06:20 "Tests are a stage of the check", 06:59 the page store, 07:11 "we should release continuously"). `tinker.json` `tests` makes the tests a stage; a declared exit that no test reached is a `tinker/exit` finding; `exits` from `@tinkered/cli/test` writes a file (server) or `localStorage["tinker.exits"]` (page). Proof on the template (tinker-app branch `claude/project-thread-1la25p`, 6ab0823): the finding for `todo.remove.do` `gone`, then `tinker check: OK`; browser journeys alone reach 15 of 24 app exits. 122 cli tests. Owed on the box: the full cli mutation lane (about 3 hours). Released as 0.29.0.
 
 - **cli/package, cli/gates, cli/check-loop, cli/skill-text, cli/skill** — done 2026-11-15 (ADR 0156; Duke 11:41 "move analyze to cli", 11:47 "agent first", 13:37 "In the skill, the tool reads it"). `@tinkered/cli`, bin `tinker`: `tinker check` runs the app's tsc and lint in stages types then rules, at most 5 findings, each with its skill's `Right:` text; `tinker skill list|load`; `@tinkered/cli/config` gates; base tsconfig. Reviews: Opus READY after one round; Fable READY after one round. Released as 0.26.0.

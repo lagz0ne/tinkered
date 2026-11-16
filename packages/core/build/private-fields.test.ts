@@ -247,9 +247,9 @@ export const read = core.createScope().parent;\n`;
 test(
   "G6: Reflect.get with a listed name fails the build",
   async () => {
-    const plant = `${imports}export const read: unknown = Reflect.get(createScope(), "built");\n`;
-    expect(await guard({ "packages/react/src/plant.ts": plant }, ["built"])).toContain(
-      "built: read without type checks in packages/react/src/plant.ts",
+    const plant = `${imports}export const read: unknown = Reflect.get(createScope(), "layer");\n`;
+    expect(await guard({ "packages/react/src/plant.ts": plant }, ["layer"])).toContain(
+      "layer: read without type checks in packages/react/src/plant.ts",
     );
   },
   BUILD_MS,
