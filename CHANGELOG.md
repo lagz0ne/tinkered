@@ -8,6 +8,26 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.30.0
+
+A span says its session and its exit (ADR 0162).
+A devtools capsule needs only the hooks and a tap.
+
+- With a tap on, each span opened in a session
+  carries `attributes["session.id"]`: a number
+  per root, the innermost session's. Root spans
+  carry none. An exporter writes it as a string
+  and adds a name for the root.
+- `Scope.Handle.id` reads that id. A `session`
+  hook reads `handle.id` at open and at close.
+- An operation span that ends `ok` carries
+  `attributes["tinker.exit"]`: the answer's
+  `kind`, or `"refused"` for a refusal. A plain
+  value carries none.
+- No tap, no work. With a tap on, a run is 1.2%
+  to 2.0% slower (Duke accepted it).
+- The Core size cap rose by 64 B, to 23232 B.
+
 ## 0.29.3
 
 A page cannot import `@tinkered/entry/cmd` or

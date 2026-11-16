@@ -1,6 +1,6 @@
 {
   "name": "@tinkered/entry",
-  "version": "0.29.3",
+  "version": "0.30.0",
   "description": "Tinker's backend entries: a command, a server, and the runtime under them.",
   "license": "MIT",
   "repository": {

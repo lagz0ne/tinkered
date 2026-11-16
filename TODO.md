@@ -141,12 +141,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **core/session-id-exit** — ADR 0162 (Duke 2026-11-16 07:11 "session.id attribute, no span", 07:49 "Raise the cap by 64 B"). With a tap on, a span in a session carries `session.id`; `Scope.Handle.id` reads it; an operation span that ends ok carries `tinker.exit`. Core cap 23,168 → 23,232 B.
-  Owner: Claude Opus 5.5 lead. Branch `land/session-id-exit`.
-  Blocked on: Duke's call on the tap-on cost. Queued bench vs main (N=61): `session`, `tagged`, `lifecycle`, `op` no difference we can see; `opobs` +1.7% and `opobssession` +1.8%, b is slower (the 2026-09-30 precedent accepted `opobs` +4%).
-  Next once accepted: fast-forward main, push, release 0.30.0.
-  Verify: core tests and `scripts/ticket.sh` exit 0; core size 23,202 B within 23,232 B; mutation ≥ 85; npm has 0.30.0.
-
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
@@ -194,6 +188,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/session-id-exit** — done 2026-11-16 (ADR 0162; Duke 07:11 "session.id attribute, no span", 07:49 "Raise the cap by 64 B", 12:07 "Accept, land and release"). With a tap on, a span in a session carries `session.id`; `Scope.Handle.id` reads it; an operation span that ends ok carries `tinker.exit`. Landed `9a068df1`. Released as 0.30.0.
+  Proof: core 1,430 tests; `scripts/ticket.sh --check-only --no-mutation` exit 0 on `9a068df1`; core mutation 86.09 on `bbeccf20` (core source and tests byte-identical to `9a068df1`); size 23,202 B within the new 23,232 B cap; `pnpm validate` fails only the 3 lanes that fail on main (fast-code engine, graph `bun`, two hands `bun`). Opus convention-review READY after one fix round. Queued bench vs main (N=61): `session`, `tagged`, `lifecycle` no difference; `op` no difference on a re-run (one run +0.8% at p=0.04, a main-vs-main control clean); tap on: `opobs` +1.2%, `opobssession` +2.0%, accepted (precedent: `opobs` +4%, 2026-09-30).
 
 - **entry/cmd-server** — done 2026-11-16, release 0.29.2. `@tinkered/entry` holds `/cmd` and `/server`, moved from tinker-app d13daed.
   Proof: 58 tests pass on Bun; mutation 86.24 (main lane) and 87.50 (panics lane), on kills alone; reviewer NOT READY, then one fix round.
