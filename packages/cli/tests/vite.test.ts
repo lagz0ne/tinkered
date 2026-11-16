@@ -26,10 +26,14 @@ function pageOf(files: Record<string, string>) {
   return folder;
 }
 
-/** Build the page with the guard; answer the build error text, or undefined when it builds. */
-async function buildPage(files: Record<string, string>) {
+/**
+ * Build the app with the guard: the page, or the server when `ssr` names its entry. Answer the
+ * build error text, or undefined when it builds.
+ */
+async function buildPage(files: Record<string, string>, ssr?: string) {
   try {
-    await build({ root: pageOf(files), logLevel: "silent", plugins: [pageGuard()] });
+    const root = pageOf(files);
+    await build({ root, logLevel: "silent", plugins: [pageGuard()], build: { ssr } });
     return undefined;
   } catch (error) {
     return String(error);
@@ -51,11 +55,23 @@ test("a server file reached through a two-hop barrel stops the build at the barr
 
 test("a direct import of a server file stops the build", async () => {
   const error = await buildPage({
-    "src/main.ts": `import { read } from "./db.server";\nconsole.log(read);\n`,
-    "src/db.server.ts": server,
+    "src/main.ts": `import { read } from "./db.server.mjs";\nconsole.log(read);\n`,
+    "src/db.server.mjs": server,
   });
 
-  expect(error).toContain(`page imports server code "./db.server" from src/main.ts`);
+  expect(error).toContain(`page imports server code "./db.server.mjs" from src/main.ts`);
+});
+
+test("a server build is not guarded: it may import server code", async () => {
+  const error = await buildPage(
+    {
+      "src/main.ts": `import { read } from "./db.server";\nconsole.log(read);\n`,
+      "src/db.server.ts": server,
+    },
+    "src/main.ts",
+  );
+
+  expect(error).toBeUndefined();
 });
 
 test("a runtime or backend package name stops the build", async () => {
