@@ -7,7 +7,11 @@
 #   scripts/npm-setup.sh            # the latest GitHub release
 #   scripts/npm-setup.sh 0.18.0     # one release
 #
-# Safe to run again: it skips what is done. Run it again for a new package.
+# Safe to run again: it skips a package that npm has. Run it again for a new
+# package. Run it in a terminal: npm prints a 2FA link for each step.
+#
+# A package that npm has got its trust at its first publish. npm 12 asks for
+# 2FA to read a trust list, so the script does not check it again.
 set -euo pipefail
 
 REPO=lagz0ne/tinkered
@@ -19,11 +23,13 @@ VERSION=${1:-$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" |
   sed -nE 's/.*"tag_name": *"v([0-9.]+)".*/\1/p')}
 echo "Release v$VERSION"
 
-$NPM whoami >/dev/null 2>&1 || $NPM login
-echo "npm user: $($NPM whoami)"
-
+# Not in the repo: its package.json pins pnpm, and npm stops on that.
 DIR=$(mktemp -d)
 trap 'rm -rf "$DIR"' EXIT
+cd "$DIR"
+
+$NPM whoami >/dev/null 2>&1 || $NPM login
+echo "npm user: $($NPM whoami)"
 
 for p in "${PACKAGES[@]}"; do
   name="@tinkered/$p"
@@ -31,19 +37,21 @@ for p in "${PACKAGES[@]}"; do
 
   if $NPM view "$name" name >/dev/null 2>&1; then
     echo "$name: on npm already"
-  else
-    curl -fsSL -o "$DIR/$file" \
-      "https://github.com/$REPO/releases/download/v$VERSION/$file"
-    $NPM publish "$DIR/$file" --access public
-    echo "$name: first publish done"
+    continue
   fi
 
-  if $NPM trust list "$name" 2>/dev/null | grep -q "$REPO"; then
-    echo "$name: trust set already"
-  else
-    $NPM trust github "$name" --repo "$REPO" --file "$WORKFLOW" --allow-publish --yes
-    echo "$name: trust set"
+  curl -fsSL -o "$DIR/$file" \
+    "https://github.com/$REPO/releases/download/v$VERSION/$file"
+  $NPM publish "$DIR/$file" --access public
+  echo "$name: first publish done"
+
+  trust=($NPM trust github "$name" --repo "$REPO" --file "$WORKFLOW" --allow-publish --yes)
+  if ! "${trust[@]}"; then
+    # The package is on npm now, so a second run skips it: set the trust by hand.
+    echo "$name: trust NOT set. Run in this folder: ${trust[*]}" >&2
+    exit 1
   fi
+  echo "$name: trust set"
 done
 
 echo "Done. CI publishes the next release to npm by itself."

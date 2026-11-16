@@ -7,6 +7,16 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.27.2
+
+No change to the packages. This release is the
+first one that CI publishes `@tinkered/cli` to npm
+with no token.
+
+- `scripts/npm-setup.sh` works with npm 12. It
+  runs outside the repo, and it sets trust only
+  at a first publish.
+
 ## 0.27.1
 
 Skill text only.

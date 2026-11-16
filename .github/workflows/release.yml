@@ -106,6 +106,7 @@ jobs:
   # A package npm does not know yet is skipped: its first publish and its
   # trust are Duke's one-time step: npm-first.yml from a phone, or
   # scripts/npm-setup.sh from a laptop (ADR 0146).
+  # A renamed package is a new package to npm (analyze -> cli in 0.26.0).
   npm:
     needs: publish
     if: needs.publish.outputs.new == 'true'
