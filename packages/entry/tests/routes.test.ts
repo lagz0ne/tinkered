@@ -330,7 +330,7 @@ test("a request with a valid traceparent gives a route span that is its child", 
     .resolve(routes)
     .fetch(new Request("http://t/echo", { headers: { traceparent: valid } }), app);
 
-  expect(response?.status).toBe(200);
+  expect([response?.status, response?.headers.get("cache-control")]).toEqual([200, "no-store"]);
   const span = named(spans, "trace.echo");
   expect(span.traceId).toBe(remote.traceId);
   expect(span.parentSpanId).toBe(remote.spanId);
@@ -401,4 +401,107 @@ test("a row bound to a quiet namespace makes no span, even when it fails", async
   expect(statuses).toEqual([500, 200]);
   expect(spans.map((span) => span.name)).toEqual(["loud"]);
   await app.close();
+});
+
+test("a route borrows the body: after the request the body is free again", async () => {
+  const peek = operation({
+    label: "peek",
+    depends: { body: requestBody, request: routes.request.required },
+    run: async ({ body, request }) => {
+      const first = await body.open(request.body!).read();
+      return decoder.decode(first.value);
+    },
+  });
+  const skip = operation({ label: "skip", depends: { body: requestBody }, run: () => undefined });
+  const app = await createScope({
+    capsules: [
+      routes({
+        stop: new AbortController().signal,
+        table: { "POST /peek": peek, "POST /skip": skip },
+      }),
+    ],
+  }).ready;
+  const fetch = app.resolve(routes).fetch;
+  const incoming = new Request("http://t/peek", { method: "POST", body: "abc" });
+
+  const peeked = await fetch(incoming, app);
+  const skipped = await fetch(new Request("http://t/skip", { method: "POST", body: "x" }), app);
+
+  expect(await peeked?.json()).toBe("abc");
+  expect(incoming.body?.locked).toBe(false);
+  expect(skipped?.status).toBe(204);
+  await app.close();
+});
+
+test("a body opened after its request ended is cancelled at once", async () => {
+  const started = Promise.withResolvers<void>();
+  const late = Promise.withResolvers<void>();
+  const ended = Promise.withResolvers<boolean>();
+  const read = operation({
+    label: "read-late",
+    depends: { body: requestBody, request: routes.request.required },
+    run: async ({ body, request }) => {
+      started.resolve();
+      await late.promise;
+      const next = await body.open(request.body!).read();
+      ended.resolve(next.done);
+    },
+  });
+  const app = await createScope({
+    capsules: [routes({ stop: new AbortController().signal, table: { "POST /read": read } })],
+  }).ready;
+  const client = new AbortController();
+  const open = new ReadableStream<Uint8Array>();
+  const waiting = app
+    .resolve(routes)
+    .fetch(
+      new Request("http://t/read", { method: "POST", body: open, signal: client.signal }),
+      app,
+    );
+  await started.promise;
+
+  client.abort();
+  late.resolve();
+
+  expect(await ended.promise).toBe(true);
+  expect((await waiting)?.status).toBe(503);
+  await app.close();
+});
+
+test("the root's close waits for a dropped reply's cancel; a failed cancel is a warning", async () => {
+  const lines: string[] = [];
+  const slow = Promise.withResolvers<void>();
+  let cancelled = false;
+  const many = operation({
+    label: "many",
+    depends: { reply: routes.reply.required },
+    run: ({ reply }) => {
+      reply(new Response("first"));
+      reply(new Response(null));
+      reply(new Response(new ReadableStream({ cancel: () => slow.promise })));
+      reply(
+        new Response(
+          new ReadableStream({
+            cancel: () => {
+              throw new Error("no cancel");
+            },
+          }),
+        ),
+      );
+    },
+  });
+  const app = await createScope({
+    observe: { log: (line) => void lines.push(line.message) },
+    capsules: [routes({ stop: new AbortController().signal, table: { "GET /many": many } })],
+  }).ready;
+  const response = await app.resolve(routes).fetch(new Request("http://t/many"), app);
+  expect(await response?.text()).toBe("first");
+
+  const closing = app.close().then(() => cancelled);
+  await new Promise((turn) => setImmediate(turn));
+  cancelled = true;
+  slow.resolve();
+
+  expect(await closing).toBe(true);
+  expect(lines).toEqual(["routes: a dropped reply's body did not cancel"]);
 });
