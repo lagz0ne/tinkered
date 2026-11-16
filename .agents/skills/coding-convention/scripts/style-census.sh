@@ -110,9 +110,30 @@ for my $file (@ARGV) {
 }
 '
 
+# T04: a test may import its own package's entries. `@/<name>` passes when `src/<name>.ts` is a
+# `pack.entry` in the nearest vite.config.ts above the test.
+drop_entry_imports() {
+  local hit file name root
+  while IFS= read -r hit; do
+    file=${hit%%:*}
+    name=$(grep -oP 'from "@/\K[^"/]+(?=")' <<< "${hit#*:*:}" || true)
+    root=$(dirname "$file")
+    while [[ "$root" != "." && "$root" != "/" && ! -f "$root/vite.config.ts" ]]; do
+      root=$(dirname "$root")
+    done
+    if [[ -n "$name" && -f "$root/vite.config.ts" ]] \
+      && grep -q "\"src/$name.ts\"" "$root/vite.config.ts"; then
+      continue
+    fi
+    printf '%s\n' "$hit"
+  done
+}
+
 hits() {
   local id=$1 regex=$2 files=$3
-  if [[ "$id" == S17 ]]; then
+  if [[ "$id" == T04 ]]; then
+    printf '%s\n' "$files" | xargs -r grep -nHP -- "$regex" 2>/dev/null | drop_entry_imports || true
+  elif [[ "$id" == S17 ]]; then
     printf '%s\n' "$files" | xargs -r node "$(dirname "${BASH_SOURCE[0]}")/import-extensions.mjs"
   elif [[ "$id" == P05 || "$id" == P06 ]]; then
     printf '%s\n' "$files" | xargs -r node "$(dirname "${BASH_SOURCE[0]}")/../../../../tools/jev/census-fast-code.mjs" "$id"
