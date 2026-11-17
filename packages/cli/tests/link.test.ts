@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -95,7 +95,18 @@ test("a download, a new tab, or rel=external passes; a link that stays is a find
   ]);
 });
 
-test("the finding prints the React skill's fix: the router's Link", () => {
+test("the finding prints the Right part of the skill section for tinker/link", () => {
+  const skill = [
+    "---",
+    "name: react",
+    "description: Use when a check prints tinker/link.",
+    "---",
+    "",
+    "### HIGH: a plain `<a href>` to a page of the app [tinker/link]",
+    "",
+    "Right: the router's `Link`.",
+    "",
+  ];
   const folder = appOf({
     "src/view.tsx": `export const View = () => <a href="/issues">Issues</a>;\n`,
     "node_modules/@tinkered/react/package.json": JSON.stringify({
@@ -104,10 +115,7 @@ test("the finding prints the React skill's fix: the router's Link", () => {
       keywords: ["tanstack-intent"],
       repository: { type: "git", url: "git+https://github.com/lagz0ne/tinkered.git" },
     }),
-    "node_modules/@tinkered/react/skills/react/SKILL.md": readFileSync(
-      new URL("../../react/skills/react/SKILL.md", import.meta.url),
-      "utf8",
-    ),
+    "node_modules/@tinkered/react/skills/react/SKILL.md": skill.join("\n"),
     "package.json": JSON.stringify({
       dependencies: { "@tinkered/react": "1.0.0" },
       intent: { skills: ["@tinkered/*"] },
@@ -119,10 +127,8 @@ test("the finding prints the React skill's fix: the router's Link", () => {
   expect(out).toContain(
     [
       "src/view.tsx:1 tinker/link a plain <a href> to an in-app path reloads the page",
-      "  Right: the router's `Link`, with the route's",
-      "  path and its params:",
-      "  ```tsx no-check",
-      '  <Link to="/issues/$team/$id" params={{ team, id }}>',
+      "  Right: the router's `Link`.",
+      "  more: tinker skill load @tinkered/react#react",
     ].join("\n"),
   );
 });
