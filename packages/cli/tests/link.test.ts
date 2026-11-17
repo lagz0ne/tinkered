@@ -35,7 +35,7 @@ function links(lines: string[]) {
 
 test("an <a> whose href is written out as a path in the app is a finding", () => {
   const hits = links([
-    `    <a href="/issues">Issues</a>`,
+    `    <a {...rest} href="/issues">Issues</a>`,
     "    <a href={`/issues/${team}/${id}`}>{title}</a>",
     `    <a href={"./next"} />`,
     "    <a href={`?page=2`}>More</a>",
@@ -57,6 +57,12 @@ test("a link to another site, a mail or phone link, or a link to a spot on the p
     `    <a href="//cdn.example.com/a.png">Image</a>`,
     `    <a href="#top">Top</a>`,
   ]);
+
+  expect(hits).toEqual([]);
+});
+
+test("only a plain <a> is a finding: a component with an href prop passes", () => {
+  const hits = links([`    <Button href="/issues">Issues</Button>`]);
 
   expect(hits).toEqual([]);
 });
