@@ -93,6 +93,8 @@ const ops = [
   `    }`,
   `  },`,
   `});`,
+  ``,
+  `export const again = operation({ label: "issues.inTeam.again", run: inTeam.run });`,
 ].join("\n");
 
 /** What each move touches, however its deps are written. */
@@ -110,6 +112,7 @@ const golden = [
   `issue.move.shared ${moved}`,
   `issue.move.spread ${moved}`,
   "issues.inTeam exits{value} reads{} writes{} calls{}",
+  "issues.inTeam.again exits{value} reads{} writes{} calls{}",
   "",
 ].join("\n");
 
@@ -189,7 +192,7 @@ test(
     const { code, out } = main(["check", folder], "/");
 
     expect(code).toBe(0);
-    expect(out).toBe("ran: tsc, lint, rules (2 files), graph (8 operations)\ntinker check: OK\n");
+    expect(out).toBe("ran: tsc, lint, rules (2 files), graph (9 operations)\ntinker check: OK\n");
   },
 );
 
@@ -223,7 +226,7 @@ test(
     expect(code).toBe(1);
     expect(findings(out)).toEqual([
       "src/ops.ts:65 tinker/graph issue.look: not in tinker.graph",
-      "tinker.graph:8 tinker/graph issue.old.do: in tinker.graph, not in the code",
+      "tinker.graph:9 tinker/graph issue.old.do: in tinker.graph, not in the code",
     ]);
   },
 );
@@ -246,7 +249,7 @@ test("`tinker graph --write` writes the file the check then passes", { timeout: 
   const wrote = main(["graph", folder, "--write"], "/");
   const { code } = main(["check", folder], "/");
 
-  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 8 operations\n", err: "" });
+  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 9 operations\n", err: "" });
   expect(readFileSync(join(folder, "tinker.graph"), "utf8")).toBe(golden);
   expect(code).toBe(0);
 });
