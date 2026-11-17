@@ -99,6 +99,75 @@ The known models:
     writer's graph from code and compares it to
     the kit's file, not to the writer's file.
 
+## Amended 2026-11-17: facts only, one line per op
+
+What the user said:
+
+- 05:39: "The read should have only unified way."
+- 05:44: "let the tool, be a tool, giving a result
+  based off what is written for, cannot be wrong.
+  The judgement is for the reader of the graph,
+  which is LLM."
+- 05:46: "There might be more than a way to
+  organize the states and the flows. And the CUJ
+  needs to say if the graph looks ok … and when
+  not (violations in place)."
+
+Why: the review of the first build found two
+wrong paths. Each was a guess about which write
+runs before which return. A guess can be wrong.
+
+This replaces points 4, 5, 6, 7 and 11:
+
+1. One line per operation, not per exit.
+2. Each line holds only what Tinker declares or
+   the code says:
+   - `exits`: the exit words of its answer type;
+   - `reads`, `writes`, `calls`: every one in
+     the body, with no path;
+   - deps come from the op's type, by the TS
+     checker, so `depends: shared` and
+     `...shared` read the same.
+
+   ```text
+   issue.move.do exits{gone,moved,stale}
+     reads{issues.list.of}
+     writes{issues.list.set}
+     calls{issues.inTeam}
+   ```
+
+3. The graph never guesses which write comes
+   before which return. That judgement is the
+   reader's: a person or an LLM reads the line
+   beside the code.
+4. The stage still compares the code to the
+   committed file. A change is a finding, so it
+   gets read.
+5. The eval does not match a golden file. There
+   can be more than one good shape. The CUJ lists
+   rules, and each rule answers OK or names a
+   violation at a file and line:
+   - a rule the facts decide is plain code over
+     the graph ("every call that names a team
+     calls `issues.inTeam`");
+   - a rule that needs reasoning goes to the LLM
+     reader, with the graph and the code ("a
+     `gone` answer writes nothing").
+6. The golden passes every rule. Each seeded
+   fault gives a violation.
+
+What it costs: a stale move that writes is no
+longer a one-line diff, since the op writes that
+cell on another exit. A judged rule finds it, and
+later the spans, which record the exit that ran.
+
+The known models:
+
+- dependency-cruiser and ArchUnit: rules over a
+  fact graph, each broken rule named.
+- The reflexion model: a stated model against
+  the facts, with each mismatch listed.
+
 ## Later, not in this step
 
 - The spans cross-check: the test run's spans
