@@ -112,6 +112,11 @@ issue.move.do exits{gone,moved,stale}
   too. They do not say which exit a write is on.
 - A dep written in place, in a `const`, or spread
   from one reads the same.
+- A dep taken apart in the body,
+  `const { list } = deps`, reads the same as one
+  taken apart in the parameters.
+- A bare cell dep, `all: issues`, gives `run` its
+  value: that reads `issues.list.get` each run.
 - The graph reads `src` and `cmds` only.
 
 The graph is facts only. It never judges them.
@@ -119,16 +124,26 @@ The reader judges: a person or an LLM reads the
 line and its diff, and asks if the change is
 meant.
 
-The graph does not see:
+An empty set means "none". A `?` in a set means
+"the graph could not see here": it never guesses.
+A set gets `?` when the code can touch a dep in a
+way the graph cannot follow:
 
-- a member of a capsule or a contract, such as
-  `seaApi["clock.now"]`;
-- a `run` passed by name, not written in place;
-- a cell whose label is not written as a string;
-- an `atScope` or `atNamespace` controller.
+- a dep handed on: passed to a function, put in
+  an array or an object, or given another name;
+- the deps handed on whole, or a rest
+  `{ a, ...others }` taken from them;
+- a call on a dep the graph does not know, such
+  as `list.watch(…)`;
+- a dep the graph cannot name: a member of a
+  capsule or a contract (`seaApi["clock.now"]`),
+  a cell whose label is not written as a string,
+  an `atScope` or `atNamespace` controller;
+- a `run` passed by name, not written in place.
 
-So an empty set means "none the graph could see".
-It does not mean "touches nothing".
+The `?` goes in each set that dep can touch: a
+cell in `reads` and `writes`, a read in `reads`,
+an operation in `calls`.
 
 `tinker graph --write` writes the graph to
 `tinker.graph`. Commit that file. Then the check

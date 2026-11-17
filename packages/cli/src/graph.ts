@@ -19,8 +19,11 @@ export declare namespace Graph {
 /** The app's committed graph, at its root (ADR 0161). */
 export const graphFile = "tinker.graph";
 
-/** A unit a dep names: the Core function that made it, its label, and the part it reads. */
-type Unit = { made: string; label: string; read?: string };
+/**
+ * A unit a dep names: the Core function that made it, its label, and the part it reads. `bare`
+ * is a dep named by itself, with no edge: a bare cell gives `run` its value, not a controller.
+ */
+type Unit = { made: string; label: string; read?: string; bare?: true };
 
 /** What a `run` touches: each fact is a label, then a kind (`issues.list.set`). */
 type Facts = { reads: Set<string>; writes: Set<string>; calls: Set<string> };
@@ -69,12 +72,14 @@ function partOf(checker: ts.TypeChecker, value: ts.CallExpression) {
   return unit && partKinds.includes(read) ? { ...unit, read } : undefined;
 }
 
+const bareOf = (unit: Unit | undefined): Unit | undefined => unit && { ...unit, bare: true };
+
 /**
  * The unit a dep's value names: an operation, an edge of a unit (a cell's `controller`, a tag's
  * `required`), or a part of a cell. `record` keeps only the calls each kind of unit has.
  */
 function unitOf(checker: ts.TypeChecker, value: ts.Expression): Unit | undefined {
-  if (ts.isIdentifier(value)) return unitAt(checker, checker.getSymbolAtLocation(value));
+  if (ts.isIdentifier(value)) return bareOf(unitAt(checker, checker.getSymbolAtLocation(value)));
   if (ts.isCallExpression(value)) return partOf(checker, value);
   if (!ts.isPropertyAccessExpression(value)) return undefined;
   return unitAt(checker, checker.getSymbolAtLocation(value.expression));
@@ -83,91 +88,190 @@ function unitOf(checker: ts.TypeChecker, value: ts.Expression): Unit | undefined
 /** The unit a dep's declaration names: `list: issues.controller`, or `{ inTeam }`. */
 function depUnit(checker: ts.TypeChecker, declaration: ts.Declaration | undefined) {
   if (declaration && ts.isShorthandPropertyAssignment(declaration)) {
-    return unitAt(checker, checker.getShorthandAssignmentValueSymbol(declaration));
+    return bareOf(unitAt(checker, checker.getShorthandAssignmentValueSymbol(declaration)));
   }
   return declaration && ts.isPropertyAssignment(declaration)
     ? unitOf(checker, declaration.initializer)
     : undefined;
 }
 
+/** A set of facts: where a call adds its fact, or where a use the graph cannot follow hides. */
+type Hide = keyof Facts;
+
+/** What one call on a dep adds: `list.set(…)` adds `issues.list.set` to `writes`. */
+type Touch = { set: Hide; fact: string };
+
+/**
+ * A dep as `run` sees it: what each call the graph knows on it adds, and the sets a use the
+ * graph cannot follow may hide facts in. `value` is the read a bare cell makes on each run.
+ */
+type Dep = { touches: Map<string, Touch>; hides: Hide[]; value?: string };
+
+const allSets: Hide[] = ["reads", "writes", "calls"];
+
+/** The mark of a fact the graph could not see: never a guess at the fact. */
+const unseen = "?";
+
+/** What each call the graph knows on a unit adds. A tag holds a value, not a fact. */
+function touchesOf({ made, label, read }: Unit) {
+  const touches = new Map<string, Touch>();
+  const add = (kinds: string[], set: Hide, fact: (kind: string) => string) => {
+    for (const kind of kinds) touches.set(kind, { set, fact: fact(kind) });
+  };
+  if (made === "operation") add(runKinds, "calls", () => label);
+  if (made !== "data") return touches;
+
+  if (read) add(["get"], "reads", () => `${label}.${read}`);
+  else {
+    add(readKinds, "reads", (kind) => `${label}.${kind}`);
+    add(writeKinds, "writes", (kind) => `${label}.${kind}`);
+  }
+  return touches;
+}
+
+/**
+ * The sets a dep the graph cannot name may hide facts in, by its type in `run`: `settle` runs an
+ * operation, `set` writes a cell, `get` reads one.
+ */
+function hidesOf(type: ts.Type | undefined): Hide[] {
+  if (type?.getProperty("settle")) return ["calls"];
+  if (type?.getProperty("set")) return ["reads", "writes"];
+  return type?.getProperty("get") ? ["reads"] : [];
+}
+
+/** The type a dep has in `run`: a controller, a reader, or a value. */
+function slotOf(checker: ts.TypeChecker, param: ts.ParameterDeclaration | undefined, key: string) {
+  const slot = param && checker.getTypeAtLocation(param).getProperty(key);
+  return slot && checker.getTypeOfSymbolAtLocation(slot, slot.valueDeclaration ?? param);
+}
+
+/** A dep, from the declaration that names its unit, or else from its type in `run`. */
+function depOf(checker: ts.TypeChecker, key: ts.Symbol, param?: ts.ParameterDeclaration): Dep {
+  const unit = depUnit(checker, key.valueDeclaration);
+  if (!unit) return { touches: new Map(), hides: hidesOf(slotOf(checker, param, key.name)) };
+  if (unit.made === "data" && unit.bare) {
+    return { touches: new Map(), hides: [], value: `${unit.label}.get` };
+  }
+
+  const touches = touchesOf(unit);
+  const sets = [...touches.values()].map(({ set }) => set);
+  return { touches, hides: allSets.filter((set) => sets.includes(set)) };
+}
+
 /**
  * Each dep of an operation by its key, from the type of its `depends`. A dep written in place,
  * in a `const`, or spread from one is a property of that type, and its declaration names its
- * unit.
+ * unit. `param` is `run`'s first parameter: its type says what each dep is.
  */
-function depsOf(checker: ts.TypeChecker, options: ts.ObjectLiteralExpression) {
+function depsOf(
+  checker: ts.TypeChecker,
+  options: ts.ObjectLiteralExpression,
+  param: ts.ParameterDeclaration | undefined,
+) {
   const depends = checker.getTypeAtLocation(options).getProperty("depends");
   const keys = depends ? checker.getTypeOfSymbolAtLocation(depends, options).getProperties() : [];
-  const units = new Map<string, Unit>();
-  for (const key of keys) {
-    const unit = depUnit(checker, key.valueDeclaration);
-    if (unit) units.set(key.name, unit);
-  }
-  return units;
+  const deps = new Map<string, Dep>();
+  for (const key of keys) deps.set(key.name, depOf(checker, key, param));
+  return deps;
 }
 
-/** Add what one call on a unit does: it runs an operation, or reads or writes a cell. */
-function record({ made, label, read }: Unit, kind: string, facts: Facts) {
-  if (made === "operation" && runKinds.includes(kind)) facts.calls.add(label);
-  if (made !== "data") return;
-  if (read) {
-    if (kind === "get") facts.reads.add(`${label}.${read}`);
-    return;
-  }
-  if (writeKinds.includes(kind)) facts.writes.add(`${label}.${kind}`);
-  if (readKinds.includes(kind)) facts.reads.add(`${label}.${kind}`);
+/** The method a call names on `node`: `list.set(…)` gives `set`. */
+function calledOn(node: ts.Expression) {
+  const { parent } = node;
+  if (!ts.isPropertyAccessExpression(parent) || parent.expression !== node) return undefined;
+  return ts.isCallExpression(parent.parent) && parent.parent.expression === parent
+    ? parent.name.text
+    : undefined;
 }
 
 /**
- * Reads the code of one `run`. A receiver is a dep when the checker says the first parameter
- * binds it: `({ list }) => list.set(…)` or `deps.list.set(…)`.
+ * Reads the code of one `run`: every use of its deps, through the checker's symbols. A dep is
+ * bound by the first parameter, or by `const { a, b: c } = deps` in the body. A use the graph
+ * cannot follow (passed on, assigned, spread, a method it does not know) adds `?` to each set
+ * the dep may hide facts in.
  */
 class Reader {
+  facts: Facts = { reads: new Set(), writes: new Set(), calls: new Set() };
+
   private checker: ts.TypeChecker;
-  private units: Map<string, Unit>;
-  private deps: ts.ParameterDeclaration | undefined;
+  private deps: Map<string, Dep>;
+  private bound = new Map<ts.Symbol, Dep>();
+  private whole: ts.Symbol | undefined;
 
-  constructor(
-    checker: ts.TypeChecker,
-    units: Map<string, Unit>,
-    deps: ts.ParameterDeclaration | undefined,
-  ) {
+  constructor(checker: ts.TypeChecker, deps: Map<string, Dep>, param?: ts.ParameterDeclaration) {
     this.checker = checker;
-    this.units = units;
     this.deps = deps;
+    for (const { value } of deps.values()) if (value) this.facts.reads.add(value);
+    if (param && ts.isIdentifier(param.name)) this.whole = checker.getSymbolAtLocation(param.name);
+    else if (param) this.bind(param.name);
   }
 
-  private boundKey(receiver: ts.Expression) {
-    const bound = this.checker.getSymbolAtLocation(receiver)?.valueDeclaration;
-    if (!bound || !ts.isBindingElement(bound) || bound.parent !== this.deps?.name) return undefined;
-    const name = bound.propertyName ?? bound.name;
-    return ts.isIdentifier(name) ? name.text : undefined;
+  /** Every dep could hide facts: `run` handed them all on, or is not written in place. */
+  hideAll() {
+    for (const dep of this.deps.values()) this.hide(dep);
   }
 
-  private memberKey({ expression, name }: ts.PropertyAccessExpression) {
-    const owner = this.checker.getSymbolAtLocation(expression)?.valueDeclaration;
-    return owner === this.deps ? name.text : undefined;
+  private hide({ hides }: Dep) {
+    for (const set of hides) this.facts[set].add(unseen);
   }
 
-  private touch({ expression }: ts.CallExpression, facts: Facts) {
-    if (!ts.isPropertyAccessExpression(expression)) return;
-    const receiver = expression.expression;
-    const key = ts.isPropertyAccessExpression(receiver)
-      ? this.memberKey(receiver)
-      : this.boundKey(receiver);
-    const unit = key === undefined ? undefined : this.units.get(key);
-    if (unit) record(unit, expression.name.text, facts);
+  /** Bind each name a destructure of the deps gives. */
+  private bind(name: ts.BindingName) {
+    if (!ts.isObjectBindingPattern(name)) return this.hideAll();
+    for (const element of name.elements) this.bindElement(element);
   }
 
-  /** Every touch in the node's code, a callback's body too. */
-  scan(node: ts.Node) {
-    const facts: Facts = { reads: new Set(), writes: new Set(), calls: new Set() };
+  /** A rest takes every dep the graph cannot follow; a nested pattern takes its dep apart. */
+  private bindElement({ dotDotDotToken, propertyName, name }: ts.BindingElement) {
+    if (dotDotDotToken) return this.hideAll();
+    const key = propertyName ?? name;
+    const dep = ts.isIdentifier(key) ? this.deps.get(key.text) : undefined;
+    if (!dep) return;
+
+    const symbol = ts.isIdentifier(name) ? this.checker.getSymbolAtLocation(name) : undefined;
+    if (symbol) this.bound.set(symbol, dep);
+    else this.hide(dep);
+  }
+
+  private useDep(node: ts.Expression, dep: Dep | undefined) {
+    if (!dep) return;
+    const kind = calledOn(node);
+    const touch = kind === undefined ? undefined : dep.touches.get(kind);
+    if (touch) this.facts[touch.set].add(touch.fact);
+    else this.hide(dep);
+  }
+
+  /** A use of the deps param: a member, a destructure, or a hand-off the graph cannot follow. */
+  private useWhole(name: ts.Identifier) {
+    const { parent } = name;
+    if (ts.isPropertyAccessExpression(parent) && parent.expression === name) {
+      return this.useDep(parent, this.deps.get(parent.name.text));
+    }
+    const destructure = ts.isVariableDeclaration(parent) && parent.initializer === name;
+    if (destructure) return this.bind(parent.name);
+    this.hideAll();
+  }
+
+  private use(name: ts.Identifier) {
+    const { parent } = name;
+    if (ts.isBindingElement(parent)) return;
+    const symbol = ts.isShorthandPropertyAssignment(parent)
+      ? this.checker.getShorthandAssignmentValueSymbol(parent)
+      : this.checker.getSymbolAtLocation(name);
+
+    if (!symbol) return;
+    if (symbol === this.whole) return this.useWhole(name);
+    this.useDep(name, this.bound.get(symbol));
+  }
+
+  /** Every use in the node's code, a callback's body too. */
+  read(node: ts.Node) {
     const visit = (child: ts.Node) => {
-      if (ts.isCallExpression(child)) this.touch(child, facts);
+      if (ts.isIdentifier(child)) this.use(child);
       ts.forEachChild(child, visit);
     };
     visit(node);
-    return facts;
+    return this.facts;
   }
 }
 
@@ -179,11 +283,18 @@ function functionOf(run: ts.ObjectLiteralElementLike) {
   return ts.isArrowFunction(value) || ts.isFunctionExpression(value) ? value : undefined;
 }
 
-/** What one operation's `run` touches. A `run` written elsewhere touches nothing the graph sees. */
+/**
+ * What one operation's `run` touches. A `run` written elsewhere may touch any of its deps: each
+ * set a dep may hide facts in gets `?`.
+ */
 function factsOf(checker: ts.TypeChecker, { options, run }: Exits.Operation): Facts {
   const fn = functionOf(run);
-  const [deps] = fn?.parameters ?? [];
-  return new Reader(checker, depsOf(checker, options), deps).scan(fn?.body ?? run);
+  const [param] = fn?.parameters ?? [];
+  const reader = new Reader(checker, depsOf(checker, options, param), param);
+  if (fn?.body) return reader.read(fn.body);
+
+  reader.hideAll();
+  return reader.facts;
 }
 
 const listed = (name: string, items: Iterable<string>) => `${name}{${[...items].sort().join(",")}}`;

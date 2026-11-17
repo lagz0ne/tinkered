@@ -224,6 +224,14 @@ line that differs from the file is a finding.
 The finding never judges the change. You judge
 it.
 
+An empty set means "none". A `?` means the graph
+could not see: a dep handed on (passed to a
+function, put in an array, given another name),
+the deps handed on whole, a call it does not
+know, a dep it cannot name (a capsule or contract
+member, a label not written as a string, an
+`atScope` controller), or a `run` passed by name.
+
 Wrong: a move now writes a cell it did not, and
 nobody read that.
 

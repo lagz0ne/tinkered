@@ -29,7 +29,7 @@ ocean.land exits{value} reads{ocean.physics.get} writes{ocean.waves.update} call
 ocean.light exits{value} reads{} writes{} calls{}
 ocean.look exits{value} reads{} writes{ocean.cursor.update,ocean.stale.set} calls{}
 ocean.paint exits{value} reads{ocean.board.get,ocean.physics.get,ocean.waves.get} writes{ocean.board.set,ocean.stale.set} calls{ocean.light,ocean.sources,ocean.swell}
-ocean.poke exits{value} reads{} writes{} calls{}
+ocean.poke exits{value} reads{ocean.hand.get,ocean.heading.get,ocean.screen.get} writes{ocean.hand.set} calls{ocean.press,ocean.view}
 ocean.press exits{value} reads{} writes{} calls{ocean.land}
 ocean.rotate exits{value} reads{ocean.heading.get} writes{ocean.heading.set,ocean.stale.set,ocean.walls.set} calls{ocean.facing}
 ocean.show exits{value} reads{} writes{ocean.screen.set,ocean.stale.set} calls{}
@@ -59,6 +59,6 @@ play.track exits{value} reads{} writes{play.nav.update} calls{}
 play.view.set exits{value} reads{} writes{play.view.set} calls{}
 sea.clock.now.do exits{value} reads{} writes{} calls{}
 sea.press.do exits{value} reads{sea.waves.get,sea.waves.where} writes{sea.waves.delete,sea.waves.set} calls{}
-tide.arrive exits{value} reads{tide.seen.get,tide.sent.get} writes{tide.seen.set} calls{tide.sync}
-tide.send exits{value} reads{} writes{tide.sent.update} calls{}
-tide.sync exits{value} reads{} writes{tide.ahead.set} calls{}
+tide.arrive exits{value} reads{?,tide.ahead.get,tide.seen.get,tide.sent.get} writes{?,tide.seen.set} calls{?,tide.sync}
+tide.send exits{value} reads{} writes{tide.sent.update} calls{?}
+tide.sync exits{value} reads{} writes{tide.ahead.set} calls{?}
