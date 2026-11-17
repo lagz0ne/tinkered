@@ -60,8 +60,9 @@ then its tests when tinker.json names their command: each exit an operation decl
 reached by a test. Only the first stage that fails prints. Each finding prints its fix.
 "tinker check: OK" and exit 0 is the only sign that the work is done.
 
-graph prints the app's graph: one line per operation and exit, with what the path to that exit
-reads, writes and calls. --write writes it to tinker.graph, for the app to commit.
+graph prints the app's graph: one line per operation, with its exits and what its run reads,
+writes and calls. The lines are facts; the reader judges them. --write writes them to
+tinker.graph, for the app to commit.
 `;
 
 /** One line per gaps row: marked lines over the row's count, as `G3 5/5`. */
@@ -127,7 +128,7 @@ function stages(root: string): Main.Report {
 
 /**
  * The stages after clean rules: the graph, then the tests and their exits. `ran` names the
- * graph only when the app has an exit: an app with none needs no `tinker.graph`.
+ * graph only when the app has an operation: an app with none needs no `tinker.graph`.
  */
 function afterRules(
   root: string,
@@ -142,11 +143,14 @@ function afterRules(
   const changed = graphFindings(root, graph);
   if (changed.length) return failed(root, "graph", changed, gaps);
 
-  if (graph.length) ran.push(`graph (${graph.length} exits)`);
+  if (graph.length) ran.push(`graph (${graph.length} operations)`);
   if (skipped.length) return { kind: "incomplete", ran, skipped, gaps };
   if (!tests) return { kind: "ok", ran, gaps };
 
-  const tested = runTests(root, tests, graph);
+  const declared = graph.flatMap(({ path, line, label, exits }) =>
+    exits.map((exit) => ({ path, line, label, exit })),
+  );
+  const tested = runTests(root, tests, declared);
   if (tested.status !== 0) return { kind: "red", output: tail(tested.output), gaps };
   if (tested.unreached.length) return failed(root, "exits", tested.unreached, gaps);
   return { kind: "ok", ran: [...ran, "tests", "exits"], gaps };
@@ -244,7 +248,7 @@ function graphCommand(root: string, write: boolean): Main.Result {
   if (!write) return { code: 0, out: text, err: "" };
 
   writeFileSync(join(root, graphFile), text);
-  return { code: 0, out: `wrote ${graphFile}: ${lines.length} exits\n`, err: "" };
+  return { code: 0, out: `wrote ${graphFile}: ${lines.length} operations\n`, err: "" };
 }
 
 function skillCommand(root: string, args: readonly string[]): Main.Result {

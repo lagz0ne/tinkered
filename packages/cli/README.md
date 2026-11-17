@@ -92,42 +92,43 @@ run of every stage can say OK.
 ## The graph
 
 `tinker graph` prints the app's graph. It has one
-line per operation and exit (ADR 0161). The line
-says what the path to that exit does:
+line per operation (ADR 0161). The line holds
+facts:
 
+- `exits`: each way out, as the exit stage names
+  them;
 - `reads`: each cell read, and how;
 - `writes`: each cell write, and how;
 - `calls`: each operation it runs.
 
 ```text
-issue.move.do stale reads{issues.list.of}
-  writes{} calls{issues.inTeam}
+issue.move.do exits{gone,moved,stale}
+  reads{issues.list.of} writes{issues.list.set}
+  calls{issues.inTeam}
 ```
 
 - A name is the label, never a local name.
-- A write counts for an exit when it runs before
-  that return.
+- The sets hold all the code of `run`, callbacks
+  too. They do not say which exit a write is on.
+- A dep written in place, in a `const`, or spread
+  from one reads the same.
 - The graph reads `src` and `cmds` only.
 
-It reads a dep only when `depends` is an object
-written in place. It does not see:
+The graph is facts only. It never judges them.
+The reader judges: a person or an LLM reads the
+line and its diff, and asks if the change is
+meant.
 
-- a dep in a `const` that `depends` names, or in a
-  spread of one;
+The graph does not see:
+
 - a member of a capsule or a contract, such as
   `seaApi["clock.now"]`;
 - a `run` passed by name, not written in place;
 - a cell whose label is not written as a string;
-- an `atScope` or `atNamespace` controller;
-- a write in a loop, before a return that comes
-  earlier in the same loop.
+- an `atScope` or `atNamespace` controller.
 
 So an empty set means "none the graph could see".
 It does not mean "touches nothing".
-
-A plain return at the end of a body counts the
-whole body. A write in an early branch that
-returns or throws counts there too.
 
 `tinker graph --write` writes the graph to
 `tinker.graph`. Commit that file. Then the check
@@ -135,8 +136,8 @@ builds the graph again and compares. Each line
 that differs is a finding at the operation:
 
 ```text
-src/issues/ops.server.ts:83 tinker/graph
-issue.move.do stale: writes{issues.list.set},
+src/issues/ops.server.ts:80 tinker/graph
+issue.move.do: writes{issues.list.set},
 tinker.graph says writes{}
 ```
 

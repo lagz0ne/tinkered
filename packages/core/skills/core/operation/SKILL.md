@@ -215,27 +215,30 @@ promise and await it later.
 
 ### HIGH: the code graph differs from tinker.graph [tinker/graph]
 
-`tinker.graph` holds one line per operation and
-exit. The line lists what the path to that exit
-reads, writes and calls. `tinker check` builds the
-graph from the code. Each line that differs from
-the file is a finding.
+`tinker.graph` holds one line per operation: its
+exits, and the cells and operations its `run`
+reads, writes and calls. The lines are facts.
+`tinker check` builds them from the code. Each
+line that differs from the file is a finding.
 
-Wrong: a stale move that still writes.
+The finding never judges the change. You judge
+it.
+
+Wrong: a move now writes a cell it did not, and
+nobody read that.
 
 ```ts no-check
 list.set({ ...now, state: input.state });
-if (now.version !== input.version) {
-  return { kind: "stale" as const };
-}
+audit.set({ id: input.id, by: me });
 ```
 
 ```text
-issue.move.do stale: writes{issues.list.set},
-  tinker.graph says writes{}
+issue.move.do: writes{issues.audit.set,
+  issues.list.set}, tinker.graph says
+  writes{issues.list.set}
 ```
 
-Right: if you meant the change, run
+Right: read the change. If you meant it, run
 `tinker graph --write` and commit the file. The
 reviewer reads its diff. If you did not mean it,
 fix the code.

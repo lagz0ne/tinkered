@@ -3,16 +3,17 @@ import { join } from "node:path";
 
 import ts from "typescript-api";
 
-import { coreImports, exitsOf, labelOf, member, readOperations } from "./exits";
+import { coreImports, labelOf, readOperations } from "./exits";
 import type { Exits } from "./exits";
 import type { Tools } from "./tools";
 
 export declare namespace Graph {
   /**
-   * One line of the graph: an operation's exit and what the path to it touches. `parts` are
-   * `reads{…}`, `writes{…}` and `calls{…}`, in that order.
+   * One line of the graph: an operation, where it is, and its facts. `parts` are `exits{…}`,
+   * `reads{…}`, `writes{…}` and `calls{…}`, in that order. A fact is never a judgement: the
+   * reader of the line judges it (ADR 0161, amended).
    */
-  type Line = Exits.Exit & { parts: string[] };
+  type Line = { path: string; line: number; label: string; exits: string[]; parts: string[] };
 }
 
 /** The app's committed graph, at its root (ADR 0161). */
@@ -21,7 +22,7 @@ export const graphFile = "tinker.graph";
 /** A unit a dep names: the Core function that made it, its label, and the part it reads. */
 type Unit = { made: string; label: string; read?: string };
 
-/** What the path to one exit touches: each fact is a label, then a kind (`issues.list.set`). */
+/** What a `run` touches: each fact is a label, then a kind (`issues.list.set`). */
 type Facts = { reads: Set<string>; writes: Set<string>; calls: Set<string> };
 
 const writeKinds = ["set", "update", "delete"];
@@ -33,12 +34,6 @@ const partKinds = ["of", "where"];
 
 /** The call kinds that run an operation a dep names. */
 const runKinds = ["run", "settle"];
-
-const noFacts = (): Facts => ({ reads: new Set(), writes: new Set(), calls: new Set() });
-
-function copyOf({ reads, writes, calls }: Facts): Facts {
-  return { reads: new Set(reads), writes: new Set(writes), calls: new Set(calls) };
-}
 
 /** The `const` a name stands for, through an import. */
 function declarationOf(checker: ts.TypeChecker, symbol: ts.Symbol | undefined) {
@@ -85,23 +80,30 @@ function unitOf(checker: ts.TypeChecker, value: ts.Expression): Unit | undefined
   return unitAt(checker, checker.getSymbolAtLocation(value.expression));
 }
 
-/** One dep's key and the unit it names, when it names one. */
-function depOf(checker: ts.TypeChecker, property: ts.ObjectLiteralElementLike) {
-  const unit = ts.isShorthandPropertyAssignment(property)
-    ? unitAt(checker, checker.getShorthandAssignmentValueSymbol(property))
-    : ts.isPropertyAssignment(property) && unitOf(checker, property.initializer);
-  const key = property.name && ts.isIdentifier(property.name) ? property.name.text : undefined;
-  return unit && key ? [{ key, unit }] : [];
+/** The unit a dep's declaration names: `list: issues.controller`, or `{ inTeam }`. */
+function depUnit(checker: ts.TypeChecker, declaration: ts.Declaration | undefined) {
+  if (declaration && ts.isShorthandPropertyAssignment(declaration)) {
+    return unitAt(checker, checker.getShorthandAssignmentValueSymbol(declaration));
+  }
+  return declaration && ts.isPropertyAssignment(declaration)
+    ? unitOf(checker, declaration.initializer)
+    : undefined;
 }
 
-/** Each dep of an operation by its key, when the dep is a unit the graph names. */
+/**
+ * Each dep of an operation by its key, from the type of its `depends`. A dep written in place,
+ * in a `const`, or spread from one is a property of that type, and its declaration names its
+ * unit.
+ */
 function depsOf(checker: ts.TypeChecker, options: ts.ObjectLiteralExpression) {
-  const depends = member(options, "depends");
-  const value = depends && ts.isPropertyAssignment(depends) ? depends.initializer : undefined;
-  const properties = value && ts.isObjectLiteralExpression(value) ? value.properties : [];
-  return new Map(
-    properties.flatMap((property) => depOf(checker, property)).map(({ key, unit }) => [key, unit]),
-  );
+  const depends = checker.getTypeAtLocation(options).getProperty("depends");
+  const keys = depends ? checker.getTypeOfSymbolAtLocation(depends, options).getProperties() : [];
+  const units = new Map<string, Unit>();
+  for (const key of keys) {
+    const unit = depUnit(checker, key.valueDeclaration);
+    if (unit) units.set(key.name, unit);
+  }
+  return units;
 }
 
 /** Add what one call on a unit does: it runs an operation, or reads or writes a cell. */
@@ -116,45 +118,11 @@ function record({ made, label, read }: Unit, kind: string, facts: Facts) {
   if (readKinds.includes(kind)) facts.reads.add(`${label}.${kind}`);
 }
 
-/** Each `return` of a function's own body: one in a nested function returns from that one. */
-function returnsIn(body: ts.Block) {
-  const found: ts.ReturnStatement[] = [];
-  const visit = (node: ts.Node) => {
-    if (ts.isReturnStatement(node)) found.push(node);
-    if (!ts.isFunctionLike(node)) ts.forEachChild(node, visit);
-  };
-  ts.forEachChild(body, visit);
-  return found;
-}
-
 /**
- * The code that runs on the way to `child` inside `parent`: an `if` runs its condition, a
- * `case` runs no other clause, and every other node runs what comes before the child.
- */
-function before(parent: ts.Node, child: ts.Node): ts.Node[] {
-  if (ts.isIfStatement(parent)) return [parent.expression];
-  if (ts.isCaseBlock(parent)) return [];
-  const nodes: ts.Node[] = [];
-  ts.forEachChild(parent, (node) => {
-    if (node.end <= child.pos) nodes.push(node);
-  });
-  return nodes;
-}
-
-/** A body whose end runs: its last statement neither returns nor throws. */
-function endRuns({ statements }: ts.Block) {
-  const last = statements.at(-1);
-  return !last || !(ts.isReturnStatement(last) || ts.isThrowStatement(last));
-}
-
-/**
- * Reads the code of one `run`, and gathers the facts of each exit. A receiver is a dep when the
- * checker says the first parameter binds it: `({ list }) => list.set(…)` or `deps.list.set(…)`.
+ * Reads the code of one `run`. A receiver is a dep when the checker says the first parameter
+ * binds it: `({ list }) => list.set(…)` or `deps.list.set(…)`.
  */
 class Reader {
-  /** The facts of each exit, by its name. */
-  found = new Map<string, Facts>();
-
   private checker: ts.TypeChecker;
   private units: Map<string, Unit>;
   private deps: ts.ParameterDeclaration | undefined;
@@ -191,65 +159,15 @@ class Reader {
     if (unit) record(unit, expression.name.text, facts);
   }
 
-  /** Every touch in the node's code, a callback's body too: it may run before the return. */
-  scan(node: ts.Node, facts: Facts) {
+  /** Every touch in the node's code, a callback's body too. */
+  scan(node: ts.Node) {
+    const facts: Facts = { reads: new Set(), writes: new Set(), calls: new Set() };
     const visit = (child: ts.Node) => {
       if (ts.isCallExpression(child)) this.touch(child, facts);
       ts.forEachChild(child, visit);
     };
     visit(node);
     return facts;
-  }
-
-  add(exit: string, { reads, writes, calls }: Facts) {
-    const facts = this.found.get(exit) ?? noFacts();
-    for (const read of reads) facts.reads.add(read);
-    for (const write of writes) facts.writes.add(write);
-    for (const call of calls) facts.calls.add(call);
-    this.found.set(exit, facts);
-  }
-
-  /**
-   * Add a returned value to the exits its type gives. `a ? b : c` is two paths: the condition
-   * runs on both, each branch on its own.
-   */
-  returned(value: ts.Expression, path: Facts) {
-    let bare = value;
-    while (ts.isParenthesizedExpression(bare)) bare = bare.expression;
-    if (ts.isConditionalExpression(bare)) {
-      this.scan(bare.condition, path);
-      this.returned(bare.whenTrue, copyOf(path));
-      this.returned(bare.whenFalse, copyOf(path));
-      return;
-    }
-
-    this.scan(bare, path);
-    for (const exit of exitsOf(this.checker, this.checker.getTypeAtLocation(bare))) {
-      this.add(exit, path);
-    }
-  }
-
-  /** The facts of the path from the top of `body` to `node`. */
-  private pathTo(body: ts.Block, node: ts.Node) {
-    const facts = noFacts();
-    for (let child = node; child !== body; child = child.parent) {
-      for (const ran of before(child.parent, child)) this.scan(ran, facts);
-    }
-    return facts;
-  }
-
-  /**
-   * Each return of a block body; a body whose end runs gives a plain return of all its code. A
-   * plain return the type does not declare prints no line.
-   */
-  block(body: ts.Block) {
-    for (const statement of returnsIn(body)) {
-      const path = this.pathTo(body, statement);
-      if (statement.expression) this.returned(statement.expression, path);
-      else this.add("value", path);
-    }
-
-    if (endRuns(body)) this.add("value", this.scan(body, noFacts()));
   }
 }
 
@@ -261,59 +179,51 @@ function functionOf(run: ts.ObjectLiteralElementLike) {
   return ts.isArrowFunction(value) || ts.isFunctionExpression(value) ? value : undefined;
 }
 
-/**
- * The facts of each exit of one operation. A return adds its path to the exits its type gives.
- * A `run` written elsewhere gives none.
- */
-function factsOf(checker: ts.TypeChecker, { options, run }: Exits.Operation) {
+/** What one operation's `run` touches. A `run` written elsewhere touches nothing the graph sees. */
+function factsOf(checker: ts.TypeChecker, { options, run }: Exits.Operation): Facts {
   const fn = functionOf(run);
-  if (!fn?.body) return new Map<string, Facts>();
-
-  const [deps] = fn.parameters;
-  const reader = new Reader(checker, depsOf(checker, options), deps);
-  if (ts.isBlock(fn.body)) reader.block(fn.body);
-  else reader.returned(fn.body, noFacts());
-  return reader.found;
+  const [deps] = fn?.parameters ?? [];
+  return new Reader(checker, depsOf(checker, options), deps).scan(fn?.body ?? run);
 }
 
-const keyOf = ({ label, exit }: Pick<Exits.Exit, "label" | "exit">) => `${label} ${exit}`;
-
-const listed = (name: string, items: Set<string>) => `${name}{${[...items].sort().join(",")}}`;
+const listed = (name: string, items: Iterable<string>) => `${name}{${[...items].sort().join(",")}}`;
 
 /**
- * The app's graph, from its code: one line per operation and exit its type declares (ADR 0159),
- * sorted by label, then exit, in code-unit order: the same on every machine.
+ * The app's graph, from its code: one line per operation, sorted by label in code-unit order,
+ * the same on every machine. `exits` are the words of ADR 0159.
  */
 export function graphOf(root: string): Graph.Line[] {
   const app = readOperations(root);
   if (!app) return [];
 
-  const lines = app.operations.flatMap((operation) => {
-    const found = factsOf(app.checker, operation);
-    return operation.exits.map((exit): Graph.Line => {
-      const { reads, writes, calls } = found.get(exit) ?? noFacts();
-      const { path, line, label } = operation;
-      const parts = [listed("reads", reads), listed("writes", writes), listed("calls", calls)];
-      return { path, line, label, exit, parts };
-    });
+  const lines = app.operations.map((operation): Graph.Line => {
+    const { reads, writes, calls } = factsOf(app.checker, operation);
+    const { path, line, label, exits } = operation;
+    const parts = [
+      listed("exits", exits),
+      listed("reads", reads),
+      listed("writes", writes),
+      listed("calls", calls),
+    ];
+    return { path, line, label, exits, parts };
   });
-  return lines.sort((a, b) => (keyOf(a) < keyOf(b) ? -1 : 1));
+  return lines.sort((a, b) => (a.label < b.label ? -1 : 1));
 }
 
-/** The graph as `tinker.graph` holds it: one line per exit, and an end of line after each. */
+/** The graph as `tinker.graph` holds it: one line per operation, and an end of line after each. */
 export function graphText(lines: Graph.Line[]) {
-  return lines.map((line) => `${[keyOf(line), ...line.parts].join(" ")}\n`).join("");
+  return lines.map(({ label, parts }) => `${[label, ...parts].join(" ")}\n`).join("");
 }
 
 /**
- * Each line of the committed file by its key, and its line number. A line may end in `\r`: a
+ * Each line of the committed file by its label, and its line number. A line may end in `\r`: a
  * checkout on Windows can give the file those ends.
  */
 function linesIn(text: string) {
   const lines = new Map<string, { line: number; parts: string[] }>();
   text.split("\n").forEach((row, index) => {
-    const [label, exit, ...parts] = row.trim().split(" ");
-    if (exit) lines.set(`${label} ${exit}`, { line: index + 1, parts });
+    const [label, ...parts] = row.trim().split(" ");
+    if (label) lines.set(label, { line: index + 1, parts });
   });
   return lines;
 }
@@ -329,7 +239,7 @@ function changed(code: string[], file: string[]) {
 /**
  * A `tinker/graph` finding for each line where `code`, the graph `graphOf` read, and
  * `tinker.graph` differ (ADR 0161). A code line points at its operation; a line only the file
- * has points at the file. An app with no exit needs no file.
+ * has points at the file. An app with no operation needs no file.
  */
 export function graphFindings(root: string, code: Graph.Line[]): Tools.Found[] {
   const path = join(root, graphFile);
@@ -340,18 +250,17 @@ export function graphFindings(root: string, code: Graph.Line[]): Tools.Found[] {
   }
 
   const file = linesIn(readFileSync(path, "utf8"));
-  const found = code.flatMap(({ path, line, parts, ...exit }): Tools.Found[] => {
-    const key = keyOf(exit);
-    const said = file.get(key);
-    file.delete(key);
+  const found = code.flatMap(({ path, line, label, parts }): Tools.Found[] => {
+    const said = file.get(label);
+    file.delete(label);
     const diff = said ? changed(parts, said.parts) : [`not in ${graphFile}`];
-    return diff.length ? [{ path, line, rule, what: `${key}: ${diff.join("; ")}` }] : [];
+    return diff.length ? [{ path, line, rule, what: `${label}: ${diff.join("; ")}` }] : [];
   });
-  const gone = [...file].map(([key, { line }]) => ({
+  const gone = [...file].map(([label, { line }]) => ({
     path: graphFile,
     line,
     rule,
-    what: `${key}: in ${graphFile}, not in the code`,
+    what: `${label}: in ${graphFile}, not in the code`,
   }));
   return [...found, ...gone];
 }

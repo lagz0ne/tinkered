@@ -49,7 +49,7 @@ function kindsOf(checker: ts.TypeChecker, type: ts.Type) {
 }
 
 /** Each exit a return type holds: a union gives one per member, and a promise gives its value's. */
-export function exitsOf(checker: ts.TypeChecker, returned: ts.Type) {
+function exitsOf(checker: ts.TypeChecker, returned: ts.Type) {
   const type = checker.getAwaitedType(returned) ?? returned;
   if (type.flags & ts.TypeFlags.Never) return [];
 
@@ -84,7 +84,7 @@ function coreOperation(source: ts.SourceFile) {
   )?.name.text;
 }
 
-export function member(options: ts.ObjectLiteralExpression, name: string) {
+function member(options: ts.ObjectLiteralExpression, name: string) {
   return options.properties.find(
     (property) => property.name && ts.isIdentifier(property.name) && property.name.text === name,
   );
