@@ -36,7 +36,7 @@ const moveOf = (name: string, label: string, depends: string) => [
 const ops = [
   `import { operation, transport } from "@tinkered/core";`,
   ``,
-  `import { api, count, flags, inTeam, issues } from "./units";`,
+  `import { api, cells, count, flags, inTeam, issues } from "./units";`,
   ``,
   `const moveDeps = { list: issues.controller, ok: inTeam };`,
   ``,
@@ -123,6 +123,27 @@ const ops = [
   `  depends: { ping: api.ping },`,
   `  run: ({ ping }) => ping.run(),`,
   `});`,
+  ``,
+  `export const raw = operation({`,
+  `  label: "issue.raw",`,
+  `  depends: { list: cells.list.controller },`,
+  `  run: ({ list }) => list.set({ id: "r", version: 1 }),`,
+  `});`,
+  ``,
+  `export const peek = operation({`,
+  `  label: "issue.peek",`,
+  `  depends: { some: cells.list.where({}) },`,
+  `  run: ({ some }) => some.get().length,`,
+  `});`,
+  ``,
+  `export const rename = operation({`,
+  `  label: "issue.rename",`,
+  `  depends: moveDeps,`,
+  `  run: (deps) => {`,
+  `    const all = deps;`,
+  `    return Object.keys(all).length;`,
+  `  },`,
+  `});`,
 ].join("\n");
 
 /** What `look` touches: its bare `all` reads the cell's value. */
@@ -147,7 +168,10 @@ const golden = [
   `issue.move.shared ${moved}`,
   `issue.move.spread ${moved}`,
   "issue.pass exits{value} reads{?} writes{?} calls{?}",
+  "issue.peek exits{value} reads{?} writes{} calls{}",
   "issue.ping exits{value} reads{} writes{} calls{?}",
+  "issue.raw exits{value} reads{?} writes{?} calls{}",
+  "issue.rename exits{value} reads{?} writes{?} calls{?}",
   "issues.inTeam exits{value} reads{} writes{} calls{}",
   "issues.inTeam.again exits{value} reads{} writes{} calls{}",
   "",
@@ -194,6 +218,8 @@ const configs = {
     `});`,
     ``,
     `export const api = { ping: inTeam };`,
+    ``,
+    `export const cells = { list: issues };`,
   ].join("\n"),
 };
 
@@ -231,7 +257,7 @@ test(
     const { code, out } = main(["check", folder], "/");
 
     expect(code).toBe(0);
-    expect(out).toBe("ran: tsc, lint, rules (2 files), graph (13 operations)\ntinker check: OK\n");
+    expect(out).toBe("ran: tsc, lint, rules (2 files), graph (16 operations)\ntinker check: OK\n");
   },
 );
 
@@ -264,7 +290,7 @@ test(
     expect(code).toBe(1);
     expect(findings(out)).toEqual([
       "src/ops.ts:65 tinker/graph issue.look: not in tinker.graph",
-      "tinker.graph:13 tinker/graph issue.old.do: in tinker.graph, not in the code",
+      "tinker.graph:16 tinker/graph issue.old.do: in tinker.graph, not in the code",
     ]);
   },
 );
@@ -287,7 +313,7 @@ test("`tinker graph --write` writes the file the check then passes", { timeout: 
   const wrote = main(["graph", folder, "--write"], "/");
   const { code } = main(["check", folder], "/");
 
-  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 13 operations\n", err: "" });
+  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 16 operations\n", err: "" });
   expect(readFileSync(join(folder, "tinker.graph"), "utf8")).toBe(golden);
   expect(code).toBe(0);
 });
