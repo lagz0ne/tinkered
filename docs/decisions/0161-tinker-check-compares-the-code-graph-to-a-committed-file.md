@@ -177,5 +177,5 @@ The known models:
 
 ## Where ours is simpler
 
-- One text file, one line per exit, sorted.
+- One text file, one line per operation, sorted.
 - No new API in Core or in the contract.
