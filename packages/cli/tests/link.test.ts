@@ -61,6 +61,16 @@ test("a link to another site, a mail or phone link, or a link to a spot on the p
   expect(hits).toEqual([]);
 });
 
+test("a link to a file the server sends passes: no route answers it", () => {
+  const hits = links([
+    `    <a href="/llms.txt">llms.txt</a>`,
+    "    <a href={`/llms/${slug}.md`}>Markdown</a>",
+    "    <a href={`/sea.html?room=${room}`}>Sea</a>",
+  ]);
+
+  expect(hits).toEqual([]);
+});
+
 test("an href the rule cannot read passes: it does not guess", () => {
   const hits = links([
     `    <a href={url}>Open</a>`,
@@ -72,9 +82,9 @@ test("an href the rule cannot read passes: it does not guess", () => {
   expect(hits).toEqual([]);
 });
 
-test("a download, a new tab, or rel=external leaves the page on purpose and passes; _self stays", () => {
+test("a download, a new tab, or rel=external passes; a link that stays is a finding", () => {
   const hits = links([
-    `    <a href="/export.csv" download>Export</a>`,
+    `    <a href="/issues/export" download>Export</a>`,
     `    <a href="/issues" target="_blank">Open in a new tab</a>`,
     `    <a href="/issues" rel="noopener external">Away</a>`,
     `    <a href="/issues" target="_self" rel="noopener">Stay</a>`,

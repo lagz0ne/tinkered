@@ -328,8 +328,9 @@ Intent finds them (ADR 0143).
   a path in the app: `/issues`, `./next`. A
   click loads the whole page, so the app state
   is lost. Use the router's `Link`. A link to
-  another site, `#top`, a download, a new tab,
-  or an `href` the rule cannot read passes.
+  another site or to a file, `#top`, a
+  download, a new tab, or an `href` the rule
+  cannot read passes.
 
 A page file is a file in `src/` with no `.server`
 in its name.
