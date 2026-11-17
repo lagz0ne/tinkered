@@ -5,6 +5,7 @@ import { findBarrel } from "./barrel";
 import { raise } from "./errors";
 import { appCode } from "./exits";
 import { applyGaps } from "./gaps";
+import { findLink } from "./link";
 import { findPage } from "./page";
 import { findPlain } from "./plain";
 import type { own } from "./rules";
@@ -160,6 +161,7 @@ export function readApp(root: string) {
   const found = [
     ...findPlain(app, config.plain?.entries ?? {}),
     ...page.flatMap(findPage),
+    ...page.filter(({ path }) => path.endsWith("x")).flatMap(findLink),
     ...app.filter(({ path }) => appCode.test(path)).flatMap(findBarrel),
   ];
   const sources = [...new Map([...app, ...page].map((source) => [source.path, source])).values()];

@@ -5,6 +5,7 @@ export const own = [
   "tinker/react-state",
   "tinker/gap",
   "tinker/barrel",
+  "tinker/link",
 ] as const;
 
 /** A lint rule that is a gate, by its lint code: its Tinker rule id. It belongs to `types`. */

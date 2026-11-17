@@ -324,6 +324,12 @@ Intent finds them (ADR 0143).
   a finding: `export … from "…"`, of values or
   types, or `export { name }` of an imported
   name (ADR 0160).
+- `tinker/link` — a page has no plain `<a>` to
+  a path in the app: `/issues`, `./next`. A
+  click loads the whole page, so the app state
+  is lost. Use the router's `Link`. A link to
+  another site, `#top`, a download, a new tab,
+  or an `href` the rule cannot read passes.
 
 A page file is a file in `src/` with no `.server`
 in its name.

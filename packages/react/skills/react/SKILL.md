@@ -5,8 +5,8 @@ description: >
   component in a Tinker app: read a cell, run
   an operation from a button, show a pending or
   failed call, or mount the app. Also when a
-  check prints tinker/kind, tinker/react-state
-  or tinker/one-wire.
+  check prints tinker/kind, tinker/react-state,
+  tinker/one-wire or tinker/link.
 metadata:
   purpose: >
     How React reads cells and runs operations
@@ -245,6 +245,26 @@ depends on it.
 The page talks to the server by rpc and remote
 data only. Read the `@tinkered/core` skill
 `core/rpc`.
+
+### HIGH: a plain `<a href>` to a page of the app [tinker/link]
+
+Wrong:
+
+```tsx no-check
+<a href={`/issues/${team}/${id}`}>{title}</a>
+```
+
+A click loads the whole page again. The scope
+and every cell start over.
+
+Right: the router's `Link`, with the route's
+path and its params:
+
+```tsx no-check
+<Link to="/issues/$team/$id" params={{ team, id }}>
+  {title}
+</Link>
+```
 
 ### MEDIUM: a new object as the selected value
 

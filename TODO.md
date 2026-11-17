@@ -131,6 +131,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **cli/link-rule** (writer: Opus 5.5, branch `cli-link-rule`; lead: CUJ eval
+  thread). Rule `tinker/link`: a JSX `<a>` whose `href` is an in-app path
+  reloads the page (CUJ run 5: 3 of 10 writers, 13 journeys lost).
+  Precedent: Next.js `no-html-link-for-pages`. Fix text from the React skill.
+  Next: the rule, its tests, the skill section.
+  Verify: muse-1's `board.tsx` in a template copy gives one `tinker/link`
+  at its `<a href>` line; the template's own board gives none; cli tests,
+  skills, prose, mutation 85.
+
 ## Review
 
 - **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` empties the frame buffer `out`, so a call failed as `link, sent: false` is never sent.
