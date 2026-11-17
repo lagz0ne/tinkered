@@ -103,25 +103,24 @@ type Touch = { set: Hide; fact: string };
 
 /**
  * A dep as `run` sees it: what each call the graph knows on it adds, and the sets a use the
- * graph cannot follow may hide facts in. `value` is the read a bare cell makes on each run.
+ * graph cannot follow may hide facts in. `named` is false for a dep whose unit the graph cannot
+ * name: it may hold anything. `value` is the read a bare cell makes on each run.
  */
-type Dep = { touches: Map<string, Touch>; hides: Hide[]; value?: string };
+type Dep = { touches: Map<string, Touch>; hides: Hide[]; named: boolean; value?: string };
 
 const allSets: Hide[] = ["reads", "writes", "calls"];
 
 /** The mark of a fact the graph could not see: never a guess at the fact. */
 const unseen = "?";
 
-/** What each call the graph knows on a unit adds. A tag holds a value, not a fact. */
+/** What each call the graph knows on an operation or a cell adds. */
 function touchesOf({ made, label, read }: Unit) {
   const touches = new Map<string, Touch>();
   const add = (kinds: string[], set: Hide, fact: (kind: string) => string) => {
     for (const kind of kinds) touches.set(kind, { set, fact: fact(kind) });
   };
   if (made === "operation") add(runKinds, "calls", () => label);
-  if (made !== "data") return touches;
-
-  if (read) add(["get"], "reads", () => `${label}.${read}`);
+  else if (read) add(["get"], "reads", () => `${label}.${read}`);
   else {
     add(readKinds, "reads", (kind) => `${label}.${kind}`);
     add(writeKinds, "writes", (kind) => `${label}.${kind}`);
@@ -145,17 +144,24 @@ function slotOf(checker: ts.TypeChecker, param: ts.ParameterDeclaration | undefi
   return slot && checker.getTypeOfSymbolAtLocation(slot, slot.valueDeclaration ?? param);
 }
 
-/** A dep, from the declaration that names its unit, or else from its type in `run`. */
+/**
+ * A dep, from the declaration that names its unit. Any dep but an operation or a cell is read
+ * by its type in `run`: a tag may hold a unit (ADR 0151), and a dep the graph cannot name may
+ * be anything.
+ */
 function depOf(checker: ts.TypeChecker, key: ts.Symbol, param?: ts.ParameterDeclaration): Dep {
   const unit = depUnit(checker, key.valueDeclaration);
-  if (!unit) return { touches: new Map(), hides: hidesOf(slotOf(checker, param, key.name)) };
-  if (unit.made === "data" && unit.bare) {
-    return { touches: new Map(), hides: [], value: `${unit.label}.get` };
+  if (unit?.made !== "operation" && unit?.made !== "data") {
+    const hides = hidesOf(slotOf(checker, param, key.name));
+    return { touches: new Map(), hides, named: false };
+  }
+  if (unit.bare && unit.made === "data") {
+    return { touches: new Map(), hides: [], named: true, value: `${unit.label}.get` };
   }
 
   const touches = touchesOf(unit);
   const sets = [...touches.values()].map(({ set }) => set);
-  return { touches, hides: allSets.filter((set) => sets.includes(set)) };
+  return { touches, hides: allSets.filter((set) => sets.includes(set)), named: true };
 }
 
 /**
@@ -173,6 +179,28 @@ function depsOf(
   const deps = new Map<string, Dep>();
   for (const key of keys) deps.set(key.name, depOf(checker, key, param));
   return deps;
+}
+
+/** A binding's key as text: a name or a string. Any other key the graph cannot read. */
+function keyText(key: ts.PropertyName | ts.BindingName) {
+  return ts.isIdentifier(key) || ts.isStringLiteral(key) ? key.text : undefined;
+}
+
+/** `name` is the value a `const { … } = name` takes apart. */
+function destructured(
+  name: ts.Identifier,
+): name is ts.Identifier & { parent: ts.VariableDeclaration } {
+  const { parent } = name;
+  return ts.isVariableDeclaration(parent) && parent.initializer === name;
+}
+
+/** Call `see` on every name in the node's code, a callback's body too. */
+function eachName(node: ts.Node, see: (name: ts.Identifier) => void) {
+  const visit = (child: ts.Node) => {
+    if (ts.isIdentifier(child)) see(child);
+    ts.forEachChild(child, visit);
+  };
+  visit(node);
 }
 
 /** The method a call names on `node`: `list.set(…)` gives `set`. */
@@ -206,9 +234,21 @@ class Reader {
     else if (param) this.bind(param.name);
   }
 
-  /** Every dep could hide facts: `run` handed them all on, or is not written in place. */
-  hideAll() {
+  /** Every dep could hide facts: `run` handed them all on. */
+  private hideAll() {
     for (const dep of this.deps.values()) this.hide(dep);
+  }
+
+  /**
+   * A `run` passed by name: no code to read. A dep the graph names hides by its unit; one it
+   * cannot name may hide anything, so every set gets `?`.
+   */
+  hideRun() {
+    this.hideAll();
+    if (![...this.deps.values()].every(({ named }) => named)) {
+      for (const set of allSets) this.facts[set].add(unseen);
+    }
+    return this.facts;
   }
 
   private hide({ hides }: Dep) {
@@ -221,11 +261,14 @@ class Reader {
     for (const element of name.elements) this.bindElement(element);
   }
 
-  /** A rest takes every dep the graph cannot follow; a nested pattern takes its dep apart. */
+  /**
+   * A rest takes every dep, and the graph cannot read a computed key: both hide every dep. A
+   * nested pattern takes its dep apart.
+   */
   private bindElement({ dotDotDotToken, propertyName, name }: ts.BindingElement) {
-    if (dotDotDotToken) return this.hideAll();
-    const key = propertyName ?? name;
-    const dep = ts.isIdentifier(key) ? this.deps.get(key.text) : undefined;
+    const key = keyText(propertyName ?? name);
+    if (dotDotDotToken || key === undefined) return this.hideAll();
+    const dep = this.deps.get(key);
     if (!dep) return;
 
     const symbol = ts.isIdentifier(name) ? this.checker.getSymbolAtLocation(name) : undefined;
@@ -241,15 +284,18 @@ class Reader {
     else this.hide(dep);
   }
 
-  /** A use of the deps param: a member, a destructure, or a hand-off the graph cannot follow. */
+  /** A use of the deps param: a member, a destructure (bound first), or a hand-off. */
   private useWhole(name: ts.Identifier) {
     const { parent } = name;
     if (ts.isPropertyAccessExpression(parent) && parent.expression === name) {
       return this.useDep(parent, this.deps.get(parent.name.text));
     }
-    const destructure = ts.isVariableDeclaration(parent) && parent.initializer === name;
-    if (destructure) return this.bind(parent.name);
-    this.hideAll();
+    if (!destructured(name)) this.hideAll();
+  }
+
+  private isWhole(name: ts.Identifier) {
+    const symbol = this.checker.getSymbolAtLocation(name);
+    return symbol !== undefined && symbol === this.whole;
   }
 
   private use(name: ts.Identifier) {
@@ -264,13 +310,15 @@ class Reader {
     this.useDep(name, this.bound.get(symbol));
   }
 
-  /** Every use in the node's code, a callback's body too. */
+  /**
+   * Every use in the node's code, a callback's body too. Each destructure of the deps binds
+   * first, so a use the code reads before it (in a callback) still counts.
+   */
   read(node: ts.Node) {
-    const visit = (child: ts.Node) => {
-      if (ts.isIdentifier(child)) this.use(child);
-      ts.forEachChild(child, visit);
-    };
-    visit(node);
+    eachName(node, (name) => {
+      if (destructured(name) && this.isWhole(name)) this.bind(name.parent.name);
+    });
+    eachName(node, (name) => this.use(name));
     return this.facts;
   }
 }
@@ -283,18 +331,12 @@ function functionOf(run: ts.ObjectLiteralElementLike) {
   return ts.isArrowFunction(value) || ts.isFunctionExpression(value) ? value : undefined;
 }
 
-/**
- * What one operation's `run` touches. A `run` written elsewhere may touch any of its deps: each
- * set a dep may hide facts in gets `?`.
- */
+/** What one operation's `run` touches. A `run` written elsewhere may touch any of its deps. */
 function factsOf(checker: ts.TypeChecker, { options, run }: Exits.Operation): Facts {
   const fn = functionOf(run);
   const [param] = fn?.parameters ?? [];
   const reader = new Reader(checker, depsOf(checker, options, param), param);
-  if (fn?.body) return reader.read(fn.body);
-
-  reader.hideAll();
-  return reader.facts;
+  return fn?.body ? reader.read(fn.body) : reader.hideRun();
 }
 
 const listed = (name: string, items: Iterable<string>) => `${name}{${[...items].sort().join(",")}}`;

@@ -131,19 +131,25 @@ way the graph cannot follow:
 
 - a dep handed on: passed to a function, put in
   an array or an object, or given another name;
-- the deps handed on whole, or a rest
-  `{ a, ...others }` taken from them;
+- the deps handed on whole, a rest
+  `{ a, ...others }` taken from them, or a key
+  the graph cannot read, such as `{ [key]: x }`;
 - a call on a dep the graph does not know, such
   as `list.watch(…)`;
 - a dep the graph cannot name: a member of a
   capsule or a contract (`seaApi["clock.now"]`),
   a cell whose label is not written as a string,
   an `atScope` or `atNamespace` controller;
+- a tag dep: a tag may hold a unit (ADR 0151);
 - a `run` passed by name, not written in place.
+  With a dep the graph cannot name, every set
+  gets `?`.
 
 The `?` goes in each set that dep can touch: a
 cell in `reads` and `writes`, a read in `reads`,
-an operation in `calls`.
+an operation in `calls`. For a dep the graph
+cannot name, or a tag, its type in `run` says
+which.
 
 `tinker graph --write` writes the graph to
 `tinker.graph`. Commit that file. Then the check
