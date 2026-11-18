@@ -3,7 +3,8 @@
 Each section is one release of
 `@tinkered/core`, `@tinkered/react`,
 `@tinkered/bun`, `@tinkered/cli` and
-`@tinkered/entry` (from 0.29.1).
+`@tinkered/entry` (from 0.29.1), and
+`@tinkered/devtools` (new).
 Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.

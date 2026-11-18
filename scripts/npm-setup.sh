@@ -16,7 +16,7 @@ set -euo pipefail
 
 REPO=lagz0ne/tinkered
 WORKFLOW=release.yml
-PACKAGES=(core react bun cli entry)
+PACKAGES=(core react bun cli entry devtools)
 NPM="npx --yes npm@12.2.2"
 
 VERSION=${1:-$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" |
