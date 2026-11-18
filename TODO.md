@@ -86,9 +86,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: a Core test that closes the scope while a source is pending, then settles it; then stop `wake` from building on a closed layer.
   Verify: that test fails on main and passes; no build runs after the close.
 
-- **core/resource-cycle-holds-close** — bug 7 in [docs/states](docs/states/resource-life/README.md). A reads B, B reads A: CircularResource is raised, but each instance holds the other, so `close()` stays open (ADR 0027, ADR 0011). Next: move path 3 of `paths/resource-life-paths.test.ts.txt` into Core's tests (it fails), then fix the holds the cycle leaves (`holdDependency` in `packages/core/src/index.ts`).
-  Verify: the path test for path 3 passes; the resource-life check with `cycle.cfg` shows CloseResolves holds.
-
 - **core/close-from-defer-skips-hooks** — bug 8 in [docs/states](docs/states/session-life/README.md). A session's defer calls `root.close()`: the root sees a re-entrant close (`closeWouldReenter`), skips the capsule close hook (ADR 0104), and starts a forced close, so the app's `close({ graceful: true })` turns forced (ADR 0029 d1). One cause, two rules. Next: move the CloseHookRunsOnce and FirstModeWins tests of `paths/statechart-session-life.test.ts.txt` into Core's tests (they fail), then fix the re-entrant close path (`closeWouldReenter`, `watchRootClose` in `packages/core/src/index.ts`).
   Verify: those two path tests pass; the session-life check shows CloseHookRunsOnce and FirstModeWins hold.
 
@@ -115,10 +112,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/resource-failed-stays** — bug 6 in [docs/states](docs/states/resource-life/README.md). After a failed sync build, `failed` stays on the instance; the next good build reuses it, so its release (or close) ends `failed` (ADR 0063 d3, d6). Next: move paths 1 and 2 of `paths/resource-life-paths.test.ts.txt` into Core's tests (they fail), then fix how `failed` stays (`settleResourceInstance`, `unlinkInstance` in `packages/core/src/index.ts`).
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/resource-failed-stays`.
-  Note: it moves only paths 1 and 2; path 3 is `core/resource-cycle-holds-close`.
-  Verify: the path tests for paths 1 and 2 pass; the resource-life check shows GoodBuildReleaseEndsReleased and GoodBuildCloseEndsWithClose hold.
+- **core/resource-cycle-holds-close** — bug 7 in [docs/states](docs/states/resource-life/README.md). A reads B, B reads A: CircularResource is raised, but each instance holds the other, so `close()` stays open (ADR 0027, ADR 0011). Next: move path 3 of `paths/resource-life-paths.test.ts.txt` into Core's tests (it fails), then fix the holds the cycle leaves (`holdDependency` in `packages/core/src/index.ts`).
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/resource-cycle-holds-close`.
+  Verify: the path test for path 3 passes; the resource-life check with `cycle.cfg` shows CloseResolves holds.
 
 ## Review
 
@@ -176,6 +172,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/resource-failed-stays** — done 2026-11-18 (bug 6, [resource-life](docs/states/resource-life/README.md); ADR 0063 d3, d6; ADR 0026 Q4). A good build after a failed sync build ends with the release or the close; each build's ends run with that build's end, and two failed builds keep their own errors. A failure wraps only its own hooks, once. The sync and the async close share one path (an async close runs sync ends in one job, same order). Fix `b9bec7b5`, fix round `2d0dfc60`. Released as 0.31.4.
+  Proof: paths 1 and 2 in `packages/core/tests/statechart/resource-life-paths.test.ts`, red on main, green; a test that each failed build's hook runs once with its own failure, red on main; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,224 B within 23,232 B; core mutation 86.09 on `657d6aca` by the lead (kills alone 85.2; core source byte-identical to the landed head). Opus convention-review NOT READY (repeated failures cost O(k²): 5,000 took 3 s), one fix round, READY (20,000 failures 439 ms).
 
 - **core/keyed-watch-after-close** — done 2026-11-18 (bug 2, [keyed-resource](docs/states/keyed-resource/README.md) cause B; ADR 0157 d5). A held keyed reader's `get()` and first `watch()` call `ensureOpen` before they build, so a read after the close throws `Disposed` and builds nothing. Fix `ff565316`. Released as 0.31.3.
   Proof: paths 3 and 4 moved to `packages/core/tests/statechart/keyed-resource-paths.test.ts`, red on main (`waiting: ["build 2"]`), green; a new `get()` test red without its guard; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the branch and on it rebased onto the round-stuck fix (size 23,225 B within 23,232 B); core mutation 86.41 on `160629f2` by the lead (kills alone 85.05; core source byte-identical to the landed head). Opus convention-review NOT READY (size proof, two doc lines, a red log), one fix round, verified by the lead. No bench: no probe scenario reads a keyed resource; the review judged one `layer.closed` check per `get()` small next to the inputs `fresh()` already reads.

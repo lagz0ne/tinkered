@@ -22,12 +22,12 @@
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 414,
-    "medianTrue": 0.89,
-    "medianFalse": 0.56,
-    "separation": 0.33,
-    "ordered": 0.97,
-    "at": "2026-10-13"
+    "falses": 426,
+    "medianTrue": 0.91,
+    "medianFalse": 0.45,
+    "separation": 0.46,
+    "ordered": 0.98,
+    "at": "2026-11-18"
   },
   "configNotTag": {
     "status": "provisional",
@@ -42,12 +42,12 @@
   "handRolledLifetime": {
     "status": "provisional",
     "trues": 4,
-    "falses": 65,
-    "medianTrue": 0.74,
-    "medianFalse": 0.03,
-    "separation": 0.71,
-    "ordered": 0.93,
-    "at": "2026-10-11"
+    "falses": 67,
+    "medianTrue": 0.88,
+    "medianFalse": 0.02,
+    "separation": 0.85,
+    "ordered": 1,
+    "at": "2026-11-18"
   },
   "stopOnlyInDefer": {
     "status": "provisional",
@@ -202,22 +202,22 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 61,
-    "medianTrue": 0.79,
-    "medianFalse": 0.62,
-    "separation": 0.17,
-    "ordered": 0.77,
+    "falses": 63,
+    "medianTrue": 0.81,
+    "medianFalse": 0.61,
+    "separation": 0.2,
+    "ordered": 0.8,
     "at": "2026-11-18"
   },
   "waitsOnSideWork": {
     "status": "provisional",
     "trues": 1,
-    "falses": 61,
-    "medianTrue": 0.69,
-    "medianFalse": 0.54,
-    "separation": 0.15,
-    "ordered": 0.98,
-    "at": "2026-10-12"
+    "falses": 74,
+    "medianTrue": 0.79,
+    "medianFalse": 0.56,
+    "separation": 0.23,
+    "ordered": 1,
+    "at": "2026-11-18"
   },
   "recomputesSameValue": {
     "status": "provisional",
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 1,
-    "falses": 108,
-    "medianTrue": 0.56,
-    "medianFalse": 0.6,
-    "separation": -0.04,
-    "ordered": 0.36,
-    "at": "2026-10-12"
+    "falses": 123,
+    "medianTrue": 0.55,
+    "medianFalse": 0.63,
+    "separation": -0.08,
+    "ordered": 0.31,
+    "at": "2026-11-18"
   }
 }

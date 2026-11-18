@@ -9,6 +9,24 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.4
+
+A good build after a failed one ends as the
+release or the close says (bug 6, ADR 0063).
+
+- A resource whose sync build throws, then
+  builds well on the next resolve, used to end
+  that good build `failed` at its release or
+  close.
+- Now each build's ends run with that build's
+  end: the failed build's with `failed`, the
+  good build's with `released` or the close's
+  status.
+- Two failed builds each keep their own error.
+- The sync and the async close share one path.
+  An async close now runs sync ends in one job,
+  in the same order.
+
 ## 0.31.3
 
 A keyed resource read held past its scope's
