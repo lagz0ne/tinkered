@@ -26,3 +26,13 @@
 - Not done by 14:00 UTC: the mutation lane (the
   lock was busy) and `calibrate.mjs` (stopped
   after 5 min). So not pushed yet.
+- 2026-11-18 14:06: the lane ran no test. The
+  sandbox left out `tsconfig.json`, so `@/index`
+  read the real `src`. Fix: the `@` alias to the
+  package's own `src`, as cli has (fc589f22).
+- First real lane: 79.62. A lift by an Opus
+  writer (c79f6912): 98.04, on kills alone.
+- Left alive: the `handle.id` guard (the tap is on
+  before any session, so no test reaches it) and
+  the listener rethrow (only the dist child test
+  reaches it).
