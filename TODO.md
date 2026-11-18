@@ -25,14 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **cli/graph** (lead: CUJ eval thread). ADR 0161: `tinker graph --write`,
-  stage `graph`, rule `tinker/graph`, skill section.
-  Next: after cli/page-guard lands, a writer builds it (scratch proof:
-  /mnt/project-files/cuj-eval/static-graph/exit-writes.cjs).
-  Verify: the stale-writes and exists-joins seeded apps each give one
-  `tinker/graph` finding; the golden app gives none; cli tests, skills,
-  mutation 85.
-
 - **core/round-stuck-after-eq-throw** — bug 5 in [docs/states](docs/states/round/README.md). A user `eq` that throws in a write's first round leaves `inRound` true (`tellWrite` has no `finally`); after that no watcher in the process hears any write. Next: move `paths/round-stuck.test.ts.txt` into Core's tests (it fails), then end the round on that throw. ADR 0152 keeps the try out of the hot write (about 5 ns per write, see the comment at `watcherThrew` in `packages/core/src/index.ts`), so the fix sits where `eq` is called (`flushOne`, `pendingNsWatchers`) or on the throw path; a timing claim goes through `N=61 bench/queued.sh`.
   Verify: the round path test passes; the round check shows RoundEndsAtRest and EveryWatcherTold hold; the bench verdict is "no difference we can see".
 
@@ -133,20 +125,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **cli/link-rule** (writer: Opus 5.5, branch `cli-link-rule`; lead: CUJ eval
-  thread). Rule `tinker/link`: a JSX `<a>` whose `href` is an in-app path
-  reloads the page (CUJ run 5: 3 of 10 writers, 13 journeys lost).
-  Precedent: Next.js `no-html-link-for-pages`. Fix text from the React skill.
-  Saved: 7cfffdd5..5dea20a5 (review round 1 in 5dea20a5).
-  Mutation on 5dea20a5, clean tree: `link.ts` 116/121 killed (95.9%) on
-  kills alone. `check.ts:164` (the one added line): 4 mutants timed out
-  under box load, none survived. The next full `cli` lane covers
-  `check.ts` (lead, option A).
-  Next: a reviewer re-checks 5dea20a5; the lead lands.
-  Verify: muse-1's `board.tsx` in a template copy gives one `tinker/link`
-  at its `<a href>` line; the template's own board gives none; cli tests,
-  skills, prose, mutation 85.
-
 - **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` empties the frame buffer `out`, so a call failed as `link, sent: false` is never sent.
   Owner: Opus lead (statechart fixes); Haiku writer (started before the Opus-writer rule); Opus reviewer.
   Branch `bun/client-drop-keeps-frames`, head `5b7ba13f` (fix `54169f91`), worktree `../tinkered-client-drop-keeps-frames`.
@@ -202,6 +180,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **cli/graph** — done 2026-11-18 (ADR 0161, amended 2026-11-17: facts only). `tinker graph [root]` prints one line per operation: its exits, and what its `run` reads, writes and calls, by label; `?` where the graph could not see. `--write` writes `tinker.graph`; the `tinker check` stage `graph` gives a `tinker/graph` finding for each line that differs. `apps/site` commits its `tinker.graph`. Released as 0.31.0.
+  Proof: Opus review READY after three fix rounds; cli 141 tests; gates on the landed tree (build, `vp check`, `vp run -r test`, skills, prose, site `tinker check: OK`); cli mutation lane on `d2655d42` in 4 parts, clean tree, 2702/3143 = 85.97 on kills alone; `graph.ts` 353/404 = 87.38 on kills alone on `94c2512d`.
+
+- **cli/link-rule** — done 2026-11-18. `tinker check` rule `tinker/link`: a plain `<a href>` to an app page reloads the page, so it is a finding; a server path takes `rel="external"` (CUJ run 5: 3 of 10 writers, 13 journeys lost). Precedent: Next.js `no-html-link-for-pages`. Released as 0.31.0.
+  Proof: Opus review READY on `5dea20a5`; `link.ts` 116/121 killed (95.9%) on kills alone, clean tree; `check.ts:164` (the one added line): 4 mutants timed out under box load, none survived, accepted (lead, option A).
 
 - **cli/page-guard** — done 2026-11-16 (ADR 0160). `pageGuard()` from `@tinkered/cli/vite` refuses server code in a page build; `tinker check` has `tinker/barrel` for `src` and `cmds`; no skill teaches a feature door; `apps/site` has no barrel. Released as 0.30.1.
   Proof: cli 129 tests, site 145 tests and `tinker check: OK`; cli mutation by part on `5bcd25bc` (cli source byte-identical after the rebase): part C (the changed files and the small ones) 92.59, kills alone 71.97 (timeouts are slow `tsc` stage tests on a busy box); part A (`plain`, `closure`, `tree`) 89.82, kills alone 84.74; part B (`tools`, `main`) follows as confirmation.

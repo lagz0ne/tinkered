@@ -8,6 +8,26 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.0
+
+`tinker graph` prints facts, and `tinker check`
+flags a plain in-app link (ADR 0161).
+
+- `tinker graph [root]` prints one line per
+  operation: its exits, and what its `run`
+  reads, writes and calls, each by label.
+  `--write` writes `tinker.graph`.
+- `tinker check` has a new stage, `graph`. Each
+  line that differs from `tinker.graph` is a
+  `tinker/graph` finding.
+- The graph is facts only, one line per op. A
+  `?` in a set means the graph could not see.
+- `tinker check` has a new rule, `tinker/link`.
+  A plain `<a href>` to an app page is a
+  finding. A server path takes
+  `rel="external"`.
+- `apps/site` commits its `tinker.graph`.
+
 ## 0.30.1
 
 A page build refuses server code, and app code
