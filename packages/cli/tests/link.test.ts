@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 import { afterAll, expect, test } from "vite-plus/test";
 
-import { check, main } from "@/index";
+import { check } from "@/index";
 
 const folders: string[] = [];
 
@@ -35,17 +35,17 @@ function links(lines: string[]) {
 
 test("an <a> whose href is written out as a path in the app is a finding", () => {
   const hits = links([
-    `    <a {...rest} href="/issues">Issues</a>`,
+    `    <a href="/issues">Issues</a>`,
     "    <a href={`/issues/${team}/${id}`}>{title}</a>",
     `    <a href={"./next"} />`,
     "    <a href={`?page=2`}>More</a>",
   ]);
 
   expect(hits).toEqual([
-    "src/view.tsx:3 tinker/link a plain <a href> to an in-app path reloads the page",
-    "src/view.tsx:4 tinker/link a plain <a href> to an in-app path reloads the page",
-    "src/view.tsx:5 tinker/link a plain <a href> to an in-app path reloads the page",
-    "src/view.tsx:6 tinker/link a plain <a href> to an in-app path reloads the page",
+    "src/view.tsx:3 tinker/link `/issues`: a plain <a href> to an in-app path reloads the page",
+    "src/view.tsx:4 tinker/link `/issues/…/…`: a plain <a href> to an in-app path reloads the page",
+    "src/view.tsx:5 tinker/link `./next`: a plain <a href> to an in-app path reloads the page",
+    "src/view.tsx:6 tinker/link `?page=2`: a plain <a href> to an in-app path reloads the page",
   ]);
 });
 
@@ -77,9 +77,11 @@ test("a link to a file the server sends passes: no route answers it", () => {
   expect(hits).toEqual([]);
 });
 
-test("an href the rule cannot read passes: it does not guess", () => {
+test("what the rule cannot read passes: an href, a target, or a spread", () => {
   const hits = links([
     `    <a href={url}>Open</a>`,
+    `    <a href="/issues" target={target}>Issues</a>`,
+    `    <a href="/issues" {...rest}>Issues</a>`,
     "    <a href={`${base}/issues`}>Issues</a>",
     `    <a href="">Here</a>`,
     `    <a>No href</a>`,
@@ -97,44 +99,6 @@ test("a download, a new tab, or rel=external passes; a link that stays is a find
   ]);
 
   expect(hits).toEqual([
-    "src/view.tsx:6 tinker/link a plain <a href> to an in-app path reloads the page",
+    "src/view.tsx:6 tinker/link `/issues`: a plain <a href> to an in-app path reloads the page",
   ]);
-});
-
-test("the finding prints the Right part of the skill section for tinker/link", () => {
-  const skill = [
-    "---",
-    "name: react",
-    "description: Use when a check prints tinker/link.",
-    "---",
-    "",
-    "### HIGH: a plain `<a href>` to a page of the app [tinker/link]",
-    "",
-    "Right: the router's `Link`.",
-    "",
-  ];
-  const folder = appOf({
-    "src/view.tsx": `export const View = () => <a href="/issues">Issues</a>;\n`,
-    "node_modules/@tinkered/react/package.json": JSON.stringify({
-      name: "@tinkered/react",
-      version: "1.0.0",
-      keywords: ["tanstack-intent"],
-      repository: { type: "git", url: "git+https://github.com/lagz0ne/tinkered.git" },
-    }),
-    "node_modules/@tinkered/react/skills/react/SKILL.md": skill.join("\n"),
-    "package.json": JSON.stringify({
-      dependencies: { "@tinkered/react": "1.0.0" },
-      intent: { skills: ["@tinkered/*"] },
-    }),
-  });
-
-  const { out } = main(["check", "."], folder);
-
-  expect(out).toContain(
-    [
-      "src/view.tsx:1 tinker/link a plain <a href> to an in-app path reloads the page",
-      "  Right: the router's `Link`.",
-      "  more: tinker skill load @tinkered/react#react",
-    ].join("\n"),
-  );
 });

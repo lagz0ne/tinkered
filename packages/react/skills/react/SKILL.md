@@ -257,8 +257,9 @@ Wrong:
 A click loads the whole page again. The scope
 and every cell start over.
 
-Right: the router's `Link`, with the route's
-path and its params:
+Right: a page link is the router's `Link`.
+A server path, such as `/auth/login`: add `rel="external"`.
+The `Link` takes the route's path and params:
 
 ```tsx no-check
 <Link to="/issues/$team/$id" params={{ team, id }}>

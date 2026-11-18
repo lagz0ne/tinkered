@@ -327,9 +327,10 @@ Intent finds them (ADR 0143).
 - `tinker/link` — a page has no plain `<a>` to
   a path in the app: `/issues`, `./next`. A
   click loads the whole page, so the app state
-  is lost. Use the router's `Link`. A link to
-  another site or to a file, `#top`, a
-  download, a new tab, or an `href` the rule
+  is lost. Use the router's `Link`.
+  A server path, such as `/auth/login`: add `rel="external"`.
+  A link to another site or to a file, `#top`,
+  a download, a new tab, or what the rule
   cannot read passes.
 
 A page file is a file in `src/` with no `.server`
