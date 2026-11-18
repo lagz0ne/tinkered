@@ -42,11 +42,19 @@ Words:
 TLC reached 1,689 states,
 more than the chart budget of 500.
 So the chart draws only the bug paths.
+The spec, the chart and the rerun
+still describe `c9c8817`,
+before the bug 8 fix.
+So they still show 3 rules break.
 
-- **CloseHookRunsOnce** — breaks. ADR 0104
+- **CloseHookRunsOnce** — holds, since `46fdf9da`
+  (card `core/close-from-defer-skips-hooks`).
+  ADR 0104
   ("Also from ADR 0085: a root's close hooks run
   once, cannot skip cleanup").
-- **FirstModeWins** — breaks. ADR 0029 d1.
+- **FirstModeWins** — holds, since `46fdf9da`
+  (card `core/close-from-defer-skips-hooks`).
+  ADR 0029 d1.
 - **HandleDeadAfterBody** — breaks. ADR 0071 d1.
 - **ChildrenCloseFirst** — holds.
   ADR 0011 ("Children first"),
@@ -148,9 +156,17 @@ true only once the root closed.
 
 ## Bug 8: a close from a session's defer skips the hook
 
-Card `core/close-from-defer-skips-hooks`.
+Card `core/close-from-defer-skips-hooks` fixes it
+(`46fdf9da`).
 Rules: CloseHookRunsOnce, FirstModeWins.
 One cause, two rules.
+The paths below name the code before the fix.
+
+The fix: the first root close runs the hooks,
+even from a defer.
+A later close joins it.
+A re-entrant call still gets the ack at once.
+The hook's `next()` gets Core's real close.
 
 A session's defer calls `root.close()`.
 The root sees a re-entrant close
@@ -233,9 +249,19 @@ the same leaked handle is refused.
 
 `paths/` goes to `packages/core/tests/statechart/`.
 
+- `session-life-paths.test.ts` — paths 1 and 2,
+  now in `packages/core/tests/statechart/`.
+  They pass since `46fdf9da`.
+  They failed before: that showed bug 8.
+  Path 1's comment "the hook still never ran"
+  now says "the hook ran once".
+  Its assertion did not change.
+- `closing.test.ts` pinned the skipped hook
+  (`calls` was `[]`).
+  It now expects one `close hook`.
 - `statechart-session-life.test.ts.txt` —
-  today 3 of 4 fail (paths 1 to 3).
-  A fail shows the bug.
+  path 3 and its control are left.
+  Path 3 fails today: it shows bug 9.
   The control passes.
 - `statechart-no-rule.test.ts.txt` — today
   all 4 pass. They pin what the code does
@@ -245,20 +271,21 @@ the same leaked handle is refused.
   (test "no rule 3").
 
 Card `core/close-from-defer-skips-hooks`
-moves the CloseHookRunsOnce
-and FirstModeWins tests in, without the `.txt`.
+moved the CloseHookRunsOnce
+and FirstModeWins tests in:
+it cut them from the `.txt`.
 Card `core/session-handle-after-body`
 moves the HandleDeadAfterBody test
 and the control in.
 `statechart-no-rule` waits for Duke's rule
 (card `core/states-rules-undecided`).
 
-Once moved, run:
+Run:
 
 ```sh
 cd packages/core
 vp test \
-  tests/statechart/statechart-session-life.test.ts
+  tests/statechart/session-life-paths.test.ts
 ```
 
 ## No rule yet
@@ -307,6 +334,10 @@ What the code does today:
 
 Test: `statechart-no-rule.test.ts.txt`,
 "no rule 2". It passes today.
+Since `46fdf9da`, a root with a close hook
+runs that hook first (bug 8).
+"no rule 2" has no hook,
+so it did not change.
 
 ## What the spec leaves out
 
@@ -333,3 +364,5 @@ statechart SessionLife.tla \
 ```
 
 Exit 1 today: 3 rules break.
+The spec still describes `c9c8817`,
+so it does not see the bug 8 fix.
