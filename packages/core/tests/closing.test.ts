@@ -120,7 +120,7 @@ test("closed settles when a session cleanup makes the first root close", async (
 
   await expect.poll(() => result?.status).toBe("success");
   expect((await closed).status).toBe("success");
-  expect(calls).toEqual([]);
+  expect(calls).toEqual(["close hook"]);
 });
 
 test("a root without a stop signal closes from a session cleanup", async () => {

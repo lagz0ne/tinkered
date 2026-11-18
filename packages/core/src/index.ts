@@ -4616,10 +4616,14 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
    * hang, no throw — ADR 0026 Q3, 0027/0028). The real settled `Result` is `layer.closing`.
    * A session that ended in place holds the shared marker; a late `close()` on its handle gets a
    * clean `Result` of its own the same way (it recorded no failure and was not cancelled). */
-  if (layer.closing === ENDED_CLEAN || closeWouldReenter(layer)) {
-    return Promise.resolve(buildResult(bestEffort(layer), layer, undefined));
-  }
+  if (layer.closing === ENDED_CLEAN || closeWouldReenter(layer)) return ackClose(layer);
   return tapSessionHooks(hooks, layer.closing);
+}
+
+/** The request-only ack a re-entrant close gets: an already-resolved best-effort `Result`, so a
+ * close from within a teardown never waits on itself (ADR 0026 Q3). */
+function ackClose(layer: Layer): Promise<Scope.Result> {
+  return Promise.resolve(buildResult(bestEffort(layer), layer, undefined));
 }
 
 /** Never throws, whatever `settled` holds: a `close()` always resolves to a `Result` (ADR 0027). */
@@ -6843,7 +6847,9 @@ type RootLifetime = {
 };
 
 /** Retain the first close before callbacks. Hooks keep onion order but cannot skip cleanup
- * or replace Core's Result; their throws become teardown errors (ADR 0085). */
+ * or replace Core's Result; their throws become teardown errors (ADR 0085). The first close runs
+ * the hooks once and its mode wins, even when a defer calls it (ADR 0104, 0029 d1); a re-entrant
+ * call gets {@link ackClose}, while the hooks' `next()` gets Core's real close. */
 function watchRootClose(
   layer: Layer,
   scope: Scope.Handle & { readonly closed?: Promise<Scope.Result> },
@@ -6853,56 +6859,49 @@ function watchRootClose(
   return (options = {}) => {
     lifetime.stopStart?.();
     lifetime.detach?.();
-    const close = (): Promise<Scope.Result> =>
-      closeLayer(layer, !options.graceful, options.withData === true);
+    if (!lifetime.closing) {
+      lifetime.closing =
+        scope.closed ??
+        new Promise<Scope.Result>((resolve) => {
+          lifetime.finish = resolve;
+        });
 
-    if (closeWouldReenter(layer)) {
-      const ended = close();
-      lifetime.closing ??= layer.closing!.then((result) => {
-        lifetime.finish?.(result);
-        return result;
-      });
-      return ended;
+      layer.swept = true;
+      markSwept(layer);
+      beginClosing(layer);
+
+      const at = (index: number): Promise<Scope.Result> => {
+        if (index >= closers.length) {
+          return closeLayer(layer, !options.graceful, options.withData === true).then(
+            () => layer.closing!,
+          );
+        }
+        const closer = closers[index];
+        let pending: Promise<Scope.Result> | undefined;
+        const next = (): Promise<Scope.Result> => (pending ??= at(index + 1));
+        return (async () => {
+          try {
+            await closer.hooks.close!(new CloseEvent(layer, closer, options, next));
+          } catch (error) {
+            addError(layer, error);
+          }
+          return next();
+        })();
+      };
+
+      ignoreRejection(
+        at(0).then((ended) => {
+          lifetime.finish!(
+            layer.errors.length
+              ? { ...ended, teardownErrors: [...(ended.teardownErrors ?? []), ...layer.errors] }
+              : ended,
+          );
+          layer.errors.length = 0;
+        }),
+      );
     }
 
-    if (lifetime.closing) return lifetime.closing;
-    lifetime.closing =
-      scope.closed ??
-      new Promise<Scope.Result>((resolve) => {
-        lifetime.finish = resolve;
-      });
-
-    layer.swept = true;
-    markSwept(layer);
-    beginClosing(layer);
-
-    const at = (index: number): Promise<Scope.Result> => {
-      if (index >= closers.length) return close();
-      const closer = closers[index];
-      let pending: Promise<Scope.Result> | undefined;
-      const next = (): Promise<Scope.Result> => (pending ??= at(index + 1));
-      return (async () => {
-        try {
-          await closer.hooks.close!(new CloseEvent(layer, closer, options, next));
-        } catch (error) {
-          addError(layer, error);
-        }
-        return next();
-      })();
-    };
-
-    ignoreRejection(
-      at(0).then((ended) => {
-        lifetime.finish!(
-          layer.errors.length
-            ? { ...ended, teardownErrors: [...(ended.teardownErrors ?? []), ...layer.errors] }
-            : ended,
-        );
-        layer.errors.length = 0;
-      }),
-    );
-
-    return lifetime.closing;
+    return closeWouldReenter(layer) ? ackClose(layer) : lifetime.closing;
   };
 }
 
