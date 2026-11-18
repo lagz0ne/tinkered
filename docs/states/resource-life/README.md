@@ -48,12 +48,12 @@ The spec, the charts and the rerun
 still describe `c9c8817`, before the bug 6 fix.
 So they still show 3 rules break.
 
-- **GoodBuildReleaseEndsReleased** — holds, since `98dd62e4`
+- **GoodBuildReleaseEndsReleased** — holds, since `b9bec7b5`
   (card `core/resource-failed-stays`).
   ADR 0063 d3, ADR 0026 Q4.
   A release fixes the end to `released`.
   A build the release picks ends `released`.
-- **GoodBuildCloseEndsWithClose** — holds, since `98dd62e4`
+- **GoodBuildCloseEndsWithClose** — holds, since `b9bec7b5`
   (card `core/resource-failed-stays`).
   ADR 0063 d6.
   Close unlinks every instance
@@ -206,7 +206,7 @@ true only in the end states.
 ## Bug 6: a good build ends `failed`
 
 Card `core/resource-failed-stays` fixes it
-(`98dd62e4`).
+(`b9bec7b5`).
 Rules: GoodBuildReleaseEndsReleased,
 GoodBuildCloseEndsWithClose.
 
@@ -291,7 +291,7 @@ Only the close hang breaks a rule.
 
 - `resource-life-paths.test.ts` — paths 1 and 2,
   now in `packages/core/tests/statechart/`.
-  They pass since `98dd62e4`.
+  They pass since `b9bec7b5`.
   They failed before: that showed bug 6.
 - Path 1 also checks the case with no rule yet:
   `expect(ended).toEqual([])` after step 1.

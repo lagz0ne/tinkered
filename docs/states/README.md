@@ -97,7 +97,7 @@ so main stays green.
   Card: `core/round-stuck-after-eq-throw`.
   2 cases with no rule yet.
 - **resource-life** — 1 rule breaks now
-  (fix `98dd62e4`); the spec still shows 3.
+  (fix `b9bec7b5`); the spec still shows 3.
   Cards: `core/resource-failed-stays`,
   `core/resource-cycle-holds-close`.
   1 case with no rule yet.
