@@ -24,14 +24,14 @@ The spec, the chart and the rerun
 still describe `c9c8817`, before the fix.
 So they still show 2 rules break.
 
-- **RoundEndsAtRest** — holds since fix `4fae3572`
-  (card `core/round-stuck-after-eq-throw`).
+- **RoundEndsAtRest** — holds after card
+  `core/round-stuck-after-eq-throw`.
   ADR 0152 d3 (and d1).
   A round that waits runs after the rounds before it.
   So when no call runs, no round waits,
   and the round flag is off.
-- **EveryWatcherTold** — holds since fix `4fae3572`
-  (card `core/round-stuck-after-eq-throw`).
+- **EveryWatcherTold** — holds after card
+  `core/round-stuck-after-eq-throw`.
   ADR 0152 d1, d3.
   Each watcher hears each write, in order.
   Excused, as the ADR allows:
@@ -115,13 +115,16 @@ such as "a watcher hears the write".
 
 ## The bug (bug 5)
 
-Card `core/round-stuck-after-eq-throw`.
-Fixed in `4fae3572`: `data()` wraps a cell's
-own eq once, when the cell is made.
-A throw goes to `watcherThrew`,
-which ends the round and turns the flag off.
+Card `core/round-stuck-after-eq-throw` fixes it.
+When a cell is made, Core wraps its own eq once,
+for the telling only.
+In the telling, a throw from that eq
+goes to `watcherThrew`.
+That ends the round and turns the flag off.
 The default `Object.is` cannot throw,
-so it stays as it is.
+so it is not wrapped.
+The write's own compare, before its round,
+still calls the eq as it is.
 The lines below name the code before the fix.
 
 `tellWrite` sets `inRound = true`
@@ -160,15 +163,17 @@ The path test sets it up this way:
 
 - `round-stuck.test.ts` — now in
   `packages/core/tests/statechart/`.
-  It passes since `4fae3572`.
+  It passes after the card.
   It failed before: that showed the bug.
 - `round-eq-throw.test.ts`, next to it,
-  holds 3 more cases:
+  holds 4 more cases:
   - an eq throw in a namespaced write
     (it failed before the fix too);
   - an eq throw in a waiting round;
   - an eq throw in a watcher's write,
-    before that write's round.
+    before that write's round;
+  - a watcher catches that throw:
+    its round goes on, in order.
 - `paths/round-no-rule-yet.test.ts.txt` — today
   both tests pass. They pin what the code does
   for the 2 cases with no rule yet.
