@@ -237,6 +237,30 @@ test("a good build after a failed sync build ends released, and the failed one k
   await scope.close();
 });
 
+test("each failed sync build's hook runs once with its own failure (bug 6)", async () => {
+  const causes = [new Error("build 1"), new Error("build 2"), new Error("build 3")];
+  const ended: unknown[] = [];
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    factory: (_deps, ctx) => {
+      const build = builds++;
+      ctx.defer((end) => void ended.push(end.status === "failed" ? end.error : end.status));
+      if (build < causes.length) throw causes[build];
+      return build;
+    },
+  });
+  const scope = createScope();
+  for (const cause of causes) expect(() => scope.resolve(client)).toThrow(cause);
+  expect(scope.resolve(client)).toBe(3);
+
+  scope.release(client);
+
+  expect(ended).toEqual(["released", ...causes.toReversed()]);
+  for (const [at, cause] of causes.toReversed().entries()) expect(ended[at + 1]).toBe(cause);
+  await scope.close();
+});
+
 test("interleaved resource hooks keep reverse registration order", async () => {
   const order: string[] = [];
   const b = resource({

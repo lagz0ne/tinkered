@@ -32,8 +32,9 @@ Two configs:
 
 Words:
 
-- **instance** — one build's lifetime record
-  (`ResourceInstance`). Its ends run with one end.
+- **instance** — one lifetime record
+  (`ResourceInstance`). A build after a failed one
+  reuses it. Each build's ends run with that build's end.
 - **end** — the status a deferred end gets:
   `released`, `failed`, or the close's status.
 - **hold** — a dependent's instance holds
@@ -214,8 +215,10 @@ The next good build reused that instance.
 Its release (and its close) ended as `failed`.
 
 The fix: when a build fails,
-Core fixes the end of that build's ends
-to `failed` at once (`keepFailedEnds`).
+Core gives that build's ends the end `failed`
+at once (`keepFailedEnds`).
+It wraps only that build's ends,
+so an earlier failed build's ends keep their own.
 The instance keeps no `failed` mark.
 So a later good build's ends get the release's
 or the close's end.

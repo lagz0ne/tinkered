@@ -1543,7 +1543,8 @@ type ResourceState = NodeState | NsResourceState;
 type ResourceInstance = {
   layer: Layer;
   target: Resource.Handle<unknown>;
-  hooks: ((end: Scope.End) => void | PromiseLike<void>)[];
+  /** The same entries as the layer's list, so a fix to one is a fix to both. */
+  hooks: DeferEntry[];
   needs: Set<ResourceInstance> | undefined;
   /** Runs that borrow this instance now (ADR 0026 Q2). */
   borrows: number;
@@ -1552,6 +1553,8 @@ type ResourceInstance = {
   users: number;
   busy: boolean;
   end: Scope.End | undefined;
+  /** The first hooks, from failed builds, already end `failed` ({@link keepFailedEnds}). */
+  failedHooks: number;
   ending: boolean;
   left: number | undefined;
   done: Promise<void> | undefined;
@@ -3623,8 +3626,9 @@ class ResourceCtx implements Resource.Ctx {
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     if (this.settled()) raise("Disposed", { reason: "resource factory already finished" });
-    this.owned.hooks.push(fn);
-    addDefer(this.layer, { fn, owned: this.owned });
+    const entry = { fn, owned: this.owned };
+    this.owned.hooks.push(entry);
+    addDefer(this.layer, entry);
   };
   get obs(): Observe.Ctx {
     return (this.tools ??= obsCtx(this.layer, this.span));
@@ -3707,6 +3711,7 @@ function instanceOf(
       users: 0,
       busy: state.busy,
       end: undefined,
+      failedHooks: 0,
       ending: false,
       left: undefined,
       done: undefined,
@@ -3723,7 +3728,7 @@ function hasPresetLayers(layer: Layer): boolean {
 }
 
 function hasRetainedInstance(state: ResourceState): boolean {
-  return !!state.owned?.hooks.length || !!state.owned?.needs?.size;
+  return !!(state.owned?.hooks.length || state.owned?.needs?.size);
 }
 
 function needsHold(owner: Layer, target: Resource.Handle<unknown>, state: ResourceState): boolean {
@@ -3806,7 +3811,14 @@ function finishInstance(owned: ResourceInstance, prev?: Promise<void>): Promise<
 
   const { layer: owner } = owned;
   const finish = (): Promise<void> | undefined =>
-    thenDone(runDefers(owner, owned.hooks, owned.end as Scope.End), () => completeInstance(owned));
+    thenDone(
+      runDefers(
+        owner,
+        owned.hooks.map((hook) => hook.fn),
+        owned.end as Scope.End,
+      ),
+      () => completeInstance(owned),
+    );
 
   if (prev) {
     const queued = prev.then(finish, finish);
@@ -3832,15 +3844,17 @@ function startBuildInstance(
   return owned;
 }
 
-/** A failed build fixes its hooks' end to `failed` (ADR 0026 Q4). A later good build reuses the
- * instance, and its own hooks take the release's or the close's end (ADR 0063 d3, d6). Both lists
- * hold the instance's hooks in one order ({@link ResourceCtx}). Only a failure allocates here. */
+/** A failed build gives its own hooks the end `failed` (ADR 0026 Q4). A later good build reuses
+ * the instance, and its hooks take the release's or the close's end (ADR 0063 d3, d6). The entries
+ * are the layer's too, so one wrap serves both lists. Hooks of an earlier failed build are not
+ * wrapped again. Only a failure allocates here: one array, and one closure per hook of that
+ * build. */
 function keepFailedEnds(owned: ResourceInstance, failed: Scope.End): void {
-  owned.hooks = [];
-  for (const entry of owned.layer.hooks) {
+  for (const entry of owned.hooks.slice(owned.failedHooks)) {
     const fn = entry.fn;
-    if (entry.owned === owned) owned.hooks.push((entry.fn = () => fn(failed)));
+    entry.fn = () => fn(failed);
   }
+  owned.failedHooks = owned.hooks.length;
 }
 
 function holdSelectedDependency(
