@@ -45,7 +45,7 @@ afterEach(async () => {
 
 const api = rpc({ add: { input: z.object({ n: z.number() }), output: z.string() } });
 
-test("UnsentNeverRuns path: a call failed as link, sent: false still runs on the server", async () => {
+test("UnsentNeverRuns path: a call failed as link, sent: false does not run on the server", async () => {
   const { ws: wsClient } = await import("@/client");
   const { ws: wsServer } = await import("@/index");
   const { listen } = await import("./support");

@@ -51,7 +51,7 @@ A close mid call is `link, sent: true`, with no renew
 (commit `14402c8`).
 
 The charts and the TLC rerun still show the spec of commit `3ff6778`.
-Its rule still breaks there. The code does not.
+UnsentNeverRuns still breaks there. The code does not.
 
 ## Chart: one call
 
