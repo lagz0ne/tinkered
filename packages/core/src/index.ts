@@ -1318,7 +1318,7 @@ export function data(config: {
   const label = config.label ?? "anon";
   if (config.key === undefined) {
     const initial = admit(label, config.parse, config.initial);
-    return createCell(label, config.tags, initial, config.parse, guardedEq(config.eq), undefined);
+    return createCell(label, config.tags, initial, config.parse, config.eq ?? Object.is, undefined);
   }
 
   const keyed = new KeyedSpec(label, config.key, config.parse, config.eq);
@@ -1906,7 +1906,9 @@ function flushOne(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): voi
 
   const next = readCell(layer, target);
   const prev = rec.prev;
-  if (!cellEq(target, prev, next)) notifyLayer(rec, ws, next, prev);
+  if (!(target as Data.Cell<unknown> & TellEqField).tellEq(prev, next)) {
+    notifyLayer(rec, ws, next, prev);
+  }
 }
 
 /** Run one layer's watchers in registration order against the value already read for the layer. */
@@ -1995,7 +1997,7 @@ function pendingNsWatchers(
   for (const watcher of watch) {
     const next = readCell(layer, target, watcher.ns);
     const prev = watcher.prev;
-    if (cellEq(target, prev, next)) continue;
+    if ((target as Data.Cell<unknown> & TellEqField).tellEq(prev, next)) continue;
     watcher.prev = next;
     (pending ??= []).push({ fn: watcher.fn, next, prev });
   }
@@ -8061,6 +8063,10 @@ function bindList(
  * Core reads it. */
 type KeyedField = { readonly keyed: KeyedSpec | undefined };
 
+/** The eq a round's telling compares with: the cell's eq, through {@link guardedEq}. Off the
+ * public type: `eq` stays the user's own, for the write's compare and for users. */
+type TellEqField = { readonly tellEq: (a: unknown, b: unknown) => boolean };
+
 /** A `where` read's window, such as `{ order, limit }` (ADR 0139 2). */
 type KeyWindow = Exclude<Data.Key, string>;
 
@@ -8508,12 +8514,13 @@ function createCell(
     initial,
     parse: parser,
     eq,
+    tellEq: guardedEq(eq),
     keyed,
     of: undefined,
     where: undefined,
     capsule: undefined,
     passed: undefined,
-  } as Data.Cell<unknown> & Exported & KeyedField & { of: unknown; where: unknown };
+  } as Data.Cell<unknown> & Exported & KeyedField & TellEqField & { of: unknown; where: unknown };
   if (keyed !== undefined) {
     base.of = (key: Data.Key) => keyed.read(base, "of", key);
     base.where = (part: Data.Key, window?: KeyWindow) => keyed.read(base, "where", part, window);
@@ -8529,14 +8536,13 @@ function createCell(
   });
 }
 
-/** A cell's own eq, wrapped once when the cell is declared (ADR 0152). The telling calls the eq
- * outside the watchers' `try`, so a throw there would leave the round flag on; here it goes to
- * {@link watcherThrew} instead. `Object.is` cannot throw and stays bare: a cell with no eq of its
- * own pays nothing on a write. */
-function guardedEq(
-  eq: ((a: unknown, b: unknown) => boolean) | undefined,
-): (a: unknown, b: unknown) => boolean {
-  if (eq === undefined) return Object.is;
+/** The eq for a round's telling, made once when the cell is declared (ADR 0152). The telling
+ * compares outside the watchers' `try`, so a throw there would leave the round flag on; here it
+ * goes to {@link watcherThrew} instead. Only the telling uses it: the write's own compare runs
+ * before its round, and a watcher may catch a throw there without ending its round. `Object.is`
+ * cannot throw and stays bare: a cell with no eq of its own pays nothing on a write. */
+function guardedEq(eq: (a: unknown, b: unknown) => boolean): (a: unknown, b: unknown) => boolean {
+  if (eq === Object.is) return eq;
 
   return (a, b) => {
     try {
@@ -8913,11 +8919,11 @@ function tellWrite(layer: Layer, target: Data.Cell<unknown>, key: Namespace | un
   else drainRounds(undefined);
 }
 
-/** A watcher threw, or a cell's own eq did (through {@link guardedEq}) (ADR 0152). The catch
- * sits at the watcher loop and in the eq, not around the write: a try inlined into every write
- * cost about 5 ns (box bench, 4M writes). In the first round the rounds that wait still run and
- * the round flag goes off, then the error goes on to the write; inside a waiting round,
- * {@link drainRounds} catches it; outside a round it only goes on. */
+/** A watcher threw, or a cell's own eq in a telling did (through {@link guardedEq}) (ADR 0152).
+ * The catch sits at the watcher loop and in that eq, not around the write: a try inlined into
+ * every write cost about 5 ns (box bench, 4M writes). In the first round the rounds that wait
+ * still run and the round flag goes off, then the error goes on to the write; inside a waiting
+ * round, {@link drainRounds} catches it. */
 function watcherThrew(error: unknown): never {
   if (inRound && roundDepth === 0) drainRounds({ error });
   throw error;

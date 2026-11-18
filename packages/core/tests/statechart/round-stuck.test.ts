@@ -1,7 +1,8 @@
 // Replays the Round model's bug path (/home/paseo/statechart/core2/round), one step per action.
 // Rules: RoundEndsAtRest and EveryWatcherTold (ADR 0152 d1, d3).
-// The round flag is a module global, so this file holds one test only: after it, no watcher
-// in this module hears a write.
+// Bug 5: an eq that threw in a write's first round left the round flag (a module global) on,
+// so no later write in the process was heard. It passes since card
+// core/round-stuck-after-eq-throw: the eq's throw ends the round and turns the flag off.
 import { expect, test } from "vite-plus/test";
 
 import { createScope, data, namespace } from "@/main";

@@ -85,3 +85,23 @@ test("an eq throw in a watcher's write goes to the first write; later writes are
   expect(error).toBe(eqError);
   expect(b.heard).toEqual([1]);
 });
+
+test("a watcher that catches a write's eq throw keeps its round and the order", () => {
+  const a = rowCell("round.caught");
+  const scope = createScope();
+  scope.controller(a).set(null);
+  const c = data({ label: "round.c", initial: 0 });
+  const t = data({ label: "round.t", initial: 0 });
+  const log: string[] = [];
+  scope.controller(c).watch(() => log.push("c heard 1"));
+  scope.controller(t).watch(() => {
+    if (thrownBy(() => scope.controller(a).set({ id: 2 })) === eqError) log.push("w1 caught");
+    scope.controller(c).set(1);
+    log.push("w1 wrote c");
+  });
+  scope.controller(t).watch(() => log.push("w2 heard t"));
+
+  scope.controller(t).set(1);
+
+  expect(log).toEqual(["w1 caught", "w1 wrote c", "w2 heard t", "c heard 1"]);
+});
