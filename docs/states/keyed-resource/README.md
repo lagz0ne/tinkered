@@ -24,14 +24,19 @@ Words:
 ## Rules
 
 TLC reached 24,044 states.
+The spec, the chart and the rerun
+still describe `3ff6778`, before fix `66910b9b`.
+So they still show 5 rules break.
 
 - **EndBeforeNextBuild** — breaks.
   ADR 0157 d5.
   An end runs before the next build of the same key.
-- **EndWhenLastReaderLeaves** — breaks.
+- **EndWhenLastReaderLeaves** — holds after fix `66910b9b`
+  (card `core/keyed-watch-after-close`).
   ADR 0157 d5.
   A key with no reader has no end that waits.
-- **EndsRunWhenScopeCloses** — breaks.
+- **EndsRunWhenScopeCloses** — holds after fix `66910b9b`
+  (card `core/keyed-watch-after-close`).
   ADR 0157 d5.
   After the scope closed, no end waits.
 - **EndsRunLastFirst** — holds.
@@ -178,6 +183,9 @@ Two causes:
   That build's end never runs.
   The close also frees the store,
   so the build reads the cell's first value (0).
+  A `get()` after the close had the same hole.
+  Fix `66910b9b`: `get()` and the first `watch()`
+  throw `Disposed` before they build.
 
 ### Path 1: NoChangeNoBuild and OneEntryPerKey
 
@@ -267,11 +275,16 @@ throws `Disposed` first.
 
 ## Path tests
 
-Both fail today. A fail shows the bug.
-
+- `keyed-resource-paths.test.ts` —
+  paths 3 and 4 (cause B), now in
+  `packages/core/tests/statechart/`.
+  They pass after fix `66910b9b`.
+  They failed before: that showed the bug.
+  They left the `.txt`,
+  so each test lives in one place.
 - `paths/keyed-resource-paths.test.ts.txt` —
-  paths 1 to 4, Core.
-  Today: 4 of 4 fail.
+  paths 1 and 2 (cause A), Core.
+  Today: 2 of 2 fail. A fail shows the bug.
   Goes to `packages/core/tests/statechart/`.
 - `paths/keyed-resource-react.test.tsx.txt` —
   cause A in React.
@@ -280,16 +293,19 @@ Both fail today. A fail shows the bug.
 
 Card `core/keyed-entry-dropped` moves
 the React file and paths 1 and 2.
-Card `core/keyed-watch-after-close` moves
-paths 3 and 4.
-Each drops the `.txt` ending.
+It drops the `.txt` ending.
 
-Once moved, run:
+Run:
 
 ```sh
 cd packages/core
 vp test tests/statechart/keyed-resource-paths.test.ts
-cd ../react
+```
+
+Once the React file moves, run:
+
+```sh
+cd packages/react
 vp test --project browser \
   tests/statechart/keyed-resource-react.test.tsx
 ```
@@ -329,4 +345,7 @@ statechart KeyedResource.tla \
   --view view.ts --out "$(mktemp -d)"
 ```
 
-Exit 1 today: 5 rules break.
+Exit 1: 5 rules break.
+The spec still describes `3ff6778`,
+so it does not see fix `66910b9b`.
+In the code, 3 rules break.

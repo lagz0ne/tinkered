@@ -79,7 +79,8 @@ so main stays green.
 
 ## Machines
 
-- **keyed-resource** — 5 rules break.
+- **keyed-resource** — 3 rules break
+  after fix `66910b9b`; the spec still shows 5.
   Cards: `core/keyed-entry-dropped`,
   `core/keyed-watch-after-close`.
 - **scope-life** — 3 rules break.
