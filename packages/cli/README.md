@@ -140,7 +140,10 @@ way the graph cannot follow:
   capsule or a contract (`seaApi["clock.now"]`),
   a cell whose label is not written as a string,
   an `atScope` or `atNamespace` controller;
-- a tag dep: a tag may hold a unit (ADR 0151);
+- a tag dep that holds a unit (ADR 0151), through
+  any edge: an operation gives `calls{?}`; a
+  cell, a view or a read gives `reads{?}`, and a
+  cell `writes{?}` too;
 - a `run` passed by name, not written in place.
   With a dep the graph cannot name, every set
   gets `?`.
@@ -148,8 +151,11 @@ way the graph cannot follow:
 The `?` goes in each set that dep can touch: a
 cell in `reads` and `writes`, a read in `reads`,
 an operation in `calls`. For a dep the graph
-cannot name, or a tag, its type in `run` says
-which.
+cannot name, its type in `run` says which.
+
+The graph reads each op's own body. A resource's
+own code is not read: a write inside a
+resource's value does not show.
 
 `tinker graph --write` writes the graph to
 `tinker.graph`. Commit that file. Then the check

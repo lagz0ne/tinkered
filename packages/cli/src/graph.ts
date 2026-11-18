@@ -23,7 +23,7 @@ export const graphFile = "tinker.graph";
  * A unit a dep names: the Core function that made it, its label, and the part it reads. `bare`
  * is a dep named by itself, with no edge: a bare cell gives `run` its value, not a controller.
  */
-type Unit = { made: string; label: string; read?: string; bare?: true };
+type Unit = { made: string; label: string; call: ts.CallExpression; read?: string; bare?: true };
 
 /** What a `run` touches: each fact is a label, then a kind (`issues.list.set`). */
 type Facts = { reads: Set<string>; writes: Set<string>; calls: Set<string> };
@@ -61,7 +61,13 @@ function unitAt(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): Unit | 
   const [options] = call.arguments;
   const label = options && ts.isObjectLiteralExpression(options) ? labelOf(options) : undefined;
   const made = coreName(call);
-  return label && made ? { made, label } : undefined;
+  return label && made ? { made, label, call } : undefined;
+}
+
+/** What a tag holds: the `T` of the `Tag.Handle<T>` its call makes, which `def` carries. */
+function heldOf(checker: ts.TypeChecker, call: ts.CallExpression) {
+  const def = checker.getTypeAtLocation(call).getProperty("def");
+  return def && checker.getNonNullableType(checker.getTypeOfSymbolAtLocation(def, call));
 }
 
 /** The unit a dep reads a part of: `issues.where({ teamId })`. */
@@ -145,16 +151,21 @@ function slotOf(checker: ts.TypeChecker, param: ts.ParameterDeclaration | undefi
 }
 
 /**
- * A dep, from the declaration that names its unit. Any dep but an operation or a cell is read
- * by its type in `run`: a tag may hold a unit (ADR 0151), and a dep the graph cannot name may
- * be anything.
+ * The sets a tag may hide facts in, by what it holds (ADR 0151), through any edge: a cell may be
+ * read and written, an operation run, a view or a read read. A plain value or a resource holds
+ * no fact the graph reads: a resource's own code is not read.
  */
-function depOf(checker: ts.TypeChecker, key: ts.Symbol, param?: ts.ParameterDeclaration): Dep {
-  const unit = depUnit(checker, key.valueDeclaration);
-  if (unit?.made !== "operation" && unit?.made !== "data") {
-    const hides = hidesOf(slotOf(checker, param, key.name));
-    return { touches: new Map(), hides, named: false };
-  }
+function heldHides(held: ts.Type | undefined): Hide[] {
+  if (held?.getProperty("mode")) return ["reads", "writes"];
+  if (held?.getProperty("run")) return ["calls"];
+  return held?.getProperty("kind") ? ["reads"] : [];
+}
+
+/** A dep whose unit the graph cannot name: it hides in `hides`. */
+const unnamed = (hides: Hide[]): Dep => ({ touches: new Map(), hides, named: false });
+
+/** A dep on an operation or a cell: a bare cell gives `run` its value, read on each run. */
+function namedDep(unit: Unit): Dep {
   if (unit.bare && unit.made === "data") {
     return { touches: new Map(), hides: [], named: true, value: `${unit.label}.get` };
   }
@@ -162,6 +173,18 @@ function depOf(checker: ts.TypeChecker, key: ts.Symbol, param?: ts.ParameterDecl
   const touches = touchesOf(unit);
   const sets = [...touches.values()].map(({ set }) => set);
   return { touches, hides: allSets.filter((set) => sets.includes(set)), named: true };
+}
+
+/**
+ * A dep, from the declaration that names its unit. A tag hides by what it holds, through any
+ * edge. Any other dep but an operation or a cell is read by its type in `run`: a dep the graph
+ * cannot name may be anything.
+ */
+function depOf(checker: ts.TypeChecker, key: ts.Symbol, param?: ts.ParameterDeclaration): Dep {
+  const unit = depUnit(checker, key.valueDeclaration);
+  if (unit?.made === "tag") return unnamed(heldHides(heldOf(checker, unit.call)));
+  const named = unit?.made === "operation" || unit?.made === "data";
+  return named ? namedDep(unit) : unnamed(hidesOf(slotOf(checker, param, key.name)));
 }
 
 /**

@@ -230,8 +230,12 @@ function, put in an array, given another name),
 the deps handed on whole, a call it does not
 know, a dep it cannot name (a capsule or contract
 member, a label not written as a string, an
-`atScope` controller), a tag that may hold a unit,
+`atScope` controller), a tag that holds a unit,
 or a `run` passed by name.
+
+The graph reads each op's own body. A resource's
+own code is not read: a write inside a
+resource's value does not show.
 
 Wrong: a move now writes a cell it did not, and
 nobody read that.

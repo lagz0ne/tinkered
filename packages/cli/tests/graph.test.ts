@@ -36,7 +36,7 @@ const moveOf = (name: string, label: string, depends: string) => [
 const ops = [
   `import { operation, transport } from "@tinkered/core";`,
   ``,
-  `import { api, box, cells, count, flags, inTeam, issues } from "./units";`,
+  `import { api, box, cells, count, flags, inTeam, issues, shelf } from "./units";`,
   ``,
   `const moveDeps = { list: issues.controller, ok: inTeam };`,
   ``,
@@ -175,6 +175,24 @@ const ops = [
   `    return size;`,
   `  },`,
   `});`,
+  ``,
+  `export const boxes = operation({`,
+  `  label: "issue.boxes",`,
+  `  depends: { every: box.all },`,
+  `  run: ({ every }) => every.length,`,
+  `});`,
+  ``,
+  `export const maybe = operation({`,
+  `  label: "issue.maybe",`,
+  `  depends: { held: box.optional },`,
+  `  run: ({ held }) => held.present,`,
+  `});`,
+  ``,
+  `export const shelved = operation({`,
+  `  label: "issue.shelved",`,
+  `  depends: { held: shelf.required },`,
+  `  run: ({ held }) => held.length,`,
+  `});`,
 ].join("\n");
 
 /** What `look` touches: its bare `all` reads the cell's value. */
@@ -190,12 +208,14 @@ const moved =
 /** The graph of `ops`: each name is a label, never the local name. */
 const golden = [
   "count.tick exits{value} reads{count.get,issues.list.where} writes{count.update} calls{}",
-  "guard exits{refused,value} reads{?,issues.list.get} writes{?} calls{issues.inTeam}",
+  "guard exits{refused,value} reads{issues.list.get} writes{} calls{issues.inTeam}",
   "issue.boxed exits{value} reads{} writes{} calls{?}",
+  "issue.boxes exits{value} reads{} writes{} calls{?}",
   "issue.clear.do exits{cleared,kept} reads{} writes{issues.list.delete} calls{issues.inTeam}",
   "issue.hand exits{value} reads{?} writes{?} calls{issues.inTeam}",
   "issue.late exits{value} reads{issues.list.get} writes{} calls{}",
   looked,
+  "issue.maybe exits{value} reads{} writes{} calls{?}",
   "issue.move.again exits{gone,moved,stale} reads{?} writes{?} calls{?}",
   `issue.move.do ${moved}`,
   `issue.move.shared ${moved}`,
@@ -207,6 +227,7 @@ const golden = [
   "issue.quoted exits{value} reads{issues.list.get} writes{} calls{}",
   "issue.raw exits{value} reads{?} writes{?} calls{}",
   "issue.rename exits{value} reads{?} writes{?} calls{?}",
+  "issue.shelved exits{value} reads{?} writes{?} calls{}",
   "issues.inTeam exits{value} reads{} writes{} calls{}",
   "issues.inTeam.again exits{value} reads{} writes{} calls{}",
   "",
@@ -247,7 +268,7 @@ const configs = {
     ``,
     `export const flags = tag<Map<string, boolean>>({ label: "flags" });`,
     ``,
-
+    `export const shelf = tag<typeof issues>({ label: "shelf" });`,
     ``,
     `export const inTeam = operation({`,
     `  label: "issues.inTeam",`,
@@ -278,14 +299,18 @@ function appOf(files: Record<string, string>) {
 /** The head of each finding: path, line, rule id and what is there. */
 const findings = (out: string) => out.split("\n").filter((line) => /^\S+:\d+ /.test(line));
 
-test("`tinker graph` prints each operation's exits and all its run touches, by label", () => {
-  const folder = appOf({ "src/ops.ts": ops });
+test(
+  "`tinker graph` prints each operation's exits and all its run touches, by label",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({ "src/ops.ts": ops });
 
-  const { code, out } = main(["graph", folder], "/");
+    const { code, out } = main(["graph", folder], "/");
 
-  expect(code).toBe(0);
-  expect(out).toBe(golden);
-});
+    expect(code).toBe(0);
+    expect(out).toBe(golden);
+  },
+);
 
 test(
   "code that matches its tinker.graph passes, with Windows line ends too",
@@ -296,7 +321,7 @@ test(
     const { code, out } = main(["check", folder], "/");
 
     expect(code).toBe(0);
-    expect(out).toBe("ran: tsc, lint, rules (2 files), graph (20 operations)\ntinker check: OK\n");
+    expect(out).toBe("ran: tsc, lint, rules (2 files), graph (23 operations)\ntinker check: OK\n");
   },
 );
 
@@ -329,7 +354,7 @@ test(
     expect(code).toBe(1);
     expect(findings(out)).toEqual([
       "src/ops.ts:65 tinker/graph issue.look: not in tinker.graph",
-      "tinker.graph:20 tinker/graph issue.old.do: in tinker.graph, not in the code",
+      "tinker.graph:23 tinker/graph issue.old.do: in tinker.graph, not in the code",
     ]);
   },
 );
@@ -352,7 +377,7 @@ test("`tinker graph --write` writes the file the check then passes", { timeout: 
   const wrote = main(["graph", folder, "--write"], "/");
   const { code } = main(["check", folder], "/");
 
-  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 20 operations\n", err: "" });
+  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 23 operations\n", err: "" });
   expect(readFileSync(join(folder, "tinker.graph"), "utf8")).toBe(golden);
   expect(code).toBe(0);
 });
