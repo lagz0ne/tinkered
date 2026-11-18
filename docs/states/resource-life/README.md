@@ -45,7 +45,8 @@ Words:
 TLC reached 180 states (`ResourceLife.cfg`)
 and 18 states (`cycle.cfg`).
 The spec, the charts and the rerun
-still describe `c9c8817`, before the bug 6 fix.
+still describe `c9c8817`,
+before the bug 6 and bug 7 fixes.
 So they still show 3 rules break.
 
 - **GoodBuildReleaseEndsReleased** — holds, since `b9bec7b5`
@@ -58,7 +59,8 @@ So they still show 3 rules break.
   ADR 0063 d6.
   Close unlinks every instance
   with the close's end.
-- **CloseResolves** — breaks (`cycle.cfg` only).
+- **CloseResolves** — holds, since `1119e1ff`
+  (card `core/resource-cycle-holds-close`).
   ADR 0027 (close always resolves),
   ADR 0011 (close is total).
 - **HookRunsOnce** — holds. ADR 0026 Q4.
@@ -256,13 +258,22 @@ The paths below name the code before the fix.
 
 ## Bug 7: a cycle keeps `close()` open
 
-Card `core/resource-cycle-holds-close`.
+Card `core/resource-cycle-holds-close` fixes it
+(`1119e1ff`).
 Rule: CloseResolves.
 
 A reads B, B reads A, both take `ctx`.
-CircularResource is raised,
-but each instance holds the other.
-So `close()` never resolves.
+CircularResource was raised,
+but each instance held the other.
+So `close()` never resolved.
+
+The fix: `needsHold` is false
+for a busy resource.
+A busy resource is in its own sync build,
+so a read of it raises CircularResource.
+So B's build makes no hold on A.
+Only A holds B, and the close resolves.
+The path below names the code before the fix.
 
 ### Path 3: a cycle, then a close
 
@@ -285,7 +296,8 @@ a release of A or B in the cycle
 leaves its end waiting forever (s3).
 ADR 0063 d4 allows that:
 a held instance waits for its holder.
-Only the close hang breaks a rule.
+Since the fix, A holds B, B holds nothing.
+So only a release of B waits, for A.
 
 ## Path tests
 
@@ -298,10 +310,10 @@ Only the close hang breaks a rule.
   It passes, before and after the fix.
 - `instance-release.test.ts` pins both ends
   of path 1: `2:released`, `1:failed`.
-- `paths/resource-life-paths.test.ts.txt` —
-  path 3 only. It fails today: that shows bug 7.
-  Card `core/resource-cycle-holds-close`
-  moves it into the same test file.
+- Path 3 is in the same file now.
+  It passes since `1119e1ff`.
+  It failed before: that showed bug 7.
+  The `paths/` folder is gone.
 
 Run:
 
@@ -353,6 +365,17 @@ It runs only at the release or the close.
   Each factory that runs defers one.
 - Only A is resolved by the app.
   B builds inside A's resolve.
+- Close waits for pending work
+  before it unlinks the instances
+  (`startClose`).
+  A release of B after A's build failed
+  leaves B waiting for A.
+  A is still on its node, not unlinked.
+  So that close never resolves,
+  with or without a cycle.
+  The spec's close unlinks every instance
+  at once, so it misses this.
+  No card yet.
 - At most 2 resolves and 1 release.
 
 ## Rerun
@@ -371,4 +394,4 @@ Exit 1 today, for both:
 2 rules break in `ResourceLife.cfg`,
 1 in `cycle.cfg`.
 The spec still describes `c9c8817`,
-so it does not see the bug 6 fix.
+so it does not see the bug 6 and bug 7 fixes.
