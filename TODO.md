@@ -79,14 +79,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
-- **core/keyed-entry-dropped** — bug 1 in [docs/states](docs/states/keyed-resource/README.md). The last watcher leaves, so the entry leaves the map, but a holder can subscribe to it again. The next reader of that key builds a second entry. Next: move `paths/keyed-resource-react.test.tsx.txt` and paths 1 and 2 of `paths/keyed-resource-paths.test.ts.txt` into the packages' tests (they fail), then fix `builtReader` and `class BuiltEntry` in `packages/core/src/index.ts`.
-  Verify: the two React path tests and the Core path tests for paths 1 and 2 pass; the keyed-resource check shows 0 breaks for OneEntryPerKey, NoChangeNoBuild, EndBeforeNextBuild.
-
 - **bun/client-empty-tick** — After `drop()` empties `out`, the tick it scheduled still runs with nothing to send and opens a new socket, which stays open until the scope closes (review of `bun/client-drop-keeps-frames`, the tick in `post`). Next: the tick returns when its batch is empty; step 5 of `statechart-rpc-call.test.ts` then expects 1 socket.
   Verify: a bun test shows no socket opens after a drop with nothing left to send; the rpc-call path test passes.
-
-- **core/keyed-watch-after-close** — bug 2 in [docs/states](docs/states/keyed-resource/README.md). A held reader that subscribes after the scope closed builds once (`watch()` runs `fresh()` before `Disposed`), and that build's end never runs. Next: move paths 3 and 4 of `paths/keyed-resource-paths.test.ts.txt` into Core's tests (they fail), then fix the keyed `watch()` path in `packages/core/src/index.ts`.
-  Verify: its path tests (paths 3 and 4) pass; the keyed-resource check shows EndsRunWhenScopeCloses and EndWhenLastReaderLeaves hold.
 
 - **core/resource-failed-stays** — bug 6 in [docs/states](docs/states/resource-life/README.md). After a failed sync build, `failed` stays on the instance; the next good build reuses it, so its release (or close) ends `failed` (ADR 0063 d3, d6). Next: move paths 1 and 2 of `paths/resource-life-paths.test.ts.txt` into Core's tests (they fail), then fix how `failed` stays (`settleResourceInstance`, `unlinkInstance` in `packages/core/src/index.ts`).
   Verify: the path tests for paths 1 and 2 pass; the resource-life check shows GoodBuildReleaseEndsReleased and GoodBuildCloseEndsWithClose hold.
@@ -120,10 +114,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/round-stuck-after-eq-throw** — bug 5 in [docs/states](docs/states/round/README.md). A user `eq` that throws in a write's first round leaves `inRound` true (`tellWrite` has no `finally`); after that no watcher in the process hears any write. Next: move `paths/round-stuck.test.ts.txt` into Core's tests (it fails), then end the round on that throw. ADR 0152 keeps the try out of the hot write (about 5 ns per write, see the comment at `watcherThrew` in `packages/core/src/index.ts`), so the fix sits where `eq` is called (`flushOne`, `pendingNsWatchers`) or on the throw path; a timing claim goes through `N=61 bench/queued.sh`.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/round-stuck-after-eq-throw`.
-  Plan: move the `eq` call into the `try` blocks that already exist (`notifyLayer`, `flushNsWatchers`), so the write path gets no new `try`.
-  Verify: the round path test passes; the round check shows RoundEndsAtRest and EveryWatcherTold hold; the bench verdict is "no difference we can see".
+- **core/keyed-watch-after-close** — bug 2 in [docs/states](docs/states/keyed-resource/README.md). A held reader that subscribes after the scope closed builds once (`watch()` runs `fresh()` before `Disposed`), and that build's end never runs. Next: move paths 3 and 4 of `paths/keyed-resource-paths.test.ts.txt` into Core's tests (they fail), then fix the keyed `watch()` path in `packages/core/src/index.ts`.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/keyed-watch-after-close`.
+  Note: it moves only paths 3 and 4; paths 1 and 2 wait for `core/keyed-entry-dropped` (Blocked).
+  Verify: its path tests (paths 3 and 4) pass; the keyed-resource check shows EndsRunWhenScopeCloses and EndWhenLastReaderLeaves hold.
 
 ## Review
 
@@ -140,6 +134,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
+
+- **core/keyed-entry-dropped** — bug 1 in [docs/states](docs/states/keyed-resource/README.md). The last watcher leaves, so the entry leaves the map, but a holder can subscribe to it again; the next reader builds a second entry.
+  Missing: Duke's rule. Paths 1 and 2 of `paths/keyed-resource-paths.test.ts.txt` make the same Core calls up to step 5 (render, watch, leave, render), but path 1 wants the same entry back and path 2 wants a new one, so no fix passes both as written (checked by runs on main `cbddffbe`, 2026-11-18).
+  A: a dropped entry joins the map again on its next watch, or hands the watch to the live entry. Path 2 and both React path tests pass; path 1's last expectation changes (a reader that rendered but never watched does not keep the entry). Keeps ADR 0150 d5.
+  B: the entry stays in the map after its last watcher leaves (its ends still run). Path 1 and both React path tests pass; path 2's step 5 and end change. Drops ADR 0150 d5: entries live as long as their layer.
+  Lead's pick: A. Next once picked: change that path test to the rule, then move the tests and fix `BuiltEntry.watch`.
+  Verify: the two React path tests and Core paths 1 and 2 (as changed) pass.
 
 - **core/states-rules-undecided** — 7 cases with no ADR rule yet, found by the specs in [docs/states](docs/states/README.md). What the code does today: (1) UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8): the write throws UpdateDepth; the error is lost; (2) an equal `set` in a reader's build (ADR 0157 d7): it is dropped before the check; no WriteInRead; (3) a failed sync build's end (ADR 0026 Q4): it runs only at the release or the close; (4) a session catches its grandchild's managed error (ADR 0028 d3 vs ADR 0067): the session and the root fail only when a root close is in flight; else both succeed; (5) a close called from a defer (ADR 0026 d3 vs ADR 0027): it returns `success` at once; the close it starts ends `cancelled`; (6) a run hook calls `next()` twice (ADR 0050 d1): the body runs twice; the run returns the second value. A finished run's first ctx stays live, so its leaked `deps.inner` runs on a closing scope. ADR 0127 d2 may or may not cover a scope still closing (FinishedRunStartsNothing breaks in the run-life check); (7) one part's good answer clears the key's fault in `board.faults` (ADR 0139 d1 is silent): `board.faults.tasks` is gone while another part still shows refused.
   Also: `core/local-stream-signal` (Ready) now has a pinned test, the second test of `docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`.
@@ -174,6 +175,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/round-stuck-after-eq-throw** — done 2026-11-18 (bug 5, [round](docs/states/round/README.md); ADR 0152). A user `eq` that throws while a write tells its watchers ends the round, as a watcher's throw does; the round flag no longer sticks. Each cell keeps an internal guarded `tellEq` for the telling's compares (`flushOne`, `pendingNsWatchers`); `cell.eq` and the write's own compare stay bare, so a watcher that catches its write's `eq` keeps its round. Fix `0ebef947`. Released as 0.31.2.
+  Proof: `tests/statechart/round-stuck.test.ts` red on main, green; `round-eq-throw.test.ts` (the reviewer's catch-then-write probe) red on the first design; `scripts/ticket.sh --check-only --no-mutation` exit 0 (the known `flight-trial` supplier 5 s timeout and one React browser test flaked under load and passed on re-run; both also pass alone; the supplier one also fails alone on main); size 23,229 B within 23,232 B; core mutation 86.07 on `4cc9853f` by the lead (kills alone 85.3; core source byte-identical to the landed head; the writer's run on `3f6fc3c3` was 87.22, kills alone 84.9). Queued bench vs main (N=61, paired sign test): design 1 (eq inside the watcher `try`) made `write` +1.1% slower (p=0.003) and was dropped; the landed design: `write` -0.8% (b is faster, p=0.0004), `writehook` and `writeunwatched` no difference we can see. Opus convention-review NOT READY (guard on every eq reordered a caught write), one fix round, READY.
 
 - **devtools/capsule** — `@tinkered/devtools`: `devtools()` is a plain
   capsule; `snapshot()` and `moves(fn)` (ADR 0163). Landed 2026-11-18.

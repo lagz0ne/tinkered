@@ -9,6 +9,23 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.2
+
+A cell's `eq` that throws no longer stops
+every watcher in the process (bug 5, ADR 0152).
+
+- Before, an `eq` that threw while a write told
+  its watchers left the round on. After that,
+  no watcher in the process heard a write.
+- Now that throw ends the round, as a watcher's
+  throw does. The write throws the error.
+  Later writes are heard again.
+- A throw from the `eq` of a write you make
+  inside a watcher still only fails that write.
+  A watcher may catch it; its round goes on.
+- A cell with no `eq` of its own runs the same
+  write code as before.
+
 ## 0.31.1
 
 A ws call failed as not sent is not sent later
