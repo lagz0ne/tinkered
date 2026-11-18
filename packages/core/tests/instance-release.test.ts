@@ -215,6 +215,28 @@ test("a build rejected before release keeps its failed hook outcome", async () =
   await scope.close();
 });
 
+test("a good build after a failed sync build ends released, and the failed one keeps failed (bug 6)", async () => {
+  const ended: string[] = [];
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    factory: (_deps, ctx) => {
+      const build = ++builds;
+      ctx.defer((end) => void ended.push(`${build}:${end.status}`));
+      if (build === 1) throw new Error("build 1 failed");
+      return build;
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.resolve(client)).toThrow("build 1 failed");
+  expect(scope.resolve(client)).toBe(2);
+
+  scope.release(client);
+
+  expect(ended).toEqual(["2:released", "1:failed"]);
+  await scope.close();
+});
+
 test("interleaved resource hooks keep reverse registration order", async () => {
   const order: string[] = [];
   const b = resource({

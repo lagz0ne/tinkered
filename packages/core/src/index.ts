@@ -1552,7 +1552,6 @@ type ResourceInstance = {
   users: number;
   busy: boolean;
   end: Scope.End | undefined;
-  failed: { status: "failed"; error: unknown } | undefined;
   ending: boolean;
   left: number | undefined;
   done: Promise<void> | undefined;
@@ -3708,7 +3707,6 @@ function instanceOf(
       users: 0,
       busy: state.busy,
       end: undefined,
-      failed: undefined,
       ending: false,
       left: undefined,
       done: undefined,
@@ -3743,7 +3741,7 @@ function holdDependency(dependent: ResourceInstance, dependency: ResourceInstanc
 
 function unlinkInstance(owned: ResourceInstance, end: Scope.End): void {
   if (owned.end) return;
-  owned.end = owned.failed ?? end;
+  owned.end = end;
   if (owned.busy || owned.users || owned.borrows) {
     owned.done = new Promise<void>((resolve) => (owned.finish = resolve));
     addWork(owned.layer, owned.done);
@@ -3834,6 +3832,17 @@ function startBuildInstance(
   return owned;
 }
 
+/** A failed build fixes its hooks' end to `failed` (ADR 0026 Q4). A later good build reuses the
+ * instance, and its own hooks take the release's or the close's end (ADR 0063 d3, d6). Both lists
+ * hold the instance's hooks in one order ({@link ResourceCtx}). Only a failure allocates here. */
+function keepFailedEnds(owned: ResourceInstance, failed: Scope.End): void {
+  owned.hooks = [];
+  for (const entry of owned.layer.hooks) {
+    const fn = entry.fn;
+    if (entry.owned === owned) owned.hooks.push((entry.fn = () => fn(failed)));
+  }
+}
+
 function holdSelectedDependency(
   dependent: ResourceInstance | undefined,
   owner: Layer,
@@ -3855,7 +3864,7 @@ function settleResourceInstance(
   error?: unknown,
 ): void {
   if (!owned) return;
-  if (status === "failed" && !owned.end) owned.failed = { status, error };
+  if (status === "failed" && !owned.end) keepFailedEnds(owned, { status, error });
   owned.busy = false;
   finishTracked(owned);
 }
