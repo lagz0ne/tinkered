@@ -91,7 +91,8 @@ so main stays green.
 - **session-provider** — 1 rule breaks.
   Card: `react/strict-session-suspense`.
 - **usedata-scope** — rules hold.
-- **round** — 2 rules break.
+- **round** — 0 rules break now (fix `4fae3572`);
+  the spec still shows 2.
   Card: `core/round-stuck-after-eq-throw`.
   2 cases with no rule yet.
 - **resource-life** — 3 rules break.

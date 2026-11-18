@@ -20,12 +20,19 @@ the round in `packages/core/src/index.ts`
 ## Rules
 
 TLC reached 496 states.
+The spec, the chart and the rerun
+still describe `c9c8817`, before the fix.
+So they still show 2 rules break.
 
-- **RoundEndsAtRest** — breaks. ADR 0152 d3 (and d1).
+- **RoundEndsAtRest** — holds since fix `4fae3572`
+  (card `core/round-stuck-after-eq-throw`).
+  ADR 0152 d3 (and d1).
   A round that waits runs after the rounds before it.
   So when no call runs, no round waits,
   and the round flag is off.
-- **EveryWatcherTold** — breaks. ADR 0152 d1, d3.
+- **EveryWatcherTold** — holds since fix `4fae3572`
+  (card `core/round-stuck-after-eq-throw`).
+  ADR 0152 d1, d3.
   Each watcher hears each write, in order.
   Excused, as the ADR allows:
   - the later watchers of a round where one threw (d8);
@@ -109,6 +116,13 @@ such as "a watcher hears the write".
 ## The bug (bug 5)
 
 Card `core/round-stuck-after-eq-throw`.
+Fixed in `4fae3572`: `data()` wraps a cell's
+own eq once, when the cell is made.
+A throw goes to `watcherThrew`,
+which ends the round and turns the flag off.
+The default `Object.is` cannot throw,
+so it stays as it is.
+The lines below name the code before the fix.
 
 `tellWrite` sets `inRound = true`
 with no `finally` (`index.ts:8845-8849`).
@@ -144,26 +158,28 @@ The path test sets it up this way:
 
 ## Path tests
 
-`paths/` goes to `packages/core/tests/statechart/`.
-
-- `round-stuck.test.ts.txt` — today it fails.
-  A fail shows the bug.
-  It holds one test only:
-  after it, no watcher in the file hears a write.
-- `round-no-rule-yet.test.ts.txt` — today
+- `round-stuck.test.ts` — now in
+  `packages/core/tests/statechart/`.
+  It passes since `4fae3572`.
+  It failed before: that showed the bug.
+- `round-eq-throw.test.ts`, next to it,
+  holds 3 more cases:
+  - an eq throw in a namespaced write
+    (it failed before the fix too);
+  - an eq throw in a waiting round;
+  - an eq throw in a watcher's write,
+    before that write's round.
+- `paths/round-no-rule-yet.test.ts.txt` — today
   both tests pass. They pin what the code does
   for the 2 cases with no rule yet.
+  It waits for Duke's rule
+  (card `core/states-rules-undecided`).
 
-Card `core/round-stuck-after-eq-throw`
-moves `round-stuck` in, without the `.txt`.
-`round-no-rule-yet` waits for Duke's rule
-(card `core/states-rules-undecided`).
-
-Once moved, run:
+Run:
 
 ```sh
 cd packages/core
-vp test tests/statechart/round-stuck.test.ts
+vp test tests/statechart/
 ```
 
 ## No rule yet
@@ -241,4 +257,6 @@ statechart Round.tla \
   --view view.ts --out "$(mktemp -d)"
 ```
 
-Exit 1 today: 2 rules break.
+Exit 1: 2 rules break.
+The spec still describes `c9c8817`,
+so it does not see the fix.
