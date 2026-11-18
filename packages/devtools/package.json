@@ -1,6 +1,6 @@
 {
   "name": "@tinkered/devtools",
-  "version": "0.31.2",
+  "version": "0.31.3",
   "description": "Tinkered devtools: a plain capsule that keeps a scope's spans, sessions, exits and writes, and gives a snapshot a tool can read.",
   "keywords": [
     "tanstack-intent"

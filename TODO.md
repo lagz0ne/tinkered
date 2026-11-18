@@ -82,8 +82,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **bun/client-empty-tick** — After `drop()` empties `out`, the tick it scheduled still runs with nothing to send and opens a new socket, which stays open until the scope closes (review of `bun/client-drop-keeps-frames`, the tick in `post`). Next: the tick returns when its batch is empty; step 5 of `statechart-rpc-call.test.ts` then expects 1 socket.
   Verify: a bun test shows no socket opens after a drop with nothing left to send; the rpc-call path test passes.
 
-- **core/resource-failed-stays** — bug 6 in [docs/states](docs/states/resource-life/README.md). After a failed sync build, `failed` stays on the instance; the next good build reuses it, so its release (or close) ends `failed` (ADR 0063 d3, d6). Next: move paths 1 and 2 of `paths/resource-life-paths.test.ts.txt` into Core's tests (they fail), then fix how `failed` stays (`settleResourceInstance`, `unlinkInstance` in `packages/core/src/index.ts`).
-  Verify: the path tests for paths 1 and 2 pass; the resource-life check shows GoodBuildReleaseEndsReleased and GoodBuildCloseEndsWithClose hold.
+- **core/keyed-wake-after-close** — A keyed entry whose source is still pending when the scope closes builds when that source settles (`park`, then `tell`, `wake`, `fresh(true)`), and that build's end never runs (review of `core/keyed-watch-after-close`; ADR 0157 d5). The keyed-resource spec does not cover it.
+  Next: a Core test that closes the scope while a source is pending, then settles it; then stop `wake` from building on a closed layer.
+  Verify: that test fails on main and passes; no build runs after the close.
 
 - **core/resource-cycle-holds-close** — bug 7 in [docs/states](docs/states/resource-life/README.md). A reads B, B reads A: CircularResource is raised, but each instance holds the other, so `close()` stays open (ADR 0027, ADR 0011). Next: move path 3 of `paths/resource-life-paths.test.ts.txt` into Core's tests (it fails), then fix the holds the cycle leaves (`holdDependency` in `packages/core/src/index.ts`).
   Verify: the path test for path 3 passes; the resource-life check with `cycle.cfg` shows CloseResolves holds.
@@ -114,10 +115,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/keyed-watch-after-close** — bug 2 in [docs/states](docs/states/keyed-resource/README.md). A held reader that subscribes after the scope closed builds once (`watch()` runs `fresh()` before `Disposed`), and that build's end never runs. Next: move paths 3 and 4 of `paths/keyed-resource-paths.test.ts.txt` into Core's tests (they fail), then fix the keyed `watch()` path in `packages/core/src/index.ts`.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/keyed-watch-after-close`.
-  Note: it moves only paths 3 and 4; paths 1 and 2 wait for `core/keyed-entry-dropped` (Blocked).
-  Verify: its path tests (paths 3 and 4) pass; the keyed-resource check shows EndsRunWhenScopeCloses and EndWhenLastReaderLeaves hold.
+- **core/resource-failed-stays** — bug 6 in [docs/states](docs/states/resource-life/README.md). After a failed sync build, `failed` stays on the instance; the next good build reuses it, so its release (or close) ends `failed` (ADR 0063 d3, d6). Next: move paths 1 and 2 of `paths/resource-life-paths.test.ts.txt` into Core's tests (they fail), then fix how `failed` stays (`settleResourceInstance`, `unlinkInstance` in `packages/core/src/index.ts`).
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/resource-failed-stays`.
+  Note: it moves only paths 1 and 2; path 3 is `core/resource-cycle-holds-close`.
+  Verify: the path tests for paths 1 and 2 pass; the resource-life check shows GoodBuildReleaseEndsReleased and GoodBuildCloseEndsWithClose hold.
 
 ## Review
 
@@ -175,6 +176,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/keyed-watch-after-close** — done 2026-11-18 (bug 2, [keyed-resource](docs/states/keyed-resource/README.md) cause B; ADR 0157 d5). A held keyed reader's `get()` and first `watch()` call `ensureOpen` before they build, so a read after the close throws `Disposed` and builds nothing. Fix `ff565316`. Released as 0.31.3.
+  Proof: paths 3 and 4 moved to `packages/core/tests/statechart/keyed-resource-paths.test.ts`, red on main (`waiting: ["build 2"]`), green; a new `get()` test red without its guard; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the branch and on it rebased onto the round-stuck fix (size 23,225 B within 23,232 B); core mutation 86.41 on `160629f2` by the lead (kills alone 85.05; core source byte-identical to the landed head). Opus convention-review NOT READY (size proof, two doc lines, a red log), one fix round, verified by the lead. No bench: no probe scenario reads a keyed resource; the review judged one `layer.closed` check per `get()` small next to the inputs `fresh()` already reads.
 
 - **core/round-stuck-after-eq-throw** — done 2026-11-18 (bug 5, [round](docs/states/round/README.md); ADR 0152). A user `eq` that throws while a write tells its watchers ends the round, as a watcher's throw does; the round flag no longer sticks. Each cell keeps an internal guarded `tellEq` for the telling's compares (`flushOne`, `pendingNsWatchers`); `cell.eq` and the write's own compare stay bare, so a watcher that catches its write's `eq` keeps its round. Fix `0ebef947`. Released as 0.31.2.
   Proof: `tests/statechart/round-stuck.test.ts` red on main, green; `round-eq-throw.test.ts` (the reviewer's catch-then-write probe) red on the first design; `scripts/ticket.sh --check-only --no-mutation` exit 0 (the known `flight-trial` supplier 5 s timeout and one React browser test flaked under load and passed on re-run; both also pass alone; the supplier one also fails alone on main); size 23,229 B within 23,232 B; core mutation 86.07 on `4cc9853f` by the lead (kills alone 85.3; core source byte-identical to the landed head; the writer's run on `3f6fc3c3` was 87.22, kills alone 84.9). Queued bench vs main (N=61, paired sign test): design 1 (eq inside the watcher `try`) made `write` +1.1% slower (p=0.003) and was dropped; the landed design: `write` -0.8% (b is faster, p=0.0004), `writehook` and `writeunwatched` no difference we can see. Opus convention-review NOT READY (guard on every eq reordered a caught write), one fix round, READY.

@@ -9,6 +9,18 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.3
+
+A keyed resource read held past its scope's
+close no longer builds (bug 2, ADR 0157).
+
+- A held reader that reads or subscribes after
+  the scope closed throws `Disposed` first.
+- Before, it built once more, and that build's
+  end never ran.
+- A held resource read after the close already
+  threw `Disposed`; a keyed one now does too.
+
 ## 0.31.2
 
 A cell's `eq` that throws no longer stops
