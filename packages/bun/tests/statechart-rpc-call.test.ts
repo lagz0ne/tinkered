@@ -3,14 +3,18 @@
 // and ws server. Rule (ADR 0141, kept by ADR 0154): `link`, `sent: false` means nothing left,
 // so nothing ran. A failure means the path reproduces.
 //
-// Test seams (no change to src): `setImmediate` is wrapped before the client module loads, so
-// the test can hold the client's next tick (the frame buffer's send); `WebSocket` is wrapped
-// to list the sockets the client opens. Step 4 fires the socket's `close` event in the window
-// between the post and the tick, as a real close event can (both are tasks).
+// Test seams: `setImmediate` is wrapped, so the test can hold the client's
+// next tick (the frame buffer's send); the client reads `setImmediate` at each tick. `WebSocket`
+// is wrapped to list the sockets the client opens. `afterAll` puts both globals back and drops
+// held ticks, so a failure here never stalls another file in the same process. Step 4 fires the
+// socket's `close` event in the window between the post and the tick, as a real close event can
+// (both are tasks).
 import { createScope, execution, operation, rpc } from "@tinkered/core";
 import type { Scope } from "@tinkered/core";
-import { afterEach, expect, test } from "vite-plus/test";
+import { afterAll, afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
+
+import { listen, wsClient, wsServer } from "./support";
 
 const realImmediate = globalThis.setImmediate;
 let hold = false;
@@ -32,6 +36,13 @@ globalThis.WebSocket = class extends RealWebSocket {
   }
 } as typeof WebSocket;
 
+afterAll(() => {
+  hold = false;
+  held.splice(0);
+  globalThis.setImmediate = realImmediate;
+  globalThis.WebSocket = RealWebSocket;
+});
+
 const until = async (ok: () => boolean): Promise<void> => {
   for (let i = 0; i < 400 && !ok(); i++) await new Promise((r) => setTimeout(r, 5));
   if (!ok()) throw new Error("timed out");
@@ -46,10 +57,6 @@ afterEach(async () => {
 const api = rpc({ add: { input: z.object({ n: z.number() }), output: z.string() } });
 
 test("UnsentNeverRuns path: a call failed as link, sent: false does not run on the server", async () => {
-  const { ws: wsClient } = await import("@/client");
-  const { ws: wsServer } = await import("@/index");
-  const { listen } = await import("./support");
-
   const runs: string[] = [];
   const add = operation({
     label: "add",

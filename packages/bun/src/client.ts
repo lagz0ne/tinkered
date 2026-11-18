@@ -65,9 +65,11 @@ function viaChannel(): (fn: () => void) => void {
 /**
  * Runs `fn` in the next task, with no timer wait. `setTimeout(0)` waits at least 1 ms on Bun and
  * Node, and 4 ms in a browser once timers nest (HTML timer clamp). Bun and Node have
- * `setImmediate`, which does not keep the process alive as an open port does.
+ * `setImmediate`, which does not keep the process alive as an open port does. It reads
+ * `setImmediate` at each call, not once at load, so a test that wraps it later still sees the tick.
  */
-const nextTick = typeof setImmediate === "function" ? setImmediate : viaChannel();
+const nextTick =
+  typeof setImmediate === "function" ? (fn: () => void) => setImmediate(fn) : viaChannel();
 
 /** Makes one WebSocket client. */
 export function createWs() {
