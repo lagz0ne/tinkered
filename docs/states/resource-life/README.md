@@ -43,12 +43,17 @@ Words:
 
 TLC reached 180 states (`ResourceLife.cfg`)
 and 18 states (`cycle.cfg`).
+The spec, the charts and the rerun
+still describe `c9c8817`, before the bug 6 fix.
+So they still show 3 rules break.
 
-- **GoodBuildReleaseEndsReleased** — breaks.
+- **GoodBuildReleaseEndsReleased** — holds, since `98dd62e4`
+  (card `core/resource-failed-stays`).
   ADR 0063 d3, ADR 0026 Q4.
   A release fixes the end to `released`.
   A build the release picks ends `released`.
-- **GoodBuildCloseEndsWithClose** — breaks.
+- **GoodBuildCloseEndsWithClose** — holds, since `98dd62e4`
+  (card `core/resource-failed-stays`).
   ADR 0063 d6.
   Close unlinks every instance
   with the close's end.
@@ -199,13 +204,24 @@ true only in the end states.
 
 ## Bug 6: a good build ends `failed`
 
-Card `core/resource-failed-stays`.
+Card `core/resource-failed-stays` fixes it
+(`98dd62e4`).
 Rules: GoodBuildReleaseEndsReleased,
 GoodBuildCloseEndsWithClose.
 
-A failed sync build leaves `failed` on the instance.
-The next good build reuses that instance.
-Its release (and its close) ends as `failed`.
+A failed sync build left `failed` on the instance.
+The next good build reused that instance.
+Its release (and its close) ended as `failed`.
+
+The fix: when a build fails,
+Core fixes the end of that build's ends
+to `failed` at once (`keepFailedEnds`).
+The instance keeps no `failed` mark.
+So a later good build's ends get the release's
+or the close's end.
+The failed build's ends still get `failed`
+(ADR 0026 Q4).
+The paths below name the code before the fix.
 
 ### Path 1: a release
 
@@ -221,6 +237,7 @@ Its release (and its close) ends as `failed`.
    `owned.failed ?? end` (`:3718`).
 4. The ends run: `a2:failed`, `a1:failed`.
    ADR 0063 d3 wants `a2:released`.
+   Since the fix: `a2:released`, `a1:failed`.
 
 ### Path 2: a close
 
@@ -231,6 +248,8 @@ Its release (and its close) ends as `failed`.
 4. The ends run: `a2:failed`, `a1:failed`,
    `b:cancelled`.
    ADR 0063 d6 wants `a2:cancelled`.
+   Since the fix: `a2:cancelled`, `a1:failed`,
+   `b:cancelled`.
 
 ## Bug 7: a cycle keeps `close()` open
 
@@ -267,21 +286,21 @@ Only the close hang breaks a rule.
 
 ## Path tests
 
-`paths/resource-life-paths.test.ts.txt`
-goes to `packages/core/tests/statechart/`.
-
-- Today: 3 of 3 fail (paths 1 to 3).
-  A fail shows the bug.
+- `resource-life-paths.test.ts` — paths 1 and 2,
+  now in `packages/core/tests/statechart/`.
+  They pass since `98dd62e4`.
+  They failed before: that showed bug 6.
 - Path 1 also checks the case with no rule yet:
   `expect(ended).toEqual([])` after step 1.
-  It passes today.
+  It passes, before and after the fix.
+- `instance-release.test.ts` pins both ends
+  of path 1: `2:released`, `1:failed`.
+- `paths/resource-life-paths.test.ts.txt` —
+  path 3 only. It fails today: that shows bug 7.
+  Card `core/resource-cycle-holds-close`
+  moves it into the same test file.
 
-Card `core/resource-failed-stays`
-moves paths 1 and 2 in, without the `.txt`.
-Card `core/resource-cycle-holds-close`
-moves path 3 in.
-
-Once moved, run:
+Run:
 
 ```sh
 cd packages/core
@@ -348,3 +367,5 @@ statechart ResourceLife.tla \
 Exit 1 today, for both:
 2 rules break in `ResourceLife.cfg`,
 1 in `cycle.cfg`.
+The spec still describes `c9c8817`,
+so it does not see the bug 6 fix.
