@@ -36,7 +36,7 @@ TLC reached 1,737 states (2 calls).
 - **RenewOnlyOnRefusal** — holds.
   ADR 0154 d2, the `RenewOp` doc, commit `14402c8`.
   Renew runs only on a refusal, one at a time.
-- **UnsentNeverRuns** — holds, since `54169f91`
+- **UnsentNeverRuns** — holds, since `730d7e26`
   (bug 4, card `bun/client-drop-keeps-frames`).
   ADR 0141 (kept by ADR 0154).
   `link, sent: false` means nothing left,
@@ -187,10 +187,10 @@ and the link closes before the tick.
 ## Path test
 
 The test lives in `packages/bun/tests/statechart-rpc-call.test.ts`.
-It moved there from `paths/` in `dd47acab`.
+It moved there from `paths/` in `f3a03adf`.
 
 - Before the fix: 1 of 1 failed. A fail showed the bug.
-- After the fix in `54169f91`: 1 of 1 passes.
+- After the fix in `730d7e26`: 1 of 1 passes.
 - It uses the real ws client and the real Bun ws server.
 - It wraps `setImmediate` before the client loads,
   so it can hold the tick.

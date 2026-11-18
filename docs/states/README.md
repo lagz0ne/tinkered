@@ -85,7 +85,7 @@ so main stays green.
 - **scope-life** — 3 rules break.
   Card: `core/stop-signal-then-later-event`
   (Blocked: Duke picks).
-- **rpc-call** — 0 rules break now (fix `54169f91`);
+- **rpc-call** — 0 rules break now (fix `730d7e26`);
   the spec still shows 1.
   Card: `bun/client-drop-keeps-frames`.
 - **session-provider** — 1 rule breaks.
