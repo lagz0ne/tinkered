@@ -36,7 +36,8 @@ TLC reached 1,737 states (2 calls).
 - **RenewOnlyOnRefusal** — holds.
   ADR 0154 d2, the `RenewOp` doc, commit `14402c8`.
   Renew runs only on a refusal, one at a time.
-- **UnsentNeverRuns** — breaks.
+- **UnsentNeverRuns** — holds, since `54169f91`
+  (bug 4, card `bun/client-drop-keeps-frames`).
   ADR 0141 (kept by ADR 0154).
   `link, sent: false` means nothing left,
   so nothing ran.
@@ -48,6 +49,9 @@ TLC reached 1,737 states (2 calls).
 
 A close mid call is `link, sent: true`, with no renew
 (commit `14402c8`).
+
+The charts and the TLC rerun still show the spec of commit `3ff6778`.
+Its rule still breaks there. The code does not.
 
 ## Chart: one call
 
@@ -182,21 +186,20 @@ and the link closes before the tick.
 
 ## Path test
 
-`paths/statechart-rpc-call.test.ts.txt`
-goes to `packages/bun/tests/`.
+The test lives in `packages/bun/tests/statechart-rpc-call.test.ts`.
+It moved there from `paths/` in `dd47acab`.
 
-- Today: 1 of 1 fails. A fail shows the bug.
+- Before the fix: 1 of 1 failed. A fail showed the bug.
+- After the fix in `54169f91`: 1 of 1 passes.
 - It uses the real ws client and the real Bun ws server.
 - It wraps `setImmediate` before the client loads,
   so it can hold the tick.
 - It wraps `WebSocket`, so it can list the sockets
   and fire the first socket's `close` in that window.
-- No change to `src`.
+- The fix is in `drop()` in `src/client.ts`.
+  The test did not change.
 
-Card `bun/client-drop-keeps-frames` moves it,
-without the `.txt`.
-
-Once moved, run:
+Run it:
 
 ```sh
 cd packages/bun
@@ -233,4 +236,5 @@ statechart RpcCall.tla \
   --view view.ts --out "$(mktemp -d)"
 ```
 
-Exit 1 today, for both: 1 rule breaks.
+Exit 1 for both: the spec still shows commit `3ff6778`,
+where 1 rule breaks.
