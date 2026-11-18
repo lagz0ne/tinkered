@@ -25,17 +25,17 @@ Words:
 
 TLC reached 24,044 states.
 The spec, the chart and the rerun
-still describe `3ff6778`, before fix `66910b9b`.
+still describe `3ff6778`, before fix `ff565316`.
 So they still show 5 rules break.
 
 - **EndBeforeNextBuild** — breaks.
   ADR 0157 d5.
   An end runs before the next build of the same key.
-- **EndWhenLastReaderLeaves** — holds after fix `66910b9b`
+- **EndWhenLastReaderLeaves** — holds after fix `ff565316`
   (card `core/keyed-watch-after-close`).
   ADR 0157 d5.
   A key with no reader has no end that waits.
-- **EndsRunWhenScopeCloses** — holds after fix `66910b9b`
+- **EndsRunWhenScopeCloses** — holds after fix `ff565316`
   (card `core/keyed-watch-after-close`).
   ADR 0157 d5.
   After the scope closed, no end waits.
@@ -190,7 +190,7 @@ Two causes:
   The close also frees the store,
   so the build reads the cell's first value (0).
   A `get()` after the close had the same hole.
-  Fix `66910b9b`: `get()` and the first `watch()`
+  Fix `ff565316`: `get()` and the first `watch()`
   throw `Disposed` before they build.
 
 ### Path 1: NoChangeNoBuild and OneEntryPerKey
@@ -284,7 +284,7 @@ throws `Disposed` first.
 - `keyed-resource-paths.test.ts` —
   paths 3 and 4 (cause B), now in
   `packages/core/tests/statechart/`.
-  They pass after fix `66910b9b`.
+  They pass after fix `ff565316`.
   They failed before: that showed the bug.
   They left the `.txt`,
   so each test lives in one place.
@@ -356,5 +356,5 @@ statechart KeyedResource.tla \
 
 Exit 1: 5 rules break.
 The spec still describes `3ff6778`,
-so it does not see fix `66910b9b`.
+so it does not see fix `ff565316`.
 In the code, 3 rules break.
