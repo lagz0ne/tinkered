@@ -137,9 +137,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   thread). Rule `tinker/link`: a JSX `<a>` whose `href` is an in-app path
   reloads the page (CUJ run 5: 3 of 10 writers, 13 journeys lost).
   Precedent: Next.js `no-html-link-for-pages`. Fix text from the React skill.
-  Saved: 7cfffdd5..690d54c6. Mutation `link.ts` 101/107 killed (94.4%) on
-  690d54c6, clean tree. Proof in the writer's report.
-  Next: reviewer reads the branch; the lead lands.
+  Saved: 7cfffdd5..5dea20a5 (review round 1 in 5dea20a5).
+  Mutation on 5dea20a5, clean tree: `link.ts` 116/121 killed (95.9%) on
+  kills alone. `check.ts:164` (the one added line): 4 mutants timed out
+  under box load, none survived. The next full `cli` lane covers
+  `check.ts` (lead, option A).
+  Next: a reviewer re-checks 5dea20a5; the lead lands.
   Verify: muse-1's `board.tsx` in a template copy gives one `tinker/link`
   at its `<a href>` line; the template's own board gives none; cli tests,
   skills, prose, mutation 85.
