@@ -203,10 +203,10 @@
     "status": "provisional",
     "trues": 4,
     "falses": 61,
-    "medianTrue": 0.77,
-    "medianFalse": 0.61,
-    "separation": 0.16,
-    "ordered": 0.75,
+    "medianTrue": 0.79,
+    "medianFalse": 0.62,
+    "separation": 0.17,
+    "ordered": 0.77,
     "at": "2026-11-18"
   },
   "waitsOnSideWork": {
