@@ -57,10 +57,10 @@ export function devtools(options?: Devtools.Options) {
   const listeners = new Set<() => void>();
   let scope: Devtools.Snapshot["scope"] = { state: "starting" };
 
-  /** Tell each listener of a new record. A copy of the set, so a listener that changes the set
-   * does not change this round. */
+  /** Tell each listener of a new record. A listener removed during the loop is skipped; one added
+   * during the loop is also told. */
   function notify(): void {
-    for (const listener of Array.from(listeners)) {
+    for (const listener of listeners) {
       try {
         listener();
       } catch (error) {
@@ -84,7 +84,7 @@ export function devtools(options?: Devtools.Options) {
   }
 
   function setScope(state: Devtools.Snapshot["scope"]["state"], status?: Devtools.Status): void {
-    scope = { state, status };
+    scope = status === undefined ? { state } : { state, status };
     notify();
   }
 
@@ -114,10 +114,8 @@ export function devtools(options?: Devtools.Options) {
 
   function countWrite(label: string, value: unknown): void {
     const seen = writes.get(label);
-    writes.set(label, {
-      count: (seen?.count ?? 0) + 1,
-      value: values ? value : undefined,
-    });
+    const count = (seen?.count ?? 0) + 1;
+    writes.set(label, values ? { count, value } : { count });
     notify();
   }
 
@@ -125,7 +123,12 @@ export function devtools(options?: Devtools.Options) {
     const byId = new Map<number, Devtools.Session>();
     const list: Devtools.Session[] = [];
     for (const [id, line] of sessions) {
-      const session: Devtools.Session = { id, state: line.state, status: line.status, runs: [] };
+      const session: Devtools.Session = {
+        id,
+        state: line.state,
+        ...(line.status === undefined ? {} : { status: line.status }),
+        runs: [],
+      };
       list.push(session);
       byId.set(id, session);
     }
@@ -197,14 +200,29 @@ export function devtools(options?: Devtools.Options) {
 }
 
 /**
- * A copy of a span, with its attributes and events copied one level down. `error` becomes text:
- * an `Error` turns into `{}` in JSON, so a copy holds `String(error)`.
+ * A copy of a span, built field by field: Core's span is a class whose ids are getters and whose
+ * private fields must not leak. Attributes and events are copied one level down. `error` becomes
+ * text: an `Error` turns into `{}` in JSON, so a copy holds `String(error)`.
  */
 function copySpan(span: Observe.Span): Observe.Span {
   return {
-    ...span,
+    id: span.id,
+    parentId: span.parentId,
+    traceId: span.traceId,
+    spanId: span.spanId,
+    parentSpanId: span.parentSpanId,
+    sampled: span.sampled,
+    name: span.name,
+    kind: span.kind,
+    start: span.start,
+    end: span.end,
+    status: span.status,
+    ...(span.error === undefined ? {} : { error: String(span.error) }),
     attributes: { ...span.attributes },
-    events: span.events.map((event) => ({ ...event, attributes: { ...event.attributes } })),
-    error: span.error === undefined ? undefined : String(span.error as string),
+    events: span.events.map((event) => ({
+      name: event.name,
+      time: event.time,
+      attributes: { ...event.attributes },
+    })),
   };
 }

@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { createScope, data, operation, resource, transport } from "@tinkered/core";
@@ -94,6 +95,7 @@ test("runs in a session and in a nested one land under that session, by id", asy
   ]);
   expect(sessions.map((session) => session.status)).toEqual(["success", "success"]);
   expect(runs).toEqual([]);
+  await scope.close();
 });
 
 test("a session whose function throws ends failed", async () => {
@@ -222,11 +224,9 @@ test("a moves listener is told once per record, and unsubscribing stops it", asy
  * runner would count as its own failure. The child catches it as the host does.
  */
 test("a listener that throws does not stop the run or the other listeners", async () => {
-  const devtoolsEntry = new URL("../dist/index.mjs", import.meta.url).href;
-  const coreEntry = new URL("../../core/dist/index.mjs", import.meta.url).href;
   const script = `
-    import { createScope, operation } from ${JSON.stringify(coreEntry)};
-    import { devtools } from ${JSON.stringify(devtoolsEntry)};
+    import { createScope, operation } from "@tinkered/core";
+    import { devtools } from "@tinkered/devtools";
     const reported = [];
     process.on("uncaughtException", (error) => reported.push(String(error)));
     const plain = operation({ label: "plain", run: () => 1 });
@@ -244,11 +244,11 @@ test("a listener that throws does not stop the run or the other listeners", asyn
     console.log(JSON.stringify({ result, told, reported }));
   `;
 
-  const { stdout } = await promisify(execFile)(process.execPath, [
-    "--input-type=module",
-    "-e",
-    script,
-  ]);
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    ["--input-type=module", "-e", script],
+    { cwd: fileURLToPath(new URL("..", import.meta.url)) },
+  );
 
   expect(JSON.parse(stdout.trim())).toEqual({ result: 1, told: 1, reported: ["Error: boom"] });
 });
@@ -262,6 +262,58 @@ test("the snapshot survives a JSON round trip unchanged", async () => {
   const snapshot = dt.snapshot();
 
   expect(JSON.parse(JSON.stringify(snapshot))).toEqual(snapshot);
+  await scope.close();
+});
+
+const spanFields = new Set([
+  "id",
+  "parentId",
+  "traceId",
+  "spanId",
+  "parentSpanId",
+  "sampled",
+  "name",
+  "kind",
+  "start",
+  "end",
+  "status",
+  "error",
+  "attributes",
+  "events",
+]);
+
+/** The keys of `record` whose value is `undefined`. */
+function undefinedKeys(record: object): string[] {
+  return Object.entries(record)
+    .filter(([, value]) => value === undefined)
+    .map(([key]) => key);
+}
+
+test("a snapshot span holds only span fields, with W3C ids, and no key is set to undefined", async () => {
+  const { dt, scope } = await started();
+  await scope.session((session) => {
+    session.run(plain);
+  });
+  scope.run(found);
+  scope.settle(useBroken);
+  scope.controller(count).set(1);
+
+  const snapshot = dt.snapshot();
+  const spans = [
+    ...snapshot.runs,
+    ...snapshot.resources,
+    ...snapshot.sessions.flatMap((session) => session.runs),
+  ];
+
+  expect(spans.length).toBeGreaterThan(0);
+  for (const span of spans) {
+    expect(Object.keys(span).filter((key) => !spanFields.has(key))).toStrictEqual([]);
+    expect(typeof span.traceId).toBe("string");
+    expect(typeof span.spanId).toBe("string");
+  }
+  expect(undefinedKeys(snapshot.scope)).toStrictEqual([]);
+  expect(snapshot.sessions.flatMap(undefinedKeys)).toStrictEqual([]);
+  expect(snapshot.writes.flatMap(undefinedKeys)).toStrictEqual([]);
   await scope.close();
 });
 
