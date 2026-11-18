@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, operation, resource, tag } from "@/main";
+import { createScope, data, isError, operation, resource, tag } from "@/main";
 
 type Task = { project: string; id: string; done: boolean };
 
@@ -153,4 +153,32 @@ test("a keyed resource with no end keeps its build when its last reader leaves",
   reader.watch(() => undefined)();
 
   expect(reader.get()).toBe(1);
+});
+
+test("a held reader's read after the scope closed raises Disposed and builds nothing (bug 2)", async () => {
+  const builds: number[] = [];
+  const level = data({ label: "life.level", initial: 0 });
+  const shown = resource({
+    label: "life.shown",
+    config: {},
+    depends: { level },
+    factory: ({ level }) => {
+      builds.push(level);
+      return level;
+    },
+  });
+  const scope = createScope();
+  scope.controller(level).set(1);
+  const reader = scope.resolve(shown);
+  reader.get();
+  await scope.close();
+
+  try {
+    reader.get();
+    expect.unreachable("a closed scope must refuse a read");
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
+
+  expect(builds).toEqual([1]);
 });

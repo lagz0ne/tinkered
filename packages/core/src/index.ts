@@ -8783,16 +8783,21 @@ class BuiltEntry implements Data.Reader<unknown> {
     return { key, read: () => value, watch: undefined, gives: undefined };
   }
 
+  /** A read, or a first watch, on a closed scope is refused before it builds: that build's end
+   * could never run (ADR 0157 d5). */
   get(): unknown {
+    ensureOpen(this.layer);
+
     if (this.wait === undefined && this.failed === undefined) this.fresh();
     if (this.wait !== undefined) throw this.wait;
-    if (this.failed !== undefined) throw this.failed.error;
-    if (this.fault !== undefined) throw this.fault.error;
+    const fault = this.failed ?? this.fault;
+    if (fault !== undefined) throw fault.error;
     return this.value;
   }
 
   watch(fn: (next: unknown, prev: unknown) => void): () => void {
     if (this.watchers.size === 0) {
+      ensureOpen(this.layer);
       if (this.wait === undefined && this.failed === undefined) this.fresh();
       this.told = this.value;
       this.toldFault = this.failed ?? this.fault;
