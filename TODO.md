@@ -125,14 +125,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` empties the frame buffer `out`, so a call failed as `link, sent: false` is never sent.
-  Owner: Opus lead (statechart fixes); Haiku writer (started before the Opus-writer rule); Opus reviewer.
-  Branch `bun/client-drop-keeps-frames`, head `5b7ba13f` (fix `54169f91`), worktree `../tinkered-client-drop-keeps-frames`.
-  Review: Opus convention-review READY; one fix round done (test name, one doc line).
-  Proof so far: the path test (now `packages/bun/tests/statechart-rpc-call.test.ts`) is red on main (`ranB: true`) and green on the branch; build, `vp check` (80 warnings, as main), bun 131 tests, exit 0.
-  Next: the bun mutation lane on `5b7ba13f` (log `/home/paseo/statechart/fixes/logs/client-drop-keeps-frames-mutation.txt`; it waited on `/tmp/mutation.lock`), then fast-forward main and release 0.30.2 (draft notes `/home/paseo/statechart/fixes/changelog-0.30.2.md`).
-  Verify: bun mutation 85 or more on `5b7ba13f`; CI green on main.
-
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
@@ -180,6 +172,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **bun/client-drop-keeps-frames** — done 2026-11-18 (bug 4, [rpc-call](docs/states/rpc-call/README.md); ADR 0141). `drop()` in `packages/bun/src/client.ts` empties the frame buffer, so a call failed as `link, sent: false` is never sent. Fix `730d7e26`. Released as 0.31.1.
+  Proof: the rpc-call path test moved to `packages/bun/tests/statechart-rpc-call.test.ts`; red without the fix (`ranB: true`), green with it; all bun tests in one `bun test` process 131 pass, 0 fail; build, `vp check` (80 warnings, as main), bun tests, exit 0; bun mutation on `eaa81256` (bun source and tests byte-identical to the landed head) 86.81 and `run.ts` 91.53, exit 0. Opus convention-review READY, one fix round (test name, one doc line); the land gate found the path test leaked its globals in one process, so `nextTick` reads `setImmediate` at each call (one extra call per frame; accepted for the path test's seam, review T2 question) and the test puts its globals back; delta review READY.
 
 - **cli/graph** — done 2026-11-18 (ADR 0161, amended 2026-11-17: facts only). `tinker graph [root]` prints one line per operation: its exits, and what its `run` reads, writes and calls, by label; `?` where the graph could not see. `--write` writes `tinker.graph`; the `tinker check` stage `graph` gives a `tinker/graph` finding for each line that differs. `apps/site` commits its `tinker.graph`. Released as 0.31.0.
   Proof: Opus review READY after three fix rounds; cli 141 tests; gates on the landed tree (build, `vp check`, `vp run -r test`, skills, prose, site `tinker check: OK`); cli mutation lane on `d2655d42` in 4 parts, clean tree, 2702/3143 = 85.97 on kills alone; `graph.ts` 353/404 = 87.38 on kills alone on `94c2512d`.

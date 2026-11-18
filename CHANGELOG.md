@@ -8,6 +8,21 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.1
+
+A ws call failed as not sent is not sent later
+(bug 4, ADR 0141).
+
+- In `@tinkered/bun/client`, a link that closes
+  before the next tick fails each waiting call
+  as `link`, `sent: false`.
+- Before, the call's frame stayed in the buffer.
+  The tick then sent it on a new socket,
+  and the server ran it.
+- Now the close drops the frames not yet sent.
+  So `sent: false` means the server never got it.
+  A call sent again on `sent: false` runs once.
+
 ## 0.31.0
 
 `tinker graph` prints facts, and `tinker check`

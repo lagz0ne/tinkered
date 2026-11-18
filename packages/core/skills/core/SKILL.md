@@ -14,7 +14,7 @@ metadata:
     task skill to load next.
   type: core
   library: '@tinkered/core'
-  library_version: '0.31.0'
+  library_version: '0.31.1'
 sources:
   - 'lagz0ne/tinkered:packages/core/src/main.ts'
   - 'lagz0ne/tinkered:docs/best-practices.md'
