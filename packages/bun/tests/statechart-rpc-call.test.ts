@@ -15,6 +15,7 @@ import { z } from "zod";
 const realImmediate = globalThis.setImmediate;
 let hold = false;
 const held: Array<() => void> = [];
+
 globalThis.setImmediate = ((fn: (...args: unknown[]) => void, ...args: unknown[]) => {
   if (!hold) return realImmediate(fn, ...args);
   held.push(() => fn(...args));
@@ -23,6 +24,7 @@ globalThis.setImmediate = ((fn: (...args: unknown[]) => void, ...args: unknown[]
 
 const RealWebSocket = globalThis.WebSocket;
 const sockets: WebSocket[] = [];
+
 globalThis.WebSocket = class extends RealWebSocket {
   constructor(...args: ConstructorParameters<typeof RealWebSocket>) {
     super(...args);
@@ -36,6 +38,7 @@ const until = async (ok: () => boolean): Promise<void> => {
 };
 
 const closers: Array<() => unknown> = [];
+
 afterEach(async () => {
   for (const close of closers.splice(0).reverse()) await close();
 });
