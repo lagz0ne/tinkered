@@ -93,6 +93,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/keyed-entry-dropped** — bug 1 in [docs/states](docs/states/keyed-resource/README.md). The last watcher leaves, so the entry leaves the map, but a holder can subscribe to it again. The next reader of that key builds a second entry. Next: move `paths/keyed-resource-react.test.tsx.txt` and paths 1 and 2 of `paths/keyed-resource-paths.test.ts.txt` into the packages' tests (they fail), then fix `builtReader` and `class BuiltEntry` in `packages/core/src/index.ts`.
   Verify: the two React path tests and the Core path tests for paths 1 and 2 pass; the keyed-resource check shows 0 breaks for OneEntryPerKey, NoChangeNoBuild, EndBeforeNextBuild.
 
+- **bun/client-empty-tick** — After `drop()` empties `out`, the tick it scheduled still runs with nothing to send and opens a new socket, which stays open until the scope closes (review of `bun/client-drop-keeps-frames`, the tick in `post`). Next: the tick returns when its batch is empty; step 5 of `statechart-rpc-call.test.ts` then expects 1 socket.
+  Verify: a bun test shows no socket opens after a drop with nothing left to send; the rpc-call path test passes.
+
 - **core/keyed-watch-after-close** — bug 2 in [docs/states](docs/states/keyed-resource/README.md). A held reader that subscribes after the scope closed builds once (`watch()` runs `fresh()` before `Disposed`), and that build's end never runs. Next: move paths 3 and 4 of `paths/keyed-resource-paths.test.ts.txt` into Core's tests (they fail), then fix the keyed `watch()` path in `packages/core/src/index.ts`.
   Verify: its path tests (paths 3 and 4) pass; the keyed-resource check shows EndsRunWhenScopeCloses and EndWhenLastReaderLeaves hold.
 
@@ -128,11 +131,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` fails every waiter but does not empty `out`, so a call failed as `link, sent: false` is still sent, and the server runs it. Next: move `paths/statechart-rpc-call.test.ts.txt` into Bun's tests (it fails), then fix `drop()`.
-  Owner: Opus lead (statechart fixes); Haiku writer; Opus reviewer.
-  Verify: the rpc-call path test passes; the rpc-call check shows UnsentNeverRuns holds (both configs).
-
 ## Review
+
+- **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` empties the frame buffer `out`, so a call failed as `link, sent: false` is never sent.
+  Owner: Opus lead (statechart fixes); Haiku writer (started before the Opus-writer rule); Opus reviewer.
+  Branch `bun/client-drop-keeps-frames`, head `5b7ba13f` (fix `54169f91`), worktree `../tinkered-client-drop-keeps-frames`.
+  Review: Opus convention-review READY; one fix round done (test name, one doc line).
+  Proof so far: the path test (now `packages/bun/tests/statechart-rpc-call.test.ts`) is red on main (`ranB: true`) and green on the branch; build, `vp check` (80 warnings, as main), bun 131 tests, exit 0.
+  Next: the bun mutation lane on `5b7ba13f` (log `/home/paseo/statechart/fixes/logs/client-drop-keeps-frames-mutation.txt`; it waited on `/tmp/mutation.lock`), then fast-forward main and release 0.30.2 (draft notes `/home/paseo/statechart/fixes/changelog-0.30.2.md`).
+  Verify: bun mutation 85 or more on `5b7ba13f`; CI green on main.
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
