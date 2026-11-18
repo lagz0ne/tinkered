@@ -231,7 +231,9 @@ the deps handed on whole, a call it does not
 know, a dep it cannot name (a capsule or contract
 member, a label not written as a string, an
 `atScope` controller), a tag that holds a unit,
-or a `run` passed by name.
+or a `run` passed by name. A tag that holds a
+union of unit kinds, or a held cell that `run`
+never uses, may show no `?`.
 
 The graph reads each op's own body. A resource's
 own code is not read: a write inside a

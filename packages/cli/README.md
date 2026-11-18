@@ -153,6 +153,9 @@ cell in `reads` and `writes`, a read in `reads`,
 an operation in `calls`. For a dep the graph
 cannot name, its type in `run` says which.
 
+A tag that holds a union of unit kinds, or a held
+cell that `run` never uses, may show no `?`.
+
 The graph reads each op's own body. A resource's
 own code is not read: a write inside a
 resource's value does not show.
