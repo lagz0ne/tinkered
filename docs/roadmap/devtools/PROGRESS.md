@@ -19,3 +19,10 @@
   `error` (row in core-feedback.md).
 - npm: `@tinkered/devtools` is not on npm, so its
   first publish needs Duke (npm-first.yml).
+- Gates at 08cb5dd8, all exit 0: build, check
+  (80 warnings, as main), devtools 17 tests,
+  size 1990 B (cap 2160), prose, skills,
+  release check, every package's tests.
+- Not done by 14:00 UTC: the mutation lane (the
+  lock was busy) and `calibrate.mjs` (stopped
+  after 5 min). So not pushed yet.
