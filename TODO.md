@@ -96,9 +96,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/keyed-watch-after-close** — bug 2 in [docs/states](docs/states/keyed-resource/README.md). A held reader that subscribes after the scope closed builds once (`watch()` runs `fresh()` before `Disposed`), and that build's end never runs. Next: move paths 3 and 4 of `paths/keyed-resource-paths.test.ts.txt` into Core's tests (they fail), then fix the keyed `watch()` path in `packages/core/src/index.ts`.
   Verify: its path tests (paths 3 and 4) pass; the keyed-resource check shows EndsRunWhenScopeCloses and EndWhenLastReaderLeaves hold.
 
-- **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` fails every waiter but does not empty `out`, so a call failed as `link, sent: false` is still sent, and the server runs it. Next: move `paths/statechart-rpc-call.test.ts.txt` into Bun's tests (it fails), then fix `drop()`.
-  Verify: the rpc-call path test passes; the rpc-call check shows UnsentNeverRuns holds (both configs).
-
 - **core/resource-failed-stays** — bug 6 in [docs/states](docs/states/resource-life/README.md). After a failed sync build, `failed` stays on the instance; the next good build reuses it, so its release (or close) ends `failed` (ADR 0063 d3, d6). Next: move paths 1 and 2 of `paths/resource-life-paths.test.ts.txt` into Core's tests (they fail), then fix how `failed` stays (`settleResourceInstance`, `unlinkInstance` in `packages/core/src/index.ts`).
   Verify: the path tests for paths 1 and 2 pass; the resource-life check shows GoodBuildReleaseEndsReleased and GoodBuildCloseEndsWithClose hold.
 
@@ -130,6 +127,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: the use-run path tests pass; the react-run-resource check with `UseRun.cfg` shows ShownStateIsLatest and CallbacksFirePerRun hold.
 
 ## Doing
+
+- **bun/client-drop-keeps-frames** — bug 4 in [docs/states](docs/states/rpc-call/README.md). `drop()` in `packages/bun/src/client.ts` fails every waiter but does not empty `out`, so a call failed as `link, sent: false` is still sent, and the server runs it. Next: move `paths/statechart-rpc-call.test.ts.txt` into Bun's tests (it fails), then fix `drop()`.
+  Owner: Opus lead (statechart fixes); Haiku writer; Opus reviewer.
+  Verify: the rpc-call path test passes; the rpc-call check shows UnsentNeverRuns holds (both configs).
 
 ## Review
 
