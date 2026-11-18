@@ -85,7 +85,7 @@ export function createWs() {
     waits: Map<number, Waiter>;
     next: number;
     post: (message: Out) => void;
-    /** Fails every waiter of this socket, and forgets it; another socket's close is no-op. */
+    /** Fails every waiter of this socket, drops its unsent frames, and forgets it; another socket's close is no-op. */
     drop: (socket: WebSocket | null) => void;
     /** Drops the socket: every waiter fails as a link fault, and the next message opens a new one. */
     reset: () => void;
@@ -266,13 +266,18 @@ export function createWs() {
         /** The socket now in use: a close of an older one fails nothing of the new one's. */
         let current: WebSocket | null = null;
 
-        /** Fails every waiter, and forgets the socket: the next message opens a new one. */
+        /**
+         * Fails every waiter, drops the frames not yet sent (their waiters fail here too), and
+         * forgets the socket: the next message opens a new one. A tick already scheduled still runs;
+         * it sends only the frames posted after this drop.
+         */
         const drop = (socket: WebSocket | null) => {
           if (socket !== current) return;
 
           current = null;
           opening = null;
           if (socket) sockets.delete(socket);
+          out.splice(0);
           for (const [i, waiter] of waits) waiter(null, gone.has(i));
           waits.clear();
           gone.clear();
