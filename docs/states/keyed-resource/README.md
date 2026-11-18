@@ -39,6 +39,12 @@ So they still show 5 rules break.
   (card `core/keyed-watch-after-close`).
   ADR 0157 d5.
   After the scope closed, no end waits.
+  It holds on the paths the spec covers
+  (paths 3 and 4).
+  Not covered: a source still pending
+  that settles after the close
+  (`park`, then `tell`, `wake`, `fresh(true)`).
+  Card `core/keyed-wake-after-close` follows it.
 - **EndsRunLastFirst** — holds.
   ADR 0157 d5.
   Ends run last first.
@@ -285,15 +291,18 @@ throws `Disposed` first.
 - `paths/keyed-resource-paths.test.ts.txt` —
   paths 1 and 2 (cause A), Core.
   Today: 2 of 2 fail. A fail shows the bug.
-  Goes to `packages/core/tests/statechart/`.
+  They go into the same
+  `packages/core/tests/statechart/keyed-resource-paths.test.ts`,
+  since they share `setup` and `renders`.
 - `paths/keyed-resource-react.test.tsx.txt` —
   cause A in React.
   Today: 2 of 2 fail.
   Goes to `packages/react/tests/statechart/`.
 
 Card `core/keyed-entry-dropped` moves
-the React file and paths 1 and 2.
-It drops the `.txt` ending.
+the React file, without the `.txt`.
+It adds paths 1 and 2 to the Core file
+above, not to a new file.
 
 Run:
 
