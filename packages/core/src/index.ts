@@ -3731,7 +3731,11 @@ function hasRetainedInstance(state: ResourceState): boolean {
   return !!(state.owned?.hooks.length || state.owned?.needs?.size);
 }
 
+/** A busy dependency is still in its own sync build, so reading it raises `CircularResource`. A
+ * hold on it would close a cycle that no finish breaks, and `close()` would never resolve (ADR
+ * 0027). */
 function needsHold(owner: Layer, target: Resource.Handle<unknown>, state: ResourceState): boolean {
+  if (state.busy) return false;
   if (hasRetainedInstance(state)) return true;
   if (state.built || state.failed) return false;
   return (target as HookFlag).mayHook !== false || hasPresetLayers(owner);
