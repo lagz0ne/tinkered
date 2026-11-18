@@ -3593,6 +3593,8 @@ function resolveResourceDeps(
   );
 }
 
+/** The ctx of a factory that declares one (`factory.length >= 2`); any other factory gets
+ * {@link emptyCtxFor}. `defer` reads the build's `settled`, so a late `defer` throws `Disposed`. */
 class ResourceCtx implements Resource.Ctx {
   declare private layer: Layer;
   declare private owned: ResourceInstance;
@@ -3623,7 +3625,7 @@ class ResourceCtx implements Resource.Ctx {
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     if (this.settled()) raise("Disposed", { reason: "resource factory already finished" });
     this.owned.hooks.push(fn);
-    addDefer(this.owned.layer, { fn, owned: this.owned });
+    addDefer(this.layer, { fn, owned: this.owned });
   };
   get obs(): Observe.Ctx {
     return (this.tools ??= obsCtx(this.layer, this.span));
@@ -3640,19 +3642,6 @@ class ResourceCtx implements Resource.Ctx {
   get signal(): AbortSignal {
     return signalOf(this.layer);
   }
-}
-
-/** Build the ctx a resource factory receives. Only called when the factory declares a ctx param
- * (`factory.length >= 2`); otherwise a per-layer empty ctx (see {@link emptyCtxFor}) is passed, allocated at
- * most once per layer. `defer` closes over the build's `settled`/`superseded` so late registration
- * behaves correctly. */
-function buildCtx(
-  owned: ResourceInstance,
-  span: SpanImpl | undefined,
-  settled: () => boolean,
-  chain: readonly Namespace[] | undefined,
-): Resource.Ctx {
-  return new ResourceCtx(owned, span, settled, chain);
 }
 
 /** The empty ctx has no label, so its `raise` leaves the stamp to the run the error reaches. */
@@ -3995,7 +3984,7 @@ function buildTrackedResource<T>(
     const pending = parked;
     const ctx =
       fn.length >= 2
-        ? buildCtx(owned as ResourceInstance, span, () => settled, chain)
+        ? new ResourceCtx(owned as ResourceInstance, span, () => settled, chain)
         : emptyCtxFor(owner, chain);
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
@@ -4682,7 +4671,7 @@ function startClose(
     const settled = settleOutcome(layer, known);
     const built = collectLayerInstances(layer);
     const wait = built.length
-      ? closeInstancesSync(layer, settled, built)
+      ? closeInstances(layer, settled, built)
       : drainDefersSync(layer, layer.hooks, settled);
 
     return wait ? wait.then(tail) : tail();
@@ -4726,8 +4715,9 @@ function startClose(
   return READY.then(first);
 }
 
-/** {@link closeInstances} without a yield when no step waits; a promise only when one does. */
-function closeInstancesSync(
+/** Close unlinks every instance with the close's end (ADR 0063 d6), then drains. No yield when no
+ * step waits; a promise only when one does. Both the sync and the async close use it. */
+function closeInstances(
   layer: Layer,
   settled: Scope.Outcome,
   built: ResourceInstance[],
@@ -4738,10 +4728,7 @@ function closeInstancesSync(
 }
 
 function finishBuilt(layer: Layer, built: ResourceInstance[]): Promise<void> | undefined {
-  for (const owned of built) {
-    const finished = finishInstance(owned);
-    if (finished) ignoreRejection(finished);
-  }
+  for (const owned of built) finishTracked(owned);
   return layer.pending.size ? joinPending(layer) : undefined;
 }
 
@@ -7635,20 +7622,6 @@ async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End):
   } catch (cause) {
     addError(layer, cause);
   }
-}
-
-async function closeInstances(
-  layer: Layer,
-  settled: Scope.Outcome,
-  built: ResourceInstance[],
-): Promise<void> {
-  for (const owned of built) unlinkInstance(owned, settled);
-  await drainDefers(layer, [...layer.hooks], settled);
-  for (const owned of built) {
-    const finished = finishInstance(owned);
-    if (finished) ignoreRejection(finished);
-  }
-  while (layer.pending.size) await Promise.all(layer.pending);
 }
 
 /** True when an operation's deps name a resource, directly or behind an edge. */
