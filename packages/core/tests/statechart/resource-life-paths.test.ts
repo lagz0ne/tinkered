@@ -3,7 +3,7 @@
 // reproduces on the real code.
 import { expect, test } from "vite-plus/test";
 
-import { createScope, resource } from "@/index";
+import { createScope, isError, resource, type Resource } from "@/index";
 
 /** A reads B. Both factories take ctx and defer one end. A's first build throws. */
 function pair(ended: string[]) {
@@ -60,4 +60,25 @@ test("GoodBuildCloseEndsWithClose path: a good build after a failed one ends wit
   // 4. an instance's ends run
   expect(ended).toContain(`b:${result.status}`);
   expect(ended).toContain(`a2:${result.status}`);
+});
+
+test("CloseResolves path: A and B read each other; close() resolves (ADR 0027)", async () => {
+  const depends: Record<string, Resource.Handle<unknown>> = {};
+  const b = resource({ label: "cycle.b", depends, factory: (_deps, _ctx) => "b" });
+  const a = resource({ label: "cycle.a", depends: { b }, factory: (_deps, _ctx) => "a" });
+  depends.a = a;
+  const scope = createScope();
+
+  // 1. you resolve A: CircularResource (B reads A)
+  let thrown: unknown;
+  try {
+    scope.resolve(a);
+  } catch (error) {
+    thrown = error;
+  }
+  if (!isError(thrown, "CircularResource")) throw thrown;
+  // 2. you call close()
+  const closed = scope.close().then((result) => result.status);
+  const late = new Promise((resolve) => setTimeout(() => resolve("still open after 500 ms"), 500));
+  expect(await Promise.race([closed, late])).not.toBe("still open after 500 ms");
 });
