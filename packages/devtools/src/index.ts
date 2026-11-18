@@ -97,9 +97,14 @@ export function devtools(options?: Devtools.Options) {
   /** Drop the oldest closed session. If none is closed, drop the oldest open one, so the list
    * stays at `limit`. */
   function dropOldestSession(): void {
-    const ids = [...sessions.keys()];
-    const [oldest] = ids;
-    sessions.delete(ids.find((id) => sessions.get(id)?.state === "closed") ?? oldest);
+    const [oldest] = sessions.keys();
+    for (const [id, line] of sessions) {
+      if (line.state === "closed") {
+        sessions.delete(id);
+        return;
+      }
+    }
+    sessions.delete(oldest);
   }
 
   /** A session the list dropped while it was open has no line left, so its close is skipped. */
@@ -120,7 +125,9 @@ export function devtools(options?: Devtools.Options) {
   }
 
   function snapshot(): Devtools.Snapshot {
-    const byId = new Map<number, Devtools.Session>();
+    /** Keyed by `unknown`, so a span's `session.id` reads as is: no session has a key that is
+     * not a number, so a span with one is dropped, as is a span of a dropped session. */
+    const byId = new Map<unknown, Devtools.Session>();
     const list: Devtools.Session[] = [];
     for (const [id, line] of sessions) {
       const session: Devtools.Session = {
@@ -144,7 +151,7 @@ export function devtools(options?: Devtools.Options) {
 
       const id = span.attributes["session.id"];
       if (id === undefined) runs.push(copy);
-      else if (typeof id === "number") byId.get(id)?.runs.push(copy);
+      else byId.get(id)?.runs.push(copy);
     }
 
     return {

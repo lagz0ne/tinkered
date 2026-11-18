@@ -42,6 +42,27 @@ const useBroken = operation({
   run: ({ broken }) => broken,
 });
 
+const noted = operation({
+  label: "noted",
+  run: (_deps, ctx) => {
+    ctx.obs.event("hit", { n: 1 });
+    return { kind: "found" };
+  },
+});
+
+const cycle: { self?: object } = {};
+cycle.self = cycle;
+
+/** One operation per thrown value that is not an Error. */
+const oddThrows = ["nope", { code: 1 }, 10n, cycle].map((value, n) =>
+  operation({
+    label: `odd${n}`,
+    run: () => {
+      throw value;
+    },
+  }),
+);
+
 const [one, two, three, four, five] = ["one", "two", "three", "four", "five"].map((label) =>
   operation({ label, run: () => 1 }),
 );
@@ -57,12 +78,20 @@ test("the scope state goes starting, ready, closing, closed, and ends success", 
   const dt = devtools();
   const states: string[] = [];
   dt.moves(() => void states.push(dt.snapshot().scope.state));
+  expect(dt.snapshot().scope).toStrictEqual({ state: "starting" });
 
   const scope = await createScope({ capsules: [dt] }).ready;
   await scope.close({ graceful: true });
 
   expect(states).toEqual(["starting", "ready", "closing", "closed"]);
   expect(dt.snapshot().scope).toEqual({ state: "closed", status: "success" });
+});
+
+test("the scope lists devtools under the label tinker.devtools", async () => {
+  const { scope } = await started();
+
+  expect(scope.capsules.map((record) => record.label)).toEqual(["tinker.devtools"]);
+  await scope.close();
 });
 
 test("an operation run outside any session lands in runs", async () => {
@@ -98,6 +127,22 @@ test("runs in a session and in a nested one land under that session, by id", asy
   await scope.close();
 });
 
+test("a session shows open while it runs, then closed with its status", async () => {
+  const { dt, scope } = await started();
+  let during: Devtools.Session[] = [];
+
+  const id = await scope.session((session) => {
+    during = dt.snapshot().sessions;
+    return session.id;
+  });
+
+  expect(during).toStrictEqual([{ id, state: "open", runs: [] }]);
+  expect(dt.snapshot().sessions).toStrictEqual([
+    { id, state: "closed", status: "success", runs: [] },
+  ]);
+  await scope.close();
+});
+
 test("a session whose function throws ends failed", async () => {
   const { dt, scope } = await started();
   const failure = new Error("session boom");
@@ -116,13 +161,40 @@ test("the session list keeps at most limit, dropping the oldest closed first", a
   const { dt, scope } = await started({ limit: 2 });
   const ids: (number | undefined)[] = [];
 
-  for (let n = 0; n < 3; n++) {
-    await scope.session((inner) => {
-      ids.push(inner.id);
-    });
-  }
+  await scope.session(async (open) => {
+    ids.push(open.id);
+    await open.session((closed) => void ids.push(closed.id));
+    await open.session((last) => void ids.push(last.id));
+  });
 
-  expect(dt.snapshot().sessions.map((session) => session.id)).toEqual(ids.slice(1));
+  const [open, , last] = ids;
+  expect(dt.snapshot().sessions.map((session) => session.id)).toEqual([open, last]);
+  await scope.close();
+});
+
+test("with no closed session, the list drops the oldest open one, and its runs leave the snapshot", async () => {
+  const { dt, scope } = await started({ limit: 2 });
+  const ids: (number | undefined)[] = [];
+
+  await scope.session(async (first) => {
+    first.run(alpha);
+    await first.session(async (second) => {
+      ids.push(second.id);
+      await second.session((third) => {
+        ids.push(third.id);
+        third.run(beta);
+      });
+    });
+  });
+
+  const { sessions, runs } = dt.snapshot();
+  expect(
+    sessions.map((session) => [session.id, session.status, session.runs.map((span) => span.name)]),
+  ).toEqual([
+    [ids[0], "success", []],
+    [ids[1], "success", ["beta"]],
+  ]);
+  expect(runs).toEqual([]);
   await scope.close();
 });
 
@@ -145,6 +217,29 @@ test("a failed operation keeps its error as text, since an Error is {} in JSON",
   const [span] = dt.snapshot().runs;
   expect(span?.status).toBe("failed");
   expect(span?.error).toBe("Error: boom");
+  await scope.close();
+});
+
+test("a thrown value that is not an Error is kept as its JSON, or as its type if JSON fails", async () => {
+  const { dt, scope } = await started();
+
+  for (const op of oddThrows) scope.settle(op);
+
+  expect(dt.snapshot().runs.map((span) => span.error)).toEqual([
+    '"nope"',
+    '{"code":1}',
+    "bigint",
+    "object",
+  ]);
+  await scope.close();
+});
+
+test("a failed run counts no exit", async () => {
+  const { dt, scope } = await started();
+
+  scope.settle(failing);
+
+  expect(dt.snapshot().exits).toEqual({});
   await scope.close();
 });
 
@@ -183,12 +278,13 @@ test("the span ring keeps the newest limit spans, and exits still count every ru
   await scope.close();
 });
 
-test("a write counts by its cell label, with no value by default", async () => {
+test("a write lands and counts by its cell label, with no value by default", async () => {
   const { dt, scope } = await started();
 
   scope.controller(count).set(1);
   scope.controller(count).set(2);
 
+  expect(scope.controller(count).get()).toBe(2);
   expect(dt.snapshot().writes).toStrictEqual([{ label: "count", count: 2 }]);
   await scope.close();
 });
@@ -212,10 +308,14 @@ test("a moves listener is told once per record, and unsubscribing stops it", asy
 
   scope.run(plain);
   expect(told).toBe(1);
+  await scope.session(() => {});
+  expect(told).toBe(3);
+  scope.controller(count).set(1);
+  expect(told).toBe(4);
 
   stop();
   scope.run(plain);
-  expect(told).toBe(1);
+  expect(told).toBe(4);
   await scope.close();
 });
 
@@ -311,9 +411,28 @@ test("a snapshot span holds only span fields, with W3C ids, and no key is set to
     expect(typeof span.traceId).toBe("string");
     expect(typeof span.spanId).toBe("string");
   }
+  const ok = spans.filter((span) => span.status === "ok");
+  expect(ok.length).toBeGreaterThan(0);
+  expect(ok.filter((span) => "error" in span)).toStrictEqual([]);
   expect(undefinedKeys(snapshot.scope)).toStrictEqual([]);
   expect(snapshot.sessions.flatMap(undefinedKeys)).toStrictEqual([]);
   expect(snapshot.writes.flatMap(undefinedKeys)).toStrictEqual([]);
+  await scope.close();
+});
+
+test("a snapshot span keeps its attributes and its events", async () => {
+  const { dt, scope } = await started();
+
+  const id = await scope.session((session) => {
+    session.run(noted);
+    return session.id;
+  });
+
+  const span = dt.snapshot().sessions[0]?.runs[0];
+  expect(span?.attributes).toStrictEqual({ "session.id": id, "tinker.exit": "found" });
+  expect(span?.events).toStrictEqual([
+    { name: "hit", time: expect.any(Number), attributes: { n: 1 } },
+  ]);
   await scope.close();
 });
 
