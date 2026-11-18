@@ -1152,3 +1152,29 @@ Asked by Hedl (k07).
 State: closed, no Core change. The panel reads
 `useData(board.status(read))` and shows "No tasks
 yet." only when it is `ready`.
+
+## A failed resource span has no error — 2026-11-18
+
+Asked by devtools/capsule (ADR 0163).
+
+- A resource whose factory throws gives a span
+  with `status: "failed"` and no `error`.
+- A failed operation span carries its `error`.
+- `failResourceBuild` calls `closeSpan` without
+  the error.
+
+```ts
+const broken = resource({
+  label: "broken",
+  factory: () => {
+    throw new Error("boom");
+  },
+});
+// the span: status "failed", error undefined
+```
+
+- Workaround: none. Devtools shows the failure
+  with no cause.
+- Ask: pass the error to `closeSpan` there.
+
+State: open, first asker.

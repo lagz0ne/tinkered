@@ -217,7 +217,7 @@ function copySpan(span: Observe.Span): Observe.Span {
     start: span.start,
     end: span.end,
     status: span.status,
-    ...(span.error === undefined ? {} : { error: String(span.error) }),
+    ...(span.error === undefined ? {} : { error: textOf(span.error) }),
     attributes: { ...span.attributes },
     events: span.events.map((event) => ({
       name: event.name,
@@ -225,4 +225,14 @@ function copySpan(span: Observe.Span): Observe.Span {
       attributes: { ...event.attributes },
     })),
   };
+}
+
+/** A failure as text: an `Error` as `name: message`; anything else as its JSON, or its type. */
+function textOf(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  try {
+    return JSON.stringify(error) ?? typeof error;
+  } catch {
+    return typeof error;
+  }
 }
