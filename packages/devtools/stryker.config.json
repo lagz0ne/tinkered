@@ -3,7 +3,7 @@
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
   "mutate": ["src/**/*.ts"],
-  "ignorePatterns": ["tsconfig.json", "dist"],
+  "ignorePatterns": ["tsconfig.json"],
   "reporters": ["clear-text", "progress", "json"],
   "thresholds": {
     "high": 90,
@@ -12,5 +12,8 @@
   },
   "tempDirName": ".stryker-tmp",
   "concurrency": 2,
-  "timeoutMS": 15000
+  "timeoutMS": 15000,
+  "vitest": {
+    "related": false
+  }
 }
