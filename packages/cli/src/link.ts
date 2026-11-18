@@ -41,7 +41,10 @@ function isPage(href: string) {
   return !scheme.test(href) && !file.test(href);
 }
 
-/** An attribute the `<a>` has whose text passes `says`, or whose text the rule cannot read. */
+/**
+ * An attribute the `<a>` has whose text passes `says`, or whose text the rule cannot read. A
+ * target or rel that is partly read (a template with a gap) counts as read.
+ */
 function saysOrUnread(attributes: Attributes, name: string, says: (text: string) => boolean) {
   if (!attributes.has(name)) return false;
 
