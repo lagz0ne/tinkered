@@ -25,9 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/round-stuck-after-eq-throw** — bug 5 in [docs/states](docs/states/round/README.md). A user `eq` that throws in a write's first round leaves `inRound` true (`tellWrite` has no `finally`); after that no watcher in the process hears any write. Next: move `paths/round-stuck.test.ts.txt` into Core's tests (it fails), then end the round on that throw. ADR 0152 keeps the try out of the hot write (about 5 ns per write, see the comment at `watcherThrew` in `packages/core/src/index.ts`), so the fix sits where `eq` is called (`flushOne`, `pendingNsWatchers`) or on the throw path; a timing claim goes through `N=61 bench/queued.sh`.
-  Verify: the round path test passes; the round check shows RoundEndsAtRest and EveryWatcherTold hold; the bench verdict is "no difference we can see".
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -122,6 +119,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: the use-run path tests pass; the react-run-resource check with `UseRun.cfg` shows ShownStateIsLatest and CallbacksFirePerRun hold.
 
 ## Doing
+
+- **core/round-stuck-after-eq-throw** — bug 5 in [docs/states](docs/states/round/README.md). A user `eq` that throws in a write's first round leaves `inRound` true (`tellWrite` has no `finally`); after that no watcher in the process hears any write. Next: move `paths/round-stuck.test.ts.txt` into Core's tests (it fails), then end the round on that throw. ADR 0152 keeps the try out of the hot write (about 5 ns per write, see the comment at `watcherThrew` in `packages/core/src/index.ts`), so the fix sits where `eq` is called (`flushOne`, `pendingNsWatchers`) or on the throw path; a timing claim goes through `N=61 bench/queued.sh`.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/round-stuck-after-eq-throw`.
+  Plan: move the `eq` call into the `try` blocks that already exist (`notifyLayer`, `flushNsWatchers`), so the write path gets no new `try`.
+  Verify: the round path test passes; the round check shows RoundEndsAtRest and EveryWatcherTold hold; the bench verdict is "no difference we can see".
 
 ## Review
 
