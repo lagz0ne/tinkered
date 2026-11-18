@@ -33,6 +33,7 @@ So give each scope its own call.
 Changing the copy changes nothing that devtools keeps.
 
 - `scope`: the scope's state, and its status once closed.
+  The state goes `starting`, `ready`, `closing`, then `closed`.
   Before the scope starts, the state is `starting`.
 - `sessions`: each session, by id, in the order it opened.
   Its `runs` are the spans opened in it.
@@ -41,8 +42,11 @@ Changing the copy changes nothing that devtools keeps.
 - `writes`: the count of writes to each cell label.
 - `exits`: the count of each exit, keyed `label<tab>exit`.
 
+A snapshot span holds only span fields.
+Its `traceId` and `spanId` are W3C trace ids.
 Each span keeps its attributes and its events.
 A span that did not fail has no `error` key.
+No key of the scope, a session, or a write is set to `undefined`.
 
 The snapshot is plain JSON.
 A JSON round trip gives the same object.
