@@ -39,8 +39,28 @@ Changing the copy changes nothing that devtools keeps.
 - `writes`: the count of writes to each cell label.
 - `exits`: the count of each exit, keyed `label<tab>exit`.
 
+The snapshot is plain JSON.
+A JSON round trip gives the same object.
+
 The span ring keeps the newest `limit` spans.
 The exit counts keep every run, even after a span leaves the ring.
+
+## Sessions
+
+- The session list keeps at most `limit` sessions.
+- It drops the oldest closed session first.
+- A session whose function throws ends `failed`.
+
+## Exits
+
+- An operation that answers a `kind` counts as `label<tab>kind`.
+- A refusal counts as `label<tab>refused`.
+- A plain value counts as `label<tab>value`.
+
+## Failures
+
+- A resource whose factory throws leaves a `failed` span in `resources`.
+- A failed operation keeps its error as text, such as `Error: boom`.
 
 ## Listeners
 
