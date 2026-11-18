@@ -1318,7 +1318,8 @@ export function data(config: {
   const label = config.label ?? "anon";
   if (config.key === undefined) {
     const initial = admit(label, config.parse, config.initial);
-    return createCell(label, config.tags, initial, config.parse, config.eq ?? Object.is, undefined);
+    const eq = config.eq === undefined ? Object.is : guardedEq(config.eq);
+    return createCell(label, config.tags, initial, config.parse, eq, undefined);
   }
 
   const keyed = new KeyedSpec(label, config.key, config.parse, config.eq);
@@ -8529,6 +8530,20 @@ function createCell(
   });
 }
 
+/** A cell's own eq, wrapped once when the cell is declared (ADR 0152). The telling calls the eq
+ * outside the watchers' `try`, so a throw there would leave the round flag on; here it goes to
+ * {@link watcherThrew} instead. `Object.is` cannot throw and stays bare: a cell with no eq of its
+ * own pays nothing on a write. */
+function guardedEq(eq: (a: unknown, b: unknown) => boolean): (a: unknown, b: unknown) => boolean {
+  return (a, b) => {
+    try {
+      return eq(a, b);
+    } catch (error) {
+      return watcherThrew(error);
+    }
+  };
+}
+
 /** A controller edge, at its placement: none, the root's own bucket, or the root by namespace. */
 function resolvePlaced(
   layer: Layer,
@@ -8895,10 +8910,11 @@ function tellWrite(layer: Layer, target: Data.Cell<unknown>, key: Namespace | un
   else drainRounds(undefined);
 }
 
-/** A watcher threw (ADR 0152). The catch sits at the watcher loop, not around the write: a try
- * inlined into every write cost about 5 ns (box bench, 4M writes). In the first round the rounds
- * that wait still run, then the error goes on to the write; inside a waiting round,
- * {@link drainRounds} catches it. */
+/** A watcher threw, or a cell's own eq did (through {@link guardedEq}) (ADR 0152). The catch
+ * sits at the watcher loop and in the eq, not around the write: a try inlined into every write
+ * cost about 5 ns (box bench, 4M writes). In the first round the rounds that wait still run and
+ * the round flag goes off, then the error goes on to the write; inside a waiting round,
+ * {@link drainRounds} catches it; outside a round it only goes on. */
 function watcherThrew(error: unknown): never {
   if (inRound && roundDepth === 0) drainRounds({ error });
   throw error;
