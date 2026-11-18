@@ -59,7 +59,7 @@ So they still show 3 rules break.
   ADR 0063 d6.
   Close unlinks every instance
   with the close's end.
-- **CloseResolves** — holds, since `1119e1ff`
+- **CloseResolves** — holds, since `e9242ca7`
   (card `core/resource-cycle-holds-close`).
   ADR 0027 (close always resolves),
   ADR 0011 (close is total).
@@ -259,7 +259,7 @@ The paths below name the code before the fix.
 ## Bug 7: a cycle keeps `close()` open
 
 Card `core/resource-cycle-holds-close` fixes it
-(`1119e1ff`).
+(`e9242ca7`).
 Rule: CloseResolves.
 
 A reads B, B reads A, both take `ctx`.
@@ -310,8 +310,8 @@ So only a release of B waits, for A.
   It passes, before and after the fix.
 - `instance-release.test.ts` pins both ends
   of path 1: `2:released`, `1:failed`.
-- Path 3 is in the same file now.
-  It passes since `1119e1ff`.
+- Path 3 is in `resource-life-paths.test.ts` now.
+  It passes since `e9242ca7`.
   It failed before: that showed bug 7.
   The `paths/` folder is gone.
 
