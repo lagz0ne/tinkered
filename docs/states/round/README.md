@@ -24,14 +24,14 @@ The spec, the chart and the rerun
 still describe `c9c8817`, before the fix.
 So they still show 2 rules break.
 
-- **RoundEndsAtRest** — holds after card
-  `core/round-stuck-after-eq-throw`.
+- **RoundEndsAtRest** — holds, since `0ebef947`
+  (card `core/round-stuck-after-eq-throw`).
   ADR 0152 d3 (and d1).
   A round that waits runs after the rounds before it.
   So when no call runs, no round waits,
   and the round flag is off.
-- **EveryWatcherTold** — holds after card
-  `core/round-stuck-after-eq-throw`.
+- **EveryWatcherTold** — holds, since `0ebef947`
+  (card `core/round-stuck-after-eq-throw`).
   ADR 0152 d1, d3.
   Each watcher hears each write, in order.
   Excused, as the ADR allows:
@@ -163,7 +163,7 @@ The path test sets it up this way:
 
 - `round-stuck.test.ts` — now in
   `packages/core/tests/statechart/`.
-  It passes after the card.
+  It passes since `0ebef947`.
   It failed before: that showed the bug.
 - `round-eq-throw.test.ts`, next to it,
   holds 4 more cases:
