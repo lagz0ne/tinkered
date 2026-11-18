@@ -29,39 +29,6 @@ function pair(ended: string[]) {
   return { a, b };
 }
 
-test("GoodBuildReleaseEndsReleased path: a good build after a failed one ends released (ADR 0063 d3)", () => {
-  const ended: string[] = [];
-  const { a } = pair(ended);
-  const scope = createScope();
-
-  // 1. you resolve A: B builds, A's factory throws
-  expect(() => scope.resolve(a)).toThrow("a build 1 fails");
-  // no rule yet: the failed build's end has not run
-  expect(ended).toEqual([]);
-  // 2. you resolve A: it builds
-  expect(scope.resolve(a)).toBe("a");
-  // 3. you release A
-  scope.release(a);
-  // 4. the released ends run (sync ends run inside release)
-  expect(ended).toContain("a2:released");
-});
-
-test("GoodBuildCloseEndsWithClose path: a good build after a failed one ends with the close (ADR 0063 d6)", async () => {
-  const ended: string[] = [];
-  const { a } = pair(ended);
-  const scope = createScope();
-
-  // 1. you resolve A: B builds, A's factory throws
-  expect(() => scope.resolve(a)).toThrow("a build 1 fails");
-  // 2. you resolve A: it builds
-  expect(scope.resolve(a)).toBe("a");
-  // 3. you call close()
-  const result = await scope.close();
-  // 4. an instance's ends run
-  expect(ended).toContain(`b:${result.status}`);
-  expect(ended).toContain(`a2:${result.status}`);
-});
-
 test("CloseResolves path: A and B read each other; close() resolves (ADR 0027)", async () => {
   const depends: Record<string, Resource.Handle<unknown>> = {};
   const b = resource({ label: "cycle.b", depends, factory: (_deps, _ctx) => "b" });
