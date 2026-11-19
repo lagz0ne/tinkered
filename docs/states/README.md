@@ -119,7 +119,9 @@ so main stays green.
 - **remote-part** — RemotePart: 1 rule breaks now
   (fixes `fb7679b4`, `ee58cbaa`);
   the spec still shows 3.
-  KeyStream: 1 rule breaks.
+  KeyStream: 0 rules break now
+  (fix `914126ce`);
+  the spec still shows 1.
   Cards: `core/remote-parked-part-wakes`,
   `core/invalidate-refused-returns-early`,
   `core/refused-key-reopens`.

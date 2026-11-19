@@ -281,8 +281,14 @@ The root may close. At most 3 opens.
 ### Rules
 
 TLC reached 32 states.
+The spec, the chart and the rerun
+still describe `c9c8817`,
+before the bug 13 fix.
+So they still show 1 rule breaks.
 
-- **RefusedEndsAsking** — breaks.
+- **RefusedEndsAsking** — holds,
+  since `914126ce`
+  (card `core/refused-key-reopens`).
   ADR 0140 (The direction): "Core never asks
   again by itself after a fault.
   A broken link is the backend's to heal;
@@ -340,12 +346,26 @@ so the chart marks the path, not the state.
 
 ### Bug 13: a refused plain key opens again
 
-Card `core/refused-key-reopens`.
+Card `core/refused-key-reopens` fixes it
+(`914126ce`).
 Rule: RefusedEndsAsking.
+The text below names the code before the fix.
 
 A keyed part parks on this fault.
-A plain key does not:
-the loop opens it again (671-672).
+A plain key did not:
+the loop opened it again (671-672).
+
+The fix is in `loop`.
+A fault that is an answer ends the loop.
+The key keeps its fault.
+A plain key has no `invalidate`
+and no `refetchInterval`,
+so no trigger opens it again.
+A new stream opens only with a new reader:
+a new root, or a new entry
+for a keyed definition's parameter.
+A broken link still opens it again,
+with back-off.
 
 #### Path 4: the stream opens again
 
@@ -374,8 +394,11 @@ the loop opens it again (671-672).
   InvalidateAwaitsItsAsk fails today (path 3).
   The last test passes: it pins case 7
   (see [No rule yet](#no-rule-yet)).
-- `key-stream-paths.test.ts.txt` —
-  today it fails (path 4).
+- `key-stream-paths.test.ts` —
+  RefusedEndsAsking (path 4),
+  now in `packages/core/tests/statechart/`.
+  It passes since `914126ce`.
+  It failed before: that showed bug 13.
 
 The test's link can drop:
 a small peer wraps the memory server.
@@ -388,7 +411,7 @@ The `.txt` keeps the shared helpers.
 Card `core/invalidate-refused-returns-early`
 moves the InvalidateAwaitsItsAsk test in.
 Card `core/refused-key-reopens`
-moves `key-stream-paths` in.
+moved `key-stream-paths` in.
 The "no rule yet" test waits for Duke's rule
 (card `core/states-rules-undecided`).
 
@@ -473,5 +496,7 @@ statechart KeyStream.tla \
   so it does not see the bug 11 fix.
 - `holds.cfg`: exit 0, every rule holds.
 - `KeyStream.cfg`: exit 1 today, 1 rule breaks.
+  The spec still describes `c9c8817`,
+  so it does not see the bug 13 fix.
 
 The `holds.cfg` run takes a few minutes.
