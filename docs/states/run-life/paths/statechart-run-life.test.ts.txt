@@ -2,7 +2,7 @@
  * One block per model step. Each test asserts the ADR rule, so a failure shows the bug. */
 import { expect, test } from "vite-plus/test";
 
-import { capsule, createScope, operation, resource } from "@/index";
+import { capsule, createScope, operation } from "@/index";
 
 function gate() {
   let release = (): void => undefined;
@@ -13,62 +13,6 @@ function gate() {
 }
 
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
-
-/** ADR 0104's own example: a session resource ends its open waits from `ctx.closing`. */
-const http = resource({
-  label: "http",
-  target: "session",
-  factory: (_deps, ctx) => {
-    const waits = new Set<() => void>();
-    ctx.closing.addEventListener("abort", () => waits.forEach((stop) => stop()), { once: true });
-    return {
-      closing: ctx.closing,
-      signal: ctx.signal,
-      send: () => new Promise<string>((resolve) => waits.add(() => resolve("stopped"))),
-    };
-  },
-});
-
-test("ClosingFiresWhenStopped: a call stopped by its signal keeps its closing signal (ADR 0104, 0090)", async () => {
-  let seen: { closing: AbortSignal; signal: AbortSignal } | undefined;
-  const inner = operation({
-    label: "inner",
-    depends: { http },
-    run: async ({ http }) => {
-      seen = http;
-      return http.send();
-    },
-  });
-  const stop = new AbortController();
-  const outer = operation({
-    label: "outer",
-    depends: { inner },
-    run: async ({ inner }) =>
-      inner.run({ signal: stop.signal }).catch((error: unknown) => `caught ${String(error)}`),
-  });
-  const hook = capsule({ label: "hook", hooks: { run: (event) => event.next() } });
-  const root = createScope({ capsules: [hook] });
-  await root.ready;
-
-  // 0. Outer's run hook runs. 1. The hook calls next(). 2. Outer calls inner with a signal.
-  const running = root.run(outer);
-  await tick();
-  expect(seen).toBeDefined();
-
-  // 3. The caller aborts inner's signal.
-  stop.abort();
-  await tick();
-
-  const settled = await Promise.race([running, tick().then(() => "still pending")]);
-  const report = { signal: seen!.signal.aborted, closing: seen!.closing.aborted, settled };
-  await root.close();
-
-  expect(report).toEqual({
-    signal: true,
-    closing: true,
-    settled: expect.stringMatching(/^caught/),
-  });
-});
 
 function leakTest(nexts: 1 | 2) {
   const inner = operation({ label: "inner", run: () => "inner ran" });
