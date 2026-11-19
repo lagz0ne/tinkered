@@ -1401,6 +1401,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `link` is local; a transport that cannot tell
   says `sent: true`.
 - No call is sent again by itself.
+- A plain key the server refuses keeps its fault
+  beside its value: its stream does not open
+  again by itself. A broken link opens it again,
+  with back-off.
 - A backend's `send` and `open` end with a value,
   never a throw. A throw in a backend is a bug:
   logged, `failed` on this side, never `link`.

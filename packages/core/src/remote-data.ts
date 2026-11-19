@@ -657,16 +657,18 @@ const steps = resource({
       };
 
       /**
-       * Keeps a key fresh: its rpc stream, again after it ends or faults, with back-off while
-       * faulted (as EventSource retry). A stream's first push is the value now, so a reopen is
-       * the catch-up read. `first` settles on the first value or fault.
+       * Keeps a key fresh: its rpc stream, again after it ends or its link breaks, with back-off
+       * while faulted (as EventSource retry). A stream's first push is the value now, so a reopen
+       * is the catch-up read. Any other fault is the server's answer, and the same open gives it
+       * again: the loop ends, and the key keeps its fault (ADR 0140). `first` settles on the
+       * first value or fault.
        */
       const loop = async (key: string, first: () => void) => {
         for (let wait = 50; !signal.aborted;) {
           const ended = await round(key, first);
           if (!signal.aborted && ended) mark(key, ended);
           first();
-          if (signal.aborted) break;
+          if (signal.aborted || (ended && ended.fault !== "link")) break;
 
           wait = Object.hasOwn(faultsIn(def, store), key) ? Math.min(wait * 2, 5000) : 50;
           await clock.sleep(wait, signal).catch(() => undefined);

@@ -220,7 +220,7 @@ test("faults, not errors: a refusal is a value; a throw is `failed`, its text in
   );
 });
 
-test("a fault is data beside the value, and clears when a good value arrives", async () => {
+test("a fault is data beside the value; a refused key keeps it after the user signs in (bug 13)", async () => {
   const todos = data({ initial: ["a"] });
   const board = remoteData({ todos });
   let open = false;
@@ -234,9 +234,8 @@ test("a fault is data beside the value, and clears when a good value arrives", a
   expect(client.resolve(board.faults).get().todos?.fault).toBe("refused");
   expect(client.resolve(board.todos).get()).toEqual(["a"]); // the read itself never throws
   open = true; // the user signs in
-  const end = Date.now() + 3000;
-  while (Date.now() < end && client.resolve(board.faults).get().todos) await tick(20);
-  expect(client.resolve(board.faults).get()).toEqual({});
+  await tick(300); // the old loop opened again after 100 ms
+  expect(client.resolve(board.faults).get().todos?.fault).toBe("refused"); // ADR 0140: an answer
   expect(client.resolve(board.todos).get()).toEqual(["a"]);
 });
 
