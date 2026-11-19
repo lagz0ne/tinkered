@@ -123,7 +123,7 @@ so main stays green.
   `core/refused-key-reopens`.
   1 case with no rule yet.
 - **rpc-stream** — 0 rules break now
-  (fix `49e9d668`, `4f5378a6`); the spec still shows 1.
+  (fix `b0b86a5e`, `62b3364f`); the spec still shows 1.
   Card: `core/own-signal-stream-failed`.
   Its `.txt` test pins `core/local-stream-signal`.
 - **react-run-resource** — UseRun: 2 rules break;

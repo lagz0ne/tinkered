@@ -34,7 +34,7 @@ before the bug 14 fix.
 So they still show 1 rule breaks.
 
 - **OwnStopIsNotFailed** — holds,
-  since `49e9d668` and `4f5378a6`
+  since `b0b86a5e` and `62b3364f`
   (card `core/own-signal-stream-failed`).
   ADR 0133 d1 (a call stopped by its own signal
   is a cancellation);
@@ -145,7 +145,7 @@ So it logs a bug and says `failed`.
 The memory test "a caller's signal ends the stream"
 caught any rpc fault, so it did not see this.
 
-Fixed in `49e9d668` and `4f5378a6`.
+Fixed in `b0b86a5e` and `62b3364f`.
 Two places took the stop as a bug,
 and each one alone said `failed`:
 
@@ -186,7 +186,7 @@ The memory test now rejects a `failed` fault.
   `packages/core/tests/statechart/rpc-stream-paths.test.ts`.
   Card `core/own-signal-stream-failed`
   moved it there and cut it from the `.txt`.
-  It passes since `49e9d668`.
+  It passes since `b0b86a5e`.
 - `paths/rpc-stream-paths.test.ts.txt`
   now holds only the second test.
   It passes.
