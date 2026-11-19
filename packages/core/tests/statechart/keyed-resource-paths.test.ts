@@ -47,6 +47,61 @@ function renders(scope: ReturnType<typeof createScope>, read: unknown) {
   return reader;
 }
 
+test("NoChangeNoBuild + OneEntryPerKey (ADR 0157 d4, ADR 0150 d5): a reader that subscribes after the last reader left", () => {
+  const { log, control, unit } = setup("sc.one");
+  const scope = createScope();
+
+  // 1. reader 1 renders key A [no entry: a new one]; 2. the build throws
+  control.fail = true;
+  const one = renders(scope, unit({ k: "A" }));
+  control.fail = false;
+  // 3. reader 2 renders key A [the entry is there]
+  const two = renders(scope, unit({ k: "A" }));
+  expect(two).toBe(one);
+  // 4. reader 2 subscribes
+  const stop = two.watch(() => undefined);
+  // 5. reader 2 leaves (reader 1 rendered and still holds the entry)
+  stop();
+  // 6. reader 2 renders key A again [no entry: a new one]
+  const again = renders(scope, unit({ k: "A" }));
+  // 7. reader 1 subscribes to the entry it holds [it joins the live entry]; 8. reader 1 leaves
+  one.watch(() => undefined)();
+
+  // ADR 0150 d5: the last watcher left, so the entry went; a reader that only rendered keeps none.
+  // Duke's rule (option A): a watch of a dropped entry joins the live entry, so its leave ends it.
+  // ADR 0157 d4: a read with no change makes no build.
+  expect({ same: again === one, log }).toEqual({
+    same: false,
+    log: ["build 1", "build 2", "end 2"],
+  });
+});
+
+test("EndBeforeNextBuild (ADR 0157 d5): a reader that left subscribes again (StrictMode)", () => {
+  const { src, log, control, unit } = setup("sc.two");
+  const scope = createScope();
+
+  // 1. reader 1 renders key A; 2. the build throws
+  control.fail = true;
+  const one = renders(scope, unit({ k: "A" }));
+  control.fail = false;
+  // 3. reader 1 subscribes
+  const stop = one.watch(() => undefined);
+  // 4. reader 1 leaves
+  stop();
+  // 5. reader 2 renders key A [no entry: a new one]; 6. the build finishes (defers "end 2")
+  const two = renders(scope, unit({ k: "A" }));
+  expect(two).not.toBe(one);
+  // 7. the source changes
+  scope.controller(src).set(1);
+  // 8. reader 1 subscribes again to the entry it holds
+  one.watch(() => undefined);
+
+  // ADR 0157 d5: an end runs before the next build of the key.
+  const build3 = log.indexOf("build 3");
+  expect(build3).toBeGreaterThan(-1);
+  expect(log.slice(0, build3)).toContain("end 2");
+});
+
 test("EndsRunWhenScopeCloses (ADR 0157 d5): a rendered reader subscribes after the scope closed", async () => {
   const { src, log, control, unit } = setup("sc.three");
   const scope = createScope();

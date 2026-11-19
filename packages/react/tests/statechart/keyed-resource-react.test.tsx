@@ -67,11 +67,13 @@ test("StrictMode: a second reader of key A gets a second entry and a build with 
   await expect.element(screen.getByText("b:1")).toBeVisible();
   const afterChange = builds(log);
 
-  expect({ log, newBuildsForB: afterB - before, buildsForOneChange: afterChange - afterB }).toEqual({
-    log,
-    newBuildsForB: 0,
-    buildsForOneChange: 1,
-  });
+  expect({ log, newBuildsForB: afterB - before, buildsForOneChange: afterChange - afterB }).toEqual(
+    {
+      log,
+      newBuildsForB: 0,
+      buildsForOneChange: 1,
+    },
+  );
 });
 
 test("No StrictMode: a page swap keeps a dropped entry; the next reader of key A builds again (ADR 0157 d4, ADR 0150 d5)", async () => {
@@ -113,7 +115,11 @@ test("No StrictMode: a page swap keeps a dropped entry; the next reader of key A
   await expect.element(screen.getByText("c:1")).toBeVisible();
   const afterChange = builds(log);
 
-  expect({ log, newBuildsForC: afterC - afterSwap, buildsForOneChange: afterChange - afterC }).toEqual({
+  expect({
+    log,
+    newBuildsForC: afterC - afterSwap,
+    buildsForOneChange: afterChange - afterC,
+  }).toEqual({
     log,
     newBuildsForC: 0,
     buildsForOneChange: 1,
