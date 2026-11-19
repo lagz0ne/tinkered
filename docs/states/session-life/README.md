@@ -165,7 +165,8 @@ The paths below name the code before the fix.
 The fix: the first root close runs the hooks,
 even from a defer.
 A later close joins it.
-A re-entrant call still gets the ack at once.
+A re-entrant call still gets an answer at once
+(ADR 0026 Q3).
 The hook's `next()` gets Core's real close.
 
 A session's defer calls `root.close()`.

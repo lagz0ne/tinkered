@@ -40,7 +40,7 @@ function rootWork(log: string[]) {
   });
 }
 
-test("CloseHookRunsOnce: a root close from a session's defer skips the close hook (ADR 0104)", async () => {
+test("CloseHookRunsOnce: a root close from a session's defer runs the close hook once (ADR 0104)", async () => {
   const log: string[] = [];
   const root = createScope({ capsules: [closeHook(log)] });
   await root.ready;
@@ -70,7 +70,7 @@ test("CloseHookRunsOnce: a root close from a session's defer skips the close hoo
   expect(log).toEqual(["close hook runs", "root: cancelled"]);
 });
 
-test("FirstModeWins: a session's defer turns the app's graceful root close forced (ADR 0029 d1)", async () => {
+test("FirstModeWins: a session's defer keeps the app's graceful root close graceful (ADR 0029 d1)", async () => {
   const log: string[] = [];
   const hookWait = gate();
   const root = createScope({ capsules: [closeHook(log, hookWait.promise)] });
