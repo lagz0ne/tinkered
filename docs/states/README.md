@@ -127,7 +127,7 @@ so main stays green.
   Card: `core/own-signal-stream-failed`.
   Its `.txt` test pins `core/local-stream-signal`.
 - **react-run-resource** — UseRun: 0 rules break now
-  (fix `69b47beb`);
+  (fix `9b409a37`);
   the spec still shows 2.
   UseResource: rules hold.
   Card: `react/use-run-hidden`.

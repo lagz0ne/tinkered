@@ -42,13 +42,13 @@ before the bug 15 and 16 fix.
 So they still show 2 rules break.
 
 - **CallbacksFirePerRun** — holds,
-  since `69b47beb`
+  since `9b409a37`
   (card `react/use-run-hidden`).
   ADR 0032 d2
   ("`options.onSuccess/onError/onSettled`
   fire per run").
 - **ShownStateIsLatest** — holds,
-  since `69b47beb`
+  since `9b409a37`
   (card `react/use-run-hidden`).
   ADR 0032 d2
   (shaped like react-query's `useMutation`;
@@ -144,7 +144,7 @@ The bad steps:
 ### Bug 15: a hide and show clears a run to `idle`
 
 Card `react/use-run-hidden` fixes it
-(`69b47beb`).
+(`9b409a37`).
 Rule: ShownStateIsLatest.
 The text below names the code before the fix.
 
@@ -170,7 +170,7 @@ any state that is not `idle`.
 ### Bug 16: `onSuccess` is lost
 
 Card `react/use-run-hidden` fixes it
-(`69b47beb`).
+(`9b409a37`).
 Rule: CallbacksFirePerRun.
 The text below names the code before the fix.
 
@@ -334,7 +334,7 @@ Steps the charts do not draw:
 - `use-run-paths.test.tsx` —
   paths 1 to 3,
   now in `packages/react/tests/statechart/`.
-  All 3 pass since `69b47beb`.
+  All 3 pass since `9b409a37`.
   They failed before: that showed bugs 15 and 16.
 
 Card `react/use-run-hidden`
