@@ -9,6 +9,24 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.8
+
+A late answer no longer wakes a waiting keyed
+part (bug 11, ADR 0139).
+
+- A part the server refused waits for a trigger
+  (`invalidate`, `refetchInterval`).
+- Before, a late answer for it turned it
+  `ready` with no stream, so later changes
+  never reached it.
+- Before, a broken link on a waiting part never
+  healed.
+- Now a late answer leaves a waiting part, and
+  the parts that ride it, in their fault. So
+  does an answer for a live part that holds it.
+- Of late answers, only a broken link wakes it:
+  it shows `link` and opens again with back-off.
+
 ## 0.31.7
 
 A call stopped by its own signal fires its

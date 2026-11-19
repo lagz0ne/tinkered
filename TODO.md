@@ -91,20 +91,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: a Core test that leaves while the stream opens, then checks the stream ends; fix with `if (part.stop.signal.aborted) signals.stop();` after the listener, as `round` does.
   Verify: that test fails on main and passes.
 
-- **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself, with back-off (ADR 0140). Next: move `paths/key-stream-paths.test.ts.txt` into Core's tests (it fails), then stop the `loop` in `packages/core/src/remote-data.ts` on a fault that is an answer.
-  Verify: the key-stream path test passes; the remote-part check with `KeyStream.cfg` shows RefusedEndsAsking holds.
-
-- **core/own-signal-stream-failed** — bug 14 in [docs/states](docs/states/rpc-stream/README.md). Your own `signal` ends a remote stream as `failed`: `bug` in `packages/core/src/rpc-protocol.ts` checks the watch's own leave signal, not the call's (ADR 0133 d1, ADR 0154 d2). Next: move the OwnStopIsNotFailed test of `paths/rpc-stream-paths.test.ts.txt` into Core's tests (it fails), then fix `watchOver`'s `bug` in `rpc-protocol.ts`.
-  Verify: the OwnStopIsNotFailed path test passes; the rpc-stream check shows OwnStopIsNotFailed holds.
-
 - **react/use-run-hidden** — bugs 15 and 16 in [docs/states](docs/states/react-run-resource/README.md). A Suspense hide and show clears a running run to `idle` (`attach` resets it); `onSuccess` never fires when the run ends while hidden or unmounted (`finish` calls `notify` only while `live`) (ADR 0032 d2). One card, two path tests: the hide-and-show test, and the `onSuccess` test in its hidden and unmounted forms. Next: move `paths/use-run-paths.test.tsx.txt` into React's tests (they fail), then fix `attach` and `finish` in `RunOwner` (`packages/react/src/index.ts`).
   Verify: the use-run path tests pass; the react-run-resource check with `UseRun.cfg` shows ShownStateIsLatest and CallbacksFirePerRun hold.
 
 ## Doing
 
-- **core/remote-parked-part-wakes** — bug 11 in [docs/states](docs/states/remote-part/README.md). A late answer runs `apply` on a parked part: a refused part turns `ready` with no stream (ADR 0139 d4), and a link fault on a parked part never heals (ADR 0139 d4, ADR 0141). One card, two path tests. Next: move the RefusedWaitsForTrigger and LinkFaultHeals tests of `paths/remote-part-paths.test.ts.txt` into Core's tests (they fail), then make `settle` and `apply` in `packages/core/src/remote-data.ts` respect a parked part.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/remote-parked-part-wakes`.
-  Verify: the two path tests pass; the remote-part check shows RefusedWaitsForTrigger and LinkFaultHeals hold.
+- **core/own-signal-stream-failed** — bug 14 in [docs/states](docs/states/rpc-stream/README.md). Your own `signal` ends a remote stream as `failed`: `bug` in `packages/core/src/rpc-protocol.ts` checks the watch's own leave signal, not the call's (ADR 0133 d1, ADR 0154 d2). Next: move the OwnStopIsNotFailed test of `paths/rpc-stream-paths.test.ts.txt` into Core's tests (it fails), then fix `watchOver`'s `bug` in `rpc-protocol.ts`.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/own-signal-stream-failed`.
+  Verify: the OwnStopIsNotFailed path test passes; the rpc-stream check shows OwnStopIsNotFailed holds.
 
 ## Review
 
@@ -121,6 +115,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
+
+- **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself (ADR 0140).
+  Missing: Duke's pick. The fix (branch `core/refused-key-reopens`, `914126ce`: the `loop` stops on a fault that is an answer) passes the path test and Core, but `apps/site/tests/auth.test.ts` ("the guest signs in later ... the board fills without a new scope") relies on the self-heal. A plain key has no `invalidate` (`Dirty<D>` is keyed only), so after the fix only a new reader or scope wakes it.
+  A: keep the API; the site test expects the fault to stay until a new scope (the user reloads after sign-in).
+  B: give a plain key `invalidate` (a public type change, an impact block, bytes: 110 B room with rpc); the site calls it after sign-in. Lead's pick: it keeps the site's flow and matches the keyed park.
+  Next once picked: finish the branch's gates and the core lane, then land.
 
 - **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused part returns before any ask (`reask` calls `wake()` and adds no ask to the list it awaits; ADR 0147 d4).
   Missing: Duke's rule for the path test. InvalidateAwaitsItsAsk (`paths/remote-part-paths.test.ts.txt`) wants `asksSince: 1` and `ready` when the await returns. That forces one design: invalidate sends its own `tasks.ask` and the await also covers the stream's reopen. A fix where invalidate only reopens the stream (its first push is the value) gives 0 asks and fails it (lead's audit, 2026-11-19).
@@ -181,6 +181,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/remote-parked-part-wakes** — done 2026-11-19 (bug 11, [remote-part](docs/states/remote-part/README.md); ADR 0139 d4, ADR 0141). A late answer leaves a parked part, and the parts that ride it, in their fault; so does an answer for a live part that holds it (`stand` skips them). A link fault is the one late answer that wakes it: it shows `link` and its stream reopens with back-off. Fixes `fb7679b4`, `ee58cbaa`. Released as 0.31.8.
+  Proof: RefusedWaitsForTrigger and LinkFaultHeals in `packages/core/tests/statechart/remote-part-paths.test.ts`, red on main, green; `remote-data-keyed-parked.test.ts` (a rider; a shared live part) red on the first fix; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,222 B and 34,953 B with rpc; core mutation 86.19 on `0fbc3ce9` by the lead (kills alone 85.2; core source byte-identical to the landed head). Opus convention-review NOT READY (riders were not parked), one fix round, READY. RefusedWaitsForTrigger holds except one new step (refused to `link` on a link fault), which the spec must allow.
 
 - **core/own-signal-leaves-closing** — done 2026-11-19 (bug 10, [run-life](docs/states/run-life/README.md); ADR 0104, ADR 0090). A call stopped by its own signal fires its closing signal (`beginClosing`), then aborts `ctx.signal`, so a resource that waits on `ctx.closing` lets the call end. Fix `890b720c`. Released as 0.31.7.
   Proof: ClosingFiresWhenStopped in `packages/core/tests/statechart/run-life-paths.test.ts`, red on main (`closing: false`, still pending), green 3 of 3; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,224 B within 23,232 B; core mutation 86.27 on `4ba150a8` by the lead (kills alone 85.3; core source byte-identical to the landed head). Opus convention-review READY (doc nits fixed at landing).
