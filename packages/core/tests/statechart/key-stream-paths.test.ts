@@ -20,7 +20,7 @@ const until = async (ok: () => boolean) => {
   }
 };
 
-test("RefusedEndsAsking path: a refused plain key opens its stream again by itself", async () => {
+test("RefusedEndsAsking: a refused plain key does not open its stream again by itself", async () => {
   const count = data({ label: "count", initial: 0 });
   const board = remoteData({ count });
   let opens = 0;

@@ -1,4 +1,5 @@
-import { memory } from "@tinkered/core/testing";
+import { makeTestClock, memory } from "@tinkered/core/testing";
+import type { Clock } from "@tinkered/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
@@ -21,7 +22,7 @@ const tick = (ms = 40) => new Promise((r) => setTimeout(r, ms));
 /** A server serving `def`, and a client reading it, over memory. */
 async function pair(
   def: ReturnType<typeof remoteData<{}>>,
-  extra: { onStart?: OnStart[]; observe?: Observe.Config } = {},
+  extra: { onStart?: OnStart[]; observe?: Observe.Config; clock?: Clock.Test } = {},
 ) {
   const server = await createScope({
     observe: extra.observe,
@@ -32,6 +33,7 @@ async function pair(
   }).ready;
   closers.push(() => server.close());
   const client = await createScope({
+    clock: extra.clock,
     capsules: [memory.client({ peer: server }), def({ read: memory.client })],
   }).ready;
   closers.push(() => client.close());
@@ -229,12 +231,14 @@ test("a fault is data beside the value; a refused key keeps it after the user si
     input: hook.start,
     run: async (_, { input }) => (open ? undefined : input.refuse({ signIn: true })),
   });
-  const { client } = await pair(board, { onStart: [gate] });
+  const clock = makeTestClock();
+  const { client } = await pair(board, { onStart: [gate], clock });
 
   expect(client.resolve(board.faults).get().todos?.fault).toBe("refused");
   expect(client.resolve(board.todos).get()).toEqual(["a"]); // the read itself never throws
   open = true; // the user signs in
-  await tick(300); // the old loop opened again after 100 ms
+  clock.advance(10_000); // the old loop opened again after 50 ms
+  await tick();
   expect(client.resolve(board.faults).get().todos?.fault).toBe("refused"); // ADR 0140: an answer
   expect(client.resolve(board.todos).get()).toEqual(["a"]);
 });
@@ -249,7 +253,8 @@ test("a refused plain key opens again on an invalidate that names it, and asks o
     input: hook.start,
     run: async (_, { input }) => (opens++, open ? undefined : input.refuse({ signIn: true })),
   });
-  const { server, client } = await pair(board, { onStart: [gate] });
+  const clock = makeTestClock();
+  const { server, client } = await pair(board, { onStart: [gate], clock });
   const first = opens;
 
   open = true; // the user signs in
@@ -258,10 +263,43 @@ test("a refused plain key opens again on an invalidate that names it, and asks o
 
   expect(client.resolve(board.faults).get()).toEqual({}); // the call resolves with the value in
   expect(client.resolve(board.todos).get()).toEqual(["a"]);
-  await tick(300);
+  clock.advance(10_000);
+  await tick();
   expect(opens).toBe(first + 1);
   await client.run(board.invalidate, { input: { todos: {} } }); // an open stream: nothing to do
   expect(opens).toBe(first + 1);
+});
+
+test("an invalidate while the stream opens, then a refusal: it opens again once and resolves", async () => {
+  const todos = data({ initial: ["a"] });
+  const board = remoteData({ todos });
+  let open = false;
+  let opens = 0;
+  let release = () => {};
+  let hold: Promise<void> | undefined;
+  const gate = operation({
+    label: "gate",
+    input: hook.start,
+    run: async (_, { input }) => {
+      opens++;
+      const refuse = !open; // decided as the open starts, before the sign-in
+      await hold;
+      return refuse ? input.refuse({ signIn: true }) : undefined;
+    },
+  });
+  const { client } = await pair(board, { onStart: [gate] });
+  hold = new Promise((done) => (release = done));
+  const wake = client.run(board.invalidate, { input: { todos: {} } });
+  while (opens < 2) await tick(10); // the second open waits in the guard
+
+  open = true; // the user signs in while it opens
+  const late = client.run(board.invalidate, { input: { todos: {} } });
+  release();
+  await wake; // its open came back refused
+  await late;
+
+  expect(client.resolve(board.faults).get()).toEqual({});
+  expect(opens).toBe(3);
 });
 
 test("one invalidate names a plain key and a keyed part: each asks again", async () => {

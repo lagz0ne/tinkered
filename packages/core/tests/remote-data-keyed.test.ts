@@ -36,7 +36,7 @@ const board = remoteData(
 );
 
 /** The server's store, by project (a database in the real app). */
-async function boot(options: { refuse?: string } = {}) {
+async function boot(options: { refuse?: string; refuses?: Set<string> } = {}) {
   const db = new Map<string, string[]>([
     ["p1", ["p1 first"]],
     ["p2", ["p2 first"]],
@@ -63,10 +63,11 @@ async function boot(options: { refuse?: string } = {}) {
   const guard = operation({
     label: "guard",
     input: hook.start,
-    run: async (_, { input }) =>
-      Object(input.input)?.project === options.refuse
-        ? input.refuse({ project: options.refuse })
-        : undefined,
+    run: async (_, { input }) => {
+      const project = Object(input.input)?.project as string;
+      const refused = project === options.refuse || options.refuses?.has(project);
+      return refused ? input.refuse({ project }) : undefined;
+    },
   });
 
   const server = await createScope({
@@ -182,6 +183,23 @@ for (const kind of ["memory"] as const) {
     });
   });
 }
+
+test("an invalidate of the key wakes each project's refused entry; one that closes does not hold it", async () => {
+  const refuses = new Set(["p1", "p2"]);
+  const app = await boot({ refuses });
+  const tab = await app.client();
+  const p1 = tab.createSession({ tags: [board.project("p1")] });
+  const p2 = tab.createSession({ tags: [board.project("p2")] });
+  await until(() => faultOf(p1)?.fault === "refused" && faultOf(p2)?.fault === "refused");
+
+  refuses.clear(); // the user signs in
+  const woken = tab.run(board.invalidate, { input: { tasks: {} } });
+  await p2.close(); // p2's entry stops before its stream opens again
+  await woken;
+
+  expect(faultOf(p1)).toBeUndefined();
+  expect(read(p1)).toEqual(["p1 first"]);
+});
 
 test("the server fills a project once while it is watched, and forgets it when no one watches", async () => {
   const app = await boot();

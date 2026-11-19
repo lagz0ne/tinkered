@@ -572,9 +572,14 @@ const steps = resource({
     };
 
     /** A reading root's `invalidate`, by the key's cell: a keyed key asks again for the dirty
-     * share of each part in use; a plain key that ended on an answer opens again (ADR 0140). */
+     * share of each part in use; a plain key's loop opens again if it ended on an answer, or
+     * ends on one while it opens (ADR 0140). */
     const askers = new Map<unknown, Set<(dirty: Data.Key) => Promise<void>>>();
     const askersOf = (cell: unknown) => askers.get(cell) ?? askers.set(cell, new Set()).get(cell)!;
+    /** Calls each waiting call once, and empties the list. */
+    const callAll = (calls: (() => void)[]) => {
+      for (const done of calls.splice(0)) done();
+    };
 
     /** A store's faults now: its entry's, or the root's cell. */
     const faultsIn = (def: Def, store: Store): Faults =>
@@ -664,40 +669,42 @@ const steps = resource({
        * while faulted (as EventSource retry). A stream's first push is the value now, so a reopen
        * is the catch-up read. Any other fault is the server's answer, and the same open gives it
        * again: the key keeps its fault and waits for an `invalidate` that names it (ADR 0140).
-       * `first` settles on the first value or fault.
+       * `first` settles on the first value or fault; so does each `invalidate` that comes before
+       * the stream has a value. One that comes while an open ends on an answer opens it again.
        */
       const loop = async (key: string, first: () => void) => {
+        const mine = askersOf(def.made[key]);
+        const asked = [first];
+        let live = false;
+        let wake = () => {};
+        const asker = () =>
+          new Promise<void>((done) => (live ? done() : (asked.push(done), wake())));
+        /** Waits for an `invalidate`, or the stop; at once if one came while the stream opened. */
+        const asleep = () => asked.length || new Promise<void>((woken) => (wake = woken));
+
+        mine.add(asker);
+        signal.addEventListener("abort", () => wake());
         for (let wait = 50; !signal.aborted;) {
-          const ended = await round(key, first);
+          const before = asked.length;
+          const ended = await round(key, () => {
+            live = true;
+            callAll(asked);
+          });
+          live = false;
           if (!signal.aborted && ended) mark(key, ended);
-          first();
+          callAll(asked.splice(0, before));
           if (signal.aborted) break;
+
           if (ended && ended.fault !== "link") {
-            first = await asleep(key);
+            await asleep();
             continue;
           }
-
           wait = Object.hasOwn(faultsIn(def, store), key) ? Math.min(wait * 2, 5000) : 50;
           await clock.sleep(wait, signal).catch(() => undefined);
         }
+        mine.delete(asker);
+        callAll(asked);
       };
-
-      /** Waits for an `invalidate` that names the key, or the stop. It gives the next round's
-       * `first`: the `invalidate` resolves on that round's first value or fault. */
-      const asleep = (key: string) =>
-        new Promise<() => void>((wake) => {
-          const set = askersOf(def.made[key]);
-          const end = (done: () => void) => {
-            set.delete(asker);
-            signal.removeEventListener("abort", stop);
-            wake(done);
-          };
-          const asker = () => new Promise<void>(end);
-          const stop = () => end(() => undefined);
-
-          set.add(asker);
-          signal.addEventListener("abort", stop, { once: true });
-        });
 
       return { mark, set, round, loop };
     };
@@ -1029,7 +1036,7 @@ const steps = resource({
       /** `invalidate`: signal the readers on a serving root; ask again on a reading root. */
       invalidate: async (def: Def, own: Served | null, key: string, dirty: Data.Key) => {
         if (own) return dirtyOn(own, key, dirty);
-        await Promise.all([...(askers.get(def.made[key]) ?? [])].map((ask) => ask(dirty)));
+        await Promise.all([...askersOf(def.made[key])].map((ask) => ask(dirty)));
       },
       readStart,
       join,
