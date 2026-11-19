@@ -101,7 +101,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Review
 
 - **react/use-run-hidden** — bugs 15 and 16 in [docs/states](docs/states/react-run-resource/README.md). `useRun` keeps its latest state across a Suspense hide and show, and fires its callbacks once per run (ADR 0032 d2).
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/use-run-hidden`, head `6a97cae3`.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/use-run-hidden`, head `ab4e4e9a` (on the lane fix).
   Review: Opus convention-review READY; nit round done. Two old tests changed with the rule: a StrictMode replay keeps the run; a provider switch (a remount, ADR 0144 d2) fires the old run's callbacks.
   Proof so far: the 3 path tests red on main, green; react 123 tests, site 145, example-react 1; `vp check` 80 warnings.
   React lane (`vp run mutate`, 15 s) on `ab4e4e9a` (the branch on the lane fix): score 86.99, exit 0; kills alone 330/469 = 70.4% (59 survived, 78 timeouts). Main with the same command: 88.11, kills alone 71.97% (54 survived). Log `/home/paseo/statechart/fixes/logs/use-run-hidden-mutation.txt`.
