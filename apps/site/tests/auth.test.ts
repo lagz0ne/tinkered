@@ -1,5 +1,5 @@
 import { createScope, data, operation, remoteData, rpc, tag, transport } from "@tinkered/core";
-import { createMemory, memory } from "@tinkered/core/testing";
+import { createMemory, makeTestClock, memory } from "@tinkered/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
@@ -97,8 +97,13 @@ const credentials = operation({
   },
 });
 
-async function client(server: Awaited<ReturnType<typeof boot>>["server"], sid: string) {
+async function client(
+  server: Awaited<ReturnType<typeof boot>>["server"],
+  sid: string,
+  clock?: ReturnType<typeof makeTestClock>,
+) {
   const scope = await createScope({
+    clock,
     capsules: [
       memory.client({ peer: server, headers: { cookie: `sid=${sid}` } }),
       auth({ remote: memory.client }),
@@ -141,12 +146,14 @@ test("a guest: the public transport answers out; the signed calls are refused, t
 
 test("the guest signs in later: the next request asks again, and the board fills without a new scope", async () => {
   const { server, sessions } = await boot();
-  const ann = await client(server, "s2");
+  const clock = makeTestClock();
+  const ann = await client(server, "s2", clock);
 
   expect(ann.resolve(board.faults).get().notes?.fault).toBe("refused");
   sessions.set("s2", "ann"); // the user signs in (the cookie now names a session)
   expect(await ann.run(api["note.add"], { input: "now in" })).toBe(1); // the next call has the bearer
-  await tick(200);
+  clock.advance(10_000); // no back-off opens it again
+  await tick();
   expect(ann.resolve(board.faults).get().notes?.fault).toBe("refused"); // ADR 0140: an answer
   await ann.run(board.invalidate, { input: { notes: {} } }); // the sign-in is the trigger
 
