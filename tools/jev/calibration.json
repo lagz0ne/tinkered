@@ -12,9 +12,9 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 141,
-    "medianTrue": 0.84,
-    "medianFalse": 0.55,
+    "falses": 142,
+    "medianTrue": 0.85,
+    "medianFalse": 0.56,
     "separation": 0.29,
     "ordered": 0.79,
     "at": "2026-11-19"

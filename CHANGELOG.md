@@ -9,6 +9,24 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.12
+
+A `SessionProvider` inside a `<Suspense>` no
+longer builds and closes its session in a loop
+under StrictMode (ADR 0031).
+
+- Before, each time the Suspense showed its
+  content again, StrictMode replayed the
+  provider's effect. It closed the session and
+  opened a new one with no data, so the child
+  suspended again, forever.
+- Now a replay after the children rendered
+  takes the same session back. The children keep
+  their data.
+- A change you may see: on unmount, the session
+  closes one microtask later (it used to close
+  in the effect's cleanup).
+
 ## 0.31.11
 
 A keyed resource's readers share one entry

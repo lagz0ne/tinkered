@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **react/owned-scope-strict-replay** — Under StrictMode, a `ScopeProvider create` inside a `<Suspense>` still closes and remakes its root on each reveal, so a `SessionProvider` under it opens a new session with no data and the loop can come back in that tree (review of `react/strict-session-suspense`, `OwnedScopeProvider`).
+  Next: a React test with `<StrictMode><Suspense><ScopeProvider create><SessionProvider><Child/>`; then keep the owned root across a replay, as `SessionProvider` now does.
+  Verify: that test reaches one root, one session, one build.
+
 - **react/mutation-floor** — React's mutation lane runs again (`react/mutation-lane-no-tests`), but kills alone are 71.97% (339/471) at the config's 15 s timeout: 76 timeouts and 54 survivors in `src/index.ts` (`RunOwner` 807-884, resources 618-670, providers 132-201, `useData` 285-353). The last good record (2026-10-08, 85.64) used `--timeoutMS 60000` on 369 mutants.
   On the same tree with `--timeoutMS 60000` (66 min): score 88.75, kills alone 388/471 = 82.4% (30 timeouts, 51 survived, 2 no coverage). So most 15 s timeouts were slowness; the rest is missing tests.
   Next: set the lane's timeout to 60 s in `packages/react/stryker.config.json`, then add tests for the survivors until kills alone reach 85.
@@ -98,11 +102,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop ([session-provider](docs/states/session-provider/README.md), ReachesStable breaks).
-  Duke 2026-11-19 13:59 ("Agreed to all"): option A. Cut the path test's steps 7 to 11 (they poll for the loop) and keep the end rule as `creates <= 2, builds: 1, live: 1`.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/strict-session-suspense`.
-  Verify: the changed path test and its control pass; react, site, example-react tests; React lane.
-
 - **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself (ADR 0140).
   Duke 2026-11-19 13:59 ("Agreed to all"): option B. A refused answer ends asking for every key; `invalidate` takes plain keys too (`{ notes: {} }`); the site's sign-in test calls `invalidate` after sign-in; ADR 0140 and 0137 amended.
   Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/refused-key-reopens`.
@@ -170,6 +169,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **react/strict-session-suspense** — done 2026-11-19 ([session-provider](docs/states/session-provider/README.md), ReachesStable; ADR 0031; Duke 2026-11-19 13:59 option A). A session the children rendered with closes one microtask after the effect's cleanup, so StrictMode's replay on a Suspense reveal takes it back; a session never rendered closes at once; a real unmount still closes it. Fix `52afd886`. Released as 0.31.12.
+  Proof: the path test moved with steps 7 to 11 cut and the end rule `creates <= 2, builds: 1, live: 1` (Duke's option A), red on main (`creates` 3), green; its control passes; react 127, site 145, example-react 1, `vp check` 80 warnings; React lane on `6a0980ae` (react source and tests byte-identical to the landed head): score 86.75, exit 0, kills alone 70.7% (main level about 72%; card `react/mutation-floor`). Opus convention-review NOT READY (names, TSDoc), one fix round, READY.
 
 - **core/keyed-entry-dropped** — done 2026-11-19 (bug 1, [keyed-resource](docs/states/keyed-resource/README.md) cause A; ADR 0150 d5, ADR 0157 d4, d5; Duke 2026-11-19 13:59 option A). The entry still leaves the map with its last watcher; a watch of a dropped entry joins its key's live entry (or puts it back when the key has none), and a read of it goes to the live entry too. Fixes `ecc3be31`, `f2125284`. Released as 0.31.11.
   Proof: paths 1 (last expectation changed to Duke's rule) and 2 in `packages/core/tests/statechart/keyed-resource-paths.test.ts` and the two React path tests in `packages/react/tests/statechart/keyed-resource-react.test.tsx`, red on main, green; a held-read test, red on the first fix; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,232 B (the cap); core mutation 86.06 (kills alone 85.2) and React 86.99 on `0b91e55b` by the lead, exit 0 (sources byte-identical to the landed head). Opus convention-review NOT READY (a held read still built), one fix round, READY. Left open in the docs: a held core read with no live entry builds the dropped entry and does not put it back (React does not reach it).
