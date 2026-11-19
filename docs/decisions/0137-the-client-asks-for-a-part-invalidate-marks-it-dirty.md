@@ -174,10 +174,10 @@ none.
 What the user said: Duke, 2026-11-19 13:59:
 "Agreed to all" (option B of bug 13).
 
-Why: a plain key that the server refused waits
-for a trigger (ADR 0140, amended). Before this,
-`invalidate` named keyed keys only, so a plain key
-had no trigger but a new reader.
+Why: a plain key that ends on any fault but
+`link` waits for a trigger (ADR 0140, amended).
+Before this, `invalidate` named keyed keys only,
+so a plain key had no trigger but a new root.
 
 This adds to decision 2:
 
@@ -192,10 +192,16 @@ This adds to decision 2:
    ```
 
 2. On a reading root, a plain key that ended on
-   an answer opens its stream again. The call
+   such a fault opens its stream again. The call
    resolves on its first value or fault.
-3. A plain key whose stream is open needs nothing:
-   its stream already sends each change. The call
-   resolves at once.
-4. On a serving root, a plain key has no part, so
+3. A call while the stream opens counts too. If
+   that open ends on such a fault, the stream
+   opens once more, and the call resolves on that
+   open's first value or fault.
+4. A plain key whose stream has a value needs
+   nothing: its stream already sends each change.
+   The call resolves at once.
+5. On a definition keyed by parameter, one call
+   wakes the waiting entry of every parameter.
+6. On a serving root, a plain key has no part, so
    the call signals no one.

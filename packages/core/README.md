@@ -1401,13 +1401,19 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `link` is local; a transport that cannot tell
   says `sent: true`.
 - No call is sent again by itself.
-- A plain key the server refuses keeps its fault
-  beside its value: its stream does not open
+- A plain key whose stream ends on any fault but
+  `link` keeps its fault beside its value:
+  `refused`, `invalid`, `failed`, `missing`,
+  `encode`, `decode`. Its stream does not open
   again by itself. A broken link opens it again,
   with back-off.
 - An `invalidate` that names a refused plain key,
   `{ notes: {} }`, opens it again: one ask. The
   call resolves with the new value or fault in.
+- An `invalidate` while the stream opens counts:
+  if that open is refused, it opens once more.
+- On a board keyed by parameter, the `invalidate`
+  of a plain key wakes each parameter's entry.
 - One `invalidate` can name plain keys and keyed
   parts: each asks again.
 - A backend's `send` and `open` end with a value,

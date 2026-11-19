@@ -166,17 +166,23 @@ part kept it (`docs/states/remote-part`, bug 13).
 This makes "Core never asks again by itself after
 a fault" exact:
 
-1. A `refused` or `invalid` answer ends asking
-   for every key, plain or keyed. The key keeps
-   its fault beside its value.
-2. Only a broken link (`link`) asks again by
+1. Any fault but `link` ends asking, for every
+   key, plain or keyed: `refused`, `invalid`,
+   `failed`, `missing`, `encode`, `decode`. The
+   key keeps its fault beside its value.
+2. The change, for a plain key: each of these
+   opened its stream again with back-off before.
+   `failed` and `missing` change too, not only
+   `refused` and `invalid`: they now wait.
+3. Only a broken link (`link`) asks again by
    itself, with back-off.
-3. A trigger asks again. For a plain key, that is
+4. A trigger asks again. For a plain key, that is
    an `invalidate` that names it (ADR 0137,
-   amended) or a new reader. For a keyed part, it
-   is also `refetchInterval` (ADR 0139,
+   amended), a new root, or a new entry for a
+   keyed definition's parameter. For a keyed
+   part, `refetchInterval` is one too (ADR 0139,
    decision 4).
-4. After a sign-in, the app calls `invalidate`
+5. After a sign-in, the app calls `invalidate`
    for the refused key:
 
    ```ts

@@ -347,7 +347,7 @@ so the chart marks the path, not the state.
 ### Bug 13: a refused plain key opens again
 
 Card `core/refused-key-reopens` fixes it
-(`5705d68b`, then `0dbd31dc`).
+(`5705d68b`, then `0dbd31dc` and `86a8177a`).
 Rule: RefusedEndsAsking.
 The text below names the code before the fix.
 
@@ -361,6 +361,8 @@ The key keeps its fault.
 `0dbd31dc` gives it a trigger:
 `invalidate({ notes: {} })` opens it again
 and resolves on the first value or fault.
+`86a8177a` keeps a call made while it opens:
+if that open is refused, it opens once more.
 A plain key has no `refetchInterval`.
 A new reader opens a new stream too:
 a new root, or a new entry

@@ -229,14 +229,22 @@ try {
 A remote data read never throws. Its last fault
 is data: `sea.board.faults`.
 
-A `refused` or `invalid` key waits: it never asks
-again by itself. After a sign-in, name it in
-`board.invalidate`. A keyed key takes its part; a
-plain key takes `{}`, as `{ notes: {} }`.
+A key whose stream ends on any fault but `link`
+waits: `refused`, `invalid`, `failed`, `missing`,
+`encode`, `decode`. It never asks again by itself.
+After a sign-in, name it in `board.invalidate`. A
+keyed key takes its part; a plain key takes `{}`:
 
-```ts no-check
-await scope.run(sea.board.invalidate, {
-  input: { waves: { room } },
+```ts
+import { data, remoteData } from "@tinkered/core";
+import type { Scope } from "@tinkered/core";
+
+declare const scope: Scope.Handle;
+const notes = data({ initial: [] as string[] });
+const board = remoteData({ notes });
+
+await scope.run(board.invalidate, {
+  input: { notes: {} },
 });
 ```
 
