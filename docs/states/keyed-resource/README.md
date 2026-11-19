@@ -25,10 +25,12 @@ Words:
 
 TLC reached 24,044 states.
 The spec, the chart and the rerun
-still describe `3ff6778`, before fix `ff565316`.
+still describe `3ff6778`,
+before fixes `ff565316` and `d842e0bd`.
 So they still show 5 rules break.
 
-- **EndBeforeNextBuild** — breaks.
+- **EndBeforeNextBuild** — holds after fix `d842e0bd`
+  (card `core/keyed-entry-dropped`).
   ADR 0157 d5.
   An end runs before the next build of the same key.
 - **EndWhenLastReaderLeaves** — holds after fix `ff565316`
@@ -52,16 +54,23 @@ So they still show 5 rules break.
   so this check cannot fail.
   `resource-keyed-life.test.ts` ("last first")
   pins it.
-- **NoChangeNoBuild** — breaks.
+- **NoChangeNoBuild** — holds after fix `d842e0bd`
+  (card `core/keyed-entry-dropped`).
   ADR 0157 d4.
   A read with no change makes no build (span).
 - **NoWriteInRead** — holds.
   ADR 0157 d7, ADR 0152 d7.
   A build a reader starts writes no cell.
-- **OneEntryPerKey** — breaks.
+- **OneEntryPerKey** — holds after fix `d842e0bd`
+  (card `core/keyed-entry-dropped`).
   ADR 0150 d5.
   One entry per key;
   every reader of a key shares it.
+  Duke's rule (option A): a reader
+  that only rendered does not keep the entry.
+  A watch of a dropped entry joins
+  the key's live entry,
+  or puts the entry back when there is none.
 - **NoReaderNoEntry** — holds.
   ADR 0150 d5.
   The last reader leaves, the entry goes.
@@ -182,6 +191,9 @@ Two causes:
   The entry left the map when its last watcher left,
   but React still holds it.
   So the next reader of that key gets a second entry.
+  Fix `d842e0bd`: a watch of a dropped entry
+  joins the key's live entry,
+  or puts the entry back when there is none.
 - **Cause B** (bug 2, card `core/keyed-watch-after-close`).
   A held reader subscribes after the scope closed.
   `watch()` runs `fresh()` (a build)
@@ -281,28 +293,31 @@ throws `Disposed` first.
 
 ## Path tests
 
-- `keyed-resource-paths.test.ts` —
-  paths 3 and 4 (cause B), now in
-  `packages/core/tests/statechart/`.
-  They pass after fix `ff565316`.
-  They failed before: that showed the bug.
-  They left the `.txt`,
-  so each test lives in one place.
-- `paths/keyed-resource-paths.test.ts.txt` —
-  paths 1 and 2 (cause A), Core.
-  Today: 2 of 2 fail. A fail shows the bug.
-  They go into the same
-  `packages/core/tests/statechart/keyed-resource-paths.test.ts`,
-  since they share `setup` and `renders`.
-- `paths/keyed-resource-react.test.tsx.txt` —
-  cause A in React.
-  Today: 2 of 2 fail.
-  Goes to `packages/react/tests/statechart/`.
+All path tests now live in the package tests.
+They all pass.
+They failed before their fix:
+that showed the bug.
+The `.txt` files are deleted,
+so each test lives in one place.
 
-Card `core/keyed-entry-dropped` moves
-the React file, without the `.txt`.
-It adds paths 1 and 2 to the Core file
-above, not to a new file.
+- `keyed-resource-paths.test.ts` —
+  paths 1 to 4, in
+  `packages/core/tests/statechart/`.
+  Paths 3 and 4 (cause B)
+  pass after fix `ff565316`.
+  Paths 1 and 2 (cause A)
+  pass after fix `d842e0bd`.
+  Path 1's end follows Duke's rule:
+  after the watcher left,
+  the next render builds a new entry.
+  Then reader 1 watches the entry it holds,
+  and leaves.
+  The leave runs the live entry's end,
+  so the watch joined it.
+- `keyed-resource-react.test.tsx` —
+  cause A in React, in
+  `packages/react/tests/statechart/`.
+  It passes after fix `d842e0bd`.
 
 Run:
 
@@ -311,7 +326,7 @@ cd packages/core
 vp test tests/statechart/keyed-resource-paths.test.ts
 ```
 
-Once the React file moves, run:
+Then:
 
 ```sh
 cd packages/react
@@ -330,6 +345,10 @@ vp test --project browser \
   No ADR says which order applies.
 - React re-renders. A re-render moves
   a stale reader to the map's entry.
+- A held reader's `get` after its watch
+  went to the live entry.
+  It builds the dropped entry again
+  until the reader renders again.
 - `depends` readers. The spec treats them
   as readers that render and never subscribe.
   No ADR says when they leave.
@@ -356,5 +375,6 @@ statechart KeyedResource.tla \
 
 Exit 1: 5 rules break.
 The spec still describes `3ff6778`,
-so it does not see fix `ff565316`.
-In the code, 3 rules break.
+so it does not see fixes
+`ff565316` and `d842e0bd`.
+In the code, no rule breaks.
