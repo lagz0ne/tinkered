@@ -58,10 +58,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **analyze/effects** — ADR 0129 S5. GET-safe and query-in-loop findings.
   Verify: Hedl gives the 5 GET routes and 21 loop sites of the proof.
 
-- **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop.
-  Seen in the ADR 0124 proof (`strict.test.tsx`). Spec, chart and path: [docs/states/session-provider](docs/states/session-provider/README.md) (ReachesStable breaks). Next: move `paths/session-provider-loop.test.tsx.txt` into React's tests.
-  Verify: that test renders `ok` with one build; the path test `session-provider-loop.test.tsx` passes; the session-provider check shows ReachesStable holds.
-
 - **jev/review-enobufs** — `tools/jev/lib.mjs:80` runs `git` through `execSync` with the default `maxBuffer`, so a big range crashes with `spawnSync /bin/sh ENOBUFS`.
   Seen on `node tools/jev/review.mjs 5a9f13a9..154f5a2b` (a 123k-line diff).
   Verify: that command exits 0.
@@ -86,8 +82,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: a Core test that closes the scope while a source is pending, then settles it; then stop `wake` from building on a closed layer.
   Verify: that test fails on main and passes; no build runs after the close.
 
-- **core/close-from-defer-skips-hooks** — bug 8 in [docs/states](docs/states/session-life/README.md). A session's defer calls `root.close()`: the root sees a re-entrant close (`closeWouldReenter`), skips the capsule close hook (ADR 0104), and starts a forced close, so the app's `close({ graceful: true })` turns forced (ADR 0029 d1). One cause, two rules. Next: move the CloseHookRunsOnce and FirstModeWins tests of `paths/statechart-session-life.test.ts.txt` into Core's tests (they fail), then fix the re-entrant close path (`closeWouldReenter`, `watchRootClose` in `packages/core/src/index.ts`).
-  Verify: those two path tests pass; the session-life check shows CloseHookRunsOnce and FirstModeWins hold.
+- **core/failed-holder-blocks-close** — A failed build keeps its instance, which still holds its dependency. A release of that dependency then waits for the failed holder, and `close()` waits for that release before it unlinks the failed instance, so the close never resolves (`startClose`; ADR 0027, ADR 0063 d4). Found while fixing bug 7; the resource-life spec misses it (its close unlinks every instance at once).
+  Repro: `b` plain; `a` depends on `b` and throws; `resolve(a)` throws; `release(b)`; `close()` is still open after 300 ms (main and after bug 7).
+  Next: a Core test with that repro (red), then let the close unlink before it waits, or let a release not wait on a failed holder.
+  Verify: the test passes; ADR 0063 d4 tests still pass.
 
 - **core/session-handle-after-body** — bug 9 in [docs/states](docs/states/session-life/README.md). In a graceful root close, a session's body ends but `Layer.closed` stays false until the drain, and `ensureOpen` reads only `closed`, so a leaked session handle still takes `onClose` (ADR 0071 d1). Next: move the HandleDeadAfterBody test and its control of `paths/statechart-session-life.test.ts.txt` into Core's tests (the path test fails), then fix `ensureOpen` or the body end (`settleSessionWith` in `packages/core/src/index.ts`).
   Verify: the HandleDeadAfterBody path test and the control pass; the session-life check shows HandleDeadAfterBody holds.
@@ -112,9 +110,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/resource-cycle-holds-close** — bug 7 in [docs/states](docs/states/resource-life/README.md). A reads B, B reads A: CircularResource is raised, but each instance holds the other, so `close()` stays open (ADR 0027, ADR 0011). Next: move path 3 of `paths/resource-life-paths.test.ts.txt` into Core's tests (it fails), then fix the holds the cycle leaves (`holdDependency` in `packages/core/src/index.ts`).
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/resource-cycle-holds-close`.
-  Verify: the path test for path 3 passes; the resource-life check with `cycle.cfg` shows CloseResolves holds.
+- **core/close-from-defer-skips-hooks** — bug 8 in [docs/states](docs/states/session-life/README.md). A session's defer calls `root.close()`: the root sees a re-entrant close (`closeWouldReenter`), skips the capsule close hook (ADR 0104), and starts a forced close, so the app's `close({ graceful: true })` turns forced (ADR 0029 d1). One cause, two rules. Next: move the CloseHookRunsOnce and FirstModeWins tests of `paths/statechart-session-life.test.ts.txt` into Core's tests (they fail), then fix the re-entrant close path (`closeWouldReenter`, `watchRootClose` in `packages/core/src/index.ts`).
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/close-from-defer-skips-hooks`.
+  Verify: those two path tests pass; the session-life check shows CloseHookRunsOnce and FirstModeWins hold.
 
 ## Review
 
@@ -131,6 +129,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
+
+- **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop ([session-provider](docs/states/session-provider/README.md), ReachesStable breaks).
+  Missing: Duke's rule for the path test. `paths/session-provider-loop.test.tsx.txt` cannot pass after any fix as written: its steps 7 to 11 poll for the loop itself (`creates` must reach 3, then 4), and the end wants `{ creates: 2, builds: 1, live: 1 }`. The plain fix (the effect's cleanup closes later, and a re-run takes the same session back) gives 1 session, so the step-3 poll (`creates` 2) fails too (lead, 2026-11-18).
+  A: cut steps 7 to 11 and keep the end rule, as `creates <= 2, builds: 1, live: 1`. Lead's pick: it keeps the rule and lets the fix pick its design.
+  B: keep the numbers; the fix must keep StrictMode's first double open and stop only the reopen on reveal.
+  Verify (after the pick): the changed path test and its control pass.
 
 - **core/keyed-entry-dropped** — bug 1 in [docs/states](docs/states/keyed-resource/README.md). The last watcher leaves, so the entry leaves the map, but a holder can subscribe to it again; the next reader builds a second entry.
   Missing: Duke's rule. Paths 1 and 2 of `paths/keyed-resource-paths.test.ts.txt` make the same Core calls up to step 5 (render, watch, leave, render), but path 1 wants the same entry back and path 2 wants a new one, so no fix passes both as written (checked by runs on main `cbddffbe`, 2026-11-18).
@@ -172,6 +176,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/resource-cycle-holds-close** — done 2026-11-18 (bug 7, [resource-life](docs/states/resource-life/README.md) `cycle.cfg`; ADR 0027, ADR 0011). A read of a resource still in its own sync build makes no hold (`needsHold`), so a cycle's `CircularResource` leaves no hold loop and `close()` resolves. Fix `e9242ca7`. Released as 0.31.5.
+  Proof: path 3 in `packages/core/tests/statechart/resource-life-paths.test.ts`, red on main (still open after 500 ms), green; the `.txt` is gone; `scripts/ticket.sh --check-only --no-mutation` exit 0; size 23,231 B within 23,232 B; core mutation 86.57 on `f54a474b` by the lead (kills alone 85.1; core source byte-identical to the landed head). Opus convention-review READY.
 
 - **core/resource-failed-stays** — done 2026-11-18 (bug 6, [resource-life](docs/states/resource-life/README.md); ADR 0063 d3, d6; ADR 0026 Q4). A good build after a failed sync build ends with the release or the close; each build's ends run with that build's end, and two failed builds keep their own errors. A failure wraps only its own hooks, once. The sync and the async close share one path (an async close runs sync ends in one job, same order). Fix `b9bec7b5`, fix round `2d0dfc60`. Released as 0.31.4.
   Proof: paths 1 and 2 in `packages/core/tests/statechart/resource-life-paths.test.ts`, red on main, green; a test that each failed build's hook runs once with its own failure, red on main; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,224 B within 23,232 B; core mutation 86.09 on `657d6aca` by the lead (kills alone 85.2; core source byte-identical to the landed head). Opus convention-review NOT READY (repeated failures cost O(k²): 5,000 took 3 s), one fix round, READY (20,000 failures 439 ms).

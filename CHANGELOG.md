@@ -9,6 +9,18 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.5
+
+`close()` resolves after two resources read
+each other (bug 7, ADR 0027).
+
+- A reads B and B reads A: the resolve raises
+  `CircularResource`, as before.
+- Before, each failed instance held the other,
+  so `close()` never resolved.
+- Now a read of a resource still in its own
+  build makes no hold. The close resolves.
+
 ## 0.31.4
 
 A good build after a failed one ends as the
