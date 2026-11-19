@@ -33,7 +33,7 @@ function setup(label: string) {
 
 const builds = (log: string[]) => log.filter((l) => l.startsWith("build")).length;
 
-test("StrictMode: a second reader of key A gets a second entry and a build with no change (ADR 0157 d4, ADR 0150 d5)", async () => {
+test("StrictMode: a second reader of key A shares the entry and builds nothing with no change (ADR 0157 d4, ADR 0150 d5)", async () => {
   const { src, log, Reader } = setup("scr.strict");
   const scope = createScope();
   let showB: () => void = () => undefined;
@@ -76,7 +76,7 @@ test("StrictMode: a second reader of key A gets a second entry and a build with 
   );
 });
 
-test("No StrictMode: a page swap keeps a dropped entry; the next reader of key A builds again (ADR 0157 d4, ADR 0150 d5)", async () => {
+test("No StrictMode: after a page swap, the next reader of key A shares the entry and builds nothing with no change (ADR 0157 d4, ADR 0150 d5)", async () => {
   const { src, log, Reader } = setup("scr.swap");
   const scope = createScope();
   let swap: () => void = () => undefined;
