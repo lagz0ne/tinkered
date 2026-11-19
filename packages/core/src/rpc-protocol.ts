@@ -155,7 +155,11 @@ export const protocol = resource({
       return metaNow().then(ask); // once only: a second refusal is the answer
     };
 
-    /** Client: one value out; replies pushed until the signal aborts or the stream ends. */
+    /**
+     * Client: one value out; replies pushed until the signal aborts or the stream ends. Core's
+     * `AbortError` from the open is the call's own stop: its session closed (ADR 0133 d1). That
+     * ends the stream clean, as a leave does; no bug, no `failed`.
+     */
     const watchOver = async (
       own: ClientSide,
       hook: Hook,
@@ -173,7 +177,11 @@ export const protocol = resource({
       const end = await run<{ ok: true } | Failed>(hook, own.open, {
         input: { ...input, meta, push: got },
         signal,
-      }).catch(bug(hook, input.address));
+      }).catch((error: unknown) =>
+        Object(error).name === "AbortError"
+          ? { ok: true as const }
+          : bug(hook, input.address)(error),
+      );
       if (!end.ok && !signal?.aborted) input.push(end);
     };
 

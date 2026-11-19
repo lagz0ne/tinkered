@@ -153,7 +153,7 @@ test("a caller's signal ends the stream it opened: the server's request closes",
   try {
     for await (const _ of values) stop.abort();
   } catch (error) {
-    if (!api.fault.is(error)) throw error;
+    if (!api.fault.is(error) || error.fault === "failed") throw error;
   }
   await tick();
 

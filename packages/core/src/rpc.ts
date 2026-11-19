@@ -376,10 +376,11 @@ const steps = resource({
                     sent,
                   ),
                 ).catch((error: unknown) => {
-                  // A lost link is a pushed fault. The reader's own leave is a clean end. Any
-                  // other throw is a bug (ADR 0141): `failed` here, never `link`.
+                  // A lost link is a pushed fault. The reader's own leave is a clean end, and so
+                  // is the call's own stop: Core's AbortError, its session closed (ADR 0133 d1).
+                  // Any other throw is a bug (ADR 0141): `failed` here, never `link`.
                   if (def.fault.is(error)) throw error;
-                  if (leave.signal.aborted) return;
+                  if (leave.signal.aborted || Object(error).name === "AbortError") return;
                   log.error(`${def.name} bug`, { address: key, cause: String(error) });
                   throw faulted({ ok: false, kind: "failed", payload: { side: "client" } });
                 }),
