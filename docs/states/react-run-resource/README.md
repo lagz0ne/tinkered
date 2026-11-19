@@ -36,11 +36,21 @@ and show it again. It can unmount.
 ### Rules
 
 TLC reached 158 states.
+The spec, the chart and the rerun
+still describe `c9c8817`,
+before the bug 15 and 16 fix.
+So they still show 2 rules break.
 
-- **CallbacksFirePerRun** — breaks. ADR 0032 d2
+- **CallbacksFirePerRun** — holds,
+  since `69b47beb`
+  (card `react/use-run-hidden`).
+  ADR 0032 d2
   ("`options.onSuccess/onError/onSettled`
   fire per run").
-- **ShownStateIsLatest** — breaks. ADR 0032 d2
+- **ShownStateIsLatest** — holds,
+  since `69b47beb`
+  (card `react/use-run-hidden`).
+  ADR 0032 d2
   (shaped like react-query's `useMutation`;
   "the outcome lands in state,
   `variables` is the call").
@@ -133,8 +143,16 @@ The bad steps:
 
 ### Bug 15: a hide and show clears a run to `idle`
 
-Card `react/use-run-hidden`.
+Card `react/use-run-hidden` fixes it
+(`69b47beb`).
 Rule: ShownStateIsLatest.
+The text below names the code before the fix.
+
+The fix: `attach` keeps the state.
+A detached owner still writes its state,
+but calls no React update.
+On show, `attach` renders a state
+written while it was detached.
 
 On show, `attach` (830) resets
 any state that is not `idle`.
@@ -151,8 +169,15 @@ any state that is not `idle`.
 
 ### Bug 16: `onSuccess` is lost
 
-Card `react/use-run-hidden`.
+Card `react/use-run-hidden` fixes it
+(`69b47beb`).
 Rule: CallbacksFirePerRun.
+The text below names the code before the fix.
+
+The fix: `finish` calls `notify`
+while hidden and after unmount.
+An op change drops the old owner's options,
+so its callbacks stay off.
 
 `finish` (867) calls `notify`
 only while `live`.
@@ -173,13 +198,22 @@ only while `live`.
 3. The run settles.
    `onSuccess` never fires.
 
-Note for Duke: the doc comment on `useRun` says
+Note for Duke: the doc comment on `useRun` said
 a changed provider or op "stops the old owner's
 ... callback writes".
 That is the code's own choice.
 In react-query, `useMutation`'s own callbacks
 still fire after unmount;
 only the per-call ones do not.
+The fix keeps it for an op change.
+A provider change mounts the subtree again
+(ADR 0144 d2), so `useRun` unmounts:
+the old run's callbacks now fire.
+The test
+"switching providers mounts the view again"
+says so.
+A StrictMode replay is a hide and show,
+so it keeps its run now.
 
 ## UseResource
 
@@ -297,20 +331,21 @@ Steps the charts do not draw:
 
 ## Path tests
 
-`paths/use-run-paths.test.tsx.txt`
-goes to `packages/react/tests/statechart/`.
-
-- Today: 3 of 3 fail (paths 1 to 3).
-  A fail shows the bug.
+- `use-run-paths.test.tsx` —
+  paths 1 to 3,
+  now in `packages/react/tests/statechart/`.
+  All 3 pass since `69b47beb`.
+  They failed before: that showed bugs 15 and 16.
 
 Card `react/use-run-hidden`
-moves the file in, without the `.txt`.
+moved the file in, without the `.txt`.
 
-Once moved, run:
+Run:
 
 ```sh
 cd packages/react
-vp test tests/statechart/use-run-paths.test.tsx
+vp test --project browser \
+  tests/statechart/use-run-paths.test.tsx
 ```
 
 ## What the specs leave out
@@ -342,5 +377,7 @@ statechart UseResource.tla \
 ```
 
 - `UseRun.cfg`: exit 1 today, 2 rules break.
+  The spec still describes `c9c8817`,
+  so it does not see the bug 15 and 16 fix.
 - Both `UseResource` configs: exit 0,
   every rule holds.
