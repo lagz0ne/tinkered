@@ -25,10 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **react/mutation-lane-no-tests** — The React mutation lane fails before any mutant: `cd packages/react && vp run mutate` ends "No tests were executed" (Stryker's Vitest runner: "failed to find test files related to mutated files"), on main `b96c8f6a` (2026-11-19). Earlier runs used `vp run @tinker/react#mutate --timeoutMS 60000` and scored 85.64; a perf note says the lane sees no mutant in browser tests.
-  Next: make the lane find React's tests (for example `vitest.related: false`, or a Node project the runner can see), then run it on main.
-  Verify: `vp run mutate` in `packages/react` exits 0 at 85 or more on main.
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -96,6 +92,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: that test fails on main and passes.
 
 ## Doing
+
+- **react/mutation-lane-no-tests** — The React mutation lane fails before any mutant: `cd packages/react && vp run mutate` ends "No tests were executed" (Stryker's Vitest runner: "failed to find test files related to mutated files"), on main `b96c8f6a` (2026-11-19). Earlier runs used `vp run @tinker/react#mutate --timeoutMS 60000` and scored 85.64; a perf note says the lane sees no mutant in browser tests.
+  Next: make the lane find React's tests (for example `vitest.related: false`, or a Node project the runner can see), then run it on main.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/mutation-lane-no-tests`.
+  Verify: `vp run mutate` in `packages/react` exits 0 at 85 or more on main.
 
 ## Review
 
