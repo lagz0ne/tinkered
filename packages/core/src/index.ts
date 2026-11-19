@@ -8661,12 +8661,7 @@ function builtReader(
   const text = `${idOf(read.unit)}${keyText(def.label, key as Data.Key)}`;
   const own = builtKept.get(layer) ?? new Map<string, BuiltEntry>();
   builtKept.set(layer, own);
-  const kept = own.get(text);
-  if (kept !== undefined) return kept;
-
-  const entry = new BuiltEntry(own, text, def, config, slot, layer, chain);
-  own.set(text, entry);
-  return entry;
+  return own.get(text) ?? new BuiltEntry(own, text, def, config, slot, layer, chain);
 }
 
 /** A config key's value: the one given, else its tag's default. A required key with neither
@@ -8738,6 +8733,7 @@ class BuiltEntry implements Data.Reader<unknown> {
     this.chain = chain;
     this.own = own;
     this.text = text;
+    own.set(text, this);
     this.def = def;
     this.watchers = new Set();
     this.ends = [];
@@ -8796,12 +8792,25 @@ class BuiltEntry implements Data.Reader<unknown> {
     return this.value;
   }
 
+  /** A watch of a dropped entry goes to its key's live entry, or puts it back when the key has none.
+   * So watchers share one entry per key (ADR 0150 d5), and that entry's end runs before its next
+   * build (ADR 0157 d5). An entry with a watcher is always its key's entry, so its last leave
+   * drops it from the map unchecked. */
   watch(fn: (next: unknown, prev: unknown) => void): () => void {
+    return (this.own.get(this.text) ?? this).join(fn);
+  }
+
+  /** Add a watcher to this entry, which is its key's entry or takes the key's empty place. The
+   * first watcher watches the sources. */
+  private join(fn: (next: unknown, prev: unknown) => void): () => void {
     if (this.watchers.size === 0) {
       ensureOpen(this.layer);
+      this.own.set(this.text, this);
+
       if (this.wait === undefined && this.failed === undefined) this.fresh();
       this.told = this.value;
       this.toldFault = this.failed ?? this.fault;
+
       for (const source of this.sources) {
         if (source.watch !== undefined) this.stops.push(source.watch(() => this.wake()));
       }
@@ -8811,7 +8820,7 @@ class BuiltEntry implements Data.Reader<unknown> {
     this.watchers.add(watcher);
     return () => {
       if (!this.watchers.delete(watcher) || this.watchers.size !== 0) return;
-      if (this.own.get(this.text) === this) this.own.delete(this.text);
+      this.own.delete(this.text);
       for (const stop of this.stops.splice(0)) stop();
       if (this.ends.length === 0) return;
 
