@@ -146,13 +146,12 @@ test("the guest signs in later: the next request asks again, and the board fills
   expect(ann.resolve(board.faults).get().notes?.fault).toBe("refused");
   sessions.set("s2", "ann"); // the user signs in (the cookie now names a session)
   expect(await ann.run(api["note.add"], { input: "now in" })).toBe(1); // the next call has the bearer
-  const end = Date.now() + 3000;
-  let value: unknown = null;
-  while (value === null && Date.now() < end) {
-    if (ann.resolve(board.faults).get().notes) await tick(20);
-    else value = ann.resolve(board.notes).get();
-  }
-  expect(value).toEqual(["ann: now in"]); // the watch tried again with back-off and got the bearer
+  await tick(200);
+  expect(ann.resolve(board.faults).get().notes?.fault).toBe("refused"); // ADR 0140: an answer
+  await ann.run(board.invalidate, { input: { notes: {} } }); // the sign-in is the trigger
+
+  expect(ann.resolve(board.faults).get()).toEqual({});
+  expect(ann.resolve(board.notes).get()).toEqual(["ann: now in"]); // the watch opened with the bearer
 });
 
 test("the cost: one auth check per signed request (as tRPC headers()); caching it is the app's choice", async () => {
