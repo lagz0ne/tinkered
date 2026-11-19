@@ -102,11 +102,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself (ADR 0140).
-  Duke 2026-11-19 13:59 ("Agreed to all"): option B. A refused answer ends asking for every key; `invalidate` takes plain keys too (`{ notes: {} }`); the site's sign-in test calls `invalidate` after sign-in; ADR 0140 and 0137 amended.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/refused-key-reopens`.
-  Verify: the key-stream path test and a plain-key `invalidate` test pass; the site's sign-in test passes; core gates, skills, size caps, core mutation.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -123,18 +118,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
+- **core/refused-key-reopens** — bug 13 (Duke 2026-11-19: option B). Built and reviewed: a refused answer ends asking for every key but `link`; `invalidate` takes plain keys; the site's sign-in calls it; ADR 0140 and 0137 amended. Branch `core/refused-key-reopens`, head `29f0c736`; gates green before the last rebase; one fix round done.
+  Missing: room under Core's size caps. On main 0.31.11 it is 23,233 B without rpc (cap 23,232 B; the 1 B is the rpc chunk's hashed file name, which moves with any rpc change) and 35,081 B with rpc (cap 35,072 B; two honest trims bring it to 35,071 B).
+  Next once the cap moves: apply the two trims, run `ticket.sh`, the core lane, land and release. Then `core/invalidate-refused-returns-early` (same `invalidate` code).
+
+- **core/session-handle-after-body** — bug 9 (Duke 2026-11-19: raise the cap by 8 B). The saved fix is now 23,254 B without rpc on main 0.31.12: 22 B over the 23,232 B cap, because main grew 8 B (bug 1) since Duke's +8 was sized. Branch `core/session-handle-after-body`, rebased on main.
+  Missing: Duke's OK for a bigger raise (+24 B covers bug 9 and the 1 B hash noise of bug 13), or trims.
+
 - **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused part returns before any ask (`reask` calls `wake()` and adds no ask to the list it awaits; ADR 0147 d4).
   Missing: Duke's rule for the path test. InvalidateAwaitsItsAsk (`paths/remote-part-paths.test.ts.txt`) wants `asksSince: 1` and `ready` when the await returns. That forces one design: invalidate sends its own `tasks.ask` and the await also covers the stream's reopen. A fix where invalidate only reopens the stream (its first push is the value) gives 0 asks and fails it (lead's audit, 2026-11-19).
   A: the await covers the reopened stream's first answer; the test asks `asksSince >= 0` and `ready`. Lead's pick: no extra round trip.
   B: keep the test; invalidate on a refused part sends one ask and waits for it, then the stream reopens.
   Verify (after the pick): the path test (as picked) passes.
-
-- **core/session-handle-after-body** — bug 9 in [docs/states](docs/states/session-life/README.md). In a graceful root close, a session's body ends but its leaked handle still takes `onClose` (ADR 0071 d1).
-  Missing: Duke's pick on Core's size cap. The full fix is 6 B over it (23,238 B, cap 23,232 B) after a 4 B trim (the lint limit on `resolve` cost 2 B); it is on branch `core/session-handle-after-body` (head `fe876c49`) (worktree `../tinkered-session-handle-after-body`), path test red on main, green with it.
-  Why the handle: running owned work reads the same session layer, so `ensureOpen` or `closed` at the body end would break ADR 0028 (graceful waits for that work). The fix adds `ensureLive` for the handle's `onClose`, `controller` and `resolve`.
-  A: raise the cap by 8 B (6 to fit, 2 spare). Lead's pick: it is the only version that keeps ADR 0071 d1 whole.
-  B: drop the `resolve` guard; it fits with 0 B left, but `resolve` on a leaked handle still works during a graceful drain.
-  Next once picked: run the gates and the core lane on that branch, then land.
 
 - **core/states-rules-undecided** — 7 cases with no ADR rule yet, found by the specs in [docs/states](docs/states/README.md). What the code does today: (1) UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8): the write throws UpdateDepth; the error is lost; (2) an equal `set` in a reader's build (ADR 0157 d7): it is dropped before the check; no WriteInRead; (3) a failed sync build's end (ADR 0026 Q4): it runs only at the release or the close; (4) a session catches its grandchild's managed error (ADR 0028 d3 vs ADR 0067): the session and the root fail only when a root close is in flight; else both succeed; (5) a close called from a defer (ADR 0026 d3 vs ADR 0027): it returns `success` at once; the close it starts ends `cancelled`; (6) a run hook calls `next()` twice (ADR 0050 d1): the body runs twice; the run returns the second value. A finished run's first ctx stays live, so its leaked `deps.inner` runs on a closing scope. ADR 0127 d2 may or may not cover a scope still closing (FinishedRunStartsNothing breaks in the run-life check); (7) one part's good answer clears the key's fault in `board.faults` (ADR 0139 d1 is silent): `board.faults.tasks` is gone while another part still shows refused.
   Also: `core/local-stream-signal` (Ready) now has a pinned test, the second test of `docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`.
