@@ -98,6 +98,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop ([session-provider](docs/states/session-provider/README.md), ReachesStable breaks).
+  Duke 2026-11-19 13:59 ("Agreed to all"): option A. Cut the path test's steps 7 to 11 (they poll for the loop) and keep the end rule as `creates <= 2, builds: 1, live: 1`.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/strict-session-suspense`.
+  Verify: the changed path test and its control pass; react, site, example-react tests; React lane.
+
 - **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself (ADR 0140).
   Duke 2026-11-19 13:59 ("Agreed to all"): option B. A refused answer ends asking for every key; `invalidate` takes plain keys too (`{ notes: {} }`); the site's sign-in test calls `invalidate` after sign-in; ADR 0140 and 0137 amended.
   Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/refused-key-reopens`.
@@ -131,12 +136,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   A: raise the cap by 8 B (6 to fit, 2 spare). Lead's pick: it is the only version that keeps ADR 0071 d1 whole.
   B: drop the `resolve` guard; it fits with 0 B left, but `resolve` on a leaked handle still works during a graceful drain.
   Next once picked: run the gates and the core lane on that branch, then land.
-
-- **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop ([session-provider](docs/states/session-provider/README.md), ReachesStable breaks).
-  Missing: Duke's rule for the path test. `paths/session-provider-loop.test.tsx.txt` cannot pass after any fix as written: its steps 7 to 11 poll for the loop itself (`creates` must reach 3, then 4), and the end wants `{ creates: 2, builds: 1, live: 1 }`. The plain fix (the effect's cleanup closes later, and a re-run takes the same session back) gives 1 session, so the step-3 poll (`creates` 2) fails too (lead, 2026-11-18).
-  A: cut steps 7 to 11 and keep the end rule, as `creates <= 2, builds: 1, live: 1`. Lead's pick: it keeps the rule and lets the fix pick its design.
-  B: keep the numbers; the fix must keep StrictMode's first double open and stop only the reopen on reveal.
-  Verify (after the pick): the changed path test and its control pass.
 
 - **core/states-rules-undecided** — 7 cases with no ADR rule yet, found by the specs in [docs/states](docs/states/README.md). What the code does today: (1) UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8): the write throws UpdateDepth; the error is lost; (2) an equal `set` in a reader's build (ADR 0157 d7): it is dropped before the check; no WriteInRead; (3) a failed sync build's end (ADR 0026 Q4): it runs only at the release or the close; (4) a session catches its grandchild's managed error (ADR 0028 d3 vs ADR 0067): the session and the root fail only when a root close is in flight; else both succeed; (5) a close called from a defer (ADR 0026 d3 vs ADR 0027): it returns `success` at once; the close it starts ends `cancelled`; (6) a run hook calls `next()` twice (ADR 0050 d1): the body runs twice; the run returns the second value. A finished run's first ctx stays live, so its leaked `deps.inner` runs on a closing scope. ADR 0127 d2 may or may not cover a scope still closing (FinishedRunStartsNothing breaks in the run-life check); (7) one part's good answer clears the key's fault in `board.faults` (ADR 0139 d1 is silent): `board.faults.tasks` is gone while another part still shows refused.
   Also: `core/local-stream-signal` (Ready) now has a pinned test, the second test of `docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`.
