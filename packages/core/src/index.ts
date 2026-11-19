@@ -4885,9 +4885,11 @@ function runSessionWith<R>(
     child.caller = caller;
 
     if (signal) {
-      /** Seal writes now, then let the session join its body and cleanup before it detaches. */
+      /** Seal writes and begin closing now (ADR 0104: a wait that ends from `ctx.closing` lets
+       * the call end), then let the session join its body and cleanup before it detaches. */
       const abort = (): void => {
         child.closed = true;
+        beginClosing(child);
         abortSubtree(child, signal.reason);
       };
       signal.addEventListener("abort", abort, { once: true });
