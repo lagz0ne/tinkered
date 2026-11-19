@@ -8781,9 +8781,12 @@ class BuiltEntry implements Data.Reader<unknown> {
   }
 
   /** A read, or a first watch, on a closed scope is refused before it builds: that build's end
-   * could never run (ADR 0157 d5). */
+   * could never run (ADR 0157 d5). A read of a dropped entry goes to its key's live entry, as a
+   * watch does: the dropped one would build again with no change (ADR 0157 d4). */
   get(): unknown {
     ensureOpen(this.layer);
+    const live = this.own.get(this.text) ?? this;
+    if (live !== this) return live.get();
 
     if (this.wait === undefined && this.failed === undefined) this.fresh();
     if (this.wait !== undefined) throw this.wait;
