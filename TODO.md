@@ -98,6 +98,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/keyed-entry-dropped** — bug 1 in [docs/states](docs/states/keyed-resource/README.md). The last watcher leaves, so the entry leaves the map, but a holder can subscribe to it again; the next reader builds a second entry.
+  Duke 2026-11-19 13:59 ("Agreed to all"): option A. The entry still leaves the map with its last watcher (ADR 0150 d5); a dropped entry joins the map again on its next watch, or hands the watch to the live entry; path 1's last expectation changes (a reader that rendered but never watched does not keep the entry).
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/keyed-entry-dropped`.
+  Verify: the two React path tests and Core paths 1 (as changed) and 2 pass; core gates, size cap, core mutation.
+
 ## Review
 
 - **react/use-run-hidden** — bugs 15 and 16 in [docs/states](docs/states/react-run-resource/README.md). `useRun` keeps its latest state across a Suspense hide and show, and fires its callbacks once per run (ADR 0032 d2).
@@ -146,13 +151,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   A: cut steps 7 to 11 and keep the end rule, as `creates <= 2, builds: 1, live: 1`. Lead's pick: it keeps the rule and lets the fix pick its design.
   B: keep the numbers; the fix must keep StrictMode's first double open and stop only the reopen on reveal.
   Verify (after the pick): the changed path test and its control pass.
-
-- **core/keyed-entry-dropped** — bug 1 in [docs/states](docs/states/keyed-resource/README.md). The last watcher leaves, so the entry leaves the map, but a holder can subscribe to it again; the next reader builds a second entry.
-  Missing: Duke's rule. Paths 1 and 2 of `paths/keyed-resource-paths.test.ts.txt` make the same Core calls up to step 5 (render, watch, leave, render), but path 1 wants the same entry back and path 2 wants a new one, so no fix passes both as written (checked by runs on main `cbddffbe`, 2026-11-18).
-  A: a dropped entry joins the map again on its next watch, or hands the watch to the live entry. Path 2 and both React path tests pass; path 1's last expectation changes (a reader that rendered but never watched does not keep the entry). Keeps ADR 0150 d5.
-  B: the entry stays in the map after its last watcher leaves (its ends still run). Path 1 and both React path tests pass; path 2's step 5 and end change. Drops ADR 0150 d5: entries live as long as their layer.
-  Lead's pick: A. Next once picked: change that path test to the rule, then move the tests and fix `BuiltEntry.watch`.
-  Verify: the two React path tests and Core paths 1 and 2 (as changed) pass.
 
 - **core/states-rules-undecided** — 7 cases with no ADR rule yet, found by the specs in [docs/states](docs/states/README.md). What the code does today: (1) UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8): the write throws UpdateDepth; the error is lost; (2) an equal `set` in a reader's build (ADR 0157 d7): it is dropped before the check; no WriteInRead; (3) a failed sync build's end (ADR 0026 Q4): it runs only at the release or the close; (4) a session catches its grandchild's managed error (ADR 0028 d3 vs ADR 0067): the session and the root fail only when a root close is in flight; else both succeed; (5) a close called from a defer (ADR 0026 d3 vs ADR 0027): it returns `success` at once; the close it starts ends `cancelled`; (6) a run hook calls `next()` twice (ADR 0050 d1): the body runs twice; the run returns the second value. A finished run's first ctx stays live, so its leaked `deps.inner` runs on a closing scope. ADR 0127 d2 may or may not cover a scope still closing (FinishedRunStartsNothing breaks in the run-life check); (7) one part's good answer clears the key's fault in `board.faults` (ADR 0139 d1 is silent): `board.faults.tasks` is gone while another part still shows refused.
   Also: `core/local-stream-signal` (Ready) now has a pinned test, the second test of `docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`.
