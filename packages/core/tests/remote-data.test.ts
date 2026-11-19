@@ -289,14 +289,15 @@ test("one invalidate names a plain key and a keyed part: each asks again", async
   closers.push(() => client.close());
   const reader = client.resolve(board.tasks.where({ project: "p1" }));
   const stop = reader.watch(() => undefined);
-  await tick();
-  const before = asked.filter((key) => key === "tasks.ask").length;
+  const asks = () => asked.filter((key) => key === "tasks.ask").length;
+  while (asks() === 0) await tick(10); // the part's first ask
+  const before = asks();
 
   open = true;
   await client.run(board.invalidate, { input: { todos: {}, tasks: { project: "p1" } } });
 
   expect(client.resolve(board.faults).get()).toEqual({});
-  expect(asked.filter((key) => key === "tasks.ask").length).toBe(before + 1);
+  expect(asks()).toBe(before + 1);
   stop();
 });
 
