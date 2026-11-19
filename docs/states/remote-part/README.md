@@ -63,13 +63,17 @@ before the bug 11 fix.
 So they still show 3 rules break.
 
 - **RefusedWaitsForTrigger** — holds,
-  since `02e4af4c`
+  with one new step the rule forbids:
+  on a link fault, a parked, refused part
+  shows `link` and opens again
+  (ADR 0139 d4: the backend heals a link).
+  Since `02e4af4c` and `1582ec72`
   (card `core/remote-parked-part-wakes`).
   ADR 0139 d4 ("the part goes to fault
   and waits for a trigger");
   ADR 0140 (The direction).
 - **LinkFaultHeals** — holds,
-  since `02e4af4c`
+  since `02e4af4c` and `1582ec72`
   (card `core/remote-parked-part-wakes`).
   ADR 0139 d4 ("the backend heals it;
   the part shows link until then");
@@ -170,22 +174,34 @@ so the chart draws only the bug paths.
 ### Bug 11: a parked part wakes from a late answer
 
 Card `core/remote-parked-part-wakes` fixes it
-(`02e4af4c`).
+(`02e4af4c`, `1582ec72`).
 Rules: RefusedWaitsForTrigger, LinkFaultHeals.
 One cause, two rules.
 The text below names the code before the fix.
 
-The fix is in `apply`.
-When each part an answer is for is parked,
-the answer does not get in:
-the part stays in its fault.
-A link fault is the one exception.
-The part shows `link`,
-and `apply` wakes it.
-Its stream opens again,
-with back-off while the link is down.
-When the link is back, the stream opens,
-and its first signal asks.
+The fix is in `apply`, `stand` and `parked`.
+
+- When each part an answer is for is parked,
+  or rides a parked part,
+  the answer does not get in.
+  The parts stay in their fault.
+- A link fault is the one exception.
+  `apply` wakes the parts,
+  and they show `link`.
+  Their streams open again,
+  with back-off while the link is down.
+  When the link is back, a stream opens,
+  and its first signal asks.
+- An answer that a live part shares
+  gets in, but `stand` skips each part
+  that is parked or rides a parked part.
+  Those keep their fault.
+- A wake clears `wake` at once,
+  so a woken part shows `link` at once.
+
+Tests: `packages/core/tests/`
+`remote-data-keyed-parked.test.ts`
+(a rider; a live part that holds a parked one).
 
 The spec's RefusedWaitsForTrigger
 lets a parked, refused part
