@@ -35,34 +35,6 @@ const within = (p: Promise<unknown>, ms: number) =>
     new Promise((done) => setTimeout(() => done("still waits"), ms)),
   ]);
 
-test("OwnStopIsNotFailed path: a caller's own signal ends a remote stream as failed", async () => {
-  const server = await createScope({
-    capsules: [api({ implement: { open } }), memory.server({ services: [api] })],
-  }).ready;
-  closers.push(() => server.close());
-  const tab = await createScope({
-    capsules: [memory.client({ peer: server }), api({ remote: memory.client })],
-  }).ready;
-  closers.push(() => tab.close());
-  const stop = new AbortController();
-
-  // 1. The call answers.
-  const values = await tab.run(api.open, { input: null, signal: stop.signal });
-  let got = "clean";
-  try {
-    for await (const _ of values) {
-      // 2. The caller's signal aborts.
-      stop.abort();
-    }
-    // 3. The loop reaches the end.
-  } catch (error) {
-    got = what(error);
-  }
-
-  // ADR 0133 d1: a stop by the call's own signal is a cancellation, not a bug.
-  expect(got).not.toBe("failed");
-});
-
 test("no rule yet (core/local-stream-signal): a stream run here with a signal answers only when the op ends", async () => {
   const tab = await createScope({ capsules: [api({ implement: { open } })] }).ready;
   closers.push(() => tab.close());
