@@ -1,9 +1,17 @@
-import { createScope, data } from "@tinkered/core";
+import { createScope, data, resource } from "@tinkered/core";
 import { Activity, StrictMode, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 
-import { ScopeProvider, isError, useScope } from "@/index";
+import {
+  ScopeProvider,
+  SessionProvider,
+  isError,
+  useData,
+  useRelease,
+  useResource,
+  useScope,
+} from "@/index";
 
 import { Catch } from "./support/boundary";
 
@@ -109,12 +117,34 @@ function label(error: unknown): string {
   return `caught:${error.payload.hook}`;
 }
 
-test("a hook used with no provider raises NoProvider", async () => {
-  const screen = await render(
-    <Catch fallback={(error) => <p>{label(error)}</p>}>
-      <Greeting />
-    </Catch>,
-  );
+const answer = resource({ label: "answer", factory: () => 42 });
+
+function ReadsData(): React.ReactElement {
+  return <p>{useData(greeting)}</p>;
+}
+
+function ReadsResource(): React.ReactElement {
+  return <p>{useResource(answer)}</p>;
+}
+
+function Releases(): React.ReactElement {
+  useRelease();
+  return <p>release</p>;
+}
+
+test.each([
+  ["useScope", <Greeting />],
+  ["useData", <ReadsData />],
+  ["useResource", <ReadsResource />],
+  ["useRelease", <Releases />],
+  [
+    "SessionProvider",
+    <SessionProvider>
+      <p>session</p>
+    </SessionProvider>,
+  ],
+])("%s used with no provider raises NoProvider", async (_name, view) => {
+  const screen = await render(<Catch fallback={(error) => <p>{label(error)}</p>}>{view}</Catch>);
 
   await expect.element(screen.getByText("caught:useScope")).toBeVisible();
 });

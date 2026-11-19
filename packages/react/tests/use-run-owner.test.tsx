@@ -1,5 +1,5 @@
 import { createScope, operation, tag, type Operation } from "@tinkered/core";
-import { StrictMode, useLayoutEffect, useRef } from "react";
+import { Activity, StrictMode, useLayoutEffect, useRef } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 
@@ -186,4 +186,27 @@ test("a cancelled run rejects with the caller's exact reason", async () => {
   } finally {
     expect((await scope.close({ graceful: true })).status).toBe("success");
   }
+});
+
+test("a run that settles while an Activity hides the view shows its result when shown again", async () => {
+  const gate = deferred<string>();
+  const scope = createScope({ tags: [answer(gate.promise)] });
+  const seen: Seen = { calls: [] };
+  const view = <View op={readAnswer} seen={seen} />;
+  const shown = (mode: "visible" | "hidden") => (
+    <ScopeProvider scope={scope}>
+      <Activity mode={mode}>{view}</Activity>
+    </ScopeProvider>
+  );
+  const screen = await render(shown("visible"));
+  seen.run?.run();
+  await expect.element(screen.getByText("value:pending")).toBeVisible();
+  await screen.rerender(shown("hidden"));
+
+  gate.resolve("late");
+  await expect.poll(() => seen.calls).toEqual(["late"]);
+  await screen.rerender(shown("visible"));
+
+  await expect.element(screen.getByText("value:late")).toBeVisible();
+  await scope.close();
 });

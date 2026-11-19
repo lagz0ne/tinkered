@@ -1,9 +1,17 @@
 import type { Scope } from "@tinkered/core";
 import { createScope, data, resource } from "@tinkered/core";
+import { Activity } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 
-import { ScopeProvider, SessionProvider, useController, useData, useResource } from "@/index";
+import {
+  ScopeProvider,
+  SessionProvider,
+  useController,
+  useData,
+  useResource,
+  useScope,
+} from "@/index";
 
 const cell = data({ label: "cell", initial: "root" });
 
@@ -107,4 +115,40 @@ test("switching the parent scope never exposes the old session, even if the old 
   await expect.element(screen.getByText("ok:true")).toBeVisible();
 
   await scopeB.close();
+});
+
+test("an Activity hide closes the session, and a show renders only with a fresh one", async () => {
+  const scope = createScope();
+  const closed = new Set<Scope.Handle>();
+  const stale: Scope.Handle[] = [];
+
+  function Probe(): React.ReactElement {
+    const session = useScope();
+    if (closed.has(session)) stale.push(session);
+    else {
+      session.onClose(() => {
+        closed.add(session);
+      });
+    }
+    return <p>{closed.size === 0 ? "first" : "again"}</p>;
+  }
+
+  const shown = (mode: "visible" | "hidden") => (
+    <ScopeProvider scope={scope}>
+      <Activity mode={mode}>
+        <SessionProvider>
+          <Probe />
+        </SessionProvider>
+      </Activity>
+    </ScopeProvider>
+  );
+  const screen = await render(shown("visible"));
+  await expect.element(screen.getByText("first")).toBeVisible();
+  await screen.rerender(shown("hidden"));
+  await expect.poll(() => closed.size).toBe(1);
+  await screen.rerender(shown("visible"));
+
+  await expect.element(screen.getByText("again")).toBeVisible();
+  expect(stale).toEqual([]);
+  await scope.close();
 });
