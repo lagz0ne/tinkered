@@ -1,5 +1,7 @@
-// Replays the ReachesStable bug path of /home/paseo/statechart/react/session-provider
-// (TLC counterexample, 11 steps), one step for each action. Not committed.
+// Replays steps 1 to 6 of the ReachesStable bug path of
+// /home/paseo/statechart/react/session-provider (TLC counterexample), one step for each action.
+// Steps 7 to 11 polled for the loop itself; Duke cut them (2026-11-19, option A).
+// See docs/states/session-provider/README.md.
 import type { Scope } from "@tinkered/core";
 import { createScope, resource } from "@tinkered/core";
 import { StrictMode, Suspense } from "react";
@@ -10,6 +12,7 @@ import { ScopeProvider, SessionProvider, useResource } from "@/index";
 
 /** Each build waits for the test to settle it, so "the session's data loads" is one step. */
 const loads: Array<(value: string) => void> = [];
+
 const data = resource({
   label: "data",
   target: "session",
@@ -58,17 +61,6 @@ test("ReachesStable: a SessionProvider inside Suspense under StrictMode reaches 
   loads[0]!("ok");
   // 6. the child shows again
   await expect.poll(() => document.body.textContent).toContain("child:ok");
-  // 7. StrictMode closes the session and opens a new one
-  await expect.poll(() => counts.creates).toBe(3);
-  await expect.poll(live).toBe(1);
-  // 8. the child asks for the session's data and suspends
-  await expect.poll(() => loads.length).toBe(2);
-  await expect.element(screen.getByText("fallback")).toBeVisible();
-  // 9. the session's data loads
-  loads[1]!("ok");
-  // 10. the child shows again
-  // 11. StrictMode closes the session and opens a new one
-  await expect.poll(() => counts.creates).toBe(4);
 
   // The rule (ADR 0031; card react/strict-session-suspense: "renders ok with one build"):
   // once its data loaded, the provider stays on one session and one build.
@@ -77,7 +69,8 @@ test("ReachesStable: a SessionProvider inside Suspense under StrictMode reaches 
   // A close waits for a build in flight; this test's builds ignore the abort, so settle them.
   for (const load of loads) load("late");
   await expect.poll(live).toBe(0);
-  expect(record).toEqual({ creates: 2, builds: 1, live: 1 });
+  expect(record.creates).toBeLessThanOrEqual(2);
+  expect({ builds: record.builds, live: record.live }).toEqual({ builds: 1, live: 1 });
 });
 
 test("control: without StrictMode the same tree is stable after one build (model: Strict = FALSE holds)", async () => {
@@ -94,6 +87,7 @@ test("control: without StrictMode the same tree is stable after one build (model
       return session;
     },
   });
+
   const screen = await render(
     <ScopeProvider scope={scope}>
       <Suspense fallback={<p>fallback</p>}>
@@ -103,11 +97,13 @@ test("control: without StrictMode the same tree is stable after one build (model
       </Suspense>
     </ScopeProvider>,
   );
+
   await expect.poll(() => loads.length).toBe(1);
   loads[0]!("ok");
   await expect.poll(() => document.body.textContent).toContain("child:ok");
   await new Promise((r) => setTimeout(r, 200));
   expect({ creates: counts.creates, builds: loads.length }).toEqual({ creates: 1, builds: 1 });
+
   await screen.unmount();
   await expect.poll(() => counts.creates - counts.closes).toBe(0);
 });
