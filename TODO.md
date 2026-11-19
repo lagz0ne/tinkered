@@ -26,7 +26,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Ready
 
 - **react/mutation-floor** — React's mutation lane runs again (`react/mutation-lane-no-tests`), but kills alone are 71.97% (339/471) at the config's 15 s timeout: 76 timeouts and 54 survivors in `src/index.ts` (`RunOwner` 807-884, resources 618-670, providers 132-201, `useData` 285-353). The last good record (2026-10-08, 85.64) used `--timeoutMS 60000` on 369 mutants.
-  Next: read the 60 s run on main (`/home/paseo/statechart/fixes/logs/react-mutation-lane-main-60s.txt`); set the lane's timeout to what the browser tests need; then add tests for the survivors until kills alone reach 85.
+  On the same tree with `--timeoutMS 60000` (66 min): score 88.75, kills alone 388/471 = 82.4% (30 timeouts, 51 survived, 2 no coverage). So most 15 s timeouts were slowness; the rest is missing tests.
+  Next: set the lane's timeout to 60 s in `packages/react/stryker.config.json`, then add tests for the survivors until kills alone reach 85.
   Verify: `vp run mutate` in `packages/react` on main: kills alone 85 or more.
 
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
