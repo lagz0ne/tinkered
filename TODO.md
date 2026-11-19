@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **react/mutation-floor** — React's mutation lane runs again (`react/mutation-lane-no-tests`), but kills alone are 71.97% (339/471) at the config's 15 s timeout: 76 timeouts and 54 survivors in `src/index.ts` (`RunOwner` 807-884, resources 618-670, providers 132-201, `useData` 285-353). The last good record (2026-10-08, 85.64) used `--timeoutMS 60000` on 369 mutants.
+  Next: read the 60 s run on main (`/home/paseo/statechart/fixes/logs/react-mutation-lane-main-60s.txt`); set the lane's timeout to what the browser tests need; then add tests for the survivors until kills alone reach 85.
+  Verify: `vp run mutate` in `packages/react` on main: kills alone 85 or more.
+
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -92,11 +96,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: that test fails on main and passes.
 
 ## Doing
-
-- **react/mutation-lane-no-tests** — The React mutation lane fails before any mutant: `cd packages/react && vp run mutate` ends "No tests were executed" (Stryker's Vitest runner: "failed to find test files related to mutated files"), on main `b96c8f6a` (2026-11-19). Earlier runs used `vp run @tinker/react#mutate --timeoutMS 60000` and scored 85.64; a perf note says the lane sees no mutant in browser tests.
-  Next: make the lane find React's tests (for example `vitest.related: false`, or a Node project the runner can see), then run it on main.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/mutation-lane-no-tests`.
-  Verify: `vp run mutate` in `packages/react` exits 0 at 85 or more on main.
 
 ## Review
 
@@ -186,6 +185,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **react/mutation-lane-no-tests** — done 2026-11-19. The React mutation lane runs again: `packages/react/vite.config.ts` aliases `@` to its own `src` (as core, cli, devtools and entry do), because Stryker's sandbox leaves `tsconfig.json` out and `tsconfigPaths` loaded the real `src` above it, so Vitest found no test of the mutated copy. Broken since `dfb872e0` (2026-10-12, `@/` imports). Landed `3b0371f4`; test config only, no release.
+  Proof: on `3b0371f4` (main plus the fix), `vp run mutate` ran 119 tests in the dry run and killed mutants: Stryker score 88.11, exit 0; kills alone 339/471 = 71.97% (76 timeouts at the config's 15 s, 54 survived, 2 no coverage, all in `src/index.ts`). Build, `vp check` (80 warnings), react 120 tests: exit 0. Opus convention-review READY.
+  Open: the kills-alone measure is under 85; a run with the old record's `--timeoutMS 60000` follows (see `react/mutation-floor`).
 
 - **core/own-signal-stream-failed** — done 2026-11-19 (bug 14, [rpc-stream](docs/states/rpc-stream/README.md); ADR 0133 d1, ADR 0154 d2). A stream stopped by its own session (the caller's signal) ends clean on memory and ws; the watch hook gets the watch's own session signal (`memory.ts`, bun `tools.ts`), so an `AbortError` the caller did not cause still ends `failed` with a log. Fix `62b3364f`. Released as 0.31.9.
   Proof: OwnStopIsNotFailed in `packages/core/tests/statechart/rpc-stream-paths.test.ts`, red on main, green; a meta `AbortError` test and a ws own-stop test, red on the first fix; `memory.test.ts` tightened by one line; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; sizes 23,224 B and 34,960 B; core mutation 86.07 (kills alone 85.3) and bun 86.73 / `run.ts` 91.53 on `d43cedc6` by the lead, exit 0 (sources byte-identical to the landed head). Opus convention-review NOT READY (the first fix keyed on the error's name), one fix round, READY.
