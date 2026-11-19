@@ -29,11 +29,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: a React test with `<StrictMode><Suspense><ScopeProvider create><SessionProvider><Child/>`; then keep the owned root across a replay, as `SessionProvider` now does.
   Verify: that test reaches one root, one session, one build.
 
-- **react/mutation-floor** — React's mutation lane runs again (`react/mutation-lane-no-tests`), but kills alone are 71.97% (339/471) at the config's 15 s timeout: 76 timeouts and 54 survivors in `src/index.ts` (`RunOwner` 807-884, resources 618-670, providers 132-201, `useData` 285-353). The last good record (2026-10-08, 85.64) used `--timeoutMS 60000` on 369 mutants.
-  On the same tree with `--timeoutMS 60000` (66 min): score 88.75, kills alone 388/471 = 82.4% (30 timeouts, 51 survived, 2 no coverage). So most 15 s timeouts were slowness; the rest is missing tests.
-  Next: set the lane's timeout to 60 s in `packages/react/stryker.config.json`, then add tests for the survivors until kills alone reach 85.
-  Verify: `vp run mutate` in `packages/react` on main: kills alone 85 or more.
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -101,6 +96,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: that test fails on main and passes.
 
 ## Doing
+
+- **react/mutation-floor** — React's mutation lane runs again (`react/mutation-lane-no-tests`), but kills alone are 71.97% (339/471) at the config's 15 s timeout: 76 timeouts and 54 survivors in `src/index.ts` (`RunOwner` 807-884, resources 618-670, providers 132-201, `useData` 285-353). The last good record (2026-10-08, 85.64) used `--timeoutMS 60000` on 369 mutants.
+  On the same tree with `--timeoutMS 60000` (66 min): score 88.75, kills alone 388/471 = 82.4% (30 timeouts, 51 survived, 2 no coverage). So most 15 s timeouts were slowness; the rest is missing tests.
+  Next: set the lane's timeout to 60 s in `packages/react/stryker.config.json`, then add tests for the survivors until kills alone reach 85.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/mutation-floor`. Lead (project lead, 2026-11-19): add React behavior tests until kills alone clear 85; no per-file target; no skipped tests.
+  Verify: `vp run mutate` in `packages/react` on main: kills alone 85 or more.
 
 ## Review
 
