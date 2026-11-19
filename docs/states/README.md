@@ -122,9 +122,10 @@ so main stays green.
   `core/invalidate-refused-returns-early`,
   `core/refused-key-reopens`.
   1 case with no rule yet.
-- **rpc-stream** — 1 rule breaks.
+- **rpc-stream** — 0 rules break now
+  (fix `49e9d668`); the spec still shows 1.
   Card: `core/own-signal-stream-failed`.
-  Its test also pins `core/local-stream-signal`.
+  Its `.txt` test pins `core/local-stream-signal`.
 - **react-run-resource** — UseRun: 2 rules break;
   UseResource: rules hold.
   Card: `react/use-run-hidden`.

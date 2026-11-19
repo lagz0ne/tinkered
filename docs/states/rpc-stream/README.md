@@ -28,8 +28,14 @@ It describes commit `c9c8817`
 ## Rules
 
 TLC reached 188 states.
+The spec, the chart and the rerun
+still describe `c9c8817`,
+before the bug 14 fix.
+So they still show 1 rule breaks.
 
-- **OwnStopIsNotFailed** — breaks.
+- **OwnStopIsNotFailed** — holds,
+  since `49e9d668`
+  (card `core/own-signal-stream-failed`).
   ADR 0133 d1 (a call stopped by its own signal
   is a cancellation);
   ADR 0154 d2 and ADR 0141
@@ -137,7 +143,21 @@ which is not aborted.
 So it logs a bug and says `failed`.
 
 The memory test "a caller's signal ends the stream"
-catches any rpc fault, so it does not see this.
+caught any rpc fault, so it did not see this.
+
+Fixed in `49e9d668`.
+Core's `AbortError` there is the call's own stop.
+Two places took it as a bug,
+and each one alone said `failed`:
+
+- `watchOver` in `rpc-protocol.ts`
+  (it pushed `failed`);
+- the watch's catch in `rpc.ts`
+  (it threw `failed`).
+
+Both now end the stream clean, with no bug log.
+A real throw in a watch still logs and fails.
+The memory test now rejects a `failed` fault.
 
 ### Path 1: a remote call with a signal
 
@@ -150,23 +170,21 @@ catches any rpc fault, so it does not see this.
 
 ## Path tests
 
-`paths/rpc-stream-paths.test.ts.txt`
-goes to `packages/core/tests/statechart/`.
-
-- Today the first test fails (path 1).
-  A fail shows the bug.
-- The second test passes.
+- The OwnStopIsNotFailed test (path 1)
+  lives in
+  `packages/core/tests/statechart/rpc-stream-paths.test.ts`.
+  Card `core/own-signal-stream-failed`
+  moved it there and cut it from the `.txt`.
+  It passes since `49e9d668`.
+- `paths/rpc-stream-paths.test.ts.txt`
+  now holds only the second test.
+  It passes.
   It pins card `core/local-stream-signal`
   (see [No rule yet](#no-rule-yet)).
+  That card changes it to its fix,
+  then moves it in.
 
-Card `core/own-signal-stream-failed`
-moves the OwnStopIsNotFailed test in,
-without the `.txt`.
-Card `core/local-stream-signal`
-changes the second test to its fix,
-then moves it in.
-
-Once moved, run:
+Run:
 
 ```sh
 cd packages/core
@@ -197,7 +215,7 @@ What the code does today
    not the signal's reason.
 
 Test: `rpc-stream-paths.test.ts.txt`,
-the second test. It passes today.
+its one test. It passes today.
 
 ## What the spec leaves out
 
@@ -220,4 +238,6 @@ statechart RpcStream.tla \
   --view view.ts --out "$(mktemp -d)"
 ```
 
-Exit 1 today: 1 rule breaks.
+Exit 1: 1 rule breaks.
+The spec still describes `c9c8817`,
+before the bug 14 fix.
