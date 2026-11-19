@@ -90,7 +90,8 @@ so main stays green.
 - **rpc-call** — 0 rules break now (fix `730d7e26`);
   the spec still shows 1.
   Card: `bun/client-drop-keeps-frames`.
-- **session-provider** — 1 rule breaks.
+- **session-provider** — 0 rules break now (fix `52afd886`);
+  the spec still shows 1.
   Card: `react/strict-session-suspense`.
 - **usedata-scope** — rules hold.
 - **round** — 0 rules break now (fix `0ebef947`);

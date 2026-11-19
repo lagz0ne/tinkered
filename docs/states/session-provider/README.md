@@ -31,14 +31,18 @@ TLC reached 16 states (StrictMode on).
 - **NoLeakAfterUnmount** — holds.
   ADR 0031 Decision bullet 2, Consequences bullet 3.
   After the provider unmounts, no session is live.
-- **ReachesStable** — breaks.
+- **ReachesStable** — holds, since `52afd886`
+  (card `react/strict-session-suspense`).
   ADR 0031 Context and Decision bullet 4,
   [ADR 0124](../../decisions/0124-a-renderable-resource-renders-through-render.md)
-  Lifecycle, card `react/strict-session-suspense`.
+  Lifecycle.
   A mounted provider reaches a stable state
   (no build and close loop) while it stays mounted.
 
 ## Chart
+
+The chart and the TLC rerun still show the spec
+of commit `3ff6778`, before the fix.
 
 ```mermaid
 ---
@@ -97,6 +101,8 @@ it stays in one chart state.
 ## The bug
 
 Card `react/strict-session-suspense`.
+Fixed in `52afd886`.
+This part tells the path before the fix.
 
 Tree:
 
@@ -134,26 +140,38 @@ Tree:
 
 Why: the data is per session.
 Each reveal makes StrictMode re-run the provider's
-effect (`packages/react/src/index.ts:188-199`).
+effect (`packages/react/src/index.ts:188-199`
+at `3ff6778`).
 The effect closes the session and opens a new one.
 The new session has no data,
 so the child suspends again.
 
 ## Path test
 
-`paths/session-provider-loop.test.tsx.txt`
-goes to `packages/react/tests/statechart/`.
+The test lives in
+`packages/react/tests/statechart/session-provider-loop.test.tsx`.
+It moved there from `paths/` in `e8c146c6`.
 
-- ReachesStable: fails today.
-  By step 11: 4 sessions and 3 builds.
-  The card wants 2 and 1.
+- Duke cut steps 7 to 11 (option A).
+  They polled for the loop itself.
+- The end rule: at most 2 sessions, 1 build,
+  1 live session; none live after unmount.
+- Before the fix: it failed with 3 sessions.
+- After the fix in `52afd886`: it passes.
 - The control (same tree, no StrictMode) passes:
   1 session, 1 build, no leak.
+- The fix is in `SessionProvider` in `src/index.ts`.
+  A session the child rendered with
+  closes one microtask after the cleanup.
+  StrictMode's replay on a reveal takes it back.
+  A real unmount has no replay, so it closes.
+- Since the fix, a session closes one microtask
+  after unmount, not inside the cleanup.
+  No caller checks the close at once:
+  `examples/react/basic.tsx` and the site's
+  built copy `apps/site/public/vendor/tinker-react.mjs`.
 
-Card `react/strict-session-suspense` moves it,
-without the `.txt`.
-
-Once moved, run:
+Run it:
 
 ```sh
 cd packages/react
@@ -198,5 +216,7 @@ statechart SessionProvider.tla \
   --view view.ts --out "$(mktemp -d)"
 ```
 
-Exit 1 today with StrictMode on: 1 rule breaks.
+Exit 1 with StrictMode on:
+the spec still shows commit `3ff6778`,
+so 1 rule breaks there.
 Exit 0 with StrictMode off.
