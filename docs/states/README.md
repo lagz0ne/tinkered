@@ -103,7 +103,7 @@ so main stays green.
   `core/resource-cycle-holds-close`.
   1 case with no rule yet.
 - **session-life** — 1 rule breaks now
-  (fix `46fdf9da`);
+  (fix `cdc2c742`);
   the spec still shows 3.
   Cards: `core/close-from-defer-skips-hooks`,
   `core/session-handle-after-body`.

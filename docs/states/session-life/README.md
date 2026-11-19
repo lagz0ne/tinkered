@@ -47,12 +47,12 @@ still describe `c9c8817`,
 before the bug 8 fix.
 So they still show 3 rules break.
 
-- **CloseHookRunsOnce** — holds, since `46fdf9da`
+- **CloseHookRunsOnce** — holds, since `cdc2c742`
   (card `core/close-from-defer-skips-hooks`).
   ADR 0104
   ("Also from ADR 0085: a root's close hooks run
   once, cannot skip cleanup").
-- **FirstModeWins** — holds, since `46fdf9da`
+- **FirstModeWins** — holds, since `cdc2c742`
   (card `core/close-from-defer-skips-hooks`).
   ADR 0029 d1.
 - **HandleDeadAfterBody** — breaks. ADR 0071 d1.
@@ -157,7 +157,7 @@ true only once the root closed.
 ## Bug 8: a close from a session's defer skips the hook
 
 Card `core/close-from-defer-skips-hooks` fixes it
-(`46fdf9da`).
+(`cdc2c742`).
 Rules: CloseHookRunsOnce, FirstModeWins.
 One cause, two rules.
 The paths below name the code before the fix.
@@ -252,7 +252,7 @@ the same leaked handle is refused.
 
 - `session-life-paths.test.ts` — paths 1 and 2,
   now in `packages/core/tests/statechart/`.
-  They pass since `46fdf9da`.
+  They pass since `cdc2c742`.
   They failed before: that showed bug 8.
   Path 1's comment "the hook still never ran"
   now says "the hook ran once".
@@ -335,7 +335,7 @@ What the code does today:
 
 Test: `statechart-no-rule.test.ts.txt`,
 "no rule 2". It passes today.
-Since `46fdf9da`, a root with a close hook
+Since `cdc2c742`, a root with a close hook
 runs that hook first (bug 8).
 "no rule 2" has no hook,
 so it did not change.
