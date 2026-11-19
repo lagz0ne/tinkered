@@ -1405,6 +1405,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   beside its value: its stream does not open
   again by itself. A broken link opens it again,
   with back-off.
+- An `invalidate` that names a refused plain key,
+  `{ notes: {} }`, opens it again: one ask. The
+  call resolves with the new value or fault in.
+- One `invalidate` can name plain keys and keyed
+  parts: each asks again.
 - A backend's `send` and `open` end with a value,
   never a throw. A throw in a backend is a bug:
   logged, `failed` on this side, never `link`.

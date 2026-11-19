@@ -168,3 +168,34 @@ none.
   So it reads its own write.
 - Hedl's projector changes one line: it calls
   `invalidate` where it sends a full board today.
+
+## Amended 2026-11-19: `invalidate` names plain keys too
+
+What the user said: Duke, 2026-11-19 13:59:
+"Agreed to all" (option B of bug 13).
+
+Why: a plain key that the server refused waits
+for a trigger (ADR 0140, amended). Before this,
+`invalidate` named keyed keys only, so a plain key
+had no trigger but a new reader.
+
+This adds to decision 2:
+
+1. `invalidate`'s input names plain keys too, with
+   `{}`. One call can name both kinds:
+
+   ```ts
+   await board.invalidate({
+     notes: {},
+     tasks: { project: "p1" },
+   });
+   ```
+
+2. On a reading root, a plain key that ended on
+   an answer opens its stream again. The call
+   resolves on its first value or fault.
+3. A plain key whose stream is open needs nothing:
+   its stream already sends each change. The call
+   resolves at once.
+4. On a serving root, a plain key has no part, so
+   the call signals no one.

@@ -229,6 +229,17 @@ try {
 A remote data read never throws. Its last fault
 is data: `sea.board.faults`.
 
+A `refused` or `invalid` key waits: it never asks
+again by itself. After a sign-in, name it in
+`board.invalidate`. A keyed key takes its part; a
+plain key takes `{}`, as `{ notes: {} }`.
+
+```ts no-check
+await scope.run(sea.board.invalidate, {
+  input: { waves: { room } },
+});
+```
+
 ## Common mistakes
 
 ### HIGH: `fetch` or `WebSocket` on the page [tinker/one-wire]

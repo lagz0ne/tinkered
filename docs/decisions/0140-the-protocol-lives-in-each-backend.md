@@ -151,3 +151,34 @@ await move.runAsync({ input });
    2026-11-15: ADR 0154.
 3. The execution id, on the SPI. Built
    2026-11-15: a field of the call (ADR 0154).
+
+## Amended 2026-11-19: an answer ends asking, for every key
+
+What the user said: Duke, 2026-11-19 13:59:
+"Agreed to all" (option B of bug 13).
+
+Why: a plain key that the server refused opened
+its stream again by itself, with back-off. A keyed
+part waited for a trigger. The rule above said
+"never asks again by itself", but only the keyed
+part kept it (`docs/states/remote-part`, bug 13).
+
+This makes "Core never asks again by itself after
+a fault" exact:
+
+1. A `refused` or `invalid` answer ends asking
+   for every key, plain or keyed. The key keeps
+   its fault beside its value.
+2. Only a broken link (`link`) asks again by
+   itself, with back-off.
+3. A trigger asks again. For a plain key, that is
+   an `invalidate` that names it (ADR 0137,
+   amended) or a new reader. For a keyed part, it
+   is also `refetchInterval` (ADR 0139,
+   decision 4).
+4. After a sign-in, the app calls `invalidate`
+   for the refused key:
+
+   ```ts
+   await board.invalidate({ notes: {} });
+   ```
