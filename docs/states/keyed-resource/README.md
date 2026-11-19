@@ -26,10 +26,12 @@ Words:
 TLC reached 24,044 states.
 The spec, the chart and the rerun
 still describe `3ff6778`,
-before fixes `ff565316` and `d842e0bd`.
+before fixes `ff565316`, `d842e0bd`
+and `e7d1cc8d`.
 So they still show 5 rules break.
 
-- **EndBeforeNextBuild** — holds after fix `d842e0bd`
+- **EndBeforeNextBuild** — holds after fixes
+  `d842e0bd` and `e7d1cc8d`
   (card `core/keyed-entry-dropped`).
   ADR 0157 d5.
   An end runs before the next build of the same key.
@@ -54,14 +56,16 @@ So they still show 5 rules break.
   so this check cannot fail.
   `resource-keyed-life.test.ts` ("last first")
   pins it.
-- **NoChangeNoBuild** — holds after fix `d842e0bd`
+- **NoChangeNoBuild** — holds after fixes
+  `d842e0bd` and `e7d1cc8d`
   (card `core/keyed-entry-dropped`).
   ADR 0157 d4.
   A read with no change makes no build (span).
 - **NoWriteInRead** — holds.
   ADR 0157 d7, ADR 0152 d7.
   A build a reader starts writes no cell.
-- **OneEntryPerKey** — holds after fix `d842e0bd`
+- **OneEntryPerKey** — holds after fixes
+  `d842e0bd` and `e7d1cc8d`
   (card `core/keyed-entry-dropped`).
   ADR 0150 d5.
   One entry per key;
@@ -71,6 +75,8 @@ So they still show 5 rules break.
   A watch of a dropped entry joins
   the key's live entry,
   or puts the entry back when there is none.
+  A read of a dropped entry goes to
+  the key's live entry, when there is one.
 - **NoReaderNoEntry** — holds.
   ADR 0150 d5.
   The last reader leaves, the entry goes.
@@ -194,6 +200,8 @@ Two causes:
   Fix `d842e0bd`: a watch of a dropped entry
   joins the key's live entry,
   or puts the entry back when there is none.
+  Fix `e7d1cc8d`: a read of a dropped entry
+  goes to the key's live entry, when there is one.
 - **Cause B** (bug 2, card `core/keyed-watch-after-close`).
   A held reader subscribes after the scope closed.
   `watch()` runs `fresh()` (a build)
@@ -265,25 +273,27 @@ Cause B.
 
 ### Cause A in real React
 
+Before fix `d842e0bd`:
+
 - **StrictMode.**
-  StrictMode subscribes, leaves,
-  then subscribes again with the same store.
-  The second subscribe uses the dropped entry.
-  A second reader of key A then builds again
+  StrictMode subscribed, left,
+  then subscribed again with the same store.
+  The second subscribe used the dropped entry.
+  A second reader of key A then built again
   with no change.
 - **No StrictMode, a page swap.**
   Page 1 and page 2 both read key A.
-  React renders page 2 first,
-  so it gets the entry.
-  Then page 1's cleanup runs,
-  and the map drops the entry.
-  Then page 2 subscribes to the dropped entry.
-  A later reader C builds key A again
+  React rendered page 2 first,
+  so it got the entry.
+  Then page 1's cleanup ran,
+  and the map dropped the entry.
+  Then page 2 subscribed to the dropped entry.
+  A later reader C built key A again
   with no change.
 
-The second entry heals at the stale reader's
+The second entry healed at the stale reader's
 next render.
-Until then, each source change builds the key
+Until then, each source change built the key
 twice (two spans).
 
 Cause B needs the core API
@@ -347,8 +357,10 @@ vp test --project browser \
   a stale reader to the map's entry.
 - A held reader's `get` after its watch
   went to the live entry.
-  It builds the dropped entry again
-  until the reader renders again.
+  Fix `e7d1cc8d` sends it to the live entry.
+  `resource-keyed-life.test.ts`
+  ("a held reader whose watch went")
+  pins it.
 - `depends` readers. The spec treats them
   as readers that render and never subscribe.
   No ADR says when they leave.
@@ -376,5 +388,5 @@ statechart KeyedResource.tla \
 Exit 1: 5 rules break.
 The spec still describes `3ff6778`,
 so it does not see fixes
-`ff565316` and `d842e0bd`.
+`ff565316`, `d842e0bd` and `e7d1cc8d`.
 In the code, no rule breaks.
