@@ -287,7 +287,7 @@ before the bug 13 fix.
 So they still show 1 rule breaks.
 
 - **RefusedEndsAsking** — holds,
-  since `5705d68b`
+  since `f56674b8`
   (card `core/refused-key-reopens`).
   ADR 0140 (The direction): "Core never asks
   again by itself after a fault.
@@ -347,7 +347,7 @@ so the chart marks the path, not the state.
 ### Bug 13: a refused plain key opens again
 
 Card `core/refused-key-reopens` fixes it
-(`5705d68b`, then `0dbd31dc` and `86a8177a`).
+(`f56674b8`, then `586e67fa` and `a33c5adf`).
 Rule: RefusedEndsAsking.
 The text below names the code before the fix.
 
@@ -358,10 +358,10 @@ the loop opened it again (671-672).
 The fix is in `loop`.
 A fault that is an answer ends the loop.
 The key keeps its fault.
-`0dbd31dc` gives it a trigger:
+`586e67fa` gives it a trigger:
 `invalidate({ notes: {} })` opens it again
 and resolves on the first value or fault.
-`86a8177a` keeps a call made while it opens:
+`a33c5adf` keeps a call made while it opens:
 if that open is refused, it opens once more.
 A plain key has no `refetchInterval`.
 A new reader opens a new stream too:
@@ -400,7 +400,7 @@ with back-off.
 - `key-stream-paths.test.ts` —
   RefusedEndsAsking (path 4),
   now in `packages/core/tests/statechart/`.
-  It passes since `5705d68b`.
+  It passes since `f56674b8`.
   It failed before: that showed bug 13.
 
 The test's link can drop:
