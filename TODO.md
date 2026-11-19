@@ -105,14 +105,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **react/use-run-hidden** — bugs 15 and 16 in [docs/states](docs/states/react-run-resource/README.md). `useRun` keeps its latest state across a Suspense hide and show, and fires its callbacks once per run (ADR 0032 d2).
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/use-run-hidden`, head `ab4e4e9a` (on the lane fix).
-  Review: Opus convention-review READY; nit round done. Two old tests changed with the rule: a StrictMode replay keeps the run; a provider switch (a remount, ADR 0144 d2) fires the old run's callbacks.
-  Proof so far: the 3 path tests red on main, green; react 123 tests, site 145, example-react 1; `vp check` 80 warnings.
-  React lane (`vp run mutate`, 15 s) on `ab4e4e9a` (the branch on the lane fix): score 86.99, exit 0; kills alone 330/469 = 70.4% (59 survived, 78 timeouts). Main with the same command: 88.11, kills alone 71.97% (54 survived). Log `/home/paseo/statechart/fixes/logs/use-run-hidden-mutation.txt`.
-  Missing: Duke's OK on the two behavior changes (a StrictMode replay keeps the run; a provider switch fires the old run's callbacks). The React kills-alone floor is card `react/mutation-floor`.
-  Next once OK'd: rebase, re-run the gates and the lane on the head, land and release.
-
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
@@ -185,6 +177,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **react/use-run-hidden** — done 2026-11-19 (bugs 15 and 16, [react-run-resource](docs/states/react-run-resource/README.md) `UseRun`; ADR 0032 d2). `RunOwner.attach` keeps the latest state across a Suspense hide and show; `finish` fires the callbacks once per run, also while hidden or after unmount; React renders only while live. Two behavior changes, agreed by Duke (2026-11-19 13:59, "Agreed to all"): a StrictMode replay keeps the run; a provider switch (a remount, ADR 0144 d2) fires the old run's callbacks; an op change still drops them. Fix `495e2c29`. Released as 0.31.10.
+  Proof: the 3 tests in `packages/react/tests/statechart/use-run-paths.test.tsx`, red on main, green; react, site, example-react tests; `vp check` 80 warnings; React lane (`vp run mutate`) on `ab4e4e9a` (react source and tests byte-identical to the landed head): score 86.99, exit 0, kills alone 70.4% (main with the same command: 88.11 / 71.97%; the kills-alone floor is card `react/mutation-floor`). Opus convention-review READY; nit round.
 
 - **react/mutation-lane-no-tests** — done 2026-11-19. The React mutation lane runs again: `packages/react/vite.config.ts` aliases `@` to its own `src` (as core, cli, devtools and entry do), because Stryker's sandbox leaves `tsconfig.json` out and `tsconfigPaths` loaded the real `src` above it, so Vitest found no test of the mutated copy. Broken since `dfb872e0` (2026-10-12, `@/` imports). Landed `3b0371f4`; test config only, no release.
   Proof: on `3b0371f4` (main plus the fix), `vp run mutate` ran 119 tests in the dry run and killed mutants: Stryker score 88.11, exit 0; kills alone 339/471 = 71.97% (76 timeouts at the config's 15 s, 54 survived, 2 no coverage, all in `src/index.ts`). Build, `vp check` (80 warnings), react 120 tests: exit 0. Opus convention-review READY.

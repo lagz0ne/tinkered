@@ -9,6 +9,30 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.10
+
+`useRun` keeps its latest state across a
+Suspense hide and show, and fires its callbacks
+once per run (bugs 15 and 16, ADR 0032).
+
+- Before, a Suspense hide and show cleared a
+  running run to `idle`.
+- Before, `onSuccess` and `onError` never fired
+  when the run ended while hidden or after the
+  component unmounted.
+- Now a show keeps the latest state, and each
+  run fires its callbacks once. React state is
+  still not written after an unmount.
+- A change you may see (Duke agreed, 2026-11-19):
+  under StrictMode, a replay keeps the run's
+  state (was `idle`).
+- A change you may see (Duke agreed, 2026-11-19):
+  switching the provider
+  remounts the subtree (ADR 0144), so the old
+  run's callbacks now fire, as after an unmount.
+  Changing the operation still drops the old
+  run's callbacks.
+
 ## 0.31.9
 
 Your own signal ends a remote stream clean, not

@@ -22,11 +22,11 @@
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 430,
+    "falses": 431,
     "medianTrue": 0.92,
     "medianFalse": 0.45,
     "separation": 0.47,
-    "ordered": 0.96,
+    "ordered": 0.97,
     "at": "2026-11-19"
   },
   "configNotTag": {
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 1,
-    "falses": 129,
-    "medianTrue": 0.52,
-    "medianFalse": 0.64,
-    "separation": -0.12,
-    "ordered": 0.21,
+    "falses": 130,
+    "medianTrue": 0.54,
+    "medianFalse": 0.63,
+    "separation": -0.09,
+    "ordered": 0.26,
     "at": "2026-11-19"
   }
 }
