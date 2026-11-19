@@ -239,6 +239,67 @@ test("a fault is data beside the value; a refused key keeps it after the user si
   expect(client.resolve(board.todos).get()).toEqual(["a"]);
 });
 
+test("a refused plain key opens again on an invalidate that names it, and asks once", async () => {
+  const todos = data({ initial: ["a"] });
+  const board = remoteData({ todos });
+  let open = false;
+  let opens = 0;
+  const gate = operation({
+    label: "gate",
+    input: hook.start,
+    run: async (_, { input }) => (opens++, open ? undefined : input.refuse({ signIn: true })),
+  });
+  const { server, client } = await pair(board, { onStart: [gate] });
+  const first = opens;
+
+  open = true; // the user signs in
+  await server.run(board.invalidate, { input: { todos: {} } }); // a serving root: no stream to wake
+  await client.run(board.invalidate, { input: { todos: {} } });
+
+  expect(client.resolve(board.faults).get()).toEqual({}); // the call resolves with the value in
+  expect(client.resolve(board.todos).get()).toEqual(["a"]);
+  await tick(300);
+  expect(opens).toBe(first + 1);
+  await client.run(board.invalidate, { input: { todos: {} } }); // an open stream: nothing to do
+  expect(opens).toBe(first + 1);
+});
+
+test("one invalidate names a plain key and a keyed part: each asks again", async () => {
+  type Task = { project: string; id: string };
+  const tasks = data({ mode: "keyed", parse: z.custom<Task>(), key: (t) => ({ ...t }) });
+  const todos = data({ initial: ["a"] });
+  const board = remoteData({ todos, tasks });
+  let open = false;
+  const asked: string[] = [];
+  const gate = operation({
+    label: "gate",
+    input: hook.start,
+    run: async (_, { input }) => {
+      asked.push(input.key);
+      return input.key !== "todos" || open ? undefined : input.refuse({ signIn: true });
+    },
+  });
+  const server = await createScope({
+    capsules: [board({ serve: true, onStart: [gate] }), memory.server({ services: [board] })],
+  }).ready;
+  closers.push(() => server.close());
+  const client = await createScope({
+    capsules: [memory.client({ peer: server }), board({ read: memory.client })],
+  }).ready;
+  closers.push(() => client.close());
+  const reader = client.resolve(board.tasks.where({ project: "p1" }));
+  const stop = reader.watch(() => undefined);
+  await tick();
+  const before = asked.filter((key) => key === "tasks.ask").length;
+
+  open = true;
+  await client.run(board.invalidate, { input: { todos: {}, tasks: { project: "p1" } } });
+
+  expect(client.resolve(board.faults).get()).toEqual({});
+  expect(asked.filter((key) => key === "tasks.ask").length).toBe(before + 1);
+  stop();
+});
+
 test("F45 B: a session read and an op's depends see the fault, with no resolve hook", async () => {
   const todos = data({ initial: ["a"] });
   const board = remoteData({ todos });

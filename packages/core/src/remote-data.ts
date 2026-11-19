@@ -98,11 +98,13 @@ type Asking = {
 /** What a server reader has to ask after one pass: one member, or its whole part. */
 type Pass = { readonly at: string; readonly dirty: Map<string, Ask> };
 
-/** `invalidate`'s input: a part (or a key) for each keyed key named. */
+/** `invalidate`'s input: a part (or a key) for each keyed key named; `{}` for a plain key. */
 type Dirty<D> = {
-  readonly [
-    K in keyof D as D[K] extends Data.Keyed<any, any> ? K : never
-  ]?: D[K] extends Data.Keyed<any, infer Key> ? (Key extends string ? Key : Data.Part<Key>) : never;
+  readonly [K in keyof D]?: D[K] extends Data.Keyed<any, infer Key>
+    ? Key extends string
+      ? Key
+      : Data.Part<Key>
+    : Record<string, never>;
 };
 
 /** One rpc contract, as the wire is built: each key here is a stream or a reply. */
@@ -569,9 +571,10 @@ const steps = resource({
       }
     };
 
-    /** A reading root's `invalidate`, by definition and key: it asks again for the dirty share
-     * of each part in use. */
-    const askers = new Map<Def, Map<string, (dirty: Data.Key) => Promise<void>>>();
+    /** A reading root's `invalidate`, by the key's cell: a keyed key asks again for the dirty
+     * share of each part in use; a plain key that ended on an answer opens again (ADR 0140). */
+    const askers = new Map<unknown, Set<(dirty: Data.Key) => Promise<void>>>();
+    const askersOf = (cell: unknown) => askers.get(cell) ?? askers.set(cell, new Set()).get(cell)!;
 
     /** A store's faults now: its entry's, or the root's cell. */
     const faultsIn = (def: Def, store: Store): Faults =>
@@ -660,20 +663,41 @@ const steps = resource({
        * Keeps a key fresh: its rpc stream, again after it ends or its link breaks, with back-off
        * while faulted (as EventSource retry). A stream's first push is the value now, so a reopen
        * is the catch-up read. Any other fault is the server's answer, and the same open gives it
-       * again: the loop ends, and the key keeps its fault (ADR 0140). `first` settles on the
-       * first value or fault.
+       * again: the key keeps its fault and waits for an `invalidate` that names it (ADR 0140).
+       * `first` settles on the first value or fault.
        */
       const loop = async (key: string, first: () => void) => {
         for (let wait = 50; !signal.aborted;) {
           const ended = await round(key, first);
           if (!signal.aborted && ended) mark(key, ended);
           first();
-          if (signal.aborted || (ended && ended.fault !== "link")) break;
+          if (signal.aborted) break;
+          if (ended && ended.fault !== "link") {
+            first = await asleep(key);
+            continue;
+          }
 
           wait = Object.hasOwn(faultsIn(def, store), key) ? Math.min(wait * 2, 5000) : 50;
           await clock.sleep(wait, signal).catch(() => undefined);
         }
       };
+
+      /** Waits for an `invalidate` that names the key, or the stop. It gives the next round's
+       * `first`: the `invalidate` resolves on that round's first value or fault. */
+      const asleep = (key: string) =>
+        new Promise<() => void>((wake) => {
+          const set = askersOf(def.made[key]);
+          const end = (done: () => void) => {
+            set.delete(asker);
+            signal.removeEventListener("abort", stop);
+            wake(done);
+          };
+          const asker = () => new Promise<void>(end);
+          const stop = () => end(() => undefined);
+
+          set.add(asker);
+          signal.addEventListener("abort", stop, { once: true });
+        });
 
       return { mark, set, round, loop };
     };
@@ -865,8 +889,7 @@ const steps = resource({
         }
         await Promise.all([...asks.values()].map((a) => ask(a)));
       };
-      const mine = askers.get(def) ?? new Map<string, (dirty: Data.Key) => Promise<void>>();
-      askers.set(def, mine.set(key, reask));
+      askersOf(def.made[key]).add(reask);
 
       /** Waits until a trigger wakes the part, or the part leaves. The wake clears itself, so the
        * part counts as awake at once, before its stream opens again. */
@@ -1006,7 +1029,7 @@ const steps = resource({
       /** `invalidate`: signal the readers on a serving root; ask again on a reading root. */
       invalidate: async (def: Def, own: Served | null, key: string, dirty: Data.Key) => {
         if (own) return dirtyOn(own, key, dirty);
-        await askers.get(def)?.get(key)?.(dirty);
+        await Promise.all([...(askers.get(def.made[key]) ?? [])].map((ask) => ask(dirty)));
       },
       readStart,
       join,
@@ -1258,14 +1281,15 @@ export function remoteData<
   /**
    * Marks parts dirty, by keyed key: `{ tasks: { project } }`. On a serving root, each reader
    * of a part that shares a member gets a signal with no data. On a reading root, each part in
-   * use asks again; the call resolves once the answers are in the cell (ADR 0137 2).
+   * use asks again; the call resolves once the answers are in the cell (ADR 0137 2). A plain
+   * key, `{ notes: {} }`, opens again on a reading root if it ended on an answer (ADR 0140).
    */
   const invalidate = operation({
     label: `${name}.invalidate`,
     input: z.make<Dirty<D>>((value) => {
       const entries = Object.entries(Object(value) as object);
-      const fit = entries.every(([key, part]) => keyed.has(key) && isKey(part));
-      return fit ? { value: value as Dirty<D> } : z.fail("expected keyed keys and their parts");
+      const fit = entries.every(([key, part]) => keys.includes(key) && isKey(part));
+      return fit ? { value: value as Dirty<D> } : z.fail("expected keys and their parts");
     }),
     depends: { own: state, s: steps, send: stamp.controller },
     run: async ({ own, s, send }, { input }) => {
