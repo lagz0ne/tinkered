@@ -38,8 +38,14 @@ the run life in `packages/core/src/index.ts`
 TLC reached 743 states,
 more than the chart budget of 500.
 So the chart draws only the bug paths.
+The spec, the chart and the rerun
+still describe `c9c8817`,
+before the bug 10 fix.
+So they still show 2 rules break.
 
-- **ClosingFiresWhenStopped** — breaks.
+- **ClosingFiresWhenStopped** — holds,
+  since `d3ab993c`
+  (card `core/own-signal-leaves-closing`).
   ADR 0104, with ADR 0090.
 - **FinishedRunStartsNothing** — breaks,
   but the rule may not apply.
@@ -134,8 +140,16 @@ true only in the end states.
 
 ## Bug 10: a call stopped by its own signal stays open
 
-Card `core/own-signal-leaves-closing`.
+Card `core/own-signal-leaves-closing` fixes it
+(`d3ab993c`).
 Rule: ClosingFiresWhenStopped.
+The text below names the code before the fix.
+
+The fix: when the call signal aborts,
+`runSessionWith` fires K's closing signal,
+then aborts K's `ctx.signal`.
+`closeLayer` fires it again later:
+an abort that already fired does nothing.
 
 A call signal aborts.
 `runSessionWith` (`index.ts:4830`)
@@ -162,32 +176,34 @@ after the body ends.
 
 ## Path tests
 
-`paths/statechart-run-life.test.ts.txt`
-goes to `packages/core/tests/statechart/`.
-
-- Today: 2 of 3 fail.
-  A fail shows the bug.
-  - ClosingFiresWhenStopped: path 1 (bug 10).
-  - FinishedRunStartsNothing:
-    the path in case 6 below.
-    It waits for Duke's rule.
-- The control passes:
+- `run-life-paths.test.ts` —
+  ClosingFiresWhenStopped, path 1,
+  now in `packages/core/tests/statechart/`.
+  It passes since `d3ab993c`.
+  It failed before: that showed bug 10.
+- `paths/statechart-run-life.test.ts.txt` —
+  FinishedRunStartsNothing and its control
+  are left.
+  FinishedRunStartsNothing fails today:
+  the path in case 6 below.
+  The control passes:
   with `next()` once,
   the finished run's `deps.inner` is refused.
 
 Card `core/own-signal-leaves-closing`
-moves the ClosingFiresWhenStopped test in,
-without the `.txt`.
+moved the ClosingFiresWhenStopped test in:
+it cut it from the `.txt`,
+with the `http` resource only it used.
 The FinishedRunStartsNothing test and the control
 wait for Duke's rule
 (card `core/states-rules-undecided`).
 
-Once moved, run:
+Run:
 
 ```sh
 cd packages/core
 vp test \
-  tests/statechart/statechart-run-life.test.ts
+  tests/statechart/run-life-paths.test.ts
 ```
 
 ## No rule yet
@@ -270,3 +286,5 @@ statechart RunLife.tla \
 ```
 
 Exit 1 today: 2 rules break.
+The spec still describes `c9c8817`,
+so it does not see the bug 10 fix.
