@@ -104,8 +104,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/use-run-hidden`, head `6a97cae3`.
   Review: Opus convention-review READY; nit round done. Two old tests changed with the rule: a StrictMode replay keeps the run; a provider switch (a remount, ADR 0144 d2) fires the old run's callbacks.
   Proof so far: the 3 path tests red on main, green; react 123 tests, site 145, example-react 1; `vp check` 80 warnings.
-  Missing: a working React mutation lane. `vp run mutate` in `packages/react` stops at the dry run ("No tests were found": Stryker's Vitest runner finds no test related to `src`), on main `b96c8f6a` too. Card `react/mutation-lane-no-tests`.
-  Next: once the lane runs, rebase, run it on the head, land and release.
+  React lane (`vp run mutate`, 15 s) on `ab4e4e9a` (the branch on the lane fix): score 86.99, exit 0; kills alone 330/469 = 70.4% (59 survived, 78 timeouts). Main with the same command: 88.11, kills alone 71.97% (54 survived). Log `/home/paseo/statechart/fixes/logs/use-run-hidden-mutation.txt`.
+  Missing: Duke's OK on the two behavior changes (a StrictMode replay keeps the run; a provider switch fires the old run's callbacks). The React kills-alone floor is card `react/mutation-floor`.
+  Next once OK'd: rebase, re-run the gates and the lane on the head, land and release.
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
