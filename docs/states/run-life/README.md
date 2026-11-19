@@ -44,7 +44,7 @@ before the bug 10 fix.
 So they still show 2 rules break.
 
 - **ClosingFiresWhenStopped** — holds,
-  since `d3ab993c`
+  since `890b720c`
   (card `core/own-signal-leaves-closing`).
   ADR 0104, with ADR 0090.
 - **FinishedRunStartsNothing** — breaks,
@@ -141,15 +141,16 @@ true only in the end states.
 ## Bug 10: a call stopped by its own signal stays open
 
 Card `core/own-signal-leaves-closing` fixes it
-(`d3ab993c`).
+(`890b720c`).
 Rule: ClosingFiresWhenStopped.
-The text below names the code before the fix.
 
 The fix: when the call signal aborts,
 `runSessionWith` fires K's closing signal,
 then aborts K's `ctx.signal`.
-`closeLayer` fires it again later:
+`closeLayer` fires the closing signal again later:
 an abort that already fired does nothing.
+
+The text below names the code before the fix.
 
 A call signal aborts.
 `runSessionWith` (`index.ts:4830`)
@@ -179,7 +180,7 @@ after the body ends.
 - `run-life-paths.test.ts` —
   ClosingFiresWhenStopped, path 1,
   now in `packages/core/tests/statechart/`.
-  It passes since `d3ab993c`.
+  It passes since `890b720c`.
   It failed before: that showed bug 10.
 - `paths/statechart-run-life.test.ts.txt` —
   FinishedRunStartsNothing and its control

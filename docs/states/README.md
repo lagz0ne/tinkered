@@ -109,7 +109,7 @@ so main stays green.
   `core/session-handle-after-body`.
   2 cases with no rule yet.
 - **run-life** — 1 rule breaks now
-  (fix `d3ab993c`);
+  (fix `890b720c`);
   the spec still shows 2.
   Card: `core/own-signal-leaves-closing`.
   The other break waits for a rule:
