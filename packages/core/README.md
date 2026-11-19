@@ -1036,6 +1036,9 @@ read.watch((next) => console.log(next));
   caller: it runs only when the factory calls it.
 - With no required key, the bare unit reads too.
 - The last watcher leaves, and the entry goes.
+- A reader that still holds a dropped entry shares the key's live
+  entry: its watch joins that entry, or puts the dropped one back when
+  the key has none; its read goes to the live entry.
 - The factory gets `{ config, defer }`. A deferred end runs before the
   next build, when the last reader leaves, and when the scope closes.
 - An operation and a resource may name the read in `depends`.
@@ -1378,6 +1381,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   leave, and at the scope's close.
 - A held reader's read or watch after the scope closed raises
   `Disposed` and builds nothing.
+- A held reader whose watch went to its key's live entry reads that
+  entry and builds nothing.
 - An operation reads a keyed resource.
 - A reaction writes a cell; one that writes its own source stops at
   the round limit.
