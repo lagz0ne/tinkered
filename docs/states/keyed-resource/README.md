@@ -358,13 +358,13 @@ vp test --project browser \
 - A held reader's `get` after its watch
   went to the live entry.
   Fix `f2125284` sends it to the live entry.
+  `resource-keyed-life.test.ts`
+  ("a held reader whose watch went")
+  pins it.
   With no live entry, the read builds the dropped
   entry and does not put it back,
   so a later render makes a second entry.
   React does not reach this; only a held core reader.
-  `resource-keyed-life.test.ts`
-  ("a held reader whose watch went")
-  pins it.
 - `depends` readers. The spec treats them
   as readers that render and never subscribe.
   No ADR says when they leave.
