@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **react/mutation-lane-no-tests** — The React mutation lane fails before any mutant: `cd packages/react && vp run mutate` ends "No tests were executed" (Stryker's Vitest runner: "failed to find test files related to mutated files"), on main `b96c8f6a` (2026-11-19). Earlier runs used `vp run @tinker/react#mutate --timeoutMS 60000` and scored 85.64; a perf note says the lane sees no mutant in browser tests.
+  Next: make the lane find React's tests (for example `vitest.related: false`, or a Node project the runner can see), then run it on main.
+  Verify: `vp run mutate` in `packages/react` exits 0 at 85 or more on main.
+
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -91,16 +95,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: a Core test that leaves while the stream opens, then checks the stream ends; fix with `if (part.stop.signal.aborted) signals.stop();` after the listener, as `round` does.
   Verify: that test fails on main and passes.
 
-- **react/use-run-hidden** — bugs 15 and 16 in [docs/states](docs/states/react-run-resource/README.md). A Suspense hide and show clears a running run to `idle` (`attach` resets it); `onSuccess` never fires when the run ends while hidden or unmounted (`finish` calls `notify` only while `live`) (ADR 0032 d2). One card, two path tests: the hide-and-show test, and the `onSuccess` test in its hidden and unmounted forms. Next: move `paths/use-run-paths.test.tsx.txt` into React's tests (they fail), then fix `attach` and `finish` in `RunOwner` (`packages/react/src/index.ts`).
-  Verify: the use-run path tests pass; the react-run-resource check with `UseRun.cfg` shows ShownStateIsLatest and CallbacksFirePerRun hold.
-
 ## Doing
 
-- **core/own-signal-stream-failed** — bug 14 in [docs/states](docs/states/rpc-stream/README.md). Your own `signal` ends a remote stream as `failed`: `bug` in `packages/core/src/rpc-protocol.ts` checks the watch's own leave signal, not the call's (ADR 0133 d1, ADR 0154 d2). Next: move the OwnStopIsNotFailed test of `paths/rpc-stream-paths.test.ts.txt` into Core's tests (it fails), then fix `watchOver`'s `bug` in `rpc-protocol.ts`.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/own-signal-stream-failed`.
-  Verify: the OwnStopIsNotFailed path test passes; the rpc-stream check shows OwnStopIsNotFailed holds.
-
 ## Review
+
+- **react/use-run-hidden** — bugs 15 and 16 in [docs/states](docs/states/react-run-resource/README.md). `useRun` keeps its latest state across a Suspense hide and show, and fires its callbacks once per run (ADR 0032 d2).
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/use-run-hidden`, head `6a97cae3`.
+  Review: Opus convention-review READY; nit round done. Two old tests changed with the rule: a StrictMode replay keeps the run; a provider switch (a remount, ADR 0144 d2) fires the old run's callbacks.
+  Proof so far: the 3 path tests red on main, green; react 123 tests, site 145, example-react 1; `vp check` 80 warnings.
+  Missing: a working React mutation lane. `vp run mutate` in `packages/react` stops at the dry run ("No tests were found": Stryker's Vitest runner finds no test related to `src`), on main `b96c8f6a` too. Card `react/mutation-lane-no-tests`.
+  Next: once the lane runs, rebase, run it on the head, land and release.
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
@@ -181,6 +185,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/own-signal-stream-failed** — done 2026-11-19 (bug 14, [rpc-stream](docs/states/rpc-stream/README.md); ADR 0133 d1, ADR 0154 d2). A stream stopped by its own session (the caller's signal) ends clean on memory and ws; the watch hook gets the watch's own session signal (`memory.ts`, bun `tools.ts`), so an `AbortError` the caller did not cause still ends `failed` with a log. Fix `62b3364f`. Released as 0.31.9.
+  Proof: OwnStopIsNotFailed in `packages/core/tests/statechart/rpc-stream-paths.test.ts`, red on main, green; a meta `AbortError` test and a ws own-stop test, red on the first fix; `memory.test.ts` tightened by one line; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; sizes 23,224 B and 34,960 B; core mutation 86.07 (kills alone 85.3) and bun 86.73 / `run.ts` 91.53 on `d43cedc6` by the lead, exit 0 (sources byte-identical to the landed head). Opus convention-review NOT READY (the first fix keyed on the error's name), one fix round, READY.
 
 - **core/remote-parked-part-wakes** — done 2026-11-19 (bug 11, [remote-part](docs/states/remote-part/README.md); ADR 0139 d4, ADR 0141). A late answer leaves a parked part, and the parts that ride it, in their fault; so does an answer for a live part that holds it (`stand` skips them). A link fault is the one late answer that wakes it: it shows `link` and its stream reopens with back-off. Fixes `fb7679b4`, `ee58cbaa`. Released as 0.31.8.
   Proof: RefusedWaitsForTrigger and LinkFaultHeals in `packages/core/tests/statechart/remote-part-paths.test.ts`, red on main, green; `remote-data-keyed-parked.test.ts` (a rider; a shared live part) red on the first fix; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,222 B and 34,953 B with rpc; core mutation 86.19 on `0fbc3ce9` by the lead (kills alone 85.2; core source byte-identical to the landed head). Opus convention-review NOT READY (riders were not parked), one fix round, READY. RefusedWaitsForTrigger holds except one new step (refused to `link` on a link fault), which the spec must allow.

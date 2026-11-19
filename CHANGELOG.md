@@ -9,6 +9,19 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.9
+
+Your own signal ends a remote stream clean, not
+`failed` (bug 14, ADR 0133).
+
+- Before, a caller's own `signal` that stopped a
+  remote stream made it end `failed`, with a bug
+  log on the server.
+- Now a stream ends clean when its own session
+  stopped it (memory and ws).
+- An `AbortError` the caller did not cause (for
+  example from a `meta` op) still ends `failed`.
+
 ## 0.31.8
 
 A late answer no longer wakes a waiting keyed

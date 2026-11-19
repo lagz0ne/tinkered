@@ -12,21 +12,21 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 138,
-    "medianTrue": 0.83,
-    "medianFalse": 0.56,
-    "separation": 0.27,
+    "falses": 141,
+    "medianTrue": 0.84,
+    "medianFalse": 0.55,
+    "separation": 0.29,
     "ordered": 0.79,
     "at": "2026-11-19"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 429,
-    "medianTrue": 0.91,
+    "falses": 430,
+    "medianTrue": 0.92,
     "medianFalse": 0.45,
-    "separation": 0.46,
-    "ordered": 0.98,
+    "separation": 0.47,
+    "ordered": 0.96,
     "at": "2026-11-19"
   },
   "configNotTag": {
@@ -62,12 +62,12 @@
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 2,
-    "falses": 85,
-    "medianTrue": 0.77,
-    "medianFalse": 0.84,
-    "separation": -0.07,
-    "ordered": 0.18,
-    "at": "2026-10-11"
+    "falses": 89,
+    "medianTrue": 0.76,
+    "medianFalse": 0.87,
+    "separation": -0.11,
+    "ordered": 0.09,
+    "at": "2026-11-19"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
@@ -122,12 +122,12 @@
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
-    "falses": 72,
-    "medianTrue": 0.75,
-    "medianFalse": 0.22,
-    "separation": 0.53,
-    "ordered": 0.85,
-    "at": "2026-10-11"
+    "falses": 74,
+    "medianTrue": 0.8,
+    "medianFalse": 0.29,
+    "separation": 0.52,
+    "ordered": 0.91,
+    "at": "2026-11-19"
   },
   "survivorMatters": {
     "status": "noisy",
@@ -162,12 +162,12 @@
   "partialStub": {
     "status": "provisional",
     "trues": 0,
-    "falses": 48,
+    "falses": 50,
     "medianTrue": null,
-    "medianFalse": 0.07,
+    "medianFalse": 0.08,
     "separation": null,
     "ordered": 0,
-    "at": "2026-11-18"
+    "at": "2026-11-19"
   },
   "memoKeyIgnoresInput": {
     "status": "provisional",
@@ -182,11 +182,11 @@
   "wrapsCallersStep": {
     "status": "proven",
     "trues": 17,
-    "falses": 15,
-    "medianTrue": 0.85,
-    "medianFalse": 0.49,
-    "separation": 0.36,
-    "ordered": 0.91,
+    "falses": 16,
+    "medianTrue": 0.83,
+    "medianFalse": 0.43,
+    "separation": 0.39,
+    "ordered": 0.93,
     "at": "2026-11-19"
   },
   "madeEveryCall": {
@@ -202,10 +202,10 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 66,
+    "falses": 68,
     "medianTrue": 0.79,
-    "medianFalse": 0.6,
-    "separation": 0.19,
+    "medianFalse": 0.59,
+    "separation": 0.2,
     "ordered": 0.82,
     "at": "2026-11-19"
   },
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 1,
-    "falses": 127,
-    "medianTrue": 0.5,
-    "medianFalse": 0.63,
-    "separation": -0.13,
-    "ordered": 0.2,
+    "falses": 129,
+    "medianTrue": 0.52,
+    "medianFalse": 0.64,
+    "separation": -0.12,
+    "ordered": 0.21,
     "at": "2026-11-19"
   }
 }
