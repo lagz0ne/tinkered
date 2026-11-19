@@ -34,7 +34,7 @@ before the bug 14 fix.
 So they still show 1 rule breaks.
 
 - **OwnStopIsNotFailed** — holds,
-  since `49e9d668`
+  since `49e9d668` and `4f5378a6`
   (card `core/own-signal-stream-failed`).
   ADR 0133 d1 (a call stopped by its own signal
   is a cancellation);
@@ -145,9 +145,8 @@ So it logs a bug and says `failed`.
 The memory test "a caller's signal ends the stream"
 caught any rpc fault, so it did not see this.
 
-Fixed in `49e9d668`.
-Core's `AbortError` there is the call's own stop.
-Two places took it as a bug,
+Fixed in `49e9d668` and `4f5378a6`.
+Two places took the stop as a bug,
 and each one alone said `failed`:
 
 - `watchOver` in `rpc-protocol.ts`
@@ -155,8 +154,20 @@ and each one alone said `failed`:
 - the watch's catch in `rpc.ts`
   (it threw `failed`).
 
-Both now end the stream clean, with no bug log.
-A real throw in a watch still logs and fails.
+Now each one checks whose stop it was,
+not the error's name:
+
+- The memory and ws clients give `watchOver`
+  the watch's own session signal.
+  A leave and the call's own stop both abort it.
+  So `bug` sees the stop and pushes nothing.
+- The catch in `rpc.ts` checks
+  the call's own session signal.
+  Once it aborted, the stream ends clean.
+
+Any other throw still logs a bug and says `failed`.
+That holds for an `AbortError` the caller did not cause,
+such as a meta op whose own fetch stopped.
 The memory test now rejects a `failed` fault.
 
 ### Path 1: a remote call with a signal
