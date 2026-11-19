@@ -163,16 +163,22 @@ export function ScopeProvider(props: ScopeProviderProps): ReactNode {
   return provide(value!, props.children);
 }
 
-/** Open a child session for a subtree: created on mount from the nearest scope, force-closed on
- * unmount — a React subtree's mount lifetime IS a session lifetime (ADR 0031). Hooks under it resolve
- * against the session (the nearest `Handle`), so a `data` write is shadowed and does not reach the
- * parent. Created in an effect (StrictMode-safe, like {@link ScopeProvider}'s `create` mode): a
- * discarded or replayed mount closes its own session and the next live mount opens a fresh one. The
+/** Open a child session for a subtree: created on mount from the nearest scope, force-closed at
+ * most one microtask after unmount — a React subtree's mount lifetime IS a session lifetime (ADR 0031). Hooks
+ * under it resolve against the session (the nearest `Handle`), so a `data` write is shadowed and does
+ * not reach the parent. Created in an effect (StrictMode-safe, like {@link ScopeProvider}'s `create`
+ * mode): StrictMode's first mount closes its session, which no render used yet, and the next live
+ * mount opens a fresh one; a replay after the children rendered keeps the session (see below). The
  * session is published paired with the parent it belongs to; if the nearest scope changes, the old
  * session is never exposed for the new parent (render null until the effect opens a fresh one).
  * The reset namespace head is saved with this session, including an inherited key.
  * `options` apply when the session is created — changing them for the same parent has no effect until
- * the provider remounts. */
+ * the provider remounts.
+ *
+ * A session its children never rendered with closes in the cleanup. A rendered one closes one
+ * microtask later: StrictMode replays the effect each time a `<Suspense>` shows this provider again,
+ * and that replay takes the same session back, so the children keep the data they loaded and do
+ * not suspend in a loop. A real unmount has no replay, so the session still closes. */
 export function SessionProvider(props: {
   readonly children: ReactNode;
   readonly options?: Scope.Options;
@@ -183,24 +189,60 @@ export function SessionProvider(props: {
   const optionsRef = useRef(props.options);
   optionsRef.current = props.options;
 
-  const [owned, setOwned] = useState<{ parent: Scope.Handle; bound: Bound } | undefined>(undefined);
+  const [owned, setOwned] = useState<SessionOwned | undefined>(undefined);
+  const renderedRef = useRef(owned);
+  renderedRef.current = owned;
+  const releasedRef = useRef<SessionOwned | undefined>(undefined);
 
   useEffect(() => {
+    const released = releasedRef.current;
+    releasedRef.current = undefined;
+    if (released !== undefined && released.parent === parent && released.inherited === inherited) {
+      return () => release(released);
+    }
+    if (released !== undefined) closeScope(released.bound.scope);
+
     const options = optionsRef.current;
     const session = parent.createSession(options);
     const ns = options?.ns;
     const [head] = ns === undefined ? [inherited] : "tags" in ns ? [ns] : ns;
-    setOwned({ parent, bound: bind(session, head) });
+    const next: SessionOwned = { parent, inherited, bound: bind(session, head) };
+    setOwned(next);
 
-    return () => {
-      setOwned(undefined);
-      closeScope(session);
-    };
+    return () => release(next);
   }, [parent, inherited]);
+
+  /** Let go of the effect's session: close it now if no render used it, else hold it for the
+   * replay and close it in a microtask the replay did not cancel. That microtask also clears
+   * `owned`: an `<Activity>` that hides the provider runs this cleanup and keeps it mounted, so the
+   * hidden children must not keep the closed session; it shows a fresh one when the effect runs
+   * again. After an unmount React 19 ignores the state update. */
+  function release(current: SessionOwned): void {
+    if (renderedRef.current !== current) {
+      setOwned(undefined);
+      return closeScope(current.bound.scope);
+    }
+
+    releasedRef.current = current;
+    queueMicrotask(() => {
+      if (releasedRef.current !== current) return;
+      releasedRef.current = undefined;
+      setOwned(undefined);
+      closeScope(current.bound.scope);
+    });
+  }
 
   if (owned === undefined || owned.parent !== parent) return null;
   return provide(owned.bound, props.children);
 }
+
+/** The session a {@link SessionProvider} holds, with the parent and inherited head it was opened
+ * for: a replay takes it back only when both still match. */
+type SessionOwned = {
+  readonly parent: Scope.Handle;
+  readonly inherited: Namespace | undefined;
+  readonly bound: Bound;
+};
 
 /** Read the nearest scope `Handle`. Raises `NoProvider` when used outside a {@link ScopeProvider}. */
 export function useScope(): Scope.Handle {
