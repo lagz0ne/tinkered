@@ -9,6 +9,28 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.11
+
+A keyed resource's readers share one entry
+after its last watcher leaves and comes back
+(bug 1, ADR 0150, ADR 0157).
+
+- The entry still leaves its map when its last
+  watcher leaves.
+- Before, a reader that still held that entry
+  could watch it again, and the next reader of
+  the key built a second entry, with no change.
+  Under StrictMode, or when a page swap kept a
+  reader of the key, each source change then
+  built the key twice.
+- Now a watch of a dropped entry joins the key's
+  live entry, or puts the dropped one back when
+  the key has none. A read of it goes to the
+  live entry too.
+- So readers share one entry, a read with no
+  change builds nothing, and an end runs before
+  the next build of its key.
+
 ## 0.31.10
 
 `useRun` keeps its latest state across a

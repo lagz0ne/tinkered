@@ -98,10 +98,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/keyed-entry-dropped** — bug 1 in [docs/states](docs/states/keyed-resource/README.md). The last watcher leaves, so the entry leaves the map, but a holder can subscribe to it again; the next reader builds a second entry.
-  Duke 2026-11-19 13:59 ("Agreed to all"): option A. The entry still leaves the map with its last watcher (ADR 0150 d5); a dropped entry joins the map again on its next watch, or hands the watch to the live entry; path 1's last expectation changes (a reader that rendered but never watched does not keep the entry).
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/keyed-entry-dropped`.
-  Verify: the two React path tests and Core paths 1 (as changed) and 2 pass; core gates, size cap, core mutation.
+- **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself (ADR 0140).
+  Duke 2026-11-19 13:59 ("Agreed to all"): option B. A refused answer ends asking for every key; `invalidate` takes plain keys too (`{ notes: {} }`); the site's sign-in test calls `invalidate` after sign-in; ADR 0140 and 0137 amended.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/refused-key-reopens`.
+  Verify: the key-stream path test and a plain-key `invalidate` test pass; the site's sign-in test passes; core gates, skills, size caps, core mutation.
 
 ## Review
 
@@ -118,12 +118,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
-
-- **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself (ADR 0140).
-  Missing: Duke's pick. The fix (branch `core/refused-key-reopens`, `914126ce`: the `loop` stops on a fault that is an answer) passes the path test and Core, but `apps/site/tests/auth.test.ts` ("the guest signs in later ... the board fills without a new scope") relies on the self-heal. A plain key has no `invalidate` (`Dirty<D>` is keyed only), so after the fix only a new reader or scope wakes it.
-  A: keep the API; the site test expects the fault to stay until a new scope (the user reloads after sign-in).
-  B: give a plain key `invalidate` (a public type change, an impact block, bytes: 110 B room with rpc); the site calls it after sign-in. Lead's pick: it keeps the site's flow and matches the keyed park.
-  Next once picked: finish the branch's gates and the core lane, then land.
 
 - **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused part returns before any ask (`reask` calls `wake()` and adds no ask to the list it awaits; ADR 0147 d4).
   Missing: Duke's rule for the path test. InvalidateAwaitsItsAsk (`paths/remote-part-paths.test.ts.txt`) wants `asksSince: 1` and `ready` when the await returns. That forces one design: invalidate sends its own `tasks.ask` and the await also covers the stream's reopen. A fix where invalidate only reopens the stream (its first push is the value) gives 0 asks and fails it (lead's audit, 2026-11-19).
@@ -177,6 +171,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/keyed-entry-dropped** — done 2026-11-19 (bug 1, [keyed-resource](docs/states/keyed-resource/README.md) cause A; ADR 0150 d5, ADR 0157 d4, d5; Duke 2026-11-19 13:59 option A). The entry still leaves the map with its last watcher; a watch of a dropped entry joins its key's live entry (or puts it back when the key has none), and a read of it goes to the live entry too. Fixes `ecc3be31`, `f2125284`. Released as 0.31.11.
+  Proof: paths 1 (last expectation changed to Duke's rule) and 2 in `packages/core/tests/statechart/keyed-resource-paths.test.ts` and the two React path tests in `packages/react/tests/statechart/keyed-resource-react.test.tsx`, red on main, green; a held-read test, red on the first fix; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,232 B (the cap); core mutation 86.06 (kills alone 85.2) and React 86.99 on `0b91e55b` by the lead, exit 0 (sources byte-identical to the landed head). Opus convention-review NOT READY (a held read still built), one fix round, READY. Left open in the docs: a held core read with no live entry builds the dropped entry and does not put it back (React does not reach it).
 
 - **react/use-run-hidden** — done 2026-11-19 (bugs 15 and 16, [react-run-resource](docs/states/react-run-resource/README.md) `UseRun`; ADR 0032 d2). `RunOwner.attach` keeps the latest state across a Suspense hide and show; `finish` fires the callbacks once per run, also while hidden or after unmount; React renders only while live. Two behavior changes, agreed by Duke (2026-11-19 13:59, "Agreed to all"): a StrictMode replay keeps the run; a provider switch (a remount, ADR 0144 d2) fires the old run's callbacks; an op change still drops them. Fix `495e2c29`. Released as 0.31.10.
   Proof: the 3 tests in `packages/react/tests/statechart/use-run-paths.test.tsx`, red on main, green; react, site, example-react tests; `vp check` 80 warnings; React lane (`vp run mutate`) on `ab4e4e9a` (react source and tests byte-identical to the landed head): score 86.99, exit 0, kills alone 70.4% (main with the same command: 88.11 / 71.97%; the kills-alone floor is card `react/mutation-floor`). Opus convention-review READY; nit round.
