@@ -9,6 +9,19 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.7
+
+A call stopped by its own signal fires its
+`ctx.closing` too (bug 10, ADR 0104, ADR 0090).
+
+- Before, a call signal aborted `ctx.signal`
+  but not `ctx.closing`.
+- So a session resource that ends its waits
+  from `ctx.closing` kept the call pending
+  until the root closed.
+- Now the stop fires the closing signal first,
+  then aborts `ctx.signal`. The call ends.
+
 ## 0.31.6
 
 A root close called from a session's defer runs

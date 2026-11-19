@@ -212,10 +212,10 @@
   "waitsOnSideWork": {
     "status": "provisional",
     "trues": 1,
-    "falses": 75,
-    "medianTrue": 0.8,
-    "medianFalse": 0.56,
-    "separation": 0.24,
+    "falses": 76,
+    "medianTrue": 0.77,
+    "medianFalse": 0.57,
+    "separation": 0.2,
     "ordered": 1,
     "at": "2026-11-19"
   },
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 1,
-    "falses": 125,
-    "medianTrue": 0.45,
+    "falses": 126,
+    "medianTrue": 0.47,
     "medianFalse": 0.62,
-    "separation": -0.17,
-    "ordered": 0.1,
+    "separation": -0.15,
+    "ordered": 0.13,
     "at": "2026-11-19"
   }
 }

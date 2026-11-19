@@ -87,11 +87,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: a Core test with that repro (red), then let the close unlink before it waits, or let a release not wait on a failed holder.
   Verify: the test passes; ADR 0063 d4 tests still pass.
 
-- **core/remote-parked-part-wakes** — bug 11 in [docs/states](docs/states/remote-part/README.md). A late answer runs `apply` on a parked part: a refused part turns `ready` with no stream (ADR 0139 d4), and a link fault on a parked part never heals (ADR 0139 d4, ADR 0141). One card, two path tests. Next: move the RefusedWaitsForTrigger and LinkFaultHeals tests of `paths/remote-part-paths.test.ts.txt` into Core's tests (they fail), then make `settle` and `apply` in `packages/core/src/remote-data.ts` respect a parked part.
-  Verify: the two path tests pass; the remote-part check shows RefusedWaitsForTrigger and LinkFaultHeals hold.
-
-- **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused part returns before any ask: `reask` calls `wake()` and adds no ask to the list it awaits (ADR 0147 d4). Next: move the InvalidateAwaitsItsAsk test of `paths/remote-part-paths.test.ts.txt` into Core's tests (it fails), then fix `reask` in `packages/core/src/remote-data.ts`.
-  Verify: the InvalidateAwaitsItsAsk path test passes; the remote-part check shows InvalidateAwaitsItsAsk holds.
+- **core/follow-stop-after-open** — In `src/remote-data.ts` `follow`, the abort listener on `part.stop.signal` is added after the stream opens; if the last reader left during the open, the signal already aborted, the listener never fires, and the server stream stays open until the root closes (writer and review of `core/remote-parked-part-wakes`).
+  Next: a Core test that leaves while the stream opens, then checks the stream ends; fix with `if (part.stop.signal.aborted) signals.stop();` after the listener, as `round` does.
+  Verify: that test fails on main and passes.
 
 - **core/refused-key-reopens** — bug 13 in [docs/states](docs/states/remote-part/README.md). A plain key the server refuses opens its stream again by itself, with back-off (ADR 0140). Next: move `paths/key-stream-paths.test.ts.txt` into Core's tests (it fails), then stop the `loop` in `packages/core/src/remote-data.ts` on a fault that is an answer.
   Verify: the key-stream path test passes; the remote-part check with `KeyStream.cfg` shows RefusedEndsAsking holds.
@@ -104,9 +102,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/own-signal-leaves-closing** — bug 10 in [docs/states](docs/states/run-life/README.md). A call stopped by its own signal aborts its `ctx.signal` but not its `ctx.closing` (ADR 0104 with ADR 0090), so a resource that waits on `closing` keeps the call pending until the root closes. Next: move the ClosingFiresWhenStopped test of `paths/statechart-run-life.test.ts.txt` into Core's tests (it fails), then fire the closing signal on a call-signal stop (`runSessionWith` in `packages/core/src/index.ts`).
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/own-signal-leaves-closing`.
-  Verify: the ClosingFiresWhenStopped path test passes; the run-life check shows ClosingFiresWhenStopped holds.
+- **core/remote-parked-part-wakes** — bug 11 in [docs/states](docs/states/remote-part/README.md). A late answer runs `apply` on a parked part: a refused part turns `ready` with no stream (ADR 0139 d4), and a link fault on a parked part never heals (ADR 0139 d4, ADR 0141). One card, two path tests. Next: move the RefusedWaitsForTrigger and LinkFaultHeals tests of `paths/remote-part-paths.test.ts.txt` into Core's tests (they fail), then make `settle` and `apply` in `packages/core/src/remote-data.ts` respect a parked part.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/remote-parked-part-wakes`.
+  Verify: the two path tests pass; the remote-part check shows RefusedWaitsForTrigger and LinkFaultHeals hold.
 
 ## Review
 
@@ -123,6 +121,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
+
+- **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused part returns before any ask (`reask` calls `wake()` and adds no ask to the list it awaits; ADR 0147 d4).
+  Missing: Duke's rule for the path test. InvalidateAwaitsItsAsk (`paths/remote-part-paths.test.ts.txt`) wants `asksSince: 1` and `ready` when the await returns. That forces one design: invalidate sends its own `tasks.ask` and the await also covers the stream's reopen. A fix where invalidate only reopens the stream (its first push is the value) gives 0 asks and fails it (lead's audit, 2026-11-19).
+  A: the await covers the reopened stream's first answer; the test asks `asksSince >= 0` and `ready`. Lead's pick: no extra round trip.
+  B: keep the test; invalidate on a refused part sends one ask and waits for it, then the stream reopens.
+  Verify (after the pick): the path test (as picked) passes.
 
 - **core/session-handle-after-body** — bug 9 in [docs/states](docs/states/session-life/README.md). In a graceful root close, a session's body ends but its leaked handle still takes `onClose` (ADR 0071 d1).
   Missing: Duke's pick on Core's size cap. The full fix is 6 B over it (23,238 B, cap 23,232 B) after a 4 B trim (the lint limit on `resolve` cost 2 B); it is on branch `core/session-handle-after-body` (head `fe876c49`) (worktree `../tinkered-session-handle-after-body`), path test red on main, green with it.
@@ -177,6 +181,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/own-signal-leaves-closing** — done 2026-11-19 (bug 10, [run-life](docs/states/run-life/README.md); ADR 0104, ADR 0090). A call stopped by its own signal fires its closing signal (`beginClosing`), then aborts `ctx.signal`, so a resource that waits on `ctx.closing` lets the call end. Fix `890b720c`. Released as 0.31.7.
+  Proof: ClosingFiresWhenStopped in `packages/core/tests/statechart/run-life-paths.test.ts`, red on main (`closing: false`, still pending), green 3 of 3; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,224 B within 23,232 B; core mutation 86.27 on `4ba150a8` by the lead (kills alone 85.3; core source byte-identical to the landed head). Opus convention-review READY (doc nits fixed at landing).
 
 - **core/close-from-defer-skips-hooks** — done 2026-11-19 (bug 8, [session-life](docs/states/session-life/README.md); ADR 0104, ADR 0029 d1). The first root close always runs the capsule close hooks, also when a session's defer calls it; a later close joins the first, so its mode wins; a re-entrant call still gets an answer at once; the hooks' `next()` gets Core's real close. Fix `cdc2c742`. Released as 0.31.6.
   Proof: CloseHookRunsOnce and FirstModeWins in `packages/core/tests/statechart/session-life-paths.test.ts`, red on main, green; `closing.test.ts` had pinned the skipped hook (`calls: []`, kept by 90bb28cc, no ADR chose it) and now expects the hook; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,219 B within 23,232 B; core mutation 87.50 on `6de9ee37` by the lead, exit 0 (kills alone 84.7: 197 timeouts under the box's load; core source byte-identical to the landed head). Opus convention-review READY; one nit round (test names, one doc word).
