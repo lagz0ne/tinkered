@@ -1,8 +1,14 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
 
 export default defineConfig({
-  resolve: { tsconfigPaths: true },
+  resolve: {
+    tsconfigPaths: true,
+    /** Its own `src`, so Stryker's sandbox tests its own mutated copy, not the tree above it. */
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
   pack: {
     deps: { resolveDepSubpath: true },
     dts: {
