@@ -814,9 +814,7 @@ const steps = resource({
               const fresh = (members as readonly unknown[]).filter((m) => !newer(keyOf(m)));
               cell.answer(read, part, fresh, newer, entry.ask.window);
             },
-            (error: unknown) => () => {
-              throw error;
-            },
+            (error: unknown) => ({ error }),
           );
         pending.delete(entry);
         if (!newer(part) && inUse(entry.ask)) apply(entry.ask, got);
@@ -824,9 +822,17 @@ const steps = resource({
         await Promise.all(entry.later.map((l) => l.done));
       };
 
-      /** Puts one answer in the cell, or its fault in `board.faults`. */
-      const apply = (asked: Ask, got: () => void) => {
+      /**
+       * Puts one answer in the cell, or its fault in `board.faults`. When each part it is for
+       * waits on a fault, only a broken link gets in: the backend heals a link, so it wakes them
+       * and their streams open again. Any other answer leaves them waiting (ADR 0139 4, 0141).
+       */
+      const apply = (asked: Ask, got: (() => void) | { error: unknown }) => {
+        const parts = [...joined.values()].filter((j) => narrowed(j.ask, asked.part));
+        const parked = parts.every((j) => j.wake);
         try {
+          if ("error" in got) throw got.error;
+          if (parked) return;
           got();
           mark(key, null);
           stand(asked, { status: "ready" });
@@ -835,8 +841,11 @@ const steps = resource({
           const fault = def.wire.fault.is(error)
             ? error
             : def.wire.fault.make(at, "invalid", { side: "client" }, undefined);
+          if (parked && fault.fault !== "link") return;
+
           mark(key, fault);
           stand(asked, { status: "fault", fault });
+          if (parked) parts.forEach((j) => j.wake?.());
         }
       };
 
