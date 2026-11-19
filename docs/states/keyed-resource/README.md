@@ -26,12 +26,12 @@ Words:
 TLC reached 24,044 states.
 The spec, the chart and the rerun
 still describe `3ff6778`,
-before fixes `ff565316`, `d842e0bd`
-and `e7d1cc8d`.
+before fixes `ff565316`, `ecc3be31`
+and `f2125284`.
 So they still show 5 rules break.
 
 - **EndBeforeNextBuild** — holds after fixes
-  `d842e0bd` and `e7d1cc8d`
+  `ecc3be31` and `f2125284`
   (card `core/keyed-entry-dropped`).
   ADR 0157 d5.
   An end runs before the next build of the same key.
@@ -57,7 +57,7 @@ So they still show 5 rules break.
   `resource-keyed-life.test.ts` ("last first")
   pins it.
 - **NoChangeNoBuild** — holds after fixes
-  `d842e0bd` and `e7d1cc8d`
+  `ecc3be31` and `f2125284`
   (card `core/keyed-entry-dropped`).
   ADR 0157 d4.
   A read with no change makes no build (span).
@@ -65,7 +65,7 @@ So they still show 5 rules break.
   ADR 0157 d7, ADR 0152 d7.
   A build a reader starts writes no cell.
 - **OneEntryPerKey** — holds after fixes
-  `d842e0bd` and `e7d1cc8d`
+  `ecc3be31` and `f2125284`
   (card `core/keyed-entry-dropped`).
   ADR 0150 d5.
   One entry per key;
@@ -197,10 +197,10 @@ Two causes:
   The entry left the map when its last watcher left,
   but React still holds it.
   So the next reader of that key gets a second entry.
-  Fix `d842e0bd`: a watch of a dropped entry
+  Fix `ecc3be31`: a watch of a dropped entry
   joins the key's live entry,
   or puts the entry back when there is none.
-  Fix `e7d1cc8d`: a read of a dropped entry
+  Fix `f2125284`: a read of a dropped entry
   goes to the key's live entry, when there is one.
 - **Cause B** (bug 2, card `core/keyed-watch-after-close`).
   A held reader subscribes after the scope closed.
@@ -273,7 +273,7 @@ Cause B.
 
 ### Cause A in real React
 
-Before fix `d842e0bd`:
+Before fix `ecc3be31`:
 
 - **StrictMode.**
   StrictMode subscribed, left,
@@ -316,7 +316,7 @@ so each test lives in one place.
   Paths 3 and 4 (cause B)
   pass after fix `ff565316`.
   Paths 1 and 2 (cause A)
-  pass after fix `d842e0bd`.
+  pass after fix `ecc3be31`.
   Path 1's end follows Duke's rule:
   after the watcher left,
   the next render builds a new entry.
@@ -327,7 +327,7 @@ so each test lives in one place.
 - `keyed-resource-react.test.tsx` —
   cause A in React, in
   `packages/react/tests/statechart/`.
-  It passes after fix `d842e0bd`.
+  It passes after fix `ecc3be31`.
 
 Run:
 
@@ -357,7 +357,11 @@ vp test --project browser \
   a stale reader to the map's entry.
 - A held reader's `get` after its watch
   went to the live entry.
-  Fix `e7d1cc8d` sends it to the live entry.
+  Fix `f2125284` sends it to the live entry.
+  With no live entry, the read builds the dropped
+  entry and does not put it back,
+  so a later render makes a second entry.
+  React does not reach this; only a held core reader.
   `resource-keyed-life.test.ts`
   ("a held reader whose watch went")
   pins it.
@@ -388,5 +392,5 @@ statechart KeyedResource.tla \
 Exit 1: 5 rules break.
 The spec still describes `3ff6778`,
 so it does not see fixes
-`ff565316`, `d842e0bd` and `e7d1cc8d`.
+`ff565316`, `ecc3be31` and `f2125284`.
 In the code, no rule breaks.

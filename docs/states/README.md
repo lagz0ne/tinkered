@@ -80,7 +80,7 @@ so main stays green.
 ## Machines
 
 - **keyed-resource** — 0 rules break now
-  (fixes `ff565316`, `d842e0bd`, `e7d1cc8d`);
+  (fixes `ff565316`, `ecc3be31`, `f2125284`);
   the spec still shows 5.
   Cards: `core/keyed-entry-dropped`,
   `core/keyed-watch-after-close`.
