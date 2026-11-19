@@ -58,7 +58,7 @@ test("switching providers clears the previous run state", async () => {
   await second.close();
 });
 
-test("switching providers drops late results and callbacks while the caller still gets its value", async () => {
+test("switching providers mounts the view again: the old run fires its callbacks but never shows", async () => {
   const gate = deferred<string>();
   const first = createScope({ tags: [answer(gate.promise)] });
   const second = createScope({ tags: [answer(Promise.resolve("second"))] });
@@ -83,7 +83,7 @@ test("switching providers drops late results and callbacks while the caller stil
   expect(await running).toBe("first");
   await expect.element(screen.getByText("value:idle")).toBeVisible();
   expect(after.calls).toEqual([]);
-  expect(before.calls).toEqual([]);
+  expect(before.calls).toEqual(["first"]);
 
   await first.close();
   await second.close();
@@ -151,7 +151,7 @@ function Replay(): React.ReactElement {
   return <p>replay:{run.status}</p>;
 }
 
-test("StrictMode clears the run from its discarded effect mount", async () => {
+test("StrictMode keeps the run from its replayed effect mount", async () => {
   const scope = createScope();
   try {
     const screen = await render(
@@ -161,7 +161,7 @@ test("StrictMode clears the run from its discarded effect mount", async () => {
         </ScopeProvider>
       </StrictMode>,
     );
-    await expect.element(screen.getByText("replay:idle")).toBeVisible();
+    await expect.element(screen.getByText("replay:success")).toBeVisible();
   } finally {
     expect((await scope.close({ graceful: true })).status).toBe("success");
   }

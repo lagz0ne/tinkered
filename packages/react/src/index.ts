@@ -795,7 +795,9 @@ function reportCallbackError(error: unknown): void {
   }
 }
 
-/** Each committed hook owns its view; old calls keep their result but lose publication on detach. */
+/** Each committed hook owns its view (ADR 0032 d2). Hidden or unmounted, it keeps the latest state
+ * without a re-render, and every run still fires its callbacks; a show renders that state. A replaced
+ * owner loses its `options`, so its old calls keep their result but fire no callbacks. */
 class RunOwner<T, I> {
   private static idle = {
     status: "idle",
@@ -825,9 +827,10 @@ class RunOwner<T, I> {
     this.force = force;
   }
 
+  /** A state written while detached has no handle yet: render it. */
   attach = (): (() => void) => {
     this.live = true;
-    if (this.state !== RunOwner.idle) this.publish(RunOwner.idle);
+    if (this.cached === undefined) this.force();
     return () => {
       this.live = false;
     };
@@ -847,13 +850,14 @@ class RunOwner<T, I> {
 
   private reset = (): void => {
     this.runId += 1;
-    if (this.live) this.publish(RunOwner.idle);
+    this.publish(RunOwner.idle);
   };
 
+  /** Only a live view re-renders: no React state write while hidden or after unmount. */
   private publish(state: Run.State<Awaited<T>, I>): void {
     this.state = state;
     this.cached = undefined;
-    this.force();
+    if (this.live) this.force();
   }
 
   private finish(
@@ -862,10 +866,8 @@ class RunOwner<T, I> {
     variables: Run.Variables<I>,
   ): Outcome<Awaited<T>> {
     const outcome = readRunOutcome(result);
-    if (this.live) {
-      if (this.runId === id) this.publish({ ...settledState(outcome), variables });
-      notify(this.options, outcome, variables);
-    }
+    if (this.runId === id) this.publish({ ...settledState(outcome), variables });
+    notify(this.options, outcome, variables);
     return outcome;
   }
 
@@ -877,7 +879,7 @@ class RunOwner<T, I> {
 
     if (!(result instanceof Promise)) return this.finish(id, result, variables);
 
-    if (this.live && this.runId === id) {
+    if (this.runId === id) {
       this.publish({ status: "pending", data: undefined, error: undefined, variables });
     }
 
@@ -907,8 +909,11 @@ class RunOwner<T, I> {
  * with `variables` = the call), `runAsync(input)` also returns the value or rejects, `reset()`
  * returns to idle. A rejection never reaches an error boundary (that is {@link useResource}'s job).
  * Only the latest run publishes state: a slower earlier run that settles after a newer one (or after
- * `reset`) is dropped, though its `options` callbacks still fire. Changing the provider or operation
- * clears the view and stops the old owner's state and callback writes; its caller still gets the result.
+ * `reset`) is dropped, though its `options` callbacks still fire. A Suspense hide and show keeps the
+ * latest state; a run that settles while hidden or after unmount still fires its callbacks once.
+ * Changing the operation clears the view and stops the old owner's state and callback writes. Changing
+ * the provider mounts the subtree again (ADR 0144), so the view starts idle and the old run fires its
+ * callbacks as after an unmount. Either way its caller still gets the result.
  * Handled failures are received through Core's `settle`, so a panic does not fail the owner. */
 export function useRun<T, I>(
   op: Operation.Handle<T, I>,
@@ -922,6 +927,7 @@ export function useRun<T, I>(
 
   let owner = ref.current;
   if (owner === undefined || owner.scope !== scope || owner.op !== op) {
+    if (owner !== undefined) owner.options = undefined;
     owner = ref.current = new RunOwner(scope, op, force);
   }
 

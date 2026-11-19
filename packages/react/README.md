@@ -250,7 +250,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 ### useRun
 
 - A parent render keeps the run handle when no run changed.
-- StrictMode clears the run from its discarded effect mount.
+- StrictMode keeps the run from its replayed effect mount.
 - A cancelled run rejects with the caller's exact reason.
 
 - Normal calls and omitted callbacks report no host error.
@@ -262,7 +262,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - A failing operation stays in error state and does not throw to an error boundary.
 - A handled operation panic stays in error state and the root closes successfully.
 - Switching providers clears the previous run state.
-- Switching providers drops late results and callbacks; the caller still gets its value.
+- Switching providers mounts the view again: the old run fires its callbacks but never shows.
 - Switching operations drops late results and callbacks from the old operation.
 - Reset from a success clears status, data, and error.
 - Reset from an error clears status, data, and error.
