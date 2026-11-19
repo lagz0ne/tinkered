@@ -288,3 +288,37 @@ test("an async query with no value leaves pending when it succeeds", async () =>
     expect((await scope.close({ graceful: true })).status).toBe("success");
   }
 });
+
+function Marker({ handle }: { handle: Resource.Handle<Promise<number>> }): React.ReactElement {
+  return <p>marker:{useResource(handle, { suspense: false }).status}</p>;
+}
+
+test("builds dropped by refetch that settle after the newest one never replace its result", async () => {
+  const scope = createScope();
+  const gates = [deferred<number>(), deferred<number>(), deferred<number>()];
+  let builds = 0;
+  const raced = resource({ label: "late-query", factory: () => gates[builds++]!.promise });
+  const markerGate = deferred<number>();
+  const marker = resource({ label: "late-marker", factory: () => markerGate.promise });
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Local handle={raced} />
+      <Marker handle={marker} />
+    </ScopeProvider>,
+  );
+  await screen.getByRole("button", { name: "refetch" }).click();
+  await expect.poll(() => builds).toBe(2);
+  await screen.getByRole("button", { name: "refetch" }).click();
+  await expect.poll(() => builds).toBe(3);
+  gates[2]!.resolve(3);
+  await expect.element(screen.getByText("data:3")).toBeVisible();
+
+  gates[0]!.resolve(1);
+  gates[1]!.reject(new Error("dropped"));
+  markerGate.resolve(0);
+
+  await expect.element(screen.getByText("marker:success")).toBeVisible();
+  await expect.element(screen.getByText("status:success")).toBeVisible();
+  await expect.element(screen.getByText("data:3")).toBeVisible();
+  await scope.close();
+});

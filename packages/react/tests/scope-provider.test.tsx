@@ -1,5 +1,5 @@
 import { createScope, data } from "@tinkered/core";
-import { StrictMode, useState } from "react";
+import { Activity, StrictMode, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 
@@ -117,4 +117,47 @@ test("a hook used with no provider raises NoProvider", async () => {
   );
 
   await expect.element(screen.getByText("caught:useScope")).toBeVisible();
+});
+
+test("an Activity hide closes the created scope, and a show renders only with a fresh one", async () => {
+  const closed = new Set<unknown>();
+  const create = () => {
+    const scope = createScope();
+    scope.onClose(() => {
+      closed.add(scope);
+    });
+    return scope;
+  };
+  const stale: unknown[] = [];
+
+  function Probe(): React.ReactElement {
+    const scope = useScope();
+    if (closed.has(scope)) stale.push(scope);
+    return <p>{closed.size === 0 ? "first" : "again"}</p>;
+  }
+
+  function Toggle(): React.ReactElement {
+    const [shown, setShown] = useState(true);
+    return (
+      <>
+        <button type="button" onClick={() => setShown(!shown)}>
+          toggle
+        </button>
+        <Activity mode={shown ? "visible" : "hidden"}>
+          <ScopeProvider create={create}>
+            <Probe />
+          </ScopeProvider>
+        </Activity>
+      </>
+    );
+  }
+
+  const screen = await render(<Toggle />);
+  await expect.element(screen.getByText("first")).toBeVisible();
+  await screen.getByRole("button", { name: "toggle" }).click();
+  await expect.poll(() => closed.size).toBe(1);
+  await screen.getByRole("button", { name: "toggle" }).click();
+
+  await expect.element(screen.getByText("again")).toBeVisible();
+  expect(stale).toEqual([]);
 });

@@ -169,3 +169,25 @@ test("a server render reads a capsule's cell export, raw and sliced", async () =
 
   expect(html).toContain("hi:HI:hi");
 });
+
+test("a server render gives a pair for writable options alone", async () => {
+  const cell = data({ label: "cell", initial: "init" });
+  const scope = createScope();
+  let pair: UseData.Pair<string, string> | undefined;
+
+  function Views(): ReactNode {
+    pair = useData(cell, { writable: true });
+    return <p>{`pair:${pair[0]}`}</p>;
+  }
+
+  const html = renderToString(
+    <ScopeProvider scope={scope}>
+      <Views />
+    </ScopeProvider>,
+  );
+  pair?.[1]("next");
+
+  expect(html).toContain("pair:init");
+  expect(scope.resolve(cell)).toBe("next");
+  await scope.close();
+});

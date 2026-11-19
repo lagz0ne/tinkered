@@ -1,6 +1,6 @@
 import { capsule, createScope, data, operation, type Scope } from "@tinkered/core";
 import type { ReactNode } from "react";
-import { StrictMode, Suspense } from "react";
+import { StrictMode, Suspense, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 
@@ -134,4 +134,44 @@ test("a provider that owns a root whose start fails throws to the error boundary
   );
 
   await expect.element(screen.getByText("caught:Error: owned start failed")).toBeVisible();
+});
+
+test("a new starting root on the provider shows that root's values", async () => {
+  const store = capsule({
+    label: "swap store",
+    hooks: {
+      async start({ next }) {
+        await next();
+      },
+    },
+  });
+  const who = data({ label: "swap.who", initial: "none" });
+  const first = createScope({ capsules: [store] });
+  const second = createScope({ capsules: [store] });
+  (await first.ready).controller(who).set("first");
+  (await second.ready).controller(who).set("second");
+
+  function Switcher(): ReactNode {
+    const [scope, setScope] = useState<Scope.Starting>(first);
+    return (
+      <>
+        <button type="button" onClick={() => setScope(second)}>
+          swap
+        </button>
+        <Suspense fallback={<p>starting</p>}>
+          <ScopeProvider scope={scope}>
+            <Owned cell={who} />
+          </ScopeProvider>
+        </Suspense>
+      </>
+    );
+  }
+
+  const screen = await render(<Switcher />);
+  await expect.element(screen.getByText("store:first")).toBeVisible();
+  await screen.getByRole("button", { name: "swap" }).click();
+
+  await expect.element(screen.getByText("store:second")).toBeVisible();
+  await first.close();
+  await second.close();
 });

@@ -331,3 +331,30 @@ test("a custom isEqual suppresses re-render for a new slice it treats as equal",
 
   await scope.close();
 });
+
+test("a new cell under the same selector shows and follows that cell", async () => {
+  const scope = createScope();
+  scope.controller(sbox).set({ a: 2, b: 2 });
+
+  function Picked({ cell }: { cell: typeof box }): React.ReactElement {
+    return <p>cell-a:{useData(cell, (v) => v.a)}</p>;
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Picked cell={box} />
+    </ScopeProvider>,
+  );
+  await expect.element(screen.getByText("cell-a:1")).toBeVisible();
+  await screen.rerender(
+    <ScopeProvider scope={scope}>
+      <Picked cell={sbox} />
+    </ScopeProvider>,
+  );
+  await expect.element(screen.getByText("cell-a:2")).toBeVisible();
+
+  scope.controller(sbox).set({ a: 3, b: 3 });
+
+  await expect.element(screen.getByText("cell-a:3")).toBeVisible();
+  await scope.close();
+});

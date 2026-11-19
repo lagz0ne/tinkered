@@ -315,3 +315,26 @@ test.each(["borrowed", "owned"])(
     await inner.close();
   },
 );
+
+test("a reset follows a new explicit key without remounting", async () => {
+  const scope = createScope();
+  scope.controller(draft).set("default draft");
+  scope.controller(draft, { ns: ocean }).set("ocean draft");
+  scope.controller(draft, { ns: forest }).set("forest draft");
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Reset node={draft} ns={ocean} />
+    </ScopeProvider>,
+  );
+  await screen.rerender(
+    <ScopeProvider scope={scope}>
+      <Reset node={draft} ns={forest} />
+    </ScopeProvider>,
+  );
+
+  await screen.getByRole("button", { name: "reset" }).click();
+
+  expect(scope.resolve(draft, { ns: forest })).toBe("default draft");
+  expect(scope.resolve(draft, { ns: ocean })).toBe("ocean draft");
+  await scope.close();
+});
