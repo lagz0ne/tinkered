@@ -691,7 +691,7 @@ const steps = resource({
             callAll(asked);
           });
           live = false;
-          if (!signal.aborted && ended) mark(key, ended);
+          if (ended) mark(key, ended);
           callAll(asked.splice(0, before));
           if (signal.aborted) break;
 
@@ -1033,10 +1033,11 @@ const steps = resource({
       watchPart,
       answerPart,
       changed,
-      /** `invalidate`: signal the readers on a serving root; ask again on a reading root. */
-      invalidate: async (def: Def, own: Served | null, key: string, dirty: Data.Key) => {
-        if (own) return dirtyOn(own, key, dirty);
-        await Promise.all([...askersOf(def.made[key])].map((ask) => ask(dirty)));
+      /** `invalidate`: signal the readers on a serving root; ask again on a reading root. A
+       * serving root runs no reading loop, so it has no asker. */
+      invalidate: (def: Def, own: Served | null, key: string, dirty: Data.Key) => {
+        if (own) dirtyOn(own, key, dirty);
+        return Promise.all([...askersOf(def.made[key])].map((ask) => ask(dirty)));
       },
       readStart,
       join,
