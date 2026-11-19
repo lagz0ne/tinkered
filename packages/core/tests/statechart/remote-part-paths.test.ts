@@ -1,0 +1,222 @@
+// Replays of the remote-part model (statechart/core4/remote-part/RemotePart.tla):
+// each test runs one model path, one step per action, on the real code.
+import { memory } from "@tinkered/core/testing";
+import { afterEach, expect, test } from "vite-plus/test";
+import { z } from "zod";
+
+import { createScope, data, operation, remoteData, transport } from "@/main";
+import type { Scope } from "@/main";
+
+const { hook } = transport;
+
+type Task = { project: string; id: string; title: string };
+const Task = z.object({ project: z.string(), id: z.string(), title: z.string() });
+
+const tasks = data({
+  label: "task.items",
+  mode: "keyed",
+  parse: Task,
+  key: (t) => ({ project: t.project, id: t.id }),
+});
+
+const board = remoteData({ tasks });
+const task = (project: string, id: string): Task => ({ project, id, title: id });
+
+const closers: Array<() => unknown> = [];
+
+afterEach(async () => {
+  for (const close of closers.splice(0).reverse()) await close();
+});
+
+const until = async (ok: () => boolean) => {
+  for (let tries = 0; !ok(); tries++) {
+    if (tries > 300) throw new Error("timed out");
+    await new Promise((done) => setTimeout(done, 10));
+  }
+};
+
+const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
+
+/** A gate the server's guard waits at. */
+const gate = () => {
+  let open = () => undefined as void;
+  const wait = new Promise<void>((done) => (open = done));
+  return { reached: false, open, wait };
+};
+
+type Gate = ReturnType<typeof gate>;
+
+/**
+ * The guard. `refuseWatch(p)` refuses the next watches of a project (count: `times`). A gate set
+ * on `watchGate` or `askGate` holds the next watch or ask there until it opens.
+ */
+function makeServer() {
+  const seen: string[] = [];
+  const rules = {
+    refuseWatch: new Map<string, number>(),
+    watchGate: undefined as Gate | undefined,
+    askGate: undefined as Gate | undefined,
+  };
+  const guard = operation({
+    label: "guard",
+    input: hook.start,
+    run: async (_, { input }) => {
+      const project = String(Object(Object(input.input).part).project);
+      seen.push(`${input.key}:${project}`);
+
+      const held = input.key === "tasks" ? rules.watchGate : rules.askGate;
+      if (input.key === "tasks") rules.watchGate = undefined;
+      else rules.askGate = undefined;
+
+      if (held) {
+        held.reached = true;
+        await held.wait;
+      }
+
+      const left = rules.refuseWatch.get(project) ?? 0;
+      if (input.key === "tasks" && left > 0) {
+        rules.refuseWatch.set(project, left - 1);
+        return input.refuse({ project });
+      }
+    },
+  });
+  const add = operation({
+    label: "tasks.add",
+    input: Task,
+    depends: { items: tasks.controller },
+    run: ({ items }, { input }) => items.set(input),
+  });
+  return { seen, rules, guard, add };
+}
+
+/** A link that can drop: a call or a watch in flight then ends as a link fault (`undefined`). */
+function flaky(server: Scope.Handle) {
+  let cut = new AbortController();
+  let down = false;
+  const peer = {
+    createSession: (options: never) => {
+      if (down) throw new Error("link down"); // memory reads a missing session as a link
+      const session = server.createSession(options) as Scope.Handle;
+      const at = cut.signal;
+      const dropped = new Promise<undefined>((done) =>
+        at.addEventListener("abort", () => done(undefined), { once: true }),
+      );
+      return {
+        resolve: (x: never) => session.resolve(x),
+        // A dropped socket does not wait for the server's run to end.
+        close: () => (at.aborted ? void session.close() : session.close()),
+        run: (op: never, args: { input: { left?: AbortSignal } }) => {
+          const left = args.input.left ? AbortSignal.any([args.input.left, at]) : at;
+          const input = { ...args.input, left };
+          return Promise.race([session.run(op, { ...args, input } as never), dropped]);
+        },
+      };
+    },
+  };
+  return {
+    peer: peer as unknown as Scope.Handle,
+    drop: () => {
+      down = true;
+      cut.abort();
+    },
+    back: () => {
+      down = false;
+      cut = new AbortController();
+    },
+  };
+}
+
+async function boot() {
+  const app = makeServer();
+  const server = await createScope({
+    capsules: [board({ serve: true, onStart: [app.guard] }), memory.server({ services: [board] })],
+  }).ready;
+  closers.push(() => server.close());
+  server.run(app.add, { input: task("p1", "a") });
+  server.run(app.add, { input: task("p2", "b") });
+
+  const link = flaky(server);
+  const tab = await createScope({
+    capsules: [memory.client({ peer: link.peer }), board({ read: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+
+  const status = (project: string) =>
+    tab.resolve(board.status(board.tasks.where({ project }))).get();
+  const read = (project: string) => {
+    const reader = tab.resolve(board.tasks.where({ project }));
+    const stop = reader.watch(() => undefined);
+    closers.push(stop);
+    return { get: () => reader.get(), stop };
+  };
+  const invalidate = (project: string) =>
+    tab.run(board.invalidate, { input: { tasks: { project } } });
+  const keyFault = () => tab.resolve(board.faults).get().tasks;
+  return { ...app, server, tab, link, status, read, invalidate, keyFault };
+}
+
+test("RefusedWaitsForTrigger path: a refused part that waits turns ready with no trigger", async () => {
+  const app = await boot();
+  app.rules.refuseWatch.set("p1", 1);
+  app.rules.watchGate = gate();
+  const watchHeld = app.rules.watchGate;
+  app.rules.askGate = gate();
+  const askHeld = app.rules.askGate;
+
+  // 1. A reader reads part A: pending, stream opening.
+  const a = app.read("p1");
+  await until(() => watchHeld.reached);
+  expect(app.status("p1")).toMatchObject({ status: "pending" });
+  // 2. You invalidate part A: an ask goes out (the stream is not open yet).
+  const invalidated = app.invalidate("p1");
+  await until(() => askHeld.reached);
+  // 3. The server refuses the stream: refused, no stream, waits for a trigger.
+  watchHeld.open();
+  await until(() => app.status("p1")?.status === "fault");
+  expect(app.status("p1")).toMatchObject({ fault: { fault: "refused" } });
+  // 4. An answer comes.
+  askHeld.open();
+  await invalidated;
+  await sleep(50);
+
+  // ADR 0139 d4: the part goes to fault and waits for a trigger.
+  const after = { status: app.status("p1"), rows: a.get().length };
+  app.server.run(app.add, { input: task("p1", "c") }); // a change the part should see
+  await sleep(200);
+  expect({ ...after, rowsLater: a.get().length }).toMatchObject({
+    status: { status: "fault", fault: { fault: "refused" } },
+  });
+});
+
+test("LinkFaultHeals path: a link fault on a part with no stream never heals", async () => {
+  const app = await boot();
+  app.rules.refuseWatch.set("p1", 1);
+  app.rules.watchGate = gate();
+  const watchHeld = app.rules.watchGate;
+  app.rules.askGate = gate();
+  const askHeld = app.rules.askGate;
+
+  // 1. A reader reads part A.
+  app.read("p1");
+  await until(() => watchHeld.reached);
+  // 2. You invalidate part A: an ask goes out.
+  void app.invalidate("p1");
+  await until(() => askHeld.reached);
+  // 3. The server refuses the stream.
+  watchHeld.open();
+  await until(() => app.status("p1")?.status === "fault");
+  // 4. The link drops: the ask in flight fails with link.
+  app.link.drop();
+  await until(() => app.status("p1")?.status === "fault" && app.keyFault()?.fault === "link");
+  expect(app.status("p1")).toMatchObject({ fault: { fault: "link" } });
+  // The link returns. ADR 0139 d4: the backend heals a broken link.
+  app.link.back();
+  askHeld.open();
+  const opens = app.seen.filter((s) => s === "tasks:p1").length;
+  await sleep(500);
+
+  expect({
+    status: app.status("p1"),
+    newOpens: app.seen.filter((s) => s === "tasks:p1").length - opens,
+  }).toMatchObject({ status: { status: "ready" } });
+});
