@@ -1347,8 +1347,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A `refused` or `invalid` part waits: no ask again until an
   `invalidate` names it. A broken link asks again by itself.
 - A late answer leaves a waiting part, and the parts that ride it, in
-  their fault; so does a live part's answer that holds it.
-  Only a broken link wakes it.
+  their fault; so does an answer for a live part that holds it.
+  Of late answers, only a broken link wakes it.
 
 ### A keyed resource
 

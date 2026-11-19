@@ -63,17 +63,18 @@ before the bug 11 fix.
 So they still show 3 rules break.
 
 - **RefusedWaitsForTrigger** — holds,
-  with one new step the rule forbids:
+  except one new step:
   on a link fault, a parked, refused part
   shows `link` and opens again
   (ADR 0139 d4: the backend heals a link).
-  Since `02e4af4c` and `1582ec72`
+  A spec update must allow it.
+  Since `fb7679b4` and `ee58cbaa`
   (card `core/remote-parked-part-wakes`).
   ADR 0139 d4 ("the part goes to fault
   and waits for a trigger");
   ADR 0140 (The direction).
 - **LinkFaultHeals** — holds,
-  since `02e4af4c` and `1582ec72`
+  since `fb7679b4` and `ee58cbaa`
   (card `core/remote-parked-part-wakes`).
   ADR 0139 d4 ("the backend heals it;
   the part shows link until then");
@@ -174,7 +175,7 @@ so the chart draws only the bug paths.
 ### Bug 11: a parked part wakes from a late answer
 
 Card `core/remote-parked-part-wakes` fixes it
-(`02e4af4c`, `1582ec72`).
+(`fb7679b4`, `ee58cbaa`).
 Rules: RefusedWaitsForTrigger, LinkFaultHeals.
 One cause, two rules.
 The text below names the code before the fix.
@@ -197,7 +198,8 @@ The fix is in `apply`, `stand` and `parked`.
   that is parked or rides a parked part.
   Those keep their fault.
 - A wake clears `wake` at once,
-  so a woken part shows `link` at once.
+  so a woken part shows `link` at once,
+  or when its stream open fails.
 
 Tests: `packages/core/tests/`
 `remote-data-keyed-parked.test.ts`
@@ -364,7 +366,7 @@ the loop opens it again (671-672).
   RefusedWaitsForTrigger (path 1)
   and LinkFaultHeals (path 2),
   now in `packages/core/tests/statechart/`.
-  They pass since `02e4af4c`.
+  They pass since `fb7679b4`.
   They failed before: that showed bug 11.
 - `paths/remote-part-paths.test.ts.txt` —
   InvalidateAwaitsItsAsk and the

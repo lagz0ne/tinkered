@@ -115,7 +115,7 @@ so main stays green.
   The other break waits for a rule:
   1 case with no rule yet.
 - **remote-part** — RemotePart: 1 rule breaks now
-  (fixes `02e4af4c`, `1582ec72`);
+  (fixes `fb7679b4`, `ee58cbaa`);
   the spec still shows 3.
   KeyStream: 1 rule breaks.
   Cards: `core/remote-parked-part-wakes`,
