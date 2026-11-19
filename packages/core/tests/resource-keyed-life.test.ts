@@ -182,3 +182,32 @@ test("a held reader's read after the scope closed raises Disposed and builds not
 
   expect(builds).toEqual([1]);
 });
+
+test("a held reader whose watch went to its key's live entry reads that entry and builds nothing (bug 1)", () => {
+  const steps: string[] = [];
+  let builds = 0;
+  const level = data({ label: "life.held", initial: 0 });
+  const kept = resource({
+    label: "life.kept",
+    config: {},
+    depends: { level },
+    factory: ({ level }, { defer }) => {
+      const n = ++builds;
+      steps.push(`build ${n}`);
+      defer(() => void steps.push(`end ${n}`));
+      return level;
+    },
+  });
+  const scope = createScope();
+  const held = scope.resolve(kept);
+  held.get();
+  held.watch(() => undefined)();
+  const live = scope.resolve(kept);
+  live.get();
+  live.watch(() => undefined);
+  held.watch(() => undefined);
+
+  const value = held.get();
+
+  expect({ value, steps }).toEqual({ value: 0, steps: ["build 1", "end 1", "build 2"] });
+});
