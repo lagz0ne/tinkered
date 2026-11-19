@@ -87,12 +87,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: a Core test with that repro (red), then let the close unlink before it waits, or let a release not wait on a failed holder.
   Verify: the test passes; ADR 0063 d4 tests still pass.
 
-- **core/session-handle-after-body** — bug 9 in [docs/states](docs/states/session-life/README.md). In a graceful root close, a session's body ends but `Layer.closed` stays false until the drain, and `ensureOpen` reads only `closed`, so a leaked session handle still takes `onClose` (ADR 0071 d1). Next: move the HandleDeadAfterBody test and its control of `paths/statechart-session-life.test.ts.txt` into Core's tests (the path test fails), then fix `ensureOpen` or the body end (`settleSessionWith` in `packages/core/src/index.ts`).
-  Verify: the HandleDeadAfterBody path test and the control pass; the session-life check shows HandleDeadAfterBody holds.
-
-- **core/own-signal-leaves-closing** — bug 10 in [docs/states](docs/states/run-life/README.md). A call stopped by its own signal aborts its `ctx.signal` but not its `ctx.closing` (ADR 0104 with ADR 0090), so a resource that waits on `closing` keeps the call pending until the root closes. Next: move the ClosingFiresWhenStopped test of `paths/statechart-run-life.test.ts.txt` into Core's tests (it fails), then fire the closing signal on a call-signal stop (`runSessionWith` in `packages/core/src/index.ts`).
-  Verify: the ClosingFiresWhenStopped path test passes; the run-life check shows ClosingFiresWhenStopped holds.
-
 - **core/remote-parked-part-wakes** — bug 11 in [docs/states](docs/states/remote-part/README.md). A late answer runs `apply` on a parked part: a refused part turns `ready` with no stream (ADR 0139 d4), and a link fault on a parked part never heals (ADR 0139 d4, ADR 0141). One card, two path tests. Next: move the RefusedWaitsForTrigger and LinkFaultHeals tests of `paths/remote-part-paths.test.ts.txt` into Core's tests (they fail), then make `settle` and `apply` in `packages/core/src/remote-data.ts` respect a parked part.
   Verify: the two path tests pass; the remote-part check shows RefusedWaitsForTrigger and LinkFaultHeals hold.
 
@@ -110,9 +104,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/close-from-defer-skips-hooks** — bug 8 in [docs/states](docs/states/session-life/README.md). A session's defer calls `root.close()`: the root sees a re-entrant close (`closeWouldReenter`), skips the capsule close hook (ADR 0104), and starts a forced close, so the app's `close({ graceful: true })` turns forced (ADR 0029 d1). One cause, two rules. Next: move the CloseHookRunsOnce and FirstModeWins tests of `paths/statechart-session-life.test.ts.txt` into Core's tests (they fail), then fix the re-entrant close path (`closeWouldReenter`, `watchRootClose` in `packages/core/src/index.ts`).
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/close-from-defer-skips-hooks`.
-  Verify: those two path tests pass; the session-life check shows CloseHookRunsOnce and FirstModeWins hold.
+- **core/own-signal-leaves-closing** — bug 10 in [docs/states](docs/states/run-life/README.md). A call stopped by its own signal aborts its `ctx.signal` but not its `ctx.closing` (ADR 0104 with ADR 0090), so a resource that waits on `closing` keeps the call pending until the root closes. Next: move the ClosingFiresWhenStopped test of `paths/statechart-run-life.test.ts.txt` into Core's tests (it fails), then fire the closing signal on a call-signal stop (`runSessionWith` in `packages/core/src/index.ts`).
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/own-signal-leaves-closing`.
+  Verify: the ClosingFiresWhenStopped path test passes; the run-life check shows ClosingFiresWhenStopped holds.
 
 ## Review
 
@@ -129,6 +123,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
+
+- **core/session-handle-after-body** — bug 9 in [docs/states](docs/states/session-life/README.md). In a graceful root close, a session's body ends but its leaked handle still takes `onClose` (ADR 0071 d1).
+  Missing: Duke's pick on Core's size cap. The full fix is 6 B over it (23,238 B, cap 23,232 B) after a 4 B trim (the lint limit on `resolve` cost 2 B); it is on branch `core/session-handle-after-body` (head `fe876c49`) (worktree `../tinkered-session-handle-after-body`), path test red on main, green with it.
+  Why the handle: running owned work reads the same session layer, so `ensureOpen` or `closed` at the body end would break ADR 0028 (graceful waits for that work). The fix adds `ensureLive` for the handle's `onClose`, `controller` and `resolve`.
+  A: raise the cap by 8 B (6 to fit, 2 spare). Lead's pick: it is the only version that keeps ADR 0071 d1 whole.
+  B: drop the `resolve` guard; it fits with 0 B left, but `resolve` on a leaked handle still works during a graceful drain.
+  Next once picked: run the gates and the core lane on that branch, then land.
 
 - **react/strict-session-suspense** — Under StrictMode, a `SessionProvider` inside a `<Suspense>` whose async session resource suspends builds and closes the session in a loop ([session-provider](docs/states/session-provider/README.md), ReachesStable breaks).
   Missing: Duke's rule for the path test. `paths/session-provider-loop.test.tsx.txt` cannot pass after any fix as written: its steps 7 to 11 poll for the loop itself (`creates` must reach 3, then 4), and the end wants `{ creates: 2, builds: 1, live: 1 }`. The plain fix (the effect's cleanup closes later, and a re-run takes the same session back) gives 1 session, so the step-3 poll (`creates` 2) fails too (lead, 2026-11-18).
@@ -176,6 +177,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/close-from-defer-skips-hooks** — done 2026-11-19 (bug 8, [session-life](docs/states/session-life/README.md); ADR 0104, ADR 0029 d1). The first root close always runs the capsule close hooks, also when a session's defer calls it; a later close joins the first, so its mode wins; a re-entrant call still gets an answer at once; the hooks' `next()` gets Core's real close. Fix `cdc2c742`. Released as 0.31.6.
+  Proof: CloseHookRunsOnce and FirstModeWins in `packages/core/tests/statechart/session-life-paths.test.ts`, red on main, green; `closing.test.ts` had pinned the skipped hook (`calls: []`, kept by 90bb28cc, no ADR chose it) and now expects the hook; `scripts/ticket.sh --check-only --no-mutation` exit 0 on the rebased head; size 23,219 B within 23,232 B; core mutation 87.50 on `6de9ee37` by the lead, exit 0 (kills alone 84.7: 197 timeouts under the box's load; core source byte-identical to the landed head). Opus convention-review READY; one nit round (test names, one doc word).
 
 - **core/resource-cycle-holds-close** — done 2026-11-18 (bug 7, [resource-life](docs/states/resource-life/README.md) `cycle.cfg`; ADR 0027, ADR 0011). A read of a resource still in its own sync build makes no hold (`needsHold`), so a cycle's `CircularResource` leaves no hold loop and `close()` resolves. Fix `e9242ca7`. Released as 0.31.5.
   Proof: path 3 in `packages/core/tests/statechart/resource-life-paths.test.ts`, red on main (still open after 500 ms), green; the `.txt` is gone; `scripts/ticket.sh --check-only --no-mutation` exit 0; size 23,231 B within 23,232 B; core mutation 86.57 on `f54a474b` by the lead (kills alone 85.1; core source byte-identical to the landed head). Opus convention-review READY.

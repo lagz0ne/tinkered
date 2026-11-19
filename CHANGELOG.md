@@ -9,6 +9,24 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.6
+
+A root close called from a session's defer runs
+the capsule close hook, and the first close's
+mode wins (bug 8, ADR 0104, ADR 0029).
+
+- Before, the root saw that close as re-entrant.
+  It skipped the capsule close hook and closed
+  forced.
+- So a hook never ran (sync never ended its
+  streams), and an app's graceful close turned
+  forced: resources ended `cancelled`.
+- Now the first root close always runs the close
+  hook, once. A later close joins it, so its
+  mode wins.
+- A close called from inside a defer still gets
+  an answer at once.
+
 ## 0.31.5
 
 `close()` resolves after two resources read
