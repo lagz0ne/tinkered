@@ -310,9 +310,9 @@ export function createMemory() {
 
         const { run, log, load } = event;
         const { side, protocol: p } = load(clientHeld, kept).get()!;
-        const hook = { run, log, signal: invocation?.signal };
         const input = (invocation?.input ?? invocation?.rawInput) as never;
-        return op === call ? p.callOver(side, hook, input) : p.watchOver(side, hook, input);
+        if (op === call) return p.callOver(side, { run, log, signal: invocation?.signal }, input);
+        return p.watchOver(side, { run, log, signal: event.signal }, input);
       },
     },
   });

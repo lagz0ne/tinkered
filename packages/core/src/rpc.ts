@@ -376,10 +376,10 @@ const steps = resource({
                     sent,
                   ),
                 ).catch((error: unknown) => {
-                  // A lost link is a pushed fault. A leave, or the call's own stop (ADR 0133 d1),
+                  // A lost link is a pushed fault. A leave or the call's own stop (ADR 0133 d1)
                   // ends it clean. Any other throw is a bug (ADR 0141): `failed`, never `link`.
                   if (def.fault.is(error)) throw error;
-                  if (leave.signal.aborted || Object(error).name === "AbortError") return;
+                  if (leave.signal.aborted || event.signal.aborted) return;
                   log.error(`${def.name} bug`, { address: key, cause: String(error) });
                   throw faulted({ ok: false, kind: "failed", payload: { side: "client" } });
                 }),

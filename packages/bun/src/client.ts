@@ -341,7 +341,7 @@ export function createWs() {
         if (op !== call && op !== watch) return event.next();
 
         const { side, protocol: p } = event.load(held, kept).get()!;
-        const hook = new Tools(event);
+        const hook = op === call ? new Tools(event) : new Tools(event, event.signal);
         const input = (invocation?.input ?? invocation?.rawInput) as never;
         return op === call ? p.callOver(side, hook, input) : p.watchOver(side, hook, input);
       },

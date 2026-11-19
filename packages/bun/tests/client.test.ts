@@ -1,6 +1,6 @@
 import { getEventListeners } from "node:events";
 
-import { channel, createScope, data, operation, remoteData, rpc } from "@tinkered/core";
+import { channel, createScope, data, LEVELS, operation, remoteData, rpc } from "@tinkered/core";
 import type { Observe, Scope } from "@tinkered/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
@@ -191,6 +191,19 @@ test("a watch the reader leaves sends a stop for its id, once", async () => {
     expect.objectContaining({ i: 1, a: "ticks", w: 1 }),
     { i: 1, x: 1 },
   ]);
+});
+
+test("a watch stopped by its caller's own signal ends clean, with no bug logged", async () => {
+  const { url } = await serve();
+  const logs: Observe.Log[] = [];
+  const client = await tab(url, {}, { log: (entry) => void logs.push(entry) });
+  const stop = new AbortController();
+
+  const values = await client.run(api.ticks, { input: null, signal: stop.signal });
+  for await (const _ of values) stop.abort(new Error("left"));
+  await tick();
+
+  expect(logs.filter((l) => l.level >= LEVELS.warn)).toEqual([]);
 });
 
 test("headers go on the upgrade, and a tab with none sends none", async () => {

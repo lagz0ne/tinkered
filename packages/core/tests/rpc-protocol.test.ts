@@ -351,6 +351,37 @@ test("a transport whose send throws is a bug: logged, failed on this side, never
   });
 });
 
+test("a stream whose meta throws an AbortError, with no caller signal, is a bug: failed, logged", async () => {
+  const { server } = await serverOf();
+  const logs: Observe.Log[] = [];
+  const meta = operation({
+    label: "meta.aborted",
+    run: async () => {
+      throw new DOMException("its own fetch stopped", "AbortError");
+    },
+  });
+  const tab = await createScope({
+    observe: { log: (entry) => void logs.push(entry) },
+    capsules: [
+      memory.client({ peer: server, meta: meta as never }),
+      api({ remote: memory.client }),
+    ],
+  }).ready;
+  closers.push(() => tab.close());
+
+  const values = await tab.run(api.count, { input: null });
+  const ended = await faultOf(
+    (async () => {
+      for await (const _ of values) void _;
+    })(),
+  );
+
+  expect(ended).toEqual({ fault: "failed", payload: { side: "client" } });
+  expect(logs.find((l) => l.message.endsWith(" bug"))?.attributes).toMatchObject({
+    cause: expect.stringContaining("its own fetch stopped"),
+  });
+});
+
 /** A service whose answer and stream throw: a bug in it, not in rpc. */
 const broken = (() => {
   const answer = operation({

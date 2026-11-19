@@ -35,8 +35,10 @@ export type ClientSide = {
 export type ServerSide = { readonly routes: ReadonlyMap<string, Service> };
 
 /**
- * The hook's own tools: run (with a handler note), log, and the call's signal. The protocol reads
- * `log` only when it logs a fault, so a backend can make it on that read.
+ * The hook's own tools: run (with a handler note), log, and the signal that stops the run: a
+ * call's own signal, or a watch's own session signal, which a leave and the call's own stop both
+ * abort (ADR 0133 d1). The protocol reads `log` only when it logs a fault, so a backend can make it
+ * on that read.
  */
 export type Hook = {
   readonly run: (op: never, options: never, why: never) => unknown;
@@ -156,9 +158,9 @@ export const protocol = resource({
     };
 
     /**
-     * Client: one value out; replies pushed until the signal aborts or the stream ends. Core's
-     * `AbortError` from the open is the call's own stop: its session closed (ADR 0133 d1). That
-     * ends the stream clean, as a leave does; no bug, no `failed`.
+     * Client: one value out; replies pushed until the signal aborts or the stream ends. The signal
+     * is the watch's own session's: a throw once it aborted (a leave, or the call's own stop) is
+     * the stop, not a bug, and nothing is pushed.
      */
     const watchOver = async (
       own: ClientSide,
@@ -177,11 +179,7 @@ export const protocol = resource({
       const end = await run<{ ok: true } | Failed>(hook, own.open, {
         input: { ...input, meta, push: got },
         signal,
-      }).catch((error: unknown) =>
-        Object(error).name === "AbortError"
-          ? { ok: true as const }
-          : bug(hook, input.address)(error),
-      );
+      }).catch(bug(hook, input.address));
       if (!end.ok && !signal?.aborted) input.push(end);
     };
 
