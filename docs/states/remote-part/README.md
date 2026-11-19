@@ -57,12 +57,20 @@ No `refetchInterval`.
 ### Rules
 
 TLC reached 340,989 states (`holds.cfg`).
+The spec, the chart and the rerun
+still describe `c9c8817`,
+before the bug 11 fix.
+So they still show 3 rules break.
 
-- **RefusedWaitsForTrigger** — breaks.
+- **RefusedWaitsForTrigger** — holds,
+  since `02e4af4c`
+  (card `core/remote-parked-part-wakes`).
   ADR 0139 d4 ("the part goes to fault
   and waits for a trigger");
   ADR 0140 (The direction).
-- **LinkFaultHeals** — breaks.
+- **LinkFaultHeals** — holds,
+  since `02e4af4c`
+  (card `core/remote-parked-part-wakes`).
   ADR 0139 d4 ("the backend heals it;
   the part shows link until then");
   ADR 0141 table ("A link on a read heals:
@@ -161,9 +169,31 @@ so the chart draws only the bug paths.
 
 ### Bug 11: a parked part wakes from a late answer
 
-Card `core/remote-parked-part-wakes`.
+Card `core/remote-parked-part-wakes` fixes it
+(`02e4af4c`).
 Rules: RefusedWaitsForTrigger, LinkFaultHeals.
 One cause, two rules.
+The text below names the code before the fix.
+
+The fix is in `apply`.
+When each part an answer is for is parked,
+the answer does not get in:
+the part stays in its fault.
+A link fault is the one exception.
+The part shows `link`,
+and `apply` wakes it.
+Its stream opens again,
+with back-off while the link is down.
+When the link is back, the stream opens,
+and its first signal asks.
+
+The spec's RefusedWaitsForTrigger
+lets a parked, refused part
+go only to refused or none.
+The fix also lets it go to `link`,
+as the LinkFaultHeals path test wants
+(step 4 of path 2).
+A spec update must allow that step.
 
 `apply` (828) runs on a parked part.
 `settle` checks only `newer` and `inUse` (822).
@@ -314,9 +344,16 @@ the loop opens it again (671-672).
 
 `paths/` goes to `packages/core/tests/statechart/`.
 
-- `remote-part-paths.test.ts.txt` —
-  today 3 of 4 fail (paths 1 to 3).
-  A fail shows the bug.
+- `remote-part-paths.test.ts` —
+  RefusedWaitsForTrigger (path 1)
+  and LinkFaultHeals (path 2),
+  now in `packages/core/tests/statechart/`.
+  They pass since `02e4af4c`.
+  They failed before: that showed bug 11.
+- `paths/remote-part-paths.test.ts.txt` —
+  InvalidateAwaitsItsAsk and the
+  "no rule yet" test are left.
+  InvalidateAwaitsItsAsk fails today (path 3).
   The last test passes: it pins case 7
   (see [No rule yet](#no-rule-yet)).
 - `key-stream-paths.test.ts.txt` —
@@ -326,8 +363,10 @@ The test's link can drop:
 a small peer wraps the memory server.
 
 Card `core/remote-parked-part-wakes`
-moves the RefusedWaitsForTrigger
-and LinkFaultHeals tests in, without the `.txt`.
+moved the RefusedWaitsForTrigger
+and LinkFaultHeals tests in:
+it cut them from the `.txt`.
+The `.txt` keeps the shared helpers.
 Card `core/invalidate-refused-returns-early`
 moves the InvalidateAwaitsItsAsk test in.
 Card `core/refused-key-reopens`
@@ -412,6 +451,8 @@ statechart KeyStream.tla \
 ```
 
 - `RemotePart.cfg`: exit 1 today, 3 rules break.
+  The spec still describes `c9c8817`,
+  so it does not see the bug 11 fix.
 - `holds.cfg`: exit 0, every rule holds.
 - `KeyStream.cfg`: exit 1 today, 1 rule breaks.
 

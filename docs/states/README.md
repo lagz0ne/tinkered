@@ -114,7 +114,8 @@ so main stays green.
   Card: `core/own-signal-leaves-closing`.
   The other break waits for a rule:
   1 case with no rule yet.
-- **remote-part** — RemotePart: 3 rules break;
+- **remote-part** — RemotePart: 1 rule breaks now
+  (fix `02e4af4c`); the spec still shows 3.
   KeyStream: 1 rule breaks.
   Cards: `core/remote-parked-part-wakes`,
   `core/invalidate-refused-returns-early`,
