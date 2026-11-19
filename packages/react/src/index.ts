@@ -911,9 +911,10 @@ class RunOwner<T, I> {
  * Only the latest run publishes state: a slower earlier run that settles after a newer one (or after
  * `reset`) is dropped, though its `options` callbacks still fire. A Suspense hide and show keeps the
  * latest state; a run that settles while hidden or after unmount still fires its callbacks once.
- * Changing the operation clears the view and stops the old owner's state and callback writes. Changing
- * the provider mounts the subtree again (ADR 0144), so the view starts idle and the old run fires its
- * callbacks as after an unmount. Either way its caller still gets the result.
+ * Changing the operation clears the view: a new owner starts idle, and the old owner's runs fire no
+ * callbacks; they still write the old owner's state, which is never shown again. Changing the provider
+ * mounts the subtree again (ADR 0144), so the view starts idle and the old run fires its callbacks as
+ * after an unmount. Either way its caller still gets the result.
  * Handled failures are received through Core's `settle`, so a panic does not fail the owner. */
 export function useRun<T, I>(
   op: Operation.Handle<T, I>,

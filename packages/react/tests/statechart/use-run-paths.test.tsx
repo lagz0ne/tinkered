@@ -63,7 +63,7 @@ const hold = () => {
   holder.release = () => d.resolve();
 };
 
-test("ShownStateIsLatest path: a Suspense hide and show clears a pending run to idle", async () => {
+test("ShownStateIsLatest: a Suspense hide and show keeps a running run pending (ADR 0032 d2)", async () => {
   const app = setup();
   const scope = createScope();
   hold();
@@ -89,7 +89,7 @@ test("ShownStateIsLatest path: a Suspense hide and show clears a pending run to 
   app.gate.resolve(1);
 });
 
-test("CallbacksFirePerRun path: a run that settles while a Suspense hides it fires no onSuccess", async () => {
+test("CallbacksFirePerRun: a run that ends while hidden fires onSuccess once", async () => {
   const app = setup();
   const scope = createScope();
   hold();
@@ -114,7 +114,7 @@ test("CallbacksFirePerRun path: a run that settles while a Suspense hides it fir
   expect(app.seen).toEqual(["onSuccess 7"]);
 });
 
-test("CallbacksFirePerRun, unmount: a run that settles after unmount fires no onSuccess", async () => {
+test("CallbacksFirePerRun: a run that ends after unmount fires onSuccess once", async () => {
   const app = setup();
   const scope = createScope();
   const screen = await render(
