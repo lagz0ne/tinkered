@@ -766,10 +766,12 @@ const steps = resource({
         Stated,
         { at: string }
       >;
-      /** Sets the state of a part, and of each part in use that it holds whole. */
+      /** Sets the state of a part, and of each part in use that it holds whole. A part that waits
+       * on a fault, or rides one that does, keeps its fault until a trigger (ADR 0139 4). */
       const stand = (asked: Ask, now: PartState) => {
         if (signal.aborted) return;
         for (const j of joined.values()) {
+          if ((j.rides ?? j).wake) continue;
           if (shares(asked, j.ask) && (asked.window || holds(asked, j.ask.part))) {
             states.set({ ...now, at: partSlot(key, j.ask) });
           }
@@ -824,12 +826,13 @@ const steps = resource({
 
       /**
        * Puts one answer in the cell, or its fault in `board.faults`. When each part it is for
-       * waits on a fault, only a broken link gets in: the backend heals a link, so it wakes them
-       * and their streams open again. Any other answer leaves them waiting (ADR 0139 4, 0141).
+       * waits on a fault, or rides one that does (its cover is among them), only a broken link
+       * gets in: the backend heals a link, so it wakes them and their streams open again. Any
+       * other answer leaves them waiting (ADR 0139 4, 0141).
        */
       const apply = (asked: Ask, got: (() => void) | { error: unknown }) => {
         const parts = [...joined.values()].filter((j) => narrowed(j.ask, asked.part));
-        const parked = parts.every((j) => j.wake);
+        const parked = parts.every((j) => j.rides || j.wake);
         try {
           if ("error" in got) throw got.error;
           if (parked) return;
@@ -843,9 +846,9 @@ const steps = resource({
             : def.wire.fault.make(at, "invalid", { side: "client" }, undefined);
           if (parked && fault.fault !== "link") return;
 
+          if (parked) parts.forEach((j) => j.wake?.());
           mark(key, fault);
           stand(asked, { status: "fault", fault });
-          if (parked) parts.forEach((j) => j.wake?.());
         }
       };
 
@@ -863,14 +866,16 @@ const steps = resource({
       const mine = askers.get(def) ?? new Map<string, (dirty: Data.Key) => Promise<void>>();
       askers.set(def, mine.set(key, reask));
 
-      /** Waits until a trigger wakes the part, or the part leaves. */
-      const parked = async (part: Joined) => {
-        await new Promise<void>((woken) => {
-          part.wake = woken;
+      /** Waits until a trigger wakes the part, or the part leaves. The wake clears itself, so the
+       * part counts as awake at once, before its stream opens again. */
+      const parked = (part: Joined) =>
+        new Promise<void>((woken) => {
+          part.wake = () => {
+            part.wake = undefined;
+            woken();
+          };
           part.stop.signal.addEventListener("abort", () => woken(), { once: true });
         });
-        part.wake = undefined;
-      };
 
       const follow = async (part: Joined) => {
         for (let wait = 50; !part.stop.signal.aborted;) {
