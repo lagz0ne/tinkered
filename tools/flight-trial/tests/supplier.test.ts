@@ -103,8 +103,8 @@ async function search(url: string) {
 }
 
 /**
- * Two suppliers each gunzip, parse, and deep-copy the 7 MB flight fixture: about 0.4 s each on a
- * quiet box and up to 2 s each at load 30, which left 47 ms of the 5 s default.
+ * Two suppliers each read, gunzip, and zod-parse the 7 MB fixture, then deep-copy their own offers:
+ * about 0.4 s each on a quiet box, peak 4.4 s at load 34; 20 s leaves room without hiding a hang.
  */
 test("search returns data flights shared by suppliers A and B", async () => {
   const stopA = new AbortController();
