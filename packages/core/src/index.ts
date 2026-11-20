@@ -1788,6 +1788,15 @@ function ensureOpen(layer: Layer): void {
   if (layer.closed && !hookCanRead(layer)) raise("Disposed", { reason: "scope is closed" });
 }
 
+/** A session's handle dies when its body ends (ADR 0071 d1). A graceful close keeps `closed` false
+ * while it drains owned work (ADR 0028), and that work's own controllers still pass
+ * {@link ensureOpen}; so only the handle reads the body end. */
+function ensureLive(layer: Layer): void {
+  if ((layer.closed || layer.bodyDone) && !hookCanRead(layer)) {
+    raise("Disposed", { reason: "scope is closed" });
+  }
+}
+
 /** A root refuses outside calls before its close hooks run. Running work keeps its helpers
  * until the drain ends, as with Go http.Server.Shutdown (ADR 0028, 0104). */
 function ensureAccepting(layer: Layer): void {
@@ -4925,7 +4934,7 @@ function endSession<R>(child: Layer, raw: R | Promise<R>): R | Promise<R> {
      * as the body gave it. `session()` still wraps it; a tagged call hands it on. */
     return raw;
   }
-  return settleSessionWith(child, raw instanceof Promise ? raw : Promise.resolve(raw));
+  return settleSessionWith(child, Promise.resolve(raw));
 }
 
 /** End a session in place: the end state main's forced self-close reaches for a session with
@@ -5136,7 +5145,7 @@ class ScopeHandle implements Scope.Handle {
     ns?: Scope.NsArg,
   ): unknown {
     const layer = this.layer;
-    ensureOpen(layer);
+    ensureLive(layer);
     if (ns?.ns !== undefined) return controllerNs(layer, target, nsChainOf(ns.ns));
     if (target === layer.lastTarget && layer.closing === undefined) return layer.lastController;
 
@@ -5176,6 +5185,7 @@ class ScopeHandle implements Scope.Handle {
   ): unknown {
     const layer = this.layer;
     if (layer.closed) return resolveHeld(layer, target, ns);
+    ensureLive(layer);
     if (ns?.ns !== undefined) return resolveNs(layer, target, nsChainOf(ns.ns));
 
     if (isData(target)) return readCell(layer, Capsules.check(layer, target));
@@ -5273,7 +5283,7 @@ class ScopeHandle implements Scope.Handle {
     return Capsules.linesOf(this.layer);
   }
   onClose(fn: () => void | PromiseLike<void>): void {
-    ensureOpen(this.layer);
+    ensureLive(this.layer);
     addDefer(this.layer, { fn: () => fn(), owned: undefined });
   }
   async settled(): Promise<void> {
