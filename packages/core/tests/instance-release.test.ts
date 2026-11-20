@@ -970,18 +970,19 @@ test("release waits for the borrowed run body and all its defers", async () => {
 });
 
 test("close resolves after a failed build's dependency is released", async () => {
+  const cause = new Error("a fails");
   const b = resource({ label: "nc.b", factory: (_deps, _ctx) => "b" });
   const a = resource({
     label: "nc.a",
     depends: { b },
     factory: (_deps, _ctx) => {
-      throw new Error("a fails");
+      throw cause;
     },
   });
   const scope = createScope();
-  expect(() => scope.resolve(a)).toThrow("a fails");
-  scope.release(b);
+  expect(() => scope.resolve(a)).toThrow(cause);
 
+  scope.release(b);
   const closing = scope.close().then(() => "closed");
   const open = new Promise<string>((resolve) => setImmediate(() => resolve("open")));
 
@@ -989,6 +990,7 @@ test("close resolves after a failed build's dependency is released", async () =>
 });
 
 test("a release ends a failed holder's hooks before its dependency's", () => {
+  const cause = new Error("client fails");
   const ended: string[] = [];
   const pool = resource({
     label: "pool",
@@ -1002,11 +1004,11 @@ test("a release ends a failed holder's hooks before its dependency's", () => {
     depends: { pool },
     factory: (_deps, ctx) => {
       ctx.defer((end) => void ended.push(`client:${end.status}`));
-      throw new Error("client fails");
+      throw cause;
     },
   });
   const scope = createScope();
-  expect(() => scope.resolve(client)).toThrow("client fails");
+  expect(() => scope.resolve(client)).toThrow(cause);
 
   scope.release(pool);
 
