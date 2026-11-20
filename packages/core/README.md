@@ -1348,6 +1348,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   answer, then `ready` or `fault`; `undefined` when no reader holds it.
   A watch of the status holds the part, as a reader does (ADR 0164); a
   `get()` of it holds nothing.
+  A status watch that moves to another part drops the first part and asks
+  for the new one.
 - A part that rides a ready part is `ready` at once.
 - A `refused` or `invalid` part waits: no ask again until an
   `invalidate` names it. A broken link asks again by itself.
