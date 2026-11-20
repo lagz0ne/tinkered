@@ -81,7 +81,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/rpc-sweep** — Steps 0-3 of Fable's reconstruction B for the rpc chunk, one commit per step: 0 rewrite `build/private-fields.json`; 1 drop unused step keys and small dedupes in rpc, rpc-lifecycle and remote-data; 2 remove the config-parameter keyed board and `fill` (Duke 2026-11-20 14:13: "During that journey, we'll clean outdate, old deadcode"; ADR 0135 amended); 3 remoteData uses each cell spec's own key rules. No API change but step 2.
+- **core/rpc-sweep** — Steps 0-2 of Fable's reconstruction B for the rpc chunk, one commit per step: 0 rewrite `build/private-fields.json`; 1 drop unread step keys and share small steps in rpc, rpc-lifecycle and remote-data; 2 remove the config-parameter keyed board and `fill` (Duke 2026-11-20 14:13: "During that journey, we'll clean outdate, old deadcode"; ADR 0135 amended). Size: 35,203 -> 33,771 B with rpc; 23,259 -> 23,251 B without. Lands as 0.33.0: it removes the public `config` and `fill` options and shrinks `transport.lifecycle`'s type.
+  Step 3 (remoteData uses each cell spec's key rules) is parked until step 4's split, which may move the key rules anyway: Core's `holds` and `textsOf` are shortened private names, so a shared helper needs a public name or a +4 B core chunk (prototype: -58 B with rpc, core chunk 22,728 -> 22,732 B).
   Owner: lead. Writer: branch `core/rpc-sweep`.
   Next: the writer lands step 0, then 1, 2, 3, with size before and after each.
   Verify: per step, both size lines fall and the core chunk does not grow; `vp check`, `vp run -r test`, `ticket.sh` and the core lane (kills >= 85) on the last commit.
