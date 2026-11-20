@@ -968,3 +968,22 @@ test("release waits for the borrowed run body and all its defers", async () => {
   expect(original.closed).toBe(true);
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });
+
+test("close resolves after a failed build's dependency is released", async () => {
+  const b = resource({ label: "nc.b", factory: (_deps, _ctx) => "b" });
+  const a = resource({
+    label: "nc.a",
+    depends: { b },
+    factory: (_deps, _ctx) => {
+      throw new Error("a fails");
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.resolve(a)).toThrow("a fails");
+  scope.release(b);
+
+  const closing = scope.close().then(() => "closed");
+  const open = new Promise<string>((resolve) => setImmediate(() => resolve("open")));
+
+  expect(await Promise.race([closing, open])).toBe("closed");
+});
