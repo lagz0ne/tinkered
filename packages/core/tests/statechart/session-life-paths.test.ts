@@ -2,7 +2,7 @@
  * One block per model step. Each test asserts the ADR rule, so a failure shows the bug. */
 import { expect, test } from "vite-plus/test";
 
-import { capsule, createScope, resource, type Scope } from "@/index";
+import { capsule, createScope, operation, resource, type Scope } from "@/index";
 
 function gate() {
   let release = (): void => undefined;
@@ -99,4 +99,67 @@ test("FirstModeWins: a session's defer keeps the app's graceful root close grace
   log.push(`root: ${result.status}`);
 
   expect(log).toEqual(["close hook runs", "root defer: success", "root: success"]);
+});
+
+test("HandleDeadAfterBody: a leaked session handle takes onClose after the body ended (ADR 0071 d1)", async () => {
+  const log: string[] = [];
+  const root = createScope({ capsules: [closeHook(log)] });
+  await root.ready;
+  const background = gate();
+  const slow = operation({ label: "background", run: () => background.promise });
+  const bodyGate = gate();
+
+  // 0. Root open, session body runs. It starts owned work and keeps its handle.
+  let leaked: Scope.Handle | undefined;
+  const flight = root.session(async (s) => {
+    leaked = s;
+    void s.run(slow);
+    await bodyGate.promise;
+    return "body done";
+  });
+
+  // 1. The app calls root.close({ graceful: true }).
+  const closing = root.close({ graceful: true });
+  // 2. The close hook calls next(). 3. The close reaches the session.
+  await tick();
+
+  // 4. The session body returns. The graceful close waits for the owned work.
+  bodyGate.release();
+  await tick();
+
+  // 5. Code calls onClose on the leaked handle.
+  let refused = false;
+  try {
+    leaked!.onClose(() => {
+      log.push("late defer ran");
+    });
+  } catch {
+    refused = true;
+  }
+
+  background.release();
+  await flight;
+  await closing;
+
+  expect(refused).toBe(true);
+  expect(log).toEqual(["close hook runs"]);
+});
+
+test("control: with no ancestor close, the leaked handle is refused after the body", async () => {
+  const root = createScope();
+  const background = gate();
+  const slow = operation({ label: "background", run: () => background.promise });
+
+  let leaked: Scope.Handle | undefined;
+  const flight = root.session(async (s) => {
+    leaked = s;
+    void s.run(slow).catch(() => undefined);
+    return "body done";
+  });
+  await tick();
+
+  expect(() => leaked!.onClose(() => undefined)).toThrow("Disposed");
+  background.release();
+  await flight.catch(() => undefined);
+  await root.close();
 });
