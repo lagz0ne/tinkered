@@ -72,7 +72,9 @@ const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // A window in a keyed read (ADR 0139 2) raised it by 192 B (Duke 2026-11-14: "Can do").
 // A keyed resource (ADR 0157: a span per build, `defer`) raised it by 128 B.
 // `session.id` and `tinker.exit` on spans (ADR 0162) raised it by 64 B (Duke 2026-11-16 07:49).
-const coreCap = 23232;
+// Bugs 9 and 13 of the statechart work (a leaked session handle; a refused plain key) raised it by
+// 24 B (Duke 2026-11-20 03:12: option A; 1-2 B of it is the hashed rpc chunk name).
+const coreCap = 23256;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
 // derived (ADR 0150) raised this cap by 1 KiB too.
