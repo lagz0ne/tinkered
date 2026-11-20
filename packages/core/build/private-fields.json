@@ -20,6 +20,7 @@
   "eff",
   "ended",
   "ending",
+  "ends",
   "ext",
   "exts",
   "failedHooks",
@@ -100,5 +101,7 @@
   "up",
   "visit",
   "watched",
+  "windowText",
+  "windows",
   "wired"
 ]
