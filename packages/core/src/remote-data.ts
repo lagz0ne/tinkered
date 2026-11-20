@@ -88,7 +88,8 @@ type Joined = {
 };
 
 /** The resolve of an `invalidate` that woke a part: it takes the first ask of the part's new
- * stream, or nothing on a fault. A later call does nothing (ADR 0147 d4). */
+ * stream, or nothing on a fault, or nothing when the part leaves. A later call does nothing
+ * (ADR 0147 d4). */
 type Heard = (asked?: Promise<void>) => void;
 
 /** A client's ask in flight, and the asks that started after it and share members with it. */
@@ -892,7 +893,7 @@ const steps = resource({
 
       /** `invalidate` here: ask again for the dirty share of each part in use, once each. A part
        * that waits on a fault asks nothing here: the await ends with its new stream's first ask,
-       * or that stream's fault (ADR 0147 d4). */
+       * or that stream's fault, or nothing when the part leaves (ADR 0147 d4). */
       const reask = async (dirty: Data.Key) => {
         const asks = new Map<string, Ask>();
         const woken: Promise<void>[] = [];

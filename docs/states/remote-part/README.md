@@ -265,8 +265,9 @@ and adds no ask to the list it awaits
 (849-850).
 
 The fix is in `reask`, `parked` and `follow`.
-`reask` gives its own resolve to `wake`.
-The part's new stream resolves it
+`reask` hands `wake` the call
+that ends its await.
+The new stream ends it
 with its first ask, or on its fault.
 So the await ends with the part
 `ready` or in its new fault.
