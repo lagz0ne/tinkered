@@ -9,6 +9,17 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.16
+
+`await invalidate` on a refused keyed part waits
+for its new answer (bug 12, ADR 0147; Duke
+2026-11-19, option A).
+
+- Before, it returned before any ask, while the
+  part still showed its old fault.
+- Now it ends with the reopened stream's first
+  value or fault, or when the part leaves.
+
 ## 0.31.15
 
 A session handle that leaked out of its body

@@ -12,11 +12,11 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 147,
-    "medianTrue": 0.86,
+    "falses": 149,
+    "medianTrue": 0.84,
     "medianFalse": 0.58,
-    "separation": 0.28,
-    "ordered": 0.78,
+    "separation": 0.27,
+    "ordered": 0.77,
     "at": "2026-11-20"
   },
   "stateOutsideCell": {
@@ -62,11 +62,11 @@
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 2,
-    "falses": 92,
-    "medianTrue": 0.78,
+    "falses": 94,
+    "medianTrue": 0.8,
     "medianFalse": 0.88,
-    "separation": -0.1,
-    "ordered": 0.09,
+    "separation": -0.08,
+    "ordered": 0.13,
     "at": "2026-11-20"
   },
   "readsMoreThanRendered": {
@@ -202,11 +202,11 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 71,
-    "medianTrue": 0.79,
+    "falses": 72,
+    "medianTrue": 0.8,
     "medianFalse": 0.59,
-    "separation": 0.2,
-    "ordered": 0.81,
+    "separation": 0.21,
+    "ordered": 0.82,
     "at": "2026-11-20"
   },
   "waitsOnSideWork": {
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 1,
-    "falses": 140,
-    "medianTrue": 0.59,
+    "falses": 141,
+    "medianTrue": 0.4,
     "medianFalse": 0.61,
-    "separation": -0.03,
-    "ordered": 0.38,
+    "separation": -0.21,
+    "ordered": 0.05,
     "at": "2026-11-20"
   }
 }

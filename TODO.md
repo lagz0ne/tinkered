@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **react/starting-scope-disposed-flake** — `packages/react/tests/starting-scope.test.tsx` ("a failed start reaches the error boundary") sometimes ends with an unhandled `Error: Disposed` from `useData`'s subscribe (`index.ts` ~440) while all tests pass; under load it fails `vp run -r test`, and it failed CI once on `d94b22ef` (2026-11-20; the re-run passed). Seen since 2026-11-18.
+  Next: find which subscribe runs after the failed start disposed its scope, and make it not throw (or the test wait for the close).
+  Verify: the file passes 50 runs in a row under load with no unhandled error.
+
 - **react/run-hidden-no-render** — The `RunOwner` TSDoc promises a hidden or unmounted view keeps the latest state without a re-render, but no test pins it: the mutants that drop `live = false` in the cleanup (`index.ts` ~865) survive (review of `react/mutation-floor`).
   Next: a test that hides a `useRun` view with `<Activity>`, lets the run settle, and counts renders before the show; or drop the words from the TSDoc.
   Verify: the test fails with `live = false` removed.
@@ -101,11 +105,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused keyed part returns before any ask (ADR 0147 d4).
-  Duke 2026-11-19 13:59 ("Agreed to all"): option A. The await covers the reopened stream's first answer; the path test's exact-one-request check is loosened (`asksSince >= 0`, and `ready` when the await returns). Cap: Duke 2026-11-20 07:23.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/invalidate-refused-returns-early`.
-  Verify: the InvalidateAwaitsItsAsk path test (loosened) passes; core gates, size caps, core mutation.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -155,6 +154,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/invalidate-refused-returns-early** — done 2026-11-20 (bug 12, [remote-part](docs/states/remote-part/README.md); ADR 0147 d4; Duke 2026-11-19 option A; cap Duke 2026-11-20 07:23). `await invalidate` on a refused keyed part ends with the reopened stream's first value or fault, or when the part leaves. Fix `b036f396`. Released as 0.31.16.
+  Proof: InvalidateAwaitsItsAsk (exact-one-ask check loosened to `>= 0`, Duke's option A) red on main, green; two tests that the await ends on a second refusal and on a leave, each red without its line; ticket steps green (one task at a time); sizes 23,250 B and 35,123 B (caps 23,256 / 35,136); core mutation 87.27 on `c0d82618` by the lead, exit 0 (kills alone 84.8: 172 timeouts under the box's load; core source byte-identical to the landed head). Opus convention-review READY; one small round (tests, docs).
 
 - **core/session-handle-after-body** — done 2026-11-20 (bug 9, [session-life](docs/states/session-life/README.md) HandleDeadAfterBody; ADR 0071 d1; caps: Duke 2026-11-20 03:12 and 07:23, option A). A leaked session handle refuses `onClose`, `resolve` and `controller` with `Disposed` once its body ended, plain and hooked; owned work keeps running (ADR 0028). Fixes `f81d82b6`, `1e5f223d`. Released as 0.31.15.
   Proof: the HandleDeadAfterBody path test and its control in `packages/core/tests/statechart/session-life-paths.test.ts`, red on main; a plain-and-hooked resolve/controller test in `session-end.test.ts`, red on the first fix; the ticket steps green on the rebased head (run one task at a time under another session's load; site and React re-run once for Chromium connect and the known `Disposed` flake); sizes 23,249 B (cap 23,256) and 35,088 B (cap 35,136); core mutation 86.43 on `b81ded71` by the lead, exit 0 (kills alone 85.0: 5,989/7,046; core source byte-identical to the landed head). Opus convention-review NOT READY (hooked sessions; untested refusals), one fix round, READY.
