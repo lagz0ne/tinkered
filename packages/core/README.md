@@ -1476,6 +1476,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A build superseded in flight leaves the rebuilt instance alive: its late cleanup never drops it.
 - A release nested inside a release cleanup never hangs close, nor does a session cleanup closing the
   root; closing another scope from a cleanup still awaits its real teardown.
+- A failed build still holds its dependencies: a release of one ends the failed build's cleanups
+  first, then the dependency's, and a close after that release resolves.
 - A resource preset replaces the built instance, builds once per owner, resolves async factories, and
   runs its own cleanup at owner close; the real factory never runs.
 - A resource preset does not build the deps of the node it replaces.
