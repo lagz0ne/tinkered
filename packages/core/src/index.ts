@@ -8851,7 +8851,9 @@ class BuiltEntry implements Data.Reader<unknown> {
     for (const end of this.ends.splice(0).reverse()) end();
   }
 
-  /** A source still builds: the entry waits for it, then reads it again. */
+  /** A source still builds: the entry waits for it, then reads it again. A source that settles
+   * after the scope closed wakes nothing: the build's end could never run, and the read would
+   * raise `Disposed` into the parked promise, where no one may catch it (ADR 0157 d5). */
   private park(build: Promise<unknown>): void {
     const wait: Promise<void> = build
       .then(undefined, (error: unknown) => {
@@ -8861,7 +8863,7 @@ class BuiltEntry implements Data.Reader<unknown> {
         if (this.wait !== wait) return;
 
         this.wait = undefined;
-        tell(this.def.label, () => this.wake());
+        if (!this.layer.closed) tell(this.def.label, () => this.wake());
       });
     this.wait = wait;
   }
