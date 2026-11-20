@@ -78,7 +78,8 @@ Tinker keeps the same split, simpler:
    subscribes, after that render. The first
    holder then hears `pending`, then `ready` or
    `fault`. A part that rides a ready part is
-   `ready` at once (ADR 0139 1).
+   `ready` at once, as the Core README's keyed
+   remote data rules say.
 4. **No new API.** No option, no new name. The
    change is in what a watch of the status means.
 
