@@ -55,7 +55,7 @@ So they still show 3 rules break.
 - **FirstModeWins** — holds, since `cdc2c742`
   (card `core/close-from-defer-skips-hooks`).
   ADR 0029 d1.
-- **HandleDeadAfterBody** — holds, since `671627c6`
+- **HandleDeadAfterBody** — holds, since `57a1eba5`
   (card `core/session-handle-after-body`).
   ADR 0071 d1.
 - **ChildrenCloseFirst** — holds.
@@ -223,8 +223,8 @@ instead of commit (`success`).
 ## Bug 9: a leaked handle takes `onClose`
 
 Card `core/session-handle-after-body` fixes it:
-`57e587bf` for a plain session,
-`671627c6` for a session under `session` hooks.
+`08d70e9b` for a plain session,
+`57a1eba5` for a session under `session` hooks.
 Rule: HandleDeadAfterBody.
 The paths below name the code before the fix.
 
@@ -244,7 +244,7 @@ until the drain ends (`closeLayer`).
 5. The session body returns.
    The graceful close waits for the owned work.
 6. Code calls `onClose` on the leaked handle.
-   Before `57e587bf` it took the defer.
+   Before `08d70e9b` it took the defer.
    No `Disposed`.
    ADR 0071 d1 wants `Disposed`.
 
@@ -273,7 +273,7 @@ Both session paths record the body end
   now in `packages/core/tests/statechart/`.
   Paths 1 and 2 pass since `cdc2c742`.
   They failed before: that showed bug 8.
-  Path 3 passes since `57e587bf`.
+  Path 3 passes since `08d70e9b`.
   It failed before: that showed bug 9.
   The control passed before and after.
   Path 1's comment "the hook still never ran"
