@@ -332,7 +332,7 @@ test("a custom isEqual suppresses re-render for a new slice it treats as equal",
   await scope.close();
 });
 
-test("a new cell under the same selector shows and follows that cell", async () => {
+test("a new cell with an inline selector shows and follows that cell", async () => {
   const scope = createScope();
   scope.controller(sbox).set({ a: 2, b: 2 });
 

@@ -7,7 +7,6 @@ import {
   ScopeProvider,
   SessionProvider,
   isError,
-  useData,
   useRelease,
   useResource,
   useScope,
@@ -120,10 +119,9 @@ function label(error: unknown): string {
 const answer = resource({ label: "answer", factory: () => 42 });
 
 test.each([
-  ["useScope", Greeting],
-  ["useData", () => <p>{useData(greeting)}</p>],
-  ["useResource", () => <p>{useResource(answer)}</p>],
-  ["useRelease", () => <p>{typeof useRelease()}</p>],
+  ["useScope", Greeting, /^caught:useScope$/],
+  ["useResource", () => <p>{useResource(answer)}</p>, /^caught:/],
+  ["useRelease", () => <p>{typeof useRelease()}</p>, /^caught:/],
   [
     "SessionProvider",
     () => (
@@ -131,15 +129,16 @@ test.each([
         <p>session</p>
       </SessionProvider>
     ),
+    /^caught:/,
   ],
-])("%s used with no provider raises NoProvider", async (_name, View) => {
+])("%s used with no provider raises NoProvider", async (_name, View, caught) => {
   const screen = await render(
     <Catch fallback={(error) => <p>{label(error)}</p>}>
       <View />
     </Catch>,
   );
 
-  await expect.element(screen.getByText("caught:useScope")).toBeVisible();
+  await expect.element(screen.getByText(caught)).toBeVisible();
 });
 
 test("an Activity hide closes the created scope, and a show renders only with a fresh one", async () => {

@@ -203,8 +203,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 ### useScope
 
-- A hook used with no provider raises NoProvider.
-- useData, useResource, useRelease, and SessionProvider with no provider raise NoProvider.
+- useScope, useResource, useRelease, and SessionProvider used with no provider raise NoProvider.
 
 ### useData
 
@@ -227,7 +226,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - A write after unmount neither updates the removed subtree nor breaks the still-open scope.
 - A component reads a keyed resource, keeps its reference across renders, and follows a write.
 - A new config leaves the old entry.
-- A new cell under the same selector shows and follows that cell.
+- A new cell with an inline selector shows and follows that cell.
 - A server render gives a pair for writable options alone.
 
 ### useResource

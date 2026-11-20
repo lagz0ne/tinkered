@@ -169,7 +169,8 @@ export function ScopeProvider(props: ScopeProviderProps): ReactNode {
  * not reach the parent. Created in an effect (StrictMode-safe, like {@link ScopeProvider}'s `create`
  * mode): StrictMode's first mount closes its session, which no render used yet, and the next live
  * mount opens a fresh one; a replay after the children rendered keeps the session (see below). A
- * new nearest scope mounts this provider again (ADR 0144), so a session never outlives its parent.
+ * new nearest scope mounts this provider again (ADR 0144), so a session is never shown under
+ * another parent.
  * The reset namespace head is saved with this session, including an inherited key.
  * `options` apply when the session is created — changing them for the same parent has no effect until
  * the provider remounts.
