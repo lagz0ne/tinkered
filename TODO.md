@@ -25,9 +25,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **react/starting-scope-disposed-flake** — `packages/react/tests/starting-scope.test.tsx` ("a failed start reaches the error boundary") sometimes ends with an unhandled `Error: Disposed` from `useData`'s subscribe (`index.ts` ~440) while all tests pass; under load it fails `vp run -r test`, and it failed CI once on `d94b22ef` (2026-11-20; the re-run passed). Seen since 2026-11-18.
-  Next: find which subscribe runs after the failed start disposed its scope, and make it not throw (or the test wait for the close).
-  Verify: the file passes 50 runs in a row under load with no unhandled error.
+- **flight-trial/supplier-search-timeout** — `tools/flight-trial/tests/supplier.test.ts` "search returns data flights shared by suppliers A and B" times out at Vitest's 5 s under load (load 15-40 on this box): it failed CI once on `5ca285e7` (2026-11-20; the re-run passed) and most local `ticket.sh` and push-hook runs of 2026-11-18 to 2026-11-20. It passes alone in about 1-2 s on a quiet box. Earlier notes: `docs/roadmap/core-v1/graceful-writes-logs/GATES.json` ("supplier.test.ts:96 test timeout"), `docs/roadmap/perf/PROGRESS.md`.
+  Next: find what the test waits on (polls, real timers, a fixed delay per supplier) and make it wait on the event instead, or give that one test the time its work needs, with the reason.
+  Verify: the file passes 30 runs in a row with the box under load (load 20 or more) and in CI.
 
 - **react/run-hidden-no-render** — The `RunOwner` TSDoc promises a hidden or unmounted view keeps the latest state without a re-render, but no test pins it: the mutants that drop `live = false` in the cleanup (`index.ts` ~865) survive (review of `react/mutation-floor`).
   Next: a test that hides a `useRun` view with `<Activity>`, lets the run settle, and counts renders before the show; or drop the words from the TSDoc.
@@ -100,6 +100,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: that test fails on main and passes.
 
 ## Doing
+
+- **react/starting-scope-disposed-flake** — `packages/react/tests/starting-scope.test.tsx` ("a failed start reaches the error boundary") sometimes ends with an unhandled `Error: Disposed` from `useData`'s subscribe (`index.ts` ~440) while all tests pass; under load it fails `vp run -r test`, and it failed CI once on `d94b22ef` (2026-11-20; the re-run passed). Seen since 2026-11-18.
+  Next: find which subscribe runs after the failed start disposed its scope, and make it not throw (or the test wait for the close).
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/starting-scope-disposed-flake`.
+  Verify: the file passes 50 runs in a row under load with no unhandled error.
 
 ## Review
 
