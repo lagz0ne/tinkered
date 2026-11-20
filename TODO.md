@@ -101,6 +101,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused keyed part returns before any ask (ADR 0147 d4).
+  Duke 2026-11-19 13:59 ("Agreed to all"): option A. The await covers the reopened stream's first answer; the path test's exact-one-request check is loosened (`asksSince >= 0`, and `ready` when the await returns). Cap: Duke 2026-11-20 07:23.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/invalidate-refused-returns-early`.
+  Verify: the InvalidateAwaitsItsAsk path test (loosened) passes; core gates, size caps, core mutation.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -116,12 +121,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
-
-- **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused part returns before any ask (`reask` calls `wake()` and adds no ask to the list it awaits; ADR 0147 d4).
-  Missing: Duke's rule for the path test. InvalidateAwaitsItsAsk (`paths/remote-part-paths.test.ts.txt`) wants `asksSince: 1` and `ready` when the await returns. That forces one design: invalidate sends its own `tasks.ask` and the await also covers the stream's reopen. A fix where invalidate only reopens the stream (its first push is the value) gives 0 asks and fails it (lead's audit, 2026-11-19).
-  A: the await covers the reopened stream's first answer; the test asks `asksSince >= 0` and `ready`. Lead's pick: no extra round trip.
-  B: keep the test; invalidate on a refused part sends one ask and waits for it, then the stream reopens.
-  Verify (after the pick): the path test (as picked) passes.
 
 - **core/states-rules-undecided** — 7 cases with no ADR rule yet, found by the specs in [docs/states](docs/states/README.md). What the code does today: (1) UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8): the write throws UpdateDepth; the error is lost; (2) an equal `set` in a reader's build (ADR 0157 d7): it is dropped before the check; no WriteInRead; (3) a failed sync build's end (ADR 0026 Q4): it runs only at the release or the close; (4) a session catches its grandchild's managed error (ADR 0028 d3 vs ADR 0067): the session and the root fail only when a root close is in flight; else both succeed; (5) a close called from a defer (ADR 0026 d3 vs ADR 0027): it returns `success` at once; the close it starts ends `cancelled`; (6) a run hook calls `next()` twice (ADR 0050 d1): the body runs twice; the run returns the second value. A finished run's first ctx stays live, so its leaked `deps.inner` runs on a closing scope. ADR 0127 d2 may or may not cover a scope still closing (FinishedRunStartsNothing breaks in the run-life check); (7) one part's good answer clears the key's fault in `board.faults` (ADR 0139 d1 is silent): `board.faults.tasks` is gone while another part still shows refused.
   Also: `core/local-stream-signal` (Ready) now has a pinned test, the second test of `docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`.
