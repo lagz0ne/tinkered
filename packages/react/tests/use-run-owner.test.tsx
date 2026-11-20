@@ -210,3 +210,39 @@ test("a run that settles while an Activity hides the view shows its result when 
   await expect.element(screen.getByText("value:late")).toBeVisible();
   await scope.close();
 });
+
+type Counted = Seen & { renders: number };
+
+/** Counts its own renders: a hidden view must not render when its run settles (ADR 0032 d2). */
+function CountedView({ seen }: { seen: Counted }): React.ReactElement {
+  seen.renders += 1;
+  const run = useRun(readAnswer, { onSuccess: (value) => seen.calls.push(value) });
+  seen.run = run;
+  return <p>counted:{run.status === "success" ? run.data : run.status}</p>;
+}
+
+test("a run that settles while an Activity hides the view does not render it; the show renders the latest state", async () => {
+  const gate = deferred<string>();
+  const scope = createScope({ tags: [answer(gate.promise)] });
+  const seen: Counted = { calls: [], renders: 0 };
+  const view = <CountedView seen={seen} />;
+  const shown = (mode: "visible" | "hidden") => (
+    <ScopeProvider scope={scope}>
+      <Activity mode={mode}>{view}</Activity>
+    </ScopeProvider>
+  );
+  const screen = await render(shown("visible"));
+  seen.run?.run();
+  await expect.element(screen.getByText("counted:pending")).toBeVisible();
+  await screen.rerender(shown("hidden"));
+  const hiddenRenders = seen.renders;
+
+  gate.resolve("late");
+  await expect.poll(() => seen.calls).toEqual(["late"]);
+  await screen.rerender(shown("hidden"));
+
+  expect(seen.renders).toBe(hiddenRenders);
+  await screen.rerender(shown("visible"));
+  await expect.element(screen.getByText("counted:late")).toBeVisible();
+  await scope.close();
+});
