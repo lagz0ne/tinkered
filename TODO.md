@@ -86,11 +86,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **bun/client-empty-tick** — After `drop()` empties `out`, the tick it scheduled still runs with nothing to send and opens a new socket, which stays open until the scope closes (review of `bun/client-drop-keeps-frames`, the tick in `post`). Next: the tick returns when its batch is empty; step 5 of `statechart-rpc-call.test.ts` then expects 1 socket.
   Verify: a bun test shows no socket opens after a drop with nothing left to send; the rpc-call path test passes.
 
-- **core/failed-holder-blocks-close** — A failed build keeps its instance, which still holds its dependency. A release of that dependency then waits for the failed holder, and `close()` waits for that release before it unlinks the failed instance, so the close never resolves (`startClose`; ADR 0027, ADR 0063 d4). Found while fixing bug 7; the resource-life spec misses it (its close unlinks every instance at once).
-  Repro: `b` plain; `a` depends on `b` and throws; `resolve(a)` throws; `release(b)`; `close()` is still open after 300 ms (main and after bug 7).
-  Next: a Core test with that repro (red), then let the close unlink before it waits, or let a release not wait on a failed holder.
-  Verify: the test passes; ADR 0063 d4 tests still pass.
-
 - **core/follow-stop-after-open** — In `src/remote-data.ts` `follow`, the abort listener on `part.stop.signal` is added after the stream opens; if the last reader left during the open, the signal already aborted, the listener never fires, and the server stream stays open until the root closes (writer and review of `core/remote-parked-part-wakes`).
   Next: a Core test that leaves while the stream opens, then checks the stream ends; fix with `if (part.stop.signal.aborted) signals.stop();` after the listener, as `round` does.
   Verify: that test fails on main and passes.
@@ -140,6 +135,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/failed-holder-blocks-close** — done 2026-11-20 (ADR 0063 d3/d4, ADR 0027). A failed build kept its instance, which still held its dependency, but lost its edges; a release of that dependency then waited for the failed holder, and `close()` never resolved. Now a failed instance keeps its edges, so the release ends it first, then the dependency. Fix `336a2885`. Released as 0.32.2.
+  Proof: `instance-release.test.ts` close tests, red on main; ticket steps green; sizes 23,267 B / 35,212 B (caps 23,272 / 35,232); Core mutation on `0cf8a38a` (clean tree) 86.14, kills alone 85.3, exit 0. Opus convention-review READY after one round (throw a cause, T07).
 
 - **core/keyed-wake-after-close** — done 2026-11-20 (ADR 0157 d5). On main no late build ran: a keyed entry parked on a source that settled after the scope closed woke, read the source, and threw `Disposed` into a promise nobody caught. Now a settle after the close wakes nothing (`BuiltEntry.park`). Fix `be11dbcc`. Released as 0.32.1.
   Proof: a `resource-keyed-life.test.ts` test (no build, no error), red on main; ticket steps green one task at a time; sizes 23,262 B / 35,207 B (caps 23,272 / 35,232); core mutation 86.55 on `7b85feda` by the lead, exit 0 (kills alone 85.0: 6,001/7,061; core source byte-identical to the landed head). Opus convention-review NOT READY (wrong bug name), one rename round, READY.

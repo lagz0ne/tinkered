@@ -9,6 +9,18 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.32.2
+
+A `close()` after a failed build's dependency
+is released now resolves (ADR 0063, ADR 0027).
+
+- Before, the failed instance still held its
+  dependency but had lost its edges. So the
+  dependency's release waited for it forever,
+  and the close that joins that release hung.
+- Now a failed instance keeps its edges: the
+  release ends it first, then the dependency.
+
 ## 0.32.1
 
 A keyed resource whose source settles after the
