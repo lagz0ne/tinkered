@@ -27,7 +27,7 @@ TLC reached 24,044 states.
 The spec, the chart and the rerun
 still describe `3ff6778`,
 before fixes `ff565316`, `ecc3be31`,
-`f2125284` and `ecd641e2`.
+`f2125284` and `be11dbcc`.
 So they still show 5 rules break.
 
 - **EndBeforeNextBuild** — holds after fixes
@@ -47,7 +47,7 @@ So they still show 5 rules break.
   (paths 3 and 4).
   It also holds for a source still pending
   that settles after the close,
-  after fix `ecd641e2`
+  after fix `be11dbcc`
   (card `core/keyed-wake-after-close`).
   Before it, the settle woke the entry
   (`park`, then `tell`, `wake`, `fresh(true)`).

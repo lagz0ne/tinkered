@@ -81,7 +81,7 @@ so main stays green.
 
 - **keyed-resource** — 0 rules break now
   (fixes `ff565316`, `ecc3be31`, `f2125284`,
-  `ecd641e2`);
+  `be11dbcc`);
   the spec still shows 5.
   Cards: `core/keyed-entry-dropped`,
   `core/keyed-watch-after-close`,
