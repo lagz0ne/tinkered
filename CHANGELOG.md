@@ -9,6 +9,23 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.13
+
+React's tests now catch more mistakes, and
+three dead checks are gone. No behavior change.
+
+- Since ADR 0144, each provider remounts its
+  subtree when its scope changes. So the scope
+  checks in `SessionProvider`, `useResource` and
+  `useRun` could never fire; they are removed.
+- New tests cover `<Activity>` hide and show,
+  late builds dropped by a refetch, a reset's
+  new key, server renders, cell swaps, and
+  `NoProvider` for every hook.
+- React's mutation lane runs with a 60 s Stryker
+  timeout and an 8 s per-test timeout; it scores
+  88.5% on kills alone.
+
 ## 0.31.12
 
 A `SessionProvider` inside a `<Suspense>` no

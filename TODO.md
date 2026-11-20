@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **react/run-hidden-no-render** — The `RunOwner` TSDoc promises a hidden or unmounted view keeps the latest state without a re-render, but no test pins it: the mutants that drop `live = false` in the cleanup (`index.ts` ~865) survive (review of `react/mutation-floor`).
+  Next: a test that hides a `useRun` view with `<Activity>`, lets the run settle, and counts renders before the show; or drop the words from the TSDoc.
+  Verify: the test fails with `live = false` removed.
+
 - **react/owned-scope-strict-replay** — Under StrictMode, a `ScopeProvider create` inside a `<Suspense>` still closes and remakes its root on each reveal, so a `SessionProvider` under it opens a new session with no data and the loop can come back in that tree (review of `react/strict-session-suspense`, `OwnedScopeProvider`).
   Next: a React test with `<StrictMode><Suspense><ScopeProvider create><SessionProvider><Child/>`; then keep the owned root across a replay, as `SessionProvider` now does.
   Verify: that test reaches one root, one session, one build.
@@ -97,12 +101,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **react/mutation-floor** — React's mutation lane runs again (`react/mutation-lane-no-tests`), but kills alone are 71.97% (339/471) at the config's 15 s timeout: 76 timeouts and 54 survivors in `src/index.ts` (`RunOwner` 807-884, resources 618-670, providers 132-201, `useData` 285-353). The last good record (2026-10-08, 85.64) used `--timeoutMS 60000` on 369 mutants.
-  On the same tree with `--timeoutMS 60000` (66 min): score 88.75, kills alone 388/471 = 82.4% (30 timeouts, 51 survived, 2 no coverage). So most 15 s timeouts were slowness; the rest is missing tests.
-  Next: set the lane's timeout to 60 s in `packages/react/stryker.config.json`, then add tests for the survivors until kills alone reach 85.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/mutation-floor`. Lead (project lead, 2026-11-19): add React behavior tests until kills alone clear 85; no per-file target; no skipped tests.
-  Verify: `vp run mutate` in `packages/react` on main: kills alone 85 or more.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -165,6 +163,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **react/mutation-floor** — done 2026-11-20. React's mutation lane clears 85 on kills alone: 417/471 = 88.5% on `e9b722cb` (clean tree; was 398/498 = 79.9%). Stryker uses `timeoutMS` 60000 and a Stryker-only Vitest config (`vite.stryker.config.ts`, an 8 s per-test timeout: caught mutants failed several 15 s tests in a row and ran past Stryker's limit). New behavior tests: `<Activity>` hide and show, late builds dropped by a refetch, a reset's new key, server renders, cell swaps, `NoProvider` for every hook. Dead scope checks removed (ADR 0144 keys each provider's subtree). Released as 0.31.13.
+  Proof: logs `react-mutation-floor-final.txt` (88.5% kills alone, 90.23 score); react, site, example-react tests, `vp check` 80 warnings; Opus convention-review NOT READY (84.1%), one fix round, READY (no kill came from a test timeout). Survivors: equivalent or server-only, listed in the writer's report.
 
 - **react/strict-session-suspense** — done 2026-11-19 ([session-provider](docs/states/session-provider/README.md), ReachesStable; ADR 0031; Duke 2026-11-19 13:59 option A). A session the children rendered with closes one microtask after the effect's cleanup, so StrictMode's replay on a Suspense reveal takes it back; a session never rendered closes at once; a real unmount still closes it. Fix `52afd886`. Released as 0.31.12.
   Proof: the path test moved with steps 7 to 11 cut and the end rule `creates <= 2, builds: 1, live: 1` (Duke's option A), red on main (`creates` 3), green; its control passes; react 127, site 145, example-react 1, `vp check` 80 warnings; React lane on `6a0980ae` (react source and tests byte-identical to the landed head): score 86.75, exit 0, kills alone 70.7% (main level about 72%; card `react/mutation-floor`). Opus convention-review NOT READY (names, TSDoc), one fix round, READY.
