@@ -16,13 +16,13 @@ function Owned({ cell }: { readonly cell: typeof opened }): ReactNode {
   return <p>{`store:${useData(cell)}`}</p>;
 }
 
-/** Trap: React subscribes `useData` in a passive effect, after the commit that shows this text.
- * A subscribe on a closed scope raises `Disposed` (ADR 0144). So a test that passes its own scope
- * unmounts the tree before it closes that scope. */
 function Shown(): ReactNode {
   return <p>{`store:${useData(opened)}`}</p>;
 }
 
+/** Trap: `useData` mounts here in a Suspense-retry commit, and React subscribes after that commit
+ * shows the text. A subscribe on a closed scope raises `Disposed` (Core's watch; the same rule as
+ * ADR 0144 d3 for a render). So unmount before closing the scope this test passed in. */
 test("the provider shows the Suspense fallback until start ends", async () => {
   const gate = deferred<void>();
   const store = capsule({
@@ -140,6 +140,9 @@ test("a provider that owns a root whose start fails throws to the error boundary
   await expect.element(screen.getByText("caught:Error: owned start failed")).toBeVisible();
 });
 
+/** Trap: `useData` mounts here in a Suspense-retry commit, and React subscribes after that commit
+ * shows the text. A subscribe on a closed scope raises `Disposed` (Core's watch; the same rule as
+ * ADR 0144 d3 for a render). So unmount before closing the scope this test passed in. */
 test("a new starting root on the provider shows that root's values", async () => {
   const store = capsule({
     label: "swap store",
