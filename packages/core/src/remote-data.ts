@@ -890,14 +890,15 @@ const steps = resource({
         }
       };
 
-      /** `invalidate` here: ask again for the dirty share of each part in use, once each. */
+      /** `invalidate` here: ask again for the dirty share of each part in use, once each. A part
+       * that waits on a fault asks nothing here: the await ends with its new stream's first ask,
+       * or that stream's fault (ADR 0147 d4). */
       const reask = async (dirty: Data.Key) => {
         const asks = new Map<string, Ask>();
         const woken: Promise<void>[] = [];
         for (const j of joined.values()) {
           const share = j.rides ? undefined : narrowed(j.ask, dirty);
-          // A part that waits on a fault opens again: the new stream's first signal asks, and
-          // this await ends with that ask, or with the new stream's fault (ADR 0147 d4).
+          // A part that waits on a fault opens again: the new stream's first signal asks.
           if (share && j.wake) woken.push(new Promise(j.wake));
           else if (share) asks.set(partSlot(key, share), share);
         }
