@@ -92,16 +92,15 @@ test("UnsentNeverRuns path: a call failed as link, sent: false does not run on t
   const bGot = (await b) as { fault: string; sent: boolean; execution: string };
   await a;
   expect([bGot.fault, bGot.sent]).toEqual(["link", false]);
-  // 5. the frame goes out (the held tick runs): it opens a new socket
+  // 5. the held tick runs: the close dropped B's message, so its batch is empty and it opens no
+  // socket (bun/client-empty-tick). The tick opens a socket at once if it opens one, so the count
+  // is known when it returns. 6. and 7. (the link opens, the server answers) have no link left.
   hold = false;
   for (const tick of held.splice(0)) tick();
-  // 6. the link opens; 7. the server answers
-  await until(() => sockets.length === 2);
-  await new Promise((r) => setTimeout(r, 200));
 
   // ADR 0141 (kept by ADR 0154): sent: false means nothing ran.
   expect({ sockets: sockets.length, ranB: runs.includes(bGot.execution) }).toEqual({
-    sockets: 2,
+    sockets: 1,
     ranB: false,
   });
 });
