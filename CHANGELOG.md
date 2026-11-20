@@ -9,6 +9,31 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.14
+
+A key the server refuses stops asking until you
+`invalidate` it, and `invalidate` takes plain
+keys (bug 13, ADR 0140 and ADR 0137 amended;
+Duke 2026-11-19, option B).
+
+- Any fault but `link` ends asking, for every
+  key: `refused`, `invalid`, `failed`,
+  `missing`, `encode`, `decode`.
+- A change you may see: a plain key that got
+  `failed` or `missing` used to open its stream
+  again with back-off. Now it waits.
+- A `link` fault still opens again with
+  back-off.
+- `invalidate` takes plain keys:
+  `board.invalidate({ notes: {} })` wakes a
+  refused plain key. It resolves on the new
+  value or fault.
+- An `invalidate` sent while the stream opens is
+  kept: if that open ends on a fault, the stream
+  opens once more.
+- On a definition keyed by parameter, it wakes
+  every parameter's refused entry.
+
 ## 0.31.13
 
 React's tests now catch more mistakes, and

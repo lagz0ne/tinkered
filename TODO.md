@@ -117,10 +117,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
-- **core/refused-key-reopens** — bug 13 (Duke 2026-11-19: option B). Built and reviewed: a refused answer ends asking for every key but `link`; `invalidate` takes plain keys; the site's sign-in calls it; ADR 0140 and 0137 amended. Branch `core/refused-key-reopens`, head `29f0c736`; gates green before the last rebase; one fix round done.
-  Missing: room under Core's size caps. On main 0.31.11 it is 23,233 B without rpc (cap 23,232 B; the 1 B is the rpc chunk's hashed file name, which moves with any rpc change) and 35,081 B with rpc (cap 35,072 B; two honest trims bring it to 35,071 B).
-  Next once the cap moves: apply the two trims, run `ticket.sh`, the core lane, land and release. Then `core/invalidate-refused-returns-early` (same `invalidate` code).
-
 - **core/session-handle-after-body** — bug 9 (Duke 2026-11-19: raise the cap by 8 B). The saved fix is now 23,254 B without rpc on main 0.31.12: 22 B over the 23,232 B cap, because main grew 8 B (bug 1) since Duke's +8 was sized. Branch `core/session-handle-after-body`, rebased on main.
   Missing: Duke's OK for a bigger raise (+24 B covers bug 9 and the 1 B hash noise of bug 13), or trims.
 
@@ -163,6 +159,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/refused-key-reopens** — done 2026-11-20 (bug 13, [remote-part](docs/states/remote-part/README.md) KeyStream; ADR 0140 and ADR 0137 amended; Duke 2026-11-19 13:59 option B; cap: Duke 2026-11-20 03:12 option A). Any fault but `link` ends asking for every key; `invalidate` takes plain keys (`{ notes: {} }`) and resolves on the new value or fault; an invalidate during an open is kept; the site's sign-in calls `invalidate`. Released as 0.31.14.
+  Proof: the key-stream path test (renamed to the rule), plain-key and keyed invalidate tests, an invalidate-while-opening test red on the first fix, the site's sign-in test; `scripts/ticket.sh --check-only --no-mutation` exit 0; sizes 23,233 B (cap 23,256) and 35,071 B (cap 35,072); core mutation 87.11 on `f664ac30` by the lead, exit 0 (kills alone 84.7: 165 timeouts while another writer loaded the box; core source byte-identical to the landed head). Opus convention-review NOT READY (an invalidate during an open was lost; ADR wording), one fix round, READY.
 
 - **react/mutation-floor** — done 2026-11-20. React's mutation lane clears 85 on kills alone: 417/471 = 88.5% on `e9b722cb` (clean tree; was 398/498 = 79.9%). Stryker uses `timeoutMS` 60000 and a Stryker-only Vitest config (`vite.stryker.config.ts`, an 8 s per-test timeout: caught mutants failed several 15 s tests in a row and ran past Stryker's limit). New behavior tests: `<Activity>` hide and show, late builds dropped by a refetch, a reset's new key, server renders, cell swaps, `NoProvider` for every hook. Dead scope checks removed (ADR 0144 keys each provider's subtree). Released as 0.31.13.
   Proof: logs `react-mutation-floor-final.txt` (88.5% kills alone, 90.23 score); react, site, example-react tests, `vp check` 80 warnings; Opus convention-review NOT READY (84.1%), one fix round, READY (no kill came from a test timeout). Survivors: equivalent or server-only, listed in the writer's report.

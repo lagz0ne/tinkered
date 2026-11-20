@@ -12,20 +12,20 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 144,
+    "falses": 147,
     "medianTrue": 0.86,
-    "medianFalse": 0.56,
-    "separation": 0.3,
-    "ordered": 0.8,
+    "medianFalse": 0.58,
+    "separation": 0.28,
+    "ordered": 0.78,
     "at": "2026-11-20"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 432,
-    "medianTrue": 0.9,
-    "medianFalse": 0.44,
-    "separation": 0.46,
+    "falses": 433,
+    "medianTrue": 0.93,
+    "medianFalse": 0.45,
+    "separation": 0.48,
     "ordered": 0.98,
     "at": "2026-11-20"
   },
@@ -62,12 +62,12 @@
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 2,
-    "falses": 89,
-    "medianTrue": 0.76,
-    "medianFalse": 0.87,
-    "separation": -0.11,
+    "falses": 92,
+    "medianTrue": 0.78,
+    "medianFalse": 0.88,
+    "separation": -0.1,
     "ordered": 0.09,
-    "at": "2026-11-19"
+    "at": "2026-11-20"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
@@ -182,12 +182,12 @@
   "wrapsCallersStep": {
     "status": "proven",
     "trues": 17,
-    "falses": 17,
-    "medianTrue": 0.83,
+    "falses": 19,
+    "medianTrue": 0.84,
     "medianFalse": 0.49,
-    "separation": 0.34,
-    "ordered": 0.92,
-    "at": "2026-11-19"
+    "separation": 0.35,
+    "ordered": 0.91,
+    "at": "2026-11-20"
   },
   "madeEveryCall": {
     "status": "noisy",
@@ -202,12 +202,12 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 68,
-    "medianTrue": 0.79,
+    "falses": 69,
+    "medianTrue": 0.8,
     "medianFalse": 0.59,
-    "separation": 0.2,
-    "ordered": 0.82,
-    "at": "2026-11-19"
+    "separation": 0.21,
+    "ordered": 0.85,
+    "at": "2026-11-20"
   },
   "waitsOnSideWork": {
     "status": "provisional",
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 1,
-    "falses": 136,
-    "medianTrue": 0.54,
-    "medianFalse": 0.62,
-    "separation": -0.08,
-    "ordered": 0.29,
+    "falses": 140,
+    "medianTrue": 0.59,
+    "medianFalse": 0.61,
+    "separation": -0.03,
+    "ordered": 0.38,
     "at": "2026-11-20"
   }
 }
