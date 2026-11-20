@@ -1421,8 +1421,6 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   call resolves with the new value or fault in.
 - An `invalidate` while the stream opens counts:
   if that open is refused, it opens once more.
-- On a board keyed by parameter, the `invalidate`
-  of a plain key wakes each parameter's entry.
 - One `invalidate` can name plain keys and keyed
   parts: each asks again.
 - A backend's `send` and `open` end with a value,

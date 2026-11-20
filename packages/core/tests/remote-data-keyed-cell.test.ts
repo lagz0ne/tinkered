@@ -2,7 +2,7 @@ import { memory } from "@tinkered/core/testing";
 import { afterEach, expect, expectTypeOf, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { createScope, data, operation, remoteData, rpc, tag, transport } from "@/main";
+import { createScope, data, operation, remoteData, rpc, transport } from "@/main";
 import type { Observe, Scope } from "@/main";
 
 const { hook } = transport;
@@ -355,13 +355,9 @@ test("the server's own view of the board holds every member", async () => {
   ]);
 });
 
-test("a keyed board takes no config, and invalidate is a reserved key", () => {
-  const project = tag<string>({ label: "project" });
-
-  const withConfig = () => remoteData({ tasks }, { config: { project } });
+test("invalidate is a reserved key", () => {
   const reserved = () => remoteData({ invalidate: data({ initial: 0 }) });
 
-  expect(withConfig).toThrow("a keyed cell takes no config");
   expect(reserved).toThrow("invalidate is a reserved key");
 });
 

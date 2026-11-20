@@ -1,6 +1,9 @@
 # 0135 `data` has a mode; a keyed cell holds members
 
-Date: 2026-11-10. Status: accepted in part; built; released in 0.17.0.
+Date: 2026-11-10. Status: accepted in part; built; released in 0.17.0
+(the keyed board of `remoteData`, `config` and `fill`, removed on
+2026-11-20: Duke 14:13, "During that journey, we'll clean outdate, old
+deadcode"; no app calls it).
 Accepted: Duke, 2026-11-10 UTC, in three notes:
 05:34 (the key), 05:38 (the mode), 08:49 (the member).
 Open: order. ADR 0137 closes the two others.

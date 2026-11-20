@@ -9,6 +9,22 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## Unreleased
+
+`remoteData` drops its old keyed board (ADR 0135;
+Duke 2026-11-20 14:13: "During that journey,
+we'll clean outdate, old deadcode").
+
+- Breaking: `remoteData(cells, { config })` is
+  gone. A board takes its cells only. A board
+  read by part uses keyed cells (ADR 0136 to
+  0138).
+- Breaking: `board({ serve: true, fill })` is
+  gone.
+- `transport.lifecycle` gives `refuse`,
+  `isRefused`, `runOf`, `hooksOf` and
+  `runHooks` only.
+
 ## 0.32.5
 
 A remote part whose last reader leaves while its

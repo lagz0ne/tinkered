@@ -2,7 +2,7 @@ import { memory } from "@tinkered/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
-import { createScope, data, operation, remoteData, tag, transport } from "@/main";
+import { createScope, data, operation, remoteData, transport } from "@/main";
 import type { Observe, Scope } from "@/main";
 
 // remoteData at its edges: the names it keeps, the config it takes, a dropped link, the logs.
@@ -36,18 +36,6 @@ test("answer, stream, drop, fault and faults are the definition's names, not key
     );
   }
   expect(() => remoteData({ answers: data({ initial: 0 }) })).not.toThrow();
-});
-
-test("a config key may not be a cell or a reserved name", () => {
-  const t = tag<string>({ label: "t" });
-
-  expect(() => remoteData({ a: data({ initial: 0 }) }, { config: { a: t } })).toThrow(
-    "remoteData: config a is a cell or reserved key",
-  );
-  expect(() => remoteData({ a: data({ initial: 0 }) }, { config: { drop: t } })).toThrow(
-    "remoteData: config drop is a cell or reserved key",
-  );
-  expect(() => remoteData({ a: data({ initial: 0 }) }, { config: { b: t } })).not.toThrow();
 });
 
 test("a definition takes one job: serve or read, not both and not neither", async () => {
