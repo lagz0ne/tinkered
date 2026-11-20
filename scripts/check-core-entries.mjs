@@ -81,7 +81,9 @@ const coreCap = 23256;
 // A window in a keyed read (ADR 0139 2) raised this cap by 256 B.
 // Bugs 9 and 12 of the statechart work (a leaked session handle; await invalidate on a refused
 // part) raised this cap by 64 B (Duke 2026-11-20 07:23: option A).
-const runtimeCap = 35136;
+// A status watch that holds its part (ADR 0164) raised it by 96 B (Duke 2026-11-20 08:46: "Raise
+// the rpc size cap by 96 B for the status fix").
+const runtimeCap = 35232;
 assert.ok(coreSize <= coreCap, `core runtime without rpc exceeds ${coreCap} B gzip: ${coreSize} B`);
 assert.ok(runtimeSize <= runtimeCap, `core runtime exceeds ${runtimeCap} B gzip: ${runtimeSize} B`);
 console.log(`core runtime size: ${coreSize} B gzip without rpc (cap ${coreCap} B)`);
