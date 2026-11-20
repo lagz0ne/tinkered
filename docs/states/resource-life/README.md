@@ -298,7 +298,7 @@ ADR 0063 d4 allows that:
 a held instance waits for its holder.
 Since the fix, A holds B, B holds nothing.
 So only a release of B waits, for A.
-Since `2b7ee3bb` that release
+Since `336a2885` that release
 reaches A too: A keeps its edge to B.
 A close after it resolves.
 
@@ -377,7 +377,7 @@ It runs only at the release or the close.
   with or without a cycle.
   The spec's close unlinks every instance
   at once, so it misses this.
-  Fixed in `2b7ee3bb`
+  Fixed in `336a2885`
   (card `core/failed-holder-blocks-close`):
   a failed A keeps its edge to B,
   so a release of B ends A first, then B.
