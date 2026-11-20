@@ -81,7 +81,7 @@ So they still show 3 rules break.
   ADR 0141 table ("A link on a read heals:
   the backend watches again").
 - **InvalidateAwaitsItsAsk** — holds,
-  since `c7e9b623`
+  since `b036f396`
   (card `core/invalidate-refused-returns-early`).
   On a refused part, the await covers
   the new stream's first answer,
@@ -256,7 +256,7 @@ so it does not see that the part is parked.
 ### Bug 12: `await invalidate` returns before any ask
 
 Card `core/invalidate-refused-returns-early`
-fixes it (`c7e9b623`).
+fixes it (`b036f396`).
 Rule: InvalidateAwaitsItsAsk.
 The text below names the code before the fix.
 
@@ -413,7 +413,7 @@ with back-off.
   now in `packages/core/tests/statechart/`.
   The first two pass since `fb7679b4`.
   They failed before: that showed bug 11.
-  InvalidateAwaitsItsAsk passes since `c7e9b623`.
+  InvalidateAwaitsItsAsk passes since `b036f396`.
   It failed before: that showed bug 12.
   It moved with one change:
   `asksSince: 1` became `asksSince >= 0`.
