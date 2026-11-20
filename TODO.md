@@ -97,11 +97,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **flight-trial/supplier-search-timeout** — `tools/flight-trial/tests/supplier.test.ts` "search returns data flights shared by suppliers A and B" times out at Vitest's 5 s under load (load 15-40 on this box): it failed CI once on `5ca285e7` (2026-11-20; the re-run passed) and most local `ticket.sh` and push-hook runs of 2026-11-18 to 2026-11-20. It passes alone in about 1-2 s on a quiet box. Earlier notes: `docs/roadmap/core-v1/graceful-writes-logs/GATES.json` ("supplier.test.ts:96 test timeout"), `docs/roadmap/perf/PROGRESS.md`.
-  Next: find what the test waits on (polls, real timers, a fixed delay per supplier) and make it wait on the event instead, or give that one test the time its work needs, with the reason.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `flight-trial/supplier-search-timeout`.
-  Verify: the file passes 30 runs in a row with the box under load (load 20 or more) and in CI.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -151,6 +146,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **flight-trial/supplier-search-timeout** — done 2026-11-20. The first test of `supplier.test.ts` starts two suppliers, and each reads, gunzips and zod-parses the 7 MB flight fixture, then copies its offers: about 0.4 s each on a quiet box, up to 2 s each at load 30, plus a cold import inside the test. The app is now imported once at the top of the file, and that one test gets 20 s (peak 4.4 s at load 34), with the reason in a comment. Test-only, no release.
+  Proof: at load about 32, 5 of 24 runs timed out before, 0 of 30 after; flight-trial 148 tests, `vp check` 80 warnings; Opus convention-review READY (the work is real; no honest test-only way to share the fixture).
 
 - **react/starting-scope-disposed-flake** — done 2026-11-20. The unhandled `Disposed` came from the FIRST test of `starting-scope.test.tsx`: its `await using` scope closed while the tree was still mounted (`vitest-browser-react` unmounts in the next test's `beforeEach`), and `useData`'s subscribe from a Suspense-retry commit ran after the close; Vitest blamed the next test. The two tests that pass their own scope now unmount first. `src` stays loud on a late subscribe (ADR 0144 d3's rule). Test-only, no release.
   Proof: under load (6 busy loops, load 18-26) 3 failures in 60 runs before, 0 in 50 after; a probe that closes before the subscribe got `Disposed` 3 of 3; react 139, site 145, example-react 1, `vp check` 80 warnings; Opus convention-review READY (no other test has this race).
