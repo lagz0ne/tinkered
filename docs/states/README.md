@@ -120,7 +120,7 @@ so main stays green.
   (fixes `fb7679b4`, `ee58cbaa`);
   the spec still shows 3.
   KeyStream: 0 rules break now
-  (fix `e8fd95c4`);
+  (fix `76f67035`);
   the spec still shows 1.
   Cards: `core/remote-parked-part-wakes`,
   `core/invalidate-refused-returns-early`,
