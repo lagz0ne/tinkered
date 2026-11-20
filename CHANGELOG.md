@@ -9,6 +9,22 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.17
+
+A `ScopeProvider create` inside a `<Suspense>`
+keeps its root under StrictMode (ADR 0031
+amended).
+
+- Before, each time the Suspense showed its
+  content again, StrictMode replayed the effect:
+  the root closed and a new one started, so a
+  `SessionProvider` below it lost its data and
+  the child suspended again, forever.
+- Now a replay after the children rendered takes
+  the same root back.
+- A change you may see: on unmount, a rendered
+  owned root closes one microtask later.
+
 ## 0.31.16
 
 `await invalidate` on a refused keyed part waits

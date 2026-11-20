@@ -33,10 +33,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: a test that hides a `useRun` view with `<Activity>`, lets the run settle, and counts renders before the show; or drop the words from the TSDoc.
   Verify: the test fails with `live = false` removed.
 
-- **react/owned-scope-strict-replay** — Under StrictMode, a `ScopeProvider create` inside a `<Suspense>` still closes and remakes its root on each reveal, so a `SessionProvider` under it opens a new session with no data and the loop can come back in that tree (review of `react/strict-session-suspense`, `OwnedScopeProvider`).
-  Next: a React test with `<StrictMode><Suspense><ScopeProvider create><SessionProvider><Child/>`; then keep the owned root across a replay, as `SessionProvider` now does.
-  Verify: that test reaches one root, one session, one build.
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -154,6 +150,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **react/owned-scope-strict-replay** — done 2026-11-20 (ADR 0031 amended). A `ScopeProvider create` inside a `<Suspense>` keeps a root its children rendered with across StrictMode's replay on reveal (it closes one microtask after the cleanup); a root never rendered closes at once; a real unmount still closes it. Fix `bc6922d6`. Released as 0.31.17.
+  Proof: `scope-provider.test.tsx` "under StrictMode inside Suspense, create mode keeps one root and one session once the data loads", red on main (stays on fallback), green; react 139, site 145, example-react 1, `vp check` 80 warnings; React lane on `f09686fc` (byte-identical): 90.35, kills alone 432/487 = 88.7%, exit 0. Opus convention-review READY.
 
 - **core/invalidate-refused-returns-early** — done 2026-11-20 (bug 12, [remote-part](docs/states/remote-part/README.md); ADR 0147 d4; Duke 2026-11-19 option A; cap Duke 2026-11-20 07:23). `await invalidate` on a refused keyed part ends with the reopened stream's first value or fault, or when the part leaves. Fix `b036f396`. Released as 0.31.16.
   Proof: InvalidateAwaitsItsAsk (exact-one-ask check loosened to `>= 0`, Duke's option A) red on main, green; two tests that the await ends on a second refusal and on a leave, each red without its line; ticket steps green (one task at a time); sizes 23,250 B and 35,123 B (caps 23,256 / 35,136); core mutation 87.27 on `c0d82618` by the lead, exit 0 (kills alone 84.8: 172 timeouts under the box's load; core source byte-identical to the landed head). Opus convention-review READY; one small round (tests, docs).

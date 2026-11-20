@@ -11,7 +11,7 @@ metadata:
     snapshot, and listen for new records.
   type: sub-skill
   library: '@tinkered/devtools'
-  library_version: '0.31.16'
+  library_version: '0.31.17'
 requires:
   - '@tinkered/core#core'
 sources:

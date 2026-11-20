@@ -12,11 +12,11 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 149,
-    "medianTrue": 0.84,
+    "falses": 150,
+    "medianTrue": 0.83,
     "medianFalse": 0.58,
-    "separation": 0.27,
-    "ordered": 0.77,
+    "separation": 0.26,
+    "ordered": 0.76,
     "at": "2026-11-20"
   },
   "stateOutsideCell": {
@@ -231,12 +231,12 @@
   },
   "shapeGrowsPerCall": {
     "status": "provisional",
-    "trues": 1,
+    "trues": 2,
     "falses": 141,
-    "medianTrue": 0.4,
+    "medianTrue": 0.51,
     "medianFalse": 0.61,
-    "separation": -0.21,
-    "ordered": 0.05,
+    "separation": -0.1,
+    "ordered": 0.21,
     "at": "2026-11-20"
   }
 }
