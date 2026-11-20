@@ -64,8 +64,8 @@ async function boot(options: { refuse?: string } = {}) {
       }
     },
   });
-  const opens = operation({
-    label: "opens",
+  const clientGuard = operation({
+    label: "client.guard",
     input: hook.start,
     run: async (_, { input }) => {
       const held = input.key === "tasks" ? opening : undefined;
@@ -100,7 +100,10 @@ async function boot(options: { refuse?: string } = {}) {
 
   const client = async () => {
     const scope = await createScope({
-      capsules: [memory.client({ peer: server }), board({ read: memory.client, onStart: [opens] })],
+      capsules: [
+        memory.client({ peer: server }),
+        board({ read: memory.client, onStart: [clientGuard] }),
+      ],
     }).ready;
     closers.push(() => scope.close());
     return scope;
