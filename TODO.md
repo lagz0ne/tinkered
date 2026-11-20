@@ -81,6 +81,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/rpc-sweep** — Steps 0-3 of Fable's reconstruction B for the rpc chunk, one commit per step: 0 rewrite `build/private-fields.json`; 1 drop unused step keys and small dedupes in rpc, rpc-lifecycle and remote-data; 2 remove the config-parameter keyed board and `fill` (Duke 2026-11-20 14:13: "During that journey, we'll clean outdate, old deadcode"; ADR 0135 amended); 3 remoteData uses each cell spec's own key rules. No API change but step 2.
+  Owner: lead. Writer: branch `core/rpc-sweep`.
+  Next: the writer lands step 0, then 1, 2, 3, with size before and after each.
+  Verify: per step, both size lines fall and the core chunk does not grow; `vp check`, `vp run -r test`, `ticket.sh` and the core lane (kills >= 85) on the last commit.
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
