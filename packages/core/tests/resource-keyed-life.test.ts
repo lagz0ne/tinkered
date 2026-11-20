@@ -211,3 +211,39 @@ test("a held reader whose watch went to its key's live entry reads that entry an
 
   expect({ value, steps }).toEqual({ value: 0, steps: ["build 1", "end 1", "build 2"] });
 });
+
+test("a source that settles after the scope closed builds nothing and wakes the parked read with no error", async () => {
+  const steps: string[] = [];
+  let settle!: (value: number) => void;
+  const slow = resource({
+    label: "life.slow",
+    factory: () => new Promise<number>((done) => (settle = done)),
+  });
+  const late = resource({
+    label: "life.late",
+    config: {},
+    depends: { slow },
+    factory: ({ slow }, { defer }) => {
+      steps.push(`build ${slow}`);
+      defer(() => void steps.push(`end ${slow}`));
+      return slow;
+    },
+  });
+  const scope = createScope();
+  const reader = scope.resolve(late);
+  reader.watch(() => undefined);
+  const parked = (() => {
+    try {
+      return reader.get();
+    } catch (wait) {
+      return wait;
+    }
+  })();
+  const closed = scope.close();
+
+  settle(1);
+  await parked;
+  await closed;
+
+  expect(steps).toEqual([]);
+});
