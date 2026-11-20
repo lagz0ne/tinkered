@@ -97,16 +97,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/status-holds-part** — ADR 0164 (Duke 2026-11-20: B). A watch of `board.status(read)` holds the read's part, as a reader of the part does; `get()` stays a peek. Scratch proof: `/home/paseo/cuj10/STATUS-HOLDS.md` (muse-h-4 20/22 to 22/22). Branch `core/status-holds-part`; review round `374a2ab1`; 6 seam tests fail on main and pass.
-  Owner: lead. Cap: Duke 2026-11-20 08:46 "Raise the rpc size cap by 96 B for the status fix": +96 B on main's rpc cap, now 35,232 B (`1f45b040`). Duke 09:45 "Raise the no-rpc cap by 16 B too, for the status fix": 23,272 B (`fe36a835`). On main `d94b22ef` the branch is 35,169 B with rpc (+81 B) and 23,260 B without (+11 B).
-  Next: the core mutation lane on `374a2ab1` ends; the lead re-measures after the landing rebase (stop if the delta is over 96 B), lands and releases.
-  Verify: the seam tests in `packages/core/tests/remote-data-status-holds.test.ts` fail on main and pass; the muse-h-4 tree scores 22/22 on the built dist.
-
-- **core/status-holds-part** — ADR 0164 (Duke 2026-11-20: B). Watching `board.status(read)` holds the read's part, as a reader of the part does; `get()` stays a peek. Scratch proof: `/home/paseo/cuj10/STATUS-HOLDS.md` (muse-h-4 20/22 to 22/22).
-  Owner: lead. Writer: branch `core/status-holds-part`.
-  Next: the writer rewrites the change with no board-wide map, writes ADR 0164 and the docs, and runs the gates.
-  Verify: the seam tests in `packages/core/tests/remote-data-status-holds.test.ts` fail on main and pass; the muse-h-4 tree scores 22/22 on the built dist.
-
 - **core/keyed-wake-after-close** — A keyed entry whose source is still pending when the scope closes builds when that source settles (`park`, then `tell`, `wake`, `fresh(true)`), and that build's end never runs (review of `core/keyed-watch-after-close`; ADR 0157 d5). The keyed-resource spec does not cover it.
   Next: a Core test that closes the scope while a source is pending, then settles it; then stop `wake` from building on a closed layer.
   Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/keyed-wake-after-close`.
@@ -127,16 +117,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
-
-- **core/status-holds-part** — ADR 0164 (Duke 2026-11-20: B). A watch of `board.status(read)` holds the read's part, as a reader of the part does; `get()` stays a peek. Scratch proof: `/home/paseo/cuj10/STATUS-HOLDS.md` (muse-h-4 20/22 to 22/22). Branch `core/status-holds-part`, fix `685406c3`; 8 seam tests fail on main and pass.
-  Owner: lead. Missing: Duke's OK for +96 B on the rpc cap (35,072 -> 35,168). On main 0.31.14 the rpc chunk is 35,071 B; the branch is 35,156 B (+85 B). Without rpc: 23,244 B, within the 23,256 B cap.
-  Next once the cap moves: raise `runtimeCap`, run `ticket.sh` and the core lane, land and release.
-  Verify: the seam tests in `packages/core/tests/remote-data-status-holds.test.ts` fail on main and pass; the muse-h-4 tree scores 22/22 on the built dist.
-- **core/states-rules-undecided** — 7 cases with no ADR rule yet, found by the specs in [docs/states](docs/states/README.md). What the code does today: (1) UpdateDepth drops a watcher's error (ADR 0152 d6 vs d8): the write throws UpdateDepth; the error is lost; (2) an equal `set` in a reader's build (ADR 0157 d7): it is dropped before the check; no WriteInRead; (3) a failed sync build's end (ADR 0026 Q4): it runs only at the release or the close; (4) a session catches its grandchild's managed error (ADR 0028 d3 vs ADR 0067): the session and the root fail only when a root close is in flight; else both succeed; (5) a close called from a defer (ADR 0026 d3 vs ADR 0027): it returns `success` at once; the close it starts ends `cancelled`; (6) a run hook calls `next()` twice (ADR 0050 d1): the body runs twice; the run returns the second value. A finished run's first ctx stays live, so its leaked `deps.inner` runs on a closing scope. ADR 0127 d2 may or may not cover a scope still closing (FinishedRunStartsNothing breaks in the run-life check); (7) one part's good answer clears the key's fault in `board.faults` (ADR 0139 d1 is silent): `board.faults.tasks` is gone while another part still shows refused.
-  Also: `core/local-stream-signal` (Ready) now has a pinned test, the second test of `docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`.
-  Missing: Duke's rule for each case ([round](docs/states/round/README.md#no-rule-yet): 1, 2; [resource-life](docs/states/resource-life/README.md#no-rule-yet): 3; [session-life](docs/states/session-life/README.md#no-rule-yet): 4, 5; [run-life](docs/states/run-life/README.md#no-rule-yet): 6; [remote-part](docs/states/remote-part/README.md#no-rule-yet): 7).
-  Next once picked: each rule lands as a new ADR or a code change; change the pinning tests to the rule (`round-no-rule-yet`, the no-rule check in resource-life path 1, `statechart-no-rule`, the FinishedRunStartsNothing test and its control, the last test of `remote-part-paths`), then move them into Core's tests.
-  Verify: those tests pass; the checks carry the new rules.
 
 - **core/stop-signal-then-later-event** — bug 3 in [docs/states](docs/states/scope-life/README.md). A stop signal fires during start, then a start error, a timeout or a `close()` comes before the hooks return. The code reports the later event; ADR 0134 d2 says the signal wins.
   Missing: Duke's choice. Signal wins: the code changes. Later event wins: ADR 0134 d2 changes.
@@ -165,6 +145,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/status-holds-part** — done 2026-11-20 (ADR 0164; Duke 2026-11-20 04:25: B). A watch of `board.status(read)` holds the read's part, as a reader of the part does; `get()` stays a peek; the first holder hears `pending`. Caps raised by Duke: rpc +96 B to 35,232 B (08:46), no-rpc +16 B to 23,272 B (09:45). Released as 0.32.0.
+  Proof: 6 seam tests in `packages/core/tests/remote-data-status-holds.test.ts`, all red on main, green; Core 1473, Core on the built files 1717, React 139; `ticket.sh --check-only --no-mutation` exit 0; size 23,259 / 35,203 B (main 23,250 / 35,123 B); core mutation on `721cb812` 85.61 on kills alone (6039 killed, 181 timeout, 730 survived, 104 no cov), Core src and tests byte-identical on the landed head; muse-h-4 20/22 on main's dist, 22/22 on the branch's (`/home/paseo/cuj10/STATUS-HOLDS.md`, rescore in `/home/paseo/cuj10/status-holds/rescore/`). Opus convention-review READY after one fix round.
 
 - **flight-trial/supplier-search-timeout** — done 2026-11-20. The first test of `supplier.test.ts` starts two suppliers, and each reads, gunzips and zod-parses the 7 MB flight fixture, then copies its offers: about 0.4 s each on a quiet box, up to 2 s each at load 30, plus a cold import inside the test. The app is now imported once at the top of the file, and that one test gets 20 s (peak 4.4 s at load 34), with the reason in a comment. Test-only, no release.
   Proof: at load about 32, 5 of 24 runs timed out before, 0 of 30 after; flight-trial 148 tests, `vp check` 80 warnings; Opus convention-review READY (the work is real; no honest test-only way to share the fixture).

@@ -9,7 +9,7 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
-## Unreleased
+## 0.32.0
 
 A watch of `board.status(read)` now holds the
 read's part, as a reader of the part does

@@ -3,19 +3,19 @@
     "status": "provisional",
     "trues": 3,
     "falses": 57,
-    "medianTrue": 0.94,
-    "medianFalse": 0.04,
-    "separation": 0.9,
-    "ordered": 0.99,
-    "at": "2026-10-11"
+    "medianTrue": 0.96,
+    "medianFalse": 0.02,
+    "separation": 0.94,
+    "ordered": 0.98,
+    "at": "2026-11-20"
   },
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 150,
-    "medianTrue": 0.83,
-    "medianFalse": 0.58,
-    "separation": 0.26,
+    "falses": 151,
+    "medianTrue": 0.82,
+    "medianFalse": 0.59,
+    "separation": 0.23,
     "ordered": 0.76,
     "at": "2026-11-20"
   },
@@ -33,131 +33,131 @@
     "status": "provisional",
     "trues": 2,
     "falses": 136,
-    "medianTrue": 0.63,
-    "medianFalse": 0.5,
-    "separation": 0.13,
+    "medianTrue": 0.65,
+    "medianFalse": 0.58,
+    "separation": 0.06,
     "ordered": 0.69,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "handRolledLifetime": {
     "status": "provisional",
     "trues": 4,
     "falses": 67,
-    "medianTrue": 0.88,
+    "medianTrue": 0.85,
     "medianFalse": 0.02,
-    "separation": 0.85,
-    "ordered": 1,
-    "at": "2026-11-18"
+    "separation": 0.83,
+    "ordered": 0.99,
+    "at": "2026-11-20"
   },
   "stopOnlyInDefer": {
     "status": "provisional",
     "trues": 1,
     "falses": 123,
-    "medianTrue": 0.84,
-    "medianFalse": 0.53,
-    "separation": 0.31,
-    "ordered": 0.97,
-    "at": "2026-10-11"
+    "medianTrue": 0.72,
+    "medianFalse": 0.6,
+    "separation": 0.12,
+    "ordered": 0.63,
+    "at": "2026-11-20"
   },
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 2,
-    "falses": 94,
-    "medianTrue": 0.8,
+    "falses": 95,
+    "medianTrue": 0.81,
     "medianFalse": 0.88,
-    "separation": -0.08,
-    "ordered": 0.13,
+    "separation": -0.07,
+    "ordered": 0.12,
     "at": "2026-11-20"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
     "trues": 1,
     "falses": 48,
-    "medianTrue": 0.93,
+    "medianTrue": 0.96,
     "medianFalse": 0.04,
-    "separation": 0.89,
+    "separation": 0.92,
     "ordered": 1,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "subscribesToWriteOnly": {
     "status": "provisional",
     "trues": 1,
     "falses": 48,
-    "medianTrue": 0.95,
-    "medianFalse": 0.11,
-    "separation": 0.84,
+    "medianTrue": 0.96,
+    "medianFalse": 0.15,
+    "separation": 0.8,
     "ordered": 1,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "runDuringRender": {
     "status": "provisional",
     "trues": 1,
     "falses": 46,
     "medianTrue": 0.96,
-    "medianFalse": 0.18,
+    "medianFalse": 0.17,
     "separation": 0.78,
     "ordered": 1,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "domainLogicInRender": {
     "status": "proven",
     "trues": 6,
     "falses": 43,
-    "medianTrue": 0.89,
-    "medianFalse": 0.06,
-    "separation": 0.82,
+    "medianTrue": 0.96,
+    "medianFalse": 0.04,
+    "separation": 0.92,
     "ordered": 1,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "effectOwnedByComponent": {
     "status": "provisional",
     "trues": 1,
     "falses": 46,
-    "medianTrue": 0.96,
-    "medianFalse": 0.05,
-    "separation": 0.91,
+    "medianTrue": 0.98,
+    "medianFalse": 0.04,
+    "separation": 0.94,
     "ordered": 1,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
     "falses": 74,
-    "medianTrue": 0.8,
-    "medianFalse": 0.29,
-    "separation": 0.52,
-    "ordered": 0.91,
-    "at": "2026-11-19"
+    "medianTrue": 0.77,
+    "medianFalse": 0.28,
+    "separation": 0.49,
+    "ordered": 0.78,
+    "at": "2026-11-20"
   },
   "survivorMatters": {
     "status": "noisy",
     "trues": 25,
     "falses": 16,
-    "medianTrue": 0.81,
-    "medianFalse": 0.72,
-    "separation": 0.09,
+    "medianTrue": 0.89,
+    "medianFalse": 0.77,
+    "separation": 0.12,
     "ordered": 0.82,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "inputDefaultMasks": {
     "status": "proven",
     "trues": 34,
-    "falses": 73,
-    "medianTrue": 0.91,
-    "medianFalse": 0.42,
-    "separation": 0.49,
+    "falses": 74,
+    "medianTrue": 0.94,
+    "medianFalse": 0.43,
+    "separation": 0.51,
     "ordered": 0.95,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "noOpRejected": {
-    "status": "noisy",
+    "status": "proven",
     "trues": 7,
     "falses": 52,
-    "medianTrue": 0.69,
-    "medianFalse": 0.2,
-    "separation": 0.49,
-    "ordered": 0.87,
-    "at": "2026-10-11"
+    "medianTrue": 0.76,
+    "medianFalse": 0.09,
+    "separation": 0.67,
+    "ordered": 0.95,
+    "at": "2026-11-20"
   },
   "partialStub": {
     "status": "provisional",
@@ -167,46 +167,46 @@
     "medianFalse": 0.08,
     "separation": null,
     "ordered": 0,
-    "at": "2026-11-19"
+    "at": "2026-11-20"
   },
   "memoKeyIgnoresInput": {
     "status": "provisional",
     "trues": 0,
     "falses": 50,
     "medianTrue": null,
-    "medianFalse": 0.05,
+    "medianFalse": 0.06,
     "separation": null,
     "ordered": 0,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "wrapsCallersStep": {
     "status": "proven",
     "trues": 17,
-    "falses": 20,
-    "medianTrue": 0.84,
-    "medianFalse": 0.52,
-    "separation": 0.32,
+    "falses": 21,
+    "medianTrue": 0.86,
+    "medianFalse": 0.51,
+    "separation": 0.35,
     "ordered": 0.93,
     "at": "2026-11-20"
   },
   "madeEveryCall": {
-    "status": "noisy",
+    "status": "proven",
     "trues": 5,
     "falses": 6,
-    "medianTrue": 0.47,
-    "medianFalse": 0.18,
-    "separation": 0.29,
+    "medianTrue": 0.62,
+    "medianFalse": 0.26,
+    "separation": 0.36,
     "ordered": 0.97,
-    "at": "2026-10-11"
+    "at": "2026-11-20"
   },
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 72,
-    "medianTrue": 0.8,
-    "medianFalse": 0.59,
-    "separation": 0.21,
-    "ordered": 0.82,
+    "falses": 73,
+    "medianTrue": 0.82,
+    "medianFalse": 0.6,
+    "separation": 0.22,
+    "ordered": 0.83,
     "at": "2026-11-20"
   },
   "waitsOnSideWork": {
@@ -224,19 +224,19 @@
     "trues": 4,
     "falses": 5,
     "medianTrue": 0.63,
-    "medianFalse": 0.32,
-    "separation": 0.31,
+    "medianFalse": 0.29,
+    "separation": 0.34,
     "ordered": 0.7,
-    "at": "2026-11-19"
+    "at": "2026-11-20"
   },
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 2,
-    "falses": 141,
-    "medianTrue": 0.51,
-    "medianFalse": 0.61,
-    "separation": -0.1,
-    "ordered": 0.21,
+    "falses": 142,
+    "medianTrue": 0.48,
+    "medianFalse": 0.62,
+    "separation": -0.14,
+    "ordered": 0.18,
     "at": "2026-11-20"
   }
 }
