@@ -1297,7 +1297,7 @@ export function remoteData<
     input: z.make<Dirty<D>>((value) => {
       const entries = Object.entries(Object(value) as object);
       const fit = entries.every(([key, part]) => keys.includes(key) && isKey(part));
-      return fit ? { value: value as Dirty<D> } : z.fail("expected keys and their parts");
+      return fit ? { value: value as Dirty<D> } : z.fail("expected keys and parts");
     }),
     depends: { own: state, s: steps, send: stamp.controller },
     run: async ({ own, s, send }, { input }) => {
