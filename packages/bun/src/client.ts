@@ -271,7 +271,7 @@ export function createWs() {
         /**
          * Fails every waiter, drops the frames not yet sent (their waiters fail here too), and
          * forgets the socket: the next message opens a new one. A tick already scheduled still runs;
-         * it sends only the frames posted after this drop.
+         * it sends only the frames posted after this drop, and with none it opens no socket.
          */
         const drop = (socket: WebSocket | null) => {
           if (socket !== current) return;
@@ -290,6 +290,7 @@ export function createWs() {
           if (out.push(message) > 1) return;
           nextTick(() => {
             const sent = out.splice(0);
+            if (!sent.length) return;
             opening ??= new Promise<WebSocket>((done, broke) => {
               const socket = Object.keys(config.headers).length
                 ? new WebSocket(config.url, { headers: config.headers } as never)
