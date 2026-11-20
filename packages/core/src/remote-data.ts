@@ -453,6 +453,30 @@ const steps = resource({
     };
 
     /** A watch, as rpc runs it: the value now, then each write, until the caller leaves. */
+    /** Joins one watcher to a slot until its `closed` aborts; `last` runs when the slot's last
+     * watcher leaves. Resolves when this watcher leaves. */
+    const joinAt = (
+      own: Served,
+      at: string,
+      out: { send: Push; closed: AbortSignal },
+      last: () => void,
+    ) => {
+      const set = own.watchers.get(at) ?? new Map<Push, () => void>();
+      own.watchers.set(at, set);
+      return new Promise<void>((done) => {
+        const end = () => {
+          if (set.delete(out.send) && set.size === 0) {
+            own.watchers.delete(at);
+            last();
+          }
+          done();
+        };
+        set.set(out.send, end);
+        if (out.closed.aborted) end();
+        else out.closed.addEventListener("abort", end, { once: true });
+      });
+    };
+
     const watch = async (
       def: Def,
       own: Served,
@@ -461,26 +485,12 @@ const steps = resource({
       out: { send: Push; closed: AbortSignal },
     ) => {
       const at = slot(key, param);
-      const set = own.watchers.get(at) ?? new Map<Push, () => void>();
-      own.watchers.set(at, set);
 
       // Join first, then read: a write that lands while the fill runs is pushed, not lost.
-      const ended = new Promise<void>((done) => {
-        const end = () => {
-          if (!set.delete(out.send)) return done();
-          if (set.size === 0) {
-            own.watchers.delete(at);
-            if (param !== null) own.held.delete(at); // no one watches: nothing to keep
-          }
-          done();
-        };
-        set.set(out.send, end);
-        if (out.closed.aborted) end();
-        else out.closed.addEventListener("abort", end, { once: true });
-      });
+      const ended = joinAt(own, at, out, () => param !== null && own.held.delete(at));
 
       const now = await valueOf(def, own, key, param);
-      if (param !== null && set.size > 0 && !own.held.has(at)) own.held.set(at, now);
+      if (param !== null && own.watchers.has(at) && !own.held.has(at)) own.held.set(at, now);
       out.send(param === null ? now : (own.held.get(at) ?? now)); // the value now
       return ended;
     };
@@ -496,22 +506,8 @@ const steps = resource({
       out: { send: Push; closed: AbortSignal },
     ) => {
       const at = partSlot(key, ask);
-      const set = own.watchers.get(at) ?? new Map<Push, () => void>();
-      own.watchers.set(at, set);
-
-      const ended = new Promise<void>((done) => {
-        const end = () => {
-          if (set.delete(out.send) && set.size === 0) {
-            own.watchers.delete(at);
-            own.parts.delete(at);
-          }
-          done();
-        };
-        own.parts.set(at, ask);
-        set.set(out.send, end);
-        if (out.closed.aborted) end();
-        else out.closed.addEventListener("abort", end, { once: true });
-      });
+      own.parts.set(at, ask);
+      const ended = joinAt(own, at, out, () => own.parts.delete(at));
       out.send(ask);
       return ended;
     };
@@ -1058,12 +1054,6 @@ const steps = resource({
 
     return {
       named,
-      keep,
-      reader,
-      valueOf,
-      faultsIn,
-      slot,
-      fits,
       serveStart,
       watch,
       watchPart,

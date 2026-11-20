@@ -394,31 +394,6 @@ export const lifecycle = resource({
       return endOf(settled);
     };
 
-    return {
-      refuse,
-      isRefused,
-      isOwn,
-      runOf,
-      hooksOf,
-      runHooks,
-      // The steps of one call, each one small function: how a list, the work and a fault are run.
-      parts: {
-        both,
-        listsOf,
-        hookOf,
-        moreOf,
-        startOf,
-        againOf,
-        checkedOf,
-        workOf,
-        successOf,
-        errorsOf,
-        onceOf,
-        shapeOf,
-        settleOf,
-        outcomeOf,
-        endOf,
-      },
-    };
+    return { refuse, isRefused, runOf, hooksOf, runHooks };
   },
 });

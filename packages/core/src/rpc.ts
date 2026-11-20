@@ -188,29 +188,25 @@ const steps = resource({
   target: "scope",
   depends: { flow: lifecycle },
   factory: ({ flow }) => {
-    /** The capsule's own hooks, as one key's hooks read them. */
-    const hooksIn = (config: Read): Hooks => ({
-      retry: config.retry,
-      onStart: config.onStart,
-      onSuccess: config.onSuccess,
-      onError: config.onError,
-      onFinish: config.onFinish,
-    });
-
     /** The fault kind of this definition's own fault; undefined for anything else (a shape). */
     const kindOf =
       (def: Def) =>
       (error: unknown): Fault | undefined =>
         def.fault.is(error) ? (error as RpcFault).fault : undefined;
 
-    const faultOf = (
-      def: Def,
-      address: string,
-      fault: Fault,
-      payload: unknown,
-      traceId: string | undefined,
-      execution?: string,
-    ): RpcFault => def.fault.make(address, fault, payload, traceId, execution);
+    /** A hook's refusal, thrown as the key's `refused` fault; any other end goes on as it is. */
+    const unrefused =
+      (def: Def, key: string, traceId: string | undefined) =>
+      <T>(out: T) => {
+        if (flow.isRefused(out)) throw def.fault.make(key, "refused", out.payload, traceId);
+        return out;
+      };
+
+    /** A stream's send: each output checked by the key's contract, with its meta when it has one. */
+    const sendOf =
+      (push: (r: Reply) => void, output: Data.Schema<unknown>) =>
+      (value: unknown, meta?: Record<string, string>) =>
+        push({ ok: true, value: parse(output, value), ...(meta ? { meta } : {}) });
 
     /**
      * Pull side of a stream: `start` gets `push` first (a source may push at once), then the
@@ -339,13 +335,13 @@ const steps = resource({
         if (r.kind !== "refused") {
           log.warn(`${def.name} fault`, { address: key, fault: r.kind, execution });
         }
-        return faultOf(def, key, r.kind, r.payload, traceId, execution);
+        return def.fault.make(key, r.kind, r.payload, traceId, execution);
       };
 
       return flow
         .runHooks(
           run as never,
-          flow.hooksOf(hooksIn(config), undefined),
+          flow.hooksOf(config, undefined),
           key,
           input,
           {},
@@ -395,11 +391,7 @@ const steps = resource({
             kind: kindOf(def),
           },
         )
-        .then((out) => {
-          // A client-side hook said no.
-          if (flow.isRefused(out)) throw faultOf(def, key, "refused", out.payload, traceId);
-          return out;
-        });
+        .then(unrefused(def, key, traceId));
     };
 
     /** implement: the key runs here, through the capsule's hooks and its entry, then the app's op. */
@@ -418,7 +410,7 @@ const steps = resource({
       return flow
         .runHooks(
           run as never,
-          flow.hooksOf(hooksIn(config), entry),
+          flow.hooksOf(config, entry),
           key,
           input,
           {},
@@ -434,17 +426,11 @@ const steps = resource({
             invocation?.signal?.addEventListener("abort", () => leave.abort(), { once: true });
             return pull(
               (push) => {
-                const send = (value: unknown, meta?: Record<string, string>) =>
-                  push({
-                    ok: true,
-                    value: parse(contract.output, value),
-                    ...(meta ? { meta } : {}),
-                  });
-                const out = channel({ send, closed: leave.signal });
+                const out = channel({ send: sendOf(push, contract.output), closed: leave.signal });
                 return Promise.resolve(run(implementation, { input, tags: [...tags, out] }, work));
               },
               (v) => v,
-              (r) => faultOf(def, key, r.kind, r.payload, traceId),
+              (r) => def.fault.make(key, r.kind, r.payload, traceId),
               () => leave.abort(),
             );
           },
@@ -455,10 +441,7 @@ const steps = resource({
             kind: "failed",
           },
         )
-        .then((out) => {
-          if (flow.isRefused(out)) throw faultOf(def, key, "refused", out.payload, traceId);
-          return out;
-        });
+        .then(unrefused(def, key, traceId));
     };
 
     /** A throw is `failed`, whatever it carries: its kind is never read. The cause stays here, whole. */
@@ -524,7 +507,7 @@ const steps = resource({
       return flow
         .runHooks(
           run as never,
-          flow.hooksOf(hooksIn(config), entry),
+          flow.hooksOf(config, entry),
           address,
           input,
           meta,
@@ -567,14 +550,13 @@ const steps = resource({
 
       const entry = config.implement.present ? config.implement.value[address] : undefined;
       const implementation = flow.runOf(entry) as Operation.Handle<unknown, unknown>;
-      const send = (value: unknown, meta?: Record<string, string>) =>
-        push({ ok: true, value: parse(contract.output, value), ...(meta ? { meta } : {}) });
+      const send = sendOf(push, contract.output);
       const out = channel({ send, closed: left ?? event.signal ?? new AbortController().signal });
 
       return flow
         .runHooks(
           run as never,
-          flow.hooksOf(hooksIn(config), entry),
+          flow.hooksOf(config, entry),
           address,
           input,
           meta,
@@ -587,24 +569,7 @@ const steps = resource({
         );
     };
 
-    return {
-      split,
-      joined,
-      faultOf,
-      kindOf,
-      hooksIn,
-      pull,
-      check,
-      inputOf,
-      sendKey,
-      runHere,
-      failedAt,
-      answeredAs,
-      invalid,
-      serve,
-      answerHere,
-      streamHere,
-    };
+    return { check, sendKey, runHere, serve };
   },
 });
 
