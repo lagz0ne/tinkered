@@ -276,7 +276,7 @@ type StatusKey = {
 /** `states` on a reading root, past its public type: its listener hears the first watch of each
  * status key, and the leave it gives back ends that watch's hold (ADR 0164). */
 type States = Scope.KeyedController<Stated, { at: string }> & {
-  listen(listener: (read: "of" | "where", part: StatusKey) => (() => void) | undefined): void;
+  listen(listener: (read: "of" | "where", part: StatusKey) => () => void): void;
 };
 
 /** A signal as a reader takes it: the ask, and the meta it came with. */
@@ -1049,7 +1049,7 @@ const steps = resource({
       );
       states.listen((_, part) => {
         const { key, read } = part[holding];
-        return uses.get(key)?.(read.read, read.part, read.window);
+        return uses.get(key)!(read.read, read.part, read.window);
       });
       await keep(def, keys);
       return next();

@@ -1,6 +1,8 @@
 # 0139 Keyed reads follow TanStack Query
 
-Date: 2026-11-11. Status: accepted; not built.
+Date: 2026-11-11. Status: accepted; not built
+(decision 1 amended by 0164: a watch of a part's
+status holds the part).
 Accepted: Duke, 2026-11-11 05:03 UTC (points 2, 3, 4);
 point 2 made clear at 05:06 and 05:07.
 Settled at 05:18, by the rule he named: decisions 4

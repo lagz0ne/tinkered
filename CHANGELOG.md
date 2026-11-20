@@ -22,8 +22,9 @@ read's part, as a reader of the part does
 - Now the first holder asks, status or value.
   They share one ask. The part leaves with its
   last holder.
-- A status watcher hears `pending`, then `ready`
-  or `fault`.
+- The first holder hears `pending`, then
+  `ready` or `fault`. A part that rides a ready
+  part is `ready` at once.
 - `get()` of a status is still a peek: it holds
   nothing.
 

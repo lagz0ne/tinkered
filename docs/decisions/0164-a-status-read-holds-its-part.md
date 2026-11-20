@@ -75,8 +75,10 @@ Tinker keeps the same split, simpler:
 3. **What a status watcher sees.** Before any hold,
    the status is `undefined`. React's first render
    reads it so: the hold starts when React
-   subscribes, after that render. A watcher then
-   hears `pending`, then `ready` or `fault`.
+   subscribes, after that render. The first
+   holder then hears `pending`, then `ready` or
+   `fault`. A part that rides a ready part is
+   `ready` at once (ADR 0139 1).
 4. **No new API.** No option, no new name. The
    change is in what a watch of the status means.
 

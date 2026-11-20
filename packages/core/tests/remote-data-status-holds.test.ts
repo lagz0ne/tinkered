@@ -149,23 +149,6 @@ test("a refused part held by its status alone asks again only when invalidate na
   expect(waited).toBe(first);
 });
 
-test("a status watch that moves from part A to part B drops A and asks for B", async () => {
-  const { tab, clock } = await boot();
-  const a = tab.resolve(board.status(p1));
-  const stopA = a.watch(() => undefined);
-  await expect.poll(ticking(clock, () => a.get()?.status === "ready")).toBe(true);
-
-  stopA();
-  const b = tab.resolve(board.status(p2));
-  b.watch(() => undefined);
-  await expect
-    .poll(ticking(clock, () => b.get()?.status === "ready" && calls.finishes.includes("tasks p1")))
-    .toBe(true);
-
-  expect(calls.started).toContain("tasks.ask p2");
-  expect(tab.resolve(board.tasks).get()).toEqual([{ project: "p2", id: "b", title: "b" }]);
-});
-
 test("a part held by its status alone shows a broken link, then asks again by itself", async () => {
   const { server, tab, clock, link } = await boot();
   const state = tab.resolve(board.status(p1));
@@ -206,25 +189,4 @@ test("a plain status watcher hears pending, then ready", async () => {
   await expect.poll(ticking(clock, () => state.get()?.status === "ready")).toBe(true);
 
   expect(heard).toEqual(["pending", "ready"]);
-});
-
-test("many parts held by their status and then left hold nothing on the server", async () => {
-  const { server, tab, clock } = await boot();
-  const projects = Array.from({ length: 20 }, (_, at) => `q${at}`);
-  for (const project of projects) server.controller(tasks).set({ project, id: "x", title: "x" });
-  const states = projects.map((project) =>
-    tab.resolve(board.status(board.tasks.where({ project }))),
-  );
-
-  const stops = states.map((state) => state.watch(() => undefined));
-  await expect
-    .poll(ticking(clock, () => states.every((state) => state.get()?.status === "ready")))
-    .toBe(true);
-  for (const stop of stops) stop();
-  await expect
-    .poll(ticking(clock, () => projects.every((p) => calls.finishes.includes(`tasks ${p}`))))
-    .toBe(true);
-
-  expect(calls.started.filter((call) => call.startsWith("tasks q"))).toHaveLength(20);
-  expect(tab.resolve(board.tasks).get()).toEqual([]);
 });

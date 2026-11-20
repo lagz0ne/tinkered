@@ -8110,13 +8110,8 @@ type KeyedRead = {
 };
 
 /** Told when a part gets its first reader on a root, or on a session under it; it gives back
- * the call that leaves the part, or nothing to call. remoteData asks the server for the part
- * here (ADR 0137). */
-type KeyedListener = (
-  read: "of" | "where",
-  part: Data.Key,
-  window?: KeyWindow,
-) => (() => void) | undefined;
+ * the call that leaves the part. remoteData asks the server for the part here (ADR 0137). */
+type KeyedListener = (read: "of" | "where", part: Data.Key, window?: KeyWindow) => () => void;
 
 /** A key or a part as text: fields sorted, then JSON, as TanStack Query does. Keyed data and a
  * keyed resource's config share it (ADR 0135, 0150). */
