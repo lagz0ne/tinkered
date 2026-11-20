@@ -98,7 +98,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 - **core/status-holds-part** — ADR 0164 (Duke 2026-11-20: B). A watch of `board.status(read)` holds the read's part, as a reader of the part does; `get()` stays a peek. Scratch proof: `/home/paseo/cuj10/STATUS-HOLDS.md` (muse-h-4 20/22 to 22/22). Branch `core/status-holds-part`; review round `374a2ab1`; 6 seam tests fail on main and pass.
-  Owner: lead. Cap: Duke 2026-11-20 08:46 "Raise the rpc size cap by 96 B for the status fix": +96 B on main's rpc cap, now 35,232 B (`1f45b040`). The branch is 35,156 B with rpc (main 35,071 B, +85 B); 23,245 B without rpc (cap 23,256 B).
+  Owner: lead. Cap: Duke 2026-11-20 08:46 "Raise the rpc size cap by 96 B for the status fix": +96 B on main's rpc cap, now 35,232 B (`1f45b040`). Duke 09:45 "Raise the no-rpc cap by 16 B too, for the status fix": 23,272 B (`fe36a835`). On main `d94b22ef` the branch is 35,169 B with rpc (+81 B) and 23,260 B without (+11 B).
   Next: the core mutation lane on `374a2ab1` ends; the lead re-measures after the landing rebase (stop if the delta is over 96 B), lands and releases.
   Verify: the seam tests in `packages/core/tests/remote-data-status-holds.test.ts` fail on main and pass; the muse-h-4 tree scores 22/22 on the built dist.
 
