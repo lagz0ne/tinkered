@@ -198,10 +198,13 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - The subtree uses the exact app-owned scope, which the provider never closes.
 - Under StrictMode, create mode leaks no scope and never exposes a closed one.
 - A new scope on the provider mounts its subtree again.
+- A new starting root on the provider shows that root's values.
+- An Activity hide closes the created scope; a show renders only with a fresh one.
 
 ### useScope
 
 - A hook used with no provider raises NoProvider.
+- useData, useResource, useRelease, and SessionProvider with no provider raise NoProvider.
 
 ### useData
 
@@ -224,6 +227,8 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - A write after unmount neither updates the removed subtree nor breaks the still-open scope.
 - A component reads a keyed resource, keeps its reference across renders, and follows a write.
 - A new config leaves the old entry.
+- A new cell under the same selector shows and follows that cell.
+- A server render gives a pair for writable options alone.
 
 ### useResource
 
@@ -240,6 +245,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - Reading through a new scope builds in the new scope.
 - A synchronous build commits on the first flushed render with no suspend.
 - The hook returns the exact instance core cached for the owner.
+- Builds dropped by refetch that settle after the newest one never replace its result.
 
 ### Capsule components
 
@@ -278,6 +284,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - A run with only onSettled reports failure without onError.
 - A run with empty options resolves runAsync without callbacks.
 - onError and onSettled fire with the failure and the call.
+- A run that settles while an Activity hides the view shows its result when shown again.
 
 ### SessionProvider
 
@@ -285,6 +292,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - Switching the parent scope never exposes the old session, even if the old parent is closed.
 - A session-target resource is one instance per SessionProvider; siblings are distinct.
 - A scope-target resource is the same instance across sibling sessions.
+- An Activity hide closes the session; a show renders only with a fresh one.
 
 ### Namespace reset
 
@@ -298,6 +306,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - A chain refetch clears its head and reuses its fallback.
 - A named session can still refetch a shared scope resource.
 - An explicit reset key still releases a shared scope resource.
+- A reset follows a new explicit key without remounting.
 - An independent borrowed scope clears an outer session's reset key.
 - An independent owned scope clears an outer session's reset key.
 - A field reset keeps the form owner, other fields, and hook identities.
