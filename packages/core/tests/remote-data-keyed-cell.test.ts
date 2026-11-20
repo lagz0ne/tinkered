@@ -35,12 +35,16 @@ const until = async (ok: () => boolean) => {
   }
 };
 
-/** A server with two projects, and its clients. `seen` lists each call's address and input. */
+/** A server with two projects, and its clients. `seen` lists each call's address and input.
+ * `holdAsk` keeps the server's next call back; `holdOpen` keeps a client's next stream open back,
+ * before the client has the stream; each until its `release`. */
 async function boot(options: { refuse?: string } = {}) {
   const seen: { key: string; input: unknown }[] = [];
   const ended: string[] = [];
   let refuseAsks = false;
-  let gate: { reached: boolean; release: () => void; wait: Promise<void> } | undefined;
+  type Gate = { reached: boolean; release: () => void; wait: Promise<void> };
+  let gate: Gate | undefined;
+  let opening: Gate | undefined;
   const guard = operation({
     label: "guard",
     input: hook.start,
@@ -58,6 +62,18 @@ async function boot(options: { refuse?: string } = {}) {
         held.reached = true;
         await held.wait;
       }
+    },
+  });
+  const opens = operation({
+    label: "opens",
+    input: hook.start,
+    run: async (_, { input }) => {
+      const held = input.key === "tasks" ? opening : undefined;
+      if (!held) return;
+
+      opening = undefined;
+      held.reached = true;
+      await held.wait;
     },
   });
   const finished = operation({
@@ -84,20 +100,21 @@ async function boot(options: { refuse?: string } = {}) {
 
   const client = async () => {
     const scope = await createScope({
-      capsules: [memory.client({ peer: server }), board({ read: memory.client })],
+      capsules: [memory.client({ peer: server }), board({ read: memory.client, onStart: [opens] })],
     }).ready;
     closers.push(() => scope.close());
     return scope;
   };
   const write = (t: Task) => server.run(add, { input: t, tags: [] });
-  const holdAsk = () => {
+  const gateOf = (): Gate => {
     let release = () => undefined as void;
     const wait = new Promise<void>((done) => (release = done));
-    gate = { reached: false, release, wait };
-    return gate;
+    return { reached: false, release, wait };
   };
+  const holdAsk = () => (gate = gateOf());
+  const holdOpen = () => (opening = gateOf());
   const refuse = (on: boolean) => (refuseAsks = on);
-  return { server, client, write, seen, ended, holdAsk, refuseAsks: refuse };
+  return { server, client, write, seen, ended, holdAsk, holdOpen, refuseAsks: refuse };
 }
 
 /** A client's reader of a part, kept in use until `stop`. */
@@ -187,6 +204,19 @@ test("after the last reader leaves, the stream ends and the client's part goes",
 
   expect(kept).toEqual([task("p1", "a")]);
   expect(all(tab)).toEqual([]);
+});
+
+test("a reader that leaves while its part's stream opens ends the stream once it opens", async () => {
+  const app = await boot();
+  const tab = await app.client();
+  const held = app.holdOpen();
+  const reader = watchPart(tab, "p1");
+  await until(() => held.reached);
+
+  reader.stop();
+  held.release();
+
+  await until(() => app.ended.includes("tasks"));
 });
 
 test("a member also read by key stays when its part leaves", async () => {
