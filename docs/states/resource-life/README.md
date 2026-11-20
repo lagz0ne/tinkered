@@ -298,6 +298,9 @@ ADR 0063 d4 allows that:
 a held instance waits for its holder.
 Since the fix, A holds B, B holds nothing.
 So only a release of B waits, for A.
+Since `2b7ee3bb` that release
+reaches A too: A keeps its edge to B.
+A close after it resolves.
 
 ## Path tests
 
@@ -369,13 +372,16 @@ It runs only at the release or the close.
   before it unlinks the instances
   (`startClose`).
   A release of B after A's build failed
-  leaves B waiting for A.
-  A is still on its node, not unlinked.
-  So that close never resolves,
+  left B waiting for A.
+  So that close never resolved,
   with or without a cycle.
   The spec's close unlinks every instance
   at once, so it misses this.
-  No card yet.
+  Fixed in `2b7ee3bb`
+  (card `core/failed-holder-blocks-close`):
+  a failed A keeps its edge to B,
+  so a release of B ends A first, then B.
+  `instance-release.test.ts` pins both.
 - At most 2 resolves and 1 release.
 
 ## Rerun
