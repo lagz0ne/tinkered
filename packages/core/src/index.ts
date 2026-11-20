@@ -6992,13 +6992,13 @@ async function runSessionWrapped<R>(
       child.bodyEnd = started.then(
         (): Scope.Outcome => {
           child.body = undefined;
-          return child.aborted ? { status: "cancelled" } : SUCCESS;
+          return (child.bodyDone = child.aborted ? { status: "cancelled" } : SUCCESS);
         },
         (cause: unknown): Scope.Outcome => {
           child.body = undefined;
-          return isCancel(child, cause)
+          return (child.bodyDone = isCancel(child, cause)
             ? { status: "cancelled" }
-            : { status: "failed", error: cause };
+            : { status: "failed", error: cause });
         },
       );
 
