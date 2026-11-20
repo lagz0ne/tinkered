@@ -97,11 +97,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/keyed-wake-after-close** — A keyed entry whose source is still pending when the scope closes builds when that source settles (`park`, then `tell`, `wake`, `fresh(true)`), and that build's end never runs (review of `core/keyed-watch-after-close`; ADR 0157 d5). The keyed-resource spec does not cover it.
-  Next: a Core test that closes the scope while a source is pending, then settles it; then stop `wake` from building on a closed layer.
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/keyed-wake-after-close`.
-  Verify: that test fails on main and passes; no build runs after the close.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -145,6 +140,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/keyed-wake-after-close** — done 2026-11-20 (ADR 0157 d5). On main no late build ran: a keyed entry parked on a source that settled after the scope closed woke, read the source, and threw `Disposed` into a promise nobody caught. Now a settle after the close wakes nothing (`BuiltEntry.park`). Fix `be11dbcc`. Released as 0.32.1.
+  Proof: a `resource-keyed-life.test.ts` test (no build, no error), red on main; ticket steps green one task at a time; sizes 23,262 B / 35,207 B (caps 23,272 / 35,232); core mutation 86.55 on `7b85feda` by the lead, exit 0 (kills alone 85.0: 6,001/7,061; core source byte-identical to the landed head). Opus convention-review NOT READY (wrong bug name), one rename round, READY.
 
 - **core/status-holds-part** — done 2026-11-20 (ADR 0164; Duke 2026-11-20 04:25: B). A watch of `board.status(read)` holds the read's part, as a reader of the part does; `get()` stays a peek; the first holder hears `pending`. Caps raised by Duke: rpc +96 B to 35,232 B (08:46), no-rpc +16 B to 23,272 B (09:45). Released as 0.32.0.
   Proof: 6 seam tests in `packages/core/tests/remote-data-status-holds.test.ts`, all red on main, green; Core 1473, Core on the built files 1717, React 139; `ticket.sh --check-only --no-mutation` exit 0; size 23,259 / 35,203 B (main 23,250 / 35,123 B); core mutation on `721cb812` 85.61 on kills alone (6039 killed, 181 timeout, 730 survived, 104 no cov), Core src and tests byte-identical on the landed head; muse-h-4 20/22 on main's dist, 22/22 on the branch's (`/home/paseo/cuj10/STATUS-HOLDS.md`, rescore in `/home/paseo/cuj10/status-holds/rescore/`). Opus convention-review READY after one fix round.

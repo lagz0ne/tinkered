@@ -9,6 +9,18 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.32.1
+
+A keyed resource whose source settles after the
+scope closed no longer throws an unhandled
+`Disposed` (ADR 0157).
+
+- Before, the parked read woke after the close,
+  read its source, and got `Disposed`, which
+  nobody caught.
+- Now a source that settles after the close
+  wakes nothing.
+
 ## 0.32.0
 
 A watch of `board.status(read)` now holds the
