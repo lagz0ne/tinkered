@@ -499,7 +499,7 @@ RemotePart:
   the listener came after the abort,
   so the stream stayed open.
   Card `core/follow-stop-after-open`
-  fixes it (`30272da2`).
+  fixes it (`299db120`).
   Its test is in `remote-data-keyed-cell.test.ts`.
 - Back-off times. The link drops at most once.
 - The root's close.
