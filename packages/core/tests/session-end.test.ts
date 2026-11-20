@@ -1,6 +1,15 @@
 import { expect, test } from "vite-plus/test";
 
-import { createScope, data, isError, namespace, operation, tag } from "@/index";
+import {
+  capsule,
+  createScope,
+  data,
+  isError,
+  namespace,
+  operation,
+  tag,
+  type Scope,
+} from "@/index";
 
 /** A session that ended keeps main's end state: its signal reads aborted (ADR 0028). */
 for (const tagged of [false, true]) {
@@ -136,6 +145,44 @@ test("a leaked handle is disposed once the body returned: resolve raises Dispose
   await flight;
   await root.close();
 });
+
+/** ADR 0071 d1 and 0028: a graceful close waits for the session's owned work, but the handle
+ * the body leaked is closed already, with or without `session` hooks. */
+for (const hooked of [false, true]) {
+  test(`a leaked handle is disposed while a graceful close drains the session's work: hooked=${hooked}`, async () => {
+    const passThrough = capsule({ label: "pass", hooks: { session: (event) => event.next() } });
+    const root = createScope({ capsules: hooked ? [passThrough] : [] });
+    await root.ready;
+    const cell = data({ label: "cell", initial: 0 });
+    let release = (): void => undefined;
+    const work = operation({
+      label: "work",
+      run: () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    });
+    let leaked: Scope.Handle | undefined;
+    let closing: Promise<unknown>[] = [];
+    const flight = root.session((s) => {
+      leaked = s;
+      void s.run(work);
+      closing = [root.close({ graceful: true }), s.close({ graceful: true })];
+    });
+
+    for (let turn = 0; turn < 100 && !disposed(() => leaked!.resolve(cell)); turn++) {
+      await Promise.resolve();
+    }
+    const refused = [
+      disposed(() => leaked!.resolve(cell)),
+      disposed(() => leaked!.controller(cell)),
+    ];
+    release();
+    await Promise.all([flight, ...closing]);
+
+    expect(refused).toEqual([true, true]);
+  });
+}
 
 test("close({ withData: true }) keeps the data inside the body, and gets none after it", async () => {
   const root = createScope();
