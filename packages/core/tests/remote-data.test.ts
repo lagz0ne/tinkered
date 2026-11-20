@@ -19,6 +19,14 @@ afterEach(async () => {
 
 const tick = (ms = 40) => new Promise((r) => setTimeout(r, ms));
 
+const until = async (ok: () => boolean, ms = 3000) => {
+  const end = Date.now() + ms;
+  while (!ok()) {
+    if (Date.now() > end) throw new Error("timed out");
+    await tick(10);
+  }
+};
+
 /** A server serving `def`, and a client reading it, over memory. */
 async function pair(
   def: ReturnType<typeof remoteData<{}>>,
@@ -391,4 +399,31 @@ test("a remoteData fault carries the trace id of the read or push that brought i
   const from = spans.filter((x) => x.traceId === error.traceId).map((x) => x.name);
   // The read is the key's stream run (rpc), named by its key.
   expect(from.some((n) => n === "todos" || n === "remoteData.receive")).toBe(true);
+});
+
+test("an unkeyed write in a session reaches the root's own cell, and its watchers", async () => {
+  const cell = data({ initial: 0 });
+  const plain = remoteData({ cell });
+  const bump = operation({
+    label: "bump",
+    depends: { c: cell.controller },
+    run: ({ c }) => c.set(c.get() + 1),
+  });
+  const server = await createScope({
+    capsules: [plain({ serve: true }), memory.server({ services: [plain] })],
+  }).ready;
+  closers.push(() => server.close());
+  const tab = await createScope({
+    capsules: [memory.client({ peer: server }), plain({ read: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+  await tick();
+
+  const session = server.createSession({});
+  session.run(bump);
+  await session.close();
+
+  expect(server.resolve(cell)).toBe(1);
+  expect(server.resolve(plain.cell).get()).toBe(1);
+  await until(() => tab.resolve(plain.cell).get() === 1);
 });

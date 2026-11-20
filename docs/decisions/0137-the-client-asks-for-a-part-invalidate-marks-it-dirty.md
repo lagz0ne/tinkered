@@ -203,5 +203,7 @@ This adds to decision 2:
    The call resolves at once.
 5. On a definition keyed by parameter, one call
    wakes the waiting entry of every parameter.
+   (Removed on 2026-11-20 with the keyed board of
+   ADR 0135: no definition is keyed by parameter.)
 6. On a serving root, a plain key has no part, so
    the call signals no one.

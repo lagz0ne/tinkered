@@ -386,8 +386,7 @@ and resolves on the first value or fault.
 if that open is refused, it opens once more.
 A plain key has no `refetchInterval`.
 A new reader opens a new stream too:
-a new root, or a new entry
-for a keyed definition's parameter.
+a new root.
 A broken link still opens it again,
 with back-off.
 

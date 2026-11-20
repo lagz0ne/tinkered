@@ -373,7 +373,6 @@ const steps = resource({
       return next();
     };
 
-    /** A watch, as rpc runs it: the value now, then each write, until the caller leaves. */
     /** Joins one watcher to a slot until its `closed` aborts; `last` runs when the slot's last
      * watcher leaves. Resolves when this watcher leaves. */
     const joinAt = (
@@ -398,10 +397,15 @@ const steps = resource({
       });
     };
 
-    /** A plain key's stream, as rpc runs it: the value now, then each write. */
-    const watch = (own: Served, key: string, out: { send: Push; closed: AbortSignal }) => {
+    /** A plain key's value now. Async as the old `valueOf` was: the first push still goes out
+     * after the same microtasks, a timing this sweep keeps. */
+    const valueNow = async (own: Served, key: string) => own.roots.get(key)!.get();
+
+    /** A plain key's stream, as rpc runs it: the value now, then each write. Join first, then
+     * read: a write that lands meanwhile is pushed, not lost. */
+    const watch = async (own: Served, key: string, out: { send: Push; closed: AbortSignal }) => {
       const ended = joinAt(own, key, out);
-      out.send(own.roots.get(key)!.get());
+      out.send(await valueNow(own, key));
       return ended;
     };
 

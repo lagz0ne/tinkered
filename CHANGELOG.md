@@ -21,9 +21,9 @@ we'll clean outdate, old deadcode").
   0138).
 - Breaking: `board({ serve: true, fill })` is
   gone.
-- `transport.lifecycle` gives `refuse`,
-  `isRefused`, `runOf`, `hooksOf` and
-  `runHooks` only.
+- Breaking: `transport.lifecycle` drops `isOwn`
+  and `parts`. It gives `refuse`, `isRefused`,
+  `runOf`, `hooksOf` and `runHooks` only.
 
 ## 0.32.5
 

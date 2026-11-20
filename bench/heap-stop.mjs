@@ -1,8 +1,8 @@
 // Kept-heap-per-stop budget (ADR 0133): work stopped from outside keeps nothing on what outlives it.
-// A "stop" = one stream its reader leaves, or one session that opens a project and closes.
+// A "stop" = one stream its reader leaves, or one keyed part a reader joins and leaves.
 // The tab root and one caller signal live through every stop, as a browser tab does.
 // Runs on Node: there `AbortSignal.any` keeps a record per call on a long-lived source.
-const { channel, createScope, data, operation, remoteData, rpc, tag } =
+const { channel, createScope, data, operation, remoteData, rpc } =
   await import("../packages/core/dist/index.mjs");
 
 const { memory } = await import("../packages/core/dist/testing.mjs");
@@ -27,17 +27,23 @@ const open = operation({
 
 const api = rpc({ open: { mode: "stream", input: any, output: any } });
 
-const tasks = data({ label: "tasks", initial: [], parse: any });
-const board = remoteData({ tasks }, { config: { project: tag({ label: "project", parse: any }) } });
-const fill = operation({ label: "fill", depends: { key: board.project }, run: ({ key }) => [key] });
+const tasks = data({
+  label: "tasks",
+  mode: "keyed",
+  key: (task) => ({ project: task.project, id: task.id }),
+});
+
+const board = remoteData({ tasks });
 
 const server = await createScope({
   capsules: [
     api({ implement: { open } }),
-    board({ serve: true, fill: { tasks: fill } }),
+    board({ serve: true }),
     memory.server({ services: [api, board] }),
   ],
 }).ready;
+
+server.controller(tasks).set({ project: "p1", id: "a" });
 
 const tab = await createScope({
   capsules: [
@@ -57,10 +63,11 @@ const stops = {
   "a remote stream under one long signal, left by break": async () => {
     for await (const _ of await tab.run(api.open, { input: null, signal: long.signal })) break;
   },
-  "a session that opens a project, then closes": async () => {
-    const session = tab.createSession({ tags: [board.project("p1")] });
-    while (session.resolve(board.tasks).get().length === 0) await turn();
-    await session.close();
+  "a keyed part a reader joins, then leaves": async () => {
+    const part = tab.resolve(board.tasks.where({ project: "p1" }));
+    const leave = part.watch(() => {});
+    while (part.get().length === 0) await turn();
+    leave();
   },
 };
 
