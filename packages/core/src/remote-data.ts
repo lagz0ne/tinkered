@@ -944,6 +944,7 @@ const steps = resource({
               stop(reason?: unknown): void;
             };
             part.stop.signal.addEventListener("abort", () => signals.stop(), { once: true });
+            if (part.stop.signal.aborted) signals.stop();
             for await (const dirty of signals) heard(ask(dirty, { meta: signals.meta }));
             wait = 50;
           } catch (error) {
