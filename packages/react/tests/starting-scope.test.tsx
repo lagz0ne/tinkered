@@ -16,6 +16,9 @@ function Owned({ cell }: { readonly cell: typeof opened }): ReactNode {
   return <p>{`store:${useData(cell)}`}</p>;
 }
 
+/** Trap: React subscribes `useData` in a passive effect, after the commit that shows this text.
+ * A subscribe on a closed scope raises `Disposed` (ADR 0144). So a test that passes its own scope
+ * unmounts the tree before it closes that scope. */
 function Shown(): ReactNode {
   return <p>{`store:${useData(opened)}`}</p>;
 }
@@ -46,6 +49,7 @@ test("the provider shows the Suspense fallback until start ends", async () => {
 
   gate.resolve(undefined);
   await expect.element(screen.getByText("store:open")).toBeVisible();
+  await screen.unmount();
 });
 
 test("a failed start reaches the error boundary", async () => {
@@ -172,6 +176,7 @@ test("a new starting root on the provider shows that root's values", async () =>
   await screen.getByRole("button", { name: "swap" }).click();
 
   await expect.element(screen.getByText("store:second")).toBeVisible();
+  await screen.unmount();
   await first.close();
   await second.close();
 });
