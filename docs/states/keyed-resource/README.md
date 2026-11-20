@@ -26,8 +26,8 @@ Words:
 TLC reached 24,044 states.
 The spec, the chart and the rerun
 still describe `3ff6778`,
-before fixes `ff565316`, `ecc3be31`
-and `f2125284`.
+before fixes `ff565316`, `ecc3be31`,
+`f2125284` and `ecd641e2`.
 So they still show 5 rules break.
 
 - **EndBeforeNextBuild** — holds after fixes
@@ -45,10 +45,21 @@ So they still show 5 rules break.
   After the scope closed, no end waits.
   It holds on the paths the spec covers
   (paths 3 and 4).
-  Not covered: a source still pending
-  that settles after the close
+  It also holds for a source still pending
+  that settles after the close,
+  after fix `ecd641e2`
+  (card `core/keyed-wake-after-close`).
+  Before it, the settle woke the entry
   (`park`, then `tell`, `wake`, `fresh(true)`).
-  Card `core/keyed-wake-after-close` follows it.
+  The read raised `Disposed`
+  into the parked promise,
+  so no build ran,
+  but no one caught the error
+  when only a watcher waited.
+  Now the settle wakes nothing.
+  `resource-keyed-life.test.ts`
+  ("a source that settles after the scope closed")
+  pins it.
 - **EndsRunLastFirst** — holds.
   ADR 0157 d5.
   Ends run last first.

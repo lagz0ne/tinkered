@@ -80,10 +80,12 @@ so main stays green.
 ## Machines
 
 - **keyed-resource** — 0 rules break now
-  (fixes `ff565316`, `ecc3be31`, `f2125284`);
+  (fixes `ff565316`, `ecc3be31`, `f2125284`,
+  `ecd641e2`);
   the spec still shows 5.
   Cards: `core/keyed-entry-dropped`,
-  `core/keyed-watch-after-close`.
+  `core/keyed-watch-after-close`,
+  `core/keyed-wake-after-close`.
 - **scope-life** — 3 rules break.
   Card: `core/stop-signal-then-later-event`
   (Blocked: Duke picks).

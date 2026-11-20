@@ -1388,6 +1388,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   `Disposed` and builds nothing.
 - A held reader whose watch went to its key's live entry reads that
   entry and builds nothing.
+- A source that settles after the scope closed builds nothing and
+  wakes the parked read with no error.
 - An operation reads a keyed resource.
 - A reaction writes a cell; one that writes its own source stops at
   the round limit.
