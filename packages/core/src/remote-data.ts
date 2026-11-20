@@ -264,6 +264,21 @@ export type PartState =
 /** A part's state as the client keeps it: under the part's slot. */
 type Stated = PartState & { readonly at: string };
 
+const holding = Symbol("holding");
+
+/** A status read's key (ADR 0164): its part's slot, which alone is the key's text. Under a
+ * symbol, which the text leaves out, the keyed key and the read that a watch of it holds. */
+type StatusKey = {
+  readonly at: string;
+  readonly [holding]: { readonly key: string; readonly read: Data.Read<unknown> };
+};
+
+/** `states` on a reading root, past its public type: its listener hears the first watch of each
+ * status key, and the leave it gives back ends that watch's hold (ADR 0164). */
+type States = Scope.KeyedController<Stated, { at: string }> & {
+  listen(listener: (read: "of" | "where", part: StatusKey) => (() => void) | undefined): void;
+};
+
 /** A signal as a reader takes it: the ask, and the meta it came with. */
 type Taken = { readonly ask: Ask; readonly meta?: Record<string, string> };
 
@@ -796,15 +811,12 @@ const steps = resource({
       event: StartEvent,
       key: string,
       mark: (k: string, e: RemoteFault | null) => void,
+      states: States,
     ) => {
       const { run, clock, signal, log, config } = event;
       const every = (config.refetchInterval as { value?: Record<string, number> }).value?.[key];
       const cell = event.load(def.made[key]!, meta) as unknown as Keyed;
       const joined = new Map<string, Joined>();
-      const states = event.load(def.states, meta) as unknown as Scope.KeyedController<
-        Stated,
-        { at: string }
-      >;
       /** Sets the state of a part, and of each part in use that it holds whole. A part that waits
        * on a fault, or rides one that does, keeps its fault until a trigger (ADR 0139 4). */
       const stand = (asked: Ask, now: PartState) => {
@@ -980,7 +992,8 @@ const steps = resource({
         if (every) tick(part, every).catch(() => undefined);
       };
 
-      cell.listen((read, part, window) => {
+      /** One holder of a part: a reader of the part, or a watch of its status (ADR 0164). */
+      const use = (read: "of" | "where", part: Data.Key, window?: Ask["window"]) => {
         const asked: Ask = window ? { read, part, window } : { read, part };
         const at = partSlot(key, asked);
         const made = joined.get(at) ?? { refs: 0, ask: asked, stop: new AbortController() };
@@ -1006,7 +1019,9 @@ const steps = resource({
           }
           if (!signal.aborted) cell.answer(read, part, [], stays, window);
         };
-      });
+      };
+      cell.listen(use);
+      return use;
     };
 
     /** Read: fill every cell from the backend, then keep it fresh. */
@@ -1028,7 +1043,14 @@ const steps = resource({
       // A fault on the first value does not fail start: the cell keeps its initial value, and
       // `board.faults` shows the fault.
       const keys = reader(def, event, { entry: null, load }, null, signal);
-      for (const key of def.keyed) readKeyed(def, event, key, keys.mark);
+      const states = load(def.states, meta) as unknown as States;
+      const uses = new Map(
+        [...def.keyed].map((key) => [key, readKeyed(def, event, key, keys.mark, states)]),
+      );
+      states.listen((_, part) => {
+        const { key, read } = part[holding];
+        return uses.get(key)?.(read.read, read.part, read.window);
+      });
       await keep(def, keys);
       return next();
     };
@@ -1518,11 +1540,13 @@ export function remoteData<
       keyed.has(call.key.replace(/\.ask$/, "") as keyof D & string)
         ? (Object(call.input) as Ask).part
         : undefined,
-    /** The state of a keyed read's part (ADR 0139 1): `useData(board.status(read))`. Undefined
-     * while no reader has the part in use. */
+    /** The state of a keyed read's part (ADR 0139 1): `useData(board.status(read))`. A watch of
+     * it holds the part, as a reader does; a `get()` holds nothing (ADR 0164). Undefined while
+     * no one holds the part. */
     status: (read: Data.Read<unknown>) => {
       const key = Object.keys(made).find((k) => made[k] === read.cell)!;
-      return states.of({ at: partSlot(key, read) });
+      const watched: StatusKey = { at: partSlot(key, read), [holding]: { key, read } };
+      return states.of(watched);
     },
     addresses: keys.flatMap((key) => (keyed.has(key) ? [key, `${key}.ask`] : [key])),
     // A cell with no label says nothing: the transport then names the board, "remoteData".

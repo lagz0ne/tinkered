@@ -8110,8 +8110,13 @@ type KeyedRead = {
 };
 
 /** Told when a part gets its first reader on a root, or on a session under it; it gives back
- * the call that leaves the part. remoteData asks the server for the part here (ADR 0137). */
-type KeyedListener = (read: "of" | "where", part: Data.Key, window?: KeyWindow) => () => void;
+ * the call that leaves the part, or nothing to call. remoteData asks the server for the part
+ * here (ADR 0137). */
+type KeyedListener = (
+  read: "of" | "where",
+  part: Data.Key,
+  window?: KeyWindow,
+) => (() => void) | undefined;
 
 /** A key or a part as text: fields sorted, then JSON, as TanStack Query does. Keyed data and a
  * keyed resource's config share it (ADR 0135, 0150). */
@@ -8427,6 +8432,8 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     return reader;
   }
 
+  /** A part's first watcher calls the root's listener last, once it is in: a write the listener
+   * makes, such as a part's first state (ADR 0164), reaches that watcher as a change. */
   private join(
     read: "of" | "where",
     part: Data.Key,
@@ -8438,11 +8445,11 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
   ): () => void {
     const parts = (this.parts ??= new Map());
     let entry = parts.get(text);
+    const first = entry === undefined;
     if (entry === undefined) {
       const prev = at(this.get());
       entry = { at, many: read === "where", reader, watchers: new Set(), prev, leave: undefined };
       parts.set(text, entry);
-      entry.leave = this.spec.listeners.get(this.root)?.(read, part, window);
     }
 
     const watcher: Watcher = { fn };
@@ -8451,6 +8458,8 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
       this.seen = this.spec.indexOf(this.get()).id;
       this.stop = this.watch(() => this.wake());
     }
+
+    if (first) entry.leave = this.spec.listeners.get(this.root)?.(read, part, window);
 
     const joined = entry;
     return () => {
