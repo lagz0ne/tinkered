@@ -101,11 +101,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **react/starting-scope-disposed-flake** — `packages/react/tests/starting-scope.test.tsx` ("a failed start reaches the error boundary") sometimes ends with an unhandled `Error: Disposed` from `useData`'s subscribe (`index.ts` ~440) while all tests pass; under load it fails `vp run -r test`, and it failed CI once on `d94b22ef` (2026-11-20; the re-run passed). Seen since 2026-11-18.
-  Next: find which subscribe runs after the failed start disposed its scope, and make it not throw (or the test wait for the close).
-  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `react/starting-scope-disposed-flake`.
-  Verify: the file passes 50 runs in a row under load with no unhandled error.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -155,6 +150,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **react/starting-scope-disposed-flake** — done 2026-11-20. The unhandled `Disposed` came from the FIRST test of `starting-scope.test.tsx`: its `await using` scope closed while the tree was still mounted (`vitest-browser-react` unmounts in the next test's `beforeEach`), and `useData`'s subscribe from a Suspense-retry commit ran after the close; Vitest blamed the next test. The two tests that pass their own scope now unmount first. `src` stays loud on a late subscribe (ADR 0144 d3's rule). Test-only, no release.
+  Proof: under load (6 busy loops, load 18-26) 3 failures in 60 runs before, 0 in 50 after; a probe that closes before the subscribe got `Disposed` 3 of 3; react 139, site 145, example-react 1, `vp check` 80 warnings; Opus convention-review READY (no other test has this race).
 
 - **react/owned-scope-strict-replay** — done 2026-11-20 (ADR 0031 amended). A `ScopeProvider create` inside a `<Suspense>` keeps a root its children rendered with across StrictMode's replay on reveal (it closes one microtask after the cleanup); a root never rendered closes at once; a real unmount still closes it. Fix `bc6922d6`. Released as 0.31.17.
   Proof: `scope-provider.test.tsx` "under StrictMode inside Suspense, create mode keeps one root and one session once the data loads", red on main (stays on fallback), green; react 139, site 145, example-react 1, `vp check` 80 warnings; React lane on `f09686fc` (byte-identical): 90.35, kills alone 432/487 = 88.7%, exit 0. Opus convention-review READY.
