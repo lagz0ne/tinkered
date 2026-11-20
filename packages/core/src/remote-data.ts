@@ -82,9 +82,14 @@ type Joined = {
   readonly ask: Ask;
   readonly stop: AbortController;
   rides?: Joined;
-  /** Set while the part waits on a fault that is an answer: a trigger calls it (ADR 0139 4). */
-  wake?: () => void;
+  /** Set while the part waits on a fault that is an answer: a trigger calls it (ADR 0139 4). An
+   * `invalidate` passes its own resolve: the reopened stream's first ask or fault settles it. */
+  wake?: (heard?: Heard) => void;
 };
+
+/** The resolve of an `invalidate` that woke a part: it takes the first ask of the part's new
+ * stream, or nothing on a fault. A later call does nothing (ADR 0147 d4). */
+type Heard = (asked?: Promise<void>) => void;
 
 /** A client's ask in flight, and the asks that started after it and share members with it. */
 type Asking = {
@@ -888,28 +893,32 @@ const steps = resource({
       /** `invalidate` here: ask again for the dirty share of each part in use, once each. */
       const reask = async (dirty: Data.Key) => {
         const asks = new Map<string, Ask>();
+        const woken: Promise<void>[] = [];
         for (const j of joined.values()) {
           const share = j.rides ? undefined : narrowed(j.ask, dirty);
-          // A part that waits on a fault opens again: the new stream's first signal asks.
-          if (share && j.wake) j.wake();
+          // A part that waits on a fault opens again: the new stream's first signal asks, and
+          // this await ends with that ask, or with the new stream's fault (ADR 0147 d4).
+          if (share && j.wake) woken.push(new Promise(j.wake));
           else if (share) asks.set(partSlot(key, share), share);
         }
-        await Promise.all([...asks.values()].map((a) => ask(a)));
+        await Promise.all([...asks.values()].map((a) => ask(a)).concat(woken));
       };
       askersOf(def.made[key]).add(reask);
 
-      /** Waits until a trigger wakes the part, or the part leaves. The wake clears itself, so the
-       * part counts as awake at once, before its stream opens again. */
+      /** Waits until a trigger wakes the part, or the part leaves; gives the waking `invalidate`'s
+       * resolve, if any. The wake clears itself, so the part counts as awake at once, before its
+       * stream opens again. */
       const parked = (part: Joined) =>
-        new Promise<void>((woken) => {
-          part.wake = () => {
+        new Promise<Heard>((woken) => {
+          part.wake = (heard = () => {}) => {
             part.wake = undefined;
-            woken();
+            woken(heard);
           };
-          part.stop.signal.addEventListener("abort", () => woken(), { once: true });
+          part.stop.signal.addEventListener("abort", () => part.wake?.(), { once: true });
         });
 
       const follow = async (part: Joined) => {
+        let heard: Heard = () => {};
         for (let wait = 50; !part.stop.signal.aborted;) {
           try {
             const signals = (await run(
@@ -921,18 +930,19 @@ const steps = resource({
               stop(reason?: unknown): void;
             };
             part.stop.signal.addEventListener("abort", () => signals.stop(), { once: true });
-            for await (const dirty of signals) void ask(dirty, { meta: signals.meta });
+            for await (const dirty of signals) heard(ask(dirty, { meta: signals.meta }));
             wait = 50;
           } catch (error) {
-            if (part.stop.signal.aborted) return;
+            if (part.stop.signal.aborted) break;
             const fault = faultOf(def, key, error, log);
             mark(key, fault);
             stand(part.ask, { status: "fault", fault });
+            heard();
 
             // Only a broken link heals by itself. Any other fault is the server's answer, and the
             // same ask gives it again: the part waits for a trigger (ADR 0139 4).
             if (fault.fault !== "link") {
-              await parked(part);
+              heard = await parked(part);
               wait = 50;
               continue;
             }
@@ -940,6 +950,7 @@ const steps = resource({
           }
           await clock.sleep(wait, part.stop.signal).catch(() => undefined);
         }
+        heard();
       };
 
       /** A part in use that holds every member of this part, if any. */
