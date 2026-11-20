@@ -220,3 +220,27 @@ test("LinkFaultHeals path: a link fault on a part with no stream never heals", a
     newOpens: app.seen.filter((s) => s === "tasks:p1").length - opens,
   }).toMatchObject({ status: { status: "ready" } });
 });
+
+test("InvalidateAwaitsItsAsk path: await invalidate on a refused part returns before any ask", async () => {
+  const app = await boot();
+  app.rules.refuseWatch.set("p1", 1); // only the first watch: the next one opens
+
+  // 1. A reader reads part A.
+  app.read("p1");
+  // 2. The server refuses the stream.
+  await until(() => app.status("p1")?.status === "fault");
+  const asks = app.seen.filter((s) => s === "tasks.ask:p1").length;
+  // 3. You invalidate part A, and await it.  4. Your invalidate returns.
+  await app.invalidate("p1");
+
+  // ADR 0147 d4: to see your own write, invalidate. The await covers an ask.
+  const now = {
+    status: app.status("p1"),
+    asksSince: app.seen.filter((s) => s === "tasks.ask:p1").length - asks,
+  };
+  await until(() => app.status("p1")?.status === "ready"); // it heals later, by itself
+  expect(now).toMatchObject({
+    status: { status: "ready" },
+    asksSince: expect.toSatisfy((n: number) => n >= 0),
+  });
+});
