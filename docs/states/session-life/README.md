@@ -55,7 +55,7 @@ So they still show 3 rules break.
 - **FirstModeWins** — holds, since `cdc2c742`
   (card `core/close-from-defer-skips-hooks`).
   ADR 0029 d1.
-- **HandleDeadAfterBody** — holds, since `57e587bf`
+- **HandleDeadAfterBody** — holds, since `671627c6`
   (card `core/session-handle-after-body`).
   ADR 0071 d1.
 - **ChildrenCloseFirst** — holds.
@@ -173,7 +173,7 @@ The hook's `next()` gets Core's real close.
 
 A session's defer calls `root.close()`.
 The root sees a re-entrant close
-(`closeWouldReenter`, `index.ts:6797`).
+(`closeWouldReenter`).
 It skips the capsule close hook
 and calls `closeLayer(R, forced)`.
 
@@ -222,14 +222,16 @@ instead of commit (`success`).
 
 ## Bug 9: a leaked handle takes `onClose`
 
-Card `core/session-handle-after-body` fixes it
-(`57e587bf`).
+Card `core/session-handle-after-body` fixes it:
+`57e587bf` for a plain session,
+`671627c6` for a session under `session` hooks.
 Rule: HandleDeadAfterBody.
+The paths below name the code before the fix.
 
 In a graceful root close, a session's body ends,
 but `Layer.closed` stays false
-until the drain (`index.ts:4553`).
-`ensureOpen` (`index.ts:1778`) reads only `closed`.
+until the drain ends (`closeLayer`).
+`ensureOpen` read only `closed`.
 
 ### Path 3: a late `onClose`
 
@@ -242,7 +244,8 @@ until the drain (`index.ts:4553`).
 5. The session body returns.
    The graceful close waits for the owned work.
 6. Code calls `onClose` on the leaked handle.
-   It takes the defer. No `Disposed`.
+   Before `57e587bf` it took the defer.
+   No `Disposed`.
    ADR 0071 d1 wants `Disposed`.
 
 The control test passes:
@@ -251,9 +254,15 @@ the same leaked handle is refused.
 
 The fix: the owned work reads the same layer
 as the leaked handle,
-so the check sits on the handle only:
+so the check sits on the handle only
+(`ensureLive`):
 `onClose`, `controller` and `resolve`
 refuse once the body ended.
+Both session paths record the body end
+(`bodyDone`):
+`settleSessionWith` for a plain session,
+`runSessionWrapped` under `session` hooks.
+`session-end.test.ts` checks both.
 
 ## Path tests
 
