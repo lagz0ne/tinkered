@@ -38,3 +38,22 @@ tolerate it.
   wanting graceful teardown drives it outside the mount lifecycle.
 - A session created during a discarded concurrent render is closed by its cleanup like any other, so no
   session leaks; the guard only prevents double-creation within a single committed mount.
+
+## Amended 2026-11-20: a replay takes a rendered session back
+
+The "create/close/create" line above holds for a
+session or owned scope no render used yet.
+
+- A session (`SessionProvider`, 0.31.12) or an
+  owned scope (`ScopeProvider create`, this card)
+  that its children rendered with closes one
+  microtask after the effect's cleanup.
+- StrictMode's replay on a Suspense reveal runs
+  in that gap, so it takes the same one back.
+  The children keep their data.
+- A real unmount has no replay, so it still
+  closes, one microtask later.
+- Why: each reveal made a new, empty session or
+  scope, so the child suspended again, forever
+  (cards `react/strict-session-suspense`,
+  `react/owned-scope-strict-replay`).
