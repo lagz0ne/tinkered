@@ -25,10 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **flight-trial/supplier-search-timeout** — `tools/flight-trial/tests/supplier.test.ts` "search returns data flights shared by suppliers A and B" times out at Vitest's 5 s under load (load 15-40 on this box): it failed CI once on `5ca285e7` (2026-11-20; the re-run passed) and most local `ticket.sh` and push-hook runs of 2026-11-18 to 2026-11-20. It passes alone in about 1-2 s on a quiet box. Earlier notes: `docs/roadmap/core-v1/graceful-writes-logs/GATES.json` ("supplier.test.ts:96 test timeout"), `docs/roadmap/perf/PROGRESS.md`.
-  Next: find what the test waits on (polls, real timers, a fixed delay per supplier) and make it wait on the event instead, or give that one test the time its work needs, with the reason.
-  Verify: the file passes 30 runs in a row with the box under load (load 20 or more) and in CI.
-
 - **react/run-hidden-no-render** — The `RunOwner` TSDoc promises a hidden or unmounted view keeps the latest state without a re-render, but no test pins it: the mutants that drop `live = false` in the cleanup (`index.ts` ~865) survive (review of `react/mutation-floor`).
   Next: a test that hides a `useRun` view with `<Activity>`, lets the run settle, and counts renders before the show; or drop the words from the TSDoc.
   Verify: the test fails with `live = false` removed.
@@ -100,6 +96,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: that test fails on main and passes.
 
 ## Doing
+
+- **flight-trial/supplier-search-timeout** — `tools/flight-trial/tests/supplier.test.ts` "search returns data flights shared by suppliers A and B" times out at Vitest's 5 s under load (load 15-40 on this box): it failed CI once on `5ca285e7` (2026-11-20; the re-run passed) and most local `ticket.sh` and push-hook runs of 2026-11-18 to 2026-11-20. It passes alone in about 1-2 s on a quiet box. Earlier notes: `docs/roadmap/core-v1/graceful-writes-logs/GATES.json` ("supplier.test.ts:96 test timeout"), `docs/roadmap/perf/PROGRESS.md`.
+  Next: find what the test waits on (polls, real timers, a fixed delay per supplier) and make it wait on the event instead, or give that one test the time its work needs, with the reason.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `flight-trial/supplier-search-timeout`.
+  Verify: the file passes 30 runs in a row with the box under load (load 20 or more) and in CI.
 
 ## Review
 
