@@ -1335,6 +1335,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Two keys with the same fields in another order name one member.
 - A served keyed cell is read by part: a client asks for a part, and the
   last reader leaving drops it.
+- A part whose last reader leaves while its stream opens ends that
+  stream once it opens.
 - A set on the server makes each reader of its part ask for one member.
 - An answer that arrives after a later ask started is dropped.
 - With a load, the server keeps no member.

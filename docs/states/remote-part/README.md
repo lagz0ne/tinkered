@@ -495,6 +495,12 @@ RemotePart:
 - The abort listeners `follow` adds
   at each open and park (861, 877):
   a heap leak, not a state.
+- A part that leaves while its stream opens:
+  the listener came after the abort,
+  so the stream stayed open.
+  Card `core/follow-stop-after-open`
+  fixes it (`30272da2`).
+  Its test is in `remote-data-keyed-cell.test.ts`.
 - Back-off times. The link drops at most once.
 - The root's close.
 
