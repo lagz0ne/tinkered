@@ -44,7 +44,7 @@ more than the chart budget of 500.
 So the chart draws only the bug paths.
 The spec, the chart and the rerun
 still describe `c9c8817`,
-before the bug 8 fix.
+before the bug 8 and bug 9 fixes.
 So they still show 3 rules break.
 
 - **CloseHookRunsOnce** — holds, since `cdc2c742`
@@ -55,7 +55,9 @@ So they still show 3 rules break.
 - **FirstModeWins** — holds, since `cdc2c742`
   (card `core/close-from-defer-skips-hooks`).
   ADR 0029 d1.
-- **HandleDeadAfterBody** — breaks. ADR 0071 d1.
+- **HandleDeadAfterBody** — holds, since `57e587bf`
+  (card `core/session-handle-after-body`).
+  ADR 0071 d1.
 - **ChildrenCloseFirst** — holds.
   ADR 0011 ("Children first"),
   ADR 0024 ("children-first").
@@ -220,7 +222,8 @@ instead of commit (`success`).
 
 ## Bug 9: a leaked handle takes `onClose`
 
-Card `core/session-handle-after-body`.
+Card `core/session-handle-after-body` fixes it
+(`57e587bf`).
 Rule: HandleDeadAfterBody.
 
 In a graceful root close, a session's body ends,
@@ -246,24 +249,30 @@ The control test passes:
 with no ancestor close,
 the same leaked handle is refused.
 
+The fix: the owned work reads the same layer
+as the leaked handle,
+so the check sits on the handle only:
+`onClose`, `controller` and `resolve`
+refuse once the body ended.
+
 ## Path tests
 
 `paths/` goes to `packages/core/tests/statechart/`.
 
-- `session-life-paths.test.ts` — paths 1 and 2,
+- `session-life-paths.test.ts` — paths 1, 2
+  and 3 and the control,
   now in `packages/core/tests/statechart/`.
-  They pass since `cdc2c742`.
+  Paths 1 and 2 pass since `cdc2c742`.
   They failed before: that showed bug 8.
+  Path 3 passes since `57e587bf`.
+  It failed before: that showed bug 9.
+  The control passed before and after.
   Path 1's comment "the hook still never ran"
   now says "the hook ran once".
   Its assertion did not change.
 - `closing.test.ts` pinned the skipped hook
   (`calls` was `[]`).
   It now expects one `close hook`.
-- `statechart-session-life.test.ts.txt` —
-  path 3 and its control are left.
-  Path 3 fails today: it shows bug 9.
-  The control passes.
 - `statechart-no-rule.test.ts.txt` — today
   all 4 pass. They pin what the code does
   for 3 cases with no rule yet:
@@ -276,8 +285,10 @@ moved the CloseHookRunsOnce
 and FirstModeWins tests in:
 it cut them from the `.txt`.
 Card `core/session-handle-after-body`
-moves the HandleDeadAfterBody test
+moved the HandleDeadAfterBody test
 and the control in.
+No test was left,
+so it deleted the `.txt`.
 `statechart-no-rule` waits for Duke's rule
 (card `core/states-rules-undecided`).
 

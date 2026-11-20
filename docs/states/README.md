@@ -104,8 +104,8 @@ so main stays green.
   Cards: `core/resource-failed-stays`,
   `core/resource-cycle-holds-close`.
   1 case with no rule yet.
-- **session-life** — 1 rule breaks now
-  (fix `cdc2c742`);
+- **session-life** — 0 rules break now
+  (fixes `cdc2c742`, `57e587bf`);
   the spec still shows 3.
   Cards: `core/close-from-defer-skips-hooks`,
   `core/session-handle-after-body`.
