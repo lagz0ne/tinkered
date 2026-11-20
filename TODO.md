@@ -82,10 +82,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **bun/client-empty-tick** — After `drop()` empties `out`, the tick it scheduled still runs with nothing to send and opens a new socket, which stays open until the scope closes (review of `bun/client-drop-keeps-frames`, the tick in `post`). Next: the tick returns when its batch is empty; step 5 of `statechart-rpc-call.test.ts` then expects 1 socket.
   Verify: a bun test shows no socket opens after a drop with nothing left to send; the rpc-call path test passes.
 
-- **core/keyed-wake-after-close** — A keyed entry whose source is still pending when the scope closes builds when that source settles (`park`, then `tell`, `wake`, `fresh(true)`), and that build's end never runs (review of `core/keyed-watch-after-close`; ADR 0157 d5). The keyed-resource spec does not cover it.
-  Next: a Core test that closes the scope while a source is pending, then settles it; then stop `wake` from building on a closed layer.
-  Verify: that test fails on main and passes; no build runs after the close.
-
 - **core/failed-holder-blocks-close** — A failed build keeps its instance, which still holds its dependency. A release of that dependency then waits for the failed holder, and `close()` waits for that release before it unlinks the failed instance, so the close never resolves (`startClose`; ADR 0027, ADR 0063 d4). Found while fixing bug 7; the resource-life spec misses it (its close unlinks every instance at once).
   Repro: `b` plain; `a` depends on `b` and throws; `resolve(a)` throws; `release(b)`; `close()` is still open after 300 ms (main and after bug 7).
   Next: a Core test with that repro (red), then let the close unlink before it waits, or let a release not wait on a failed holder.
@@ -96,6 +92,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: that test fails on main and passes.
 
 ## Doing
+
+- **core/keyed-wake-after-close** — A keyed entry whose source is still pending when the scope closes builds when that source settles (`park`, then `tell`, `wake`, `fresh(true)`), and that build's end never runs (review of `core/keyed-watch-after-close`; ADR 0157 d5). The keyed-resource spec does not cover it.
+  Next: a Core test that closes the scope while a source is pending, then settles it; then stop `wake` from building on a closed layer.
+  Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/keyed-wake-after-close`.
+  Verify: that test fails on main and passes; no build runs after the close.
 
 ## Review
 
