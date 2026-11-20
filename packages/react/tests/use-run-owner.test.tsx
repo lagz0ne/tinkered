@@ -213,7 +213,10 @@ test("a run that settles while an Activity hides the view shows its result when 
 
 type Counted = Seen & { renders: number };
 
-/** Counts its own renders: a hidden view must not render when its run settles (ADR 0032 d2). */
+/** Counts its own renders: a hidden view must not render when its run settles (ADR 0032 d2).
+ * React queues a hidden view's render at low priority, so a test reads the count only after a
+ * hidden `rerender`: its `act` finishes that queued render first. Without it, a wrong render is
+ * not counted yet and the test passes. */
 function CountedView({ seen }: { seen: Counted }): React.ReactElement {
   seen.renders += 1;
   const run = useRun(readAnswer, { onSuccess: (value) => seen.calls.push(value) });
