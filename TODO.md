@@ -97,6 +97,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/status-holds-part** — ADR 0164 (Duke 2026-11-20: B). Watching `board.status(read)` holds the read's part, as a reader of the part does; `get()` stays a peek. Scratch proof: `/home/paseo/cuj10/STATUS-HOLDS.md` (muse-h-4 20/22 to 22/22).
+  Owner: lead. Writer: branch `core/status-holds-part`.
+  Next: the writer rewrites the change with no board-wide map, writes ADR 0164 and the docs, and runs the gates.
+  Verify: the seam tests in `packages/core/tests/remote-data-status-holds.test.ts` fail on main and pass; the muse-h-4 tree scores 22/22 on the built dist.
+
 - **core/keyed-wake-after-close** — A keyed entry whose source is still pending when the scope closes builds when that source settles (`park`, then `tell`, `wake`, `fresh(true)`), and that build's end never runs (review of `core/keyed-watch-after-close`; ADR 0157 d5). The keyed-resource spec does not cover it.
   Next: a Core test that closes the scope while a source is pending, then settles it; then stop `wake` from building on a closed layer.
   Owner: Opus lead (statechart fixes); Opus writer; Opus reviewer. Branch `core/keyed-wake-after-close`.
