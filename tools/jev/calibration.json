@@ -182,11 +182,11 @@
   "wrapsCallersStep": {
     "status": "proven",
     "trues": 17,
-    "falses": 19,
+    "falses": 20,
     "medianTrue": 0.84,
-    "medianFalse": 0.49,
-    "separation": 0.35,
-    "ordered": 0.91,
+    "medianFalse": 0.52,
+    "separation": 0.32,
+    "ordered": 0.93,
     "at": "2026-11-20"
   },
   "madeEveryCall": {
@@ -202,20 +202,20 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 69,
-    "medianTrue": 0.8,
+    "falses": 71,
+    "medianTrue": 0.79,
     "medianFalse": 0.59,
-    "separation": 0.21,
-    "ordered": 0.85,
+    "separation": 0.2,
+    "ordered": 0.81,
     "at": "2026-11-20"
   },
   "waitsOnSideWork": {
     "status": "provisional",
     "trues": 1,
-    "falses": 77,
-    "medianTrue": 0.79,
-    "medianFalse": 0.57,
-    "separation": 0.22,
+    "falses": 79,
+    "medianTrue": 0.8,
+    "medianFalse": 0.56,
+    "separation": 0.24,
     "ordered": 1,
     "at": "2026-11-20"
   },

@@ -9,6 +9,23 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.31.15
+
+A session handle that leaked out of its body
+refuses calls once the body ended (bug 9,
+ADR 0071).
+
+- Before, in a graceful root close, a session's
+  body could end while its owned work still ran.
+  A handle that leaked out of the body still took
+  `onClose`, `resolve` and `controller` then.
+- Now those calls throw `Disposed` once the body
+  ended, with or without `session` hooks.
+- Work the session still owns keeps running, as
+  a graceful close says (ADR 0028).
+- Core's size caps rose (Duke, 2026-11-20): no-rpc
+  to 23,256 B, with rpc to 35,136 B.
+
 ## 0.31.14
 
 A key the server refuses stops asking until you

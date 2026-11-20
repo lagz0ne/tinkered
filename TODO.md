@@ -117,9 +117,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
-- **core/session-handle-after-body** — bug 9 (Duke 2026-11-19: raise the cap by 8 B). The saved fix is now 23,254 B without rpc on main 0.31.12: 22 B over the 23,232 B cap, because main grew 8 B (bug 1) since Duke's +8 was sized. Branch `core/session-handle-after-body`, rebased on main.
-  Missing: Duke's OK for a bigger raise (+24 B covers bug 9 and the 1 B hash noise of bug 13), or trims.
-
 - **core/invalidate-refused-returns-early** — bug 12 in [docs/states](docs/states/remote-part/README.md). `await invalidate` on a refused part returns before any ask (`reask` calls `wake()` and adds no ask to the list it awaits; ADR 0147 d4).
   Missing: Duke's rule for the path test. InvalidateAwaitsItsAsk (`paths/remote-part-paths.test.ts.txt`) wants `asksSince: 1` and `ready` when the await returns. That forces one design: invalidate sends its own `tasks.ask` and the await also covers the stream's reopen. A fix where invalidate only reopens the stream (its first push is the value) gives 0 asks and fails it (lead's audit, 2026-11-19).
   A: the await covers the reopened stream's first answer; the test asks `asksSince >= 0` and `ready`. Lead's pick: no extra round trip.
@@ -159,6 +156,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/session-handle-after-body** — done 2026-11-20 (bug 9, [session-life](docs/states/session-life/README.md) HandleDeadAfterBody; ADR 0071 d1; caps: Duke 2026-11-20 03:12 and 07:23, option A). A leaked session handle refuses `onClose`, `resolve` and `controller` with `Disposed` once its body ended, plain and hooked; owned work keeps running (ADR 0028). Fixes `f81d82b6`, `1e5f223d`. Released as 0.31.15.
+  Proof: the HandleDeadAfterBody path test and its control in `packages/core/tests/statechart/session-life-paths.test.ts`, red on main; a plain-and-hooked resolve/controller test in `session-end.test.ts`, red on the first fix; the ticket steps green on the rebased head (run one task at a time under another session's load; site and React re-run once for Chromium connect and the known `Disposed` flake); sizes 23,249 B (cap 23,256) and 35,088 B (cap 35,136); core mutation 86.43 on `b81ded71` by the lead, exit 0 (kills alone 85.0: 5,989/7,046; core source byte-identical to the landed head). Opus convention-review NOT READY (hooked sessions; untested refusals), one fix round, READY.
 
 - **core/refused-key-reopens** — done 2026-11-20 (bug 13, [remote-part](docs/states/remote-part/README.md) KeyStream; ADR 0140 and ADR 0137 amended; Duke 2026-11-19 13:59 option B; cap: Duke 2026-11-20 03:12 option A). Any fault but `link` ends asking for every key; `invalidate` takes plain keys (`{ notes: {} }`) and resolves on the new value or fault; an invalidate during an open is kept; the site's sign-in calls `invalidate`. Released as 0.31.14.
   Proof: the key-stream path test (renamed to the rule), plain-key and keyed invalidate tests, an invalidate-while-opening test red on the first fix, the site's sign-in test; `scripts/ticket.sh --check-only --no-mutation` exit 0; sizes 23,233 B (cap 23,256) and 35,071 B (cap 35,072); core mutation 87.11 on `f664ac30` by the lead, exit 0 (kills alone 84.7: 165 timeouts while another writer loaded the box; core source byte-identical to the landed head). Opus convention-review NOT READY (an invalidate during an open was lost; ADR wording), one fix round, READY.
