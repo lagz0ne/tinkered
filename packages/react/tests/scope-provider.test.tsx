@@ -1,5 +1,6 @@
+import type { Scope } from "@tinkered/core";
 import { createScope, data, resource } from "@tinkered/core";
-import { Activity, StrictMode, useState } from "react";
+import { Activity, StrictMode, Suspense, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 
@@ -19,6 +20,19 @@ const greeting = data({ label: "greeting", initial: "hi" });
 function Greeting(): React.ReactElement {
   const scope = useScope();
   return <p>{scope.controller(greeting).get()}</p>;
+}
+
+/** Each build of {@link sessionData} waits for the test to settle it. */
+const loads: Array<(value: string) => void> = [];
+
+const sessionData = resource({
+  label: "session data",
+  target: "session",
+  factory: () => new Promise<string>((resolve) => loads.push(resolve)),
+});
+
+function SessionChild(): React.ReactElement {
+  return <p>child:{useResource(sessionData)}</p>;
 }
 
 test("uses the exact app-owned scope and never closes it", async () => {
@@ -82,6 +96,49 @@ test("under StrictMode, create mode leaks no scope and never exposes a closed on
   await expect.element(screen.getByText("hi")).toBeVisible();
   await screen.unmount();
   await expect.poll(() => creates > 0 && creates === closes).toBe(true);
+});
+
+test("under StrictMode inside Suspense, create mode keeps one root and one session once the data loads", async () => {
+  const made = { roots: 0, sessions: 0 };
+  const closed = { roots: 0, sessions: 0 };
+  const create = () => {
+    const root = createScope();
+    made.roots += 1;
+    root.onClose(() => {
+      closed.roots += 1;
+    });
+    return Object.assign(Object.create(root) as Scope.Handle, {
+      createSession(options?: Scope.Options): Scope.Handle {
+        const session = root.createSession(options);
+        made.sessions += 1;
+        session.onClose(() => {
+          closed.sessions += 1;
+        });
+        return session;
+      },
+    });
+  };
+
+  const screen = await render(
+    <StrictMode>
+      <Suspense fallback={<p>fallback</p>}>
+        <ScopeProvider create={create}>
+          <SessionProvider>
+            <SessionChild />
+          </SessionProvider>
+        </ScopeProvider>
+      </Suspense>
+    </StrictMode>,
+  );
+  await expect.poll(() => loads.length).toBe(1);
+  loads[0]!("ok");
+  await expect.element(screen.getByText("child:ok")).toBeVisible();
+  const shown = { ...made, builds: loads.length };
+  await screen.unmount();
+  for (const load of loads) load("late");
+
+  expect(shown).toEqual({ roots: 2, sessions: 2, builds: 1 });
+  await expect.poll(() => closed).toEqual(made);
 });
 
 test("a new scope on the provider mounts its subtree again", async () => {

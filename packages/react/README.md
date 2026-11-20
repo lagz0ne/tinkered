@@ -197,6 +197,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 - The subtree uses the exact app-owned scope, which the provider never closes.
 - Under StrictMode, create mode leaks no scope and never exposes a closed one.
+- Under StrictMode inside Suspense, create mode keeps one root and one session once the data loads.
 - A new scope on the provider mounts its subtree again.
 - A new starting root on the provider shows that root's values.
 - An Activity hide closes the created scope; a show renders only with a fresh one.
