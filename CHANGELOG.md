@@ -9,6 +9,24 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## Unreleased
+
+A watch of `board.status(read)` now holds the
+read's part, as a reader of the part does
+(ADR 0164).
+
+- Before, only a value read asked the server. A
+  page that showed "loading" from the status
+  alone, and read the value after `ready`,
+  waited forever.
+- Now the first holder asks, status or value.
+  They share one ask. The part leaves with its
+  last holder.
+- A status watcher hears `pending`, then `ready`
+  or `fault`.
+- `get()` of a status is still a peek: it holds
+  nothing.
+
 ## 0.31.17
 
 A `ScopeProvider create` inside a `<Suspense>`

@@ -144,6 +144,7 @@ const list = useData(
 - The first reader of a part asks the server for
   it. A write sends the member it changed, not
   the list.
+- Watching `board.status(read)` also holds the part.
 - `board.invalidate` marks a part dirty, so its
   readers ask again.
 - `sea.board({ read, refetchInterval: { waves:
