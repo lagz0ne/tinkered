@@ -119,32 +119,25 @@ function label(error: unknown): string {
 
 const answer = resource({ label: "answer", factory: () => 42 });
 
-function ReadsData(): React.ReactElement {
-  return <p>{useData(greeting)}</p>;
-}
-
-function ReadsResource(): React.ReactElement {
-  return <p>{useResource(answer)}</p>;
-}
-
-function Releases(): React.ReactElement {
-  useRelease();
-  return <p>release</p>;
-}
-
 test.each([
-  ["useScope", <Greeting />],
-  ["useData", <ReadsData />],
-  ["useResource", <ReadsResource />],
-  ["useRelease", <Releases />],
+  ["useScope", Greeting],
+  ["useData", () => <p>{useData(greeting)}</p>],
+  ["useResource", () => <p>{useResource(answer)}</p>],
+  ["useRelease", () => <p>{typeof useRelease()}</p>],
   [
     "SessionProvider",
-    <SessionProvider>
-      <p>session</p>
-    </SessionProvider>,
+    () => (
+      <SessionProvider>
+        <p>session</p>
+      </SessionProvider>
+    ),
   ],
-])("%s used with no provider raises NoProvider", async (_name, view) => {
-  const screen = await render(<Catch fallback={(error) => <p>{label(error)}</p>}>{view}</Catch>);
+])("%s used with no provider raises NoProvider", async (_name, View) => {
+  const screen = await render(
+    <Catch fallback={(error) => <p>{label(error)}</p>}>
+      <View />
+    </Catch>,
+  );
 
   await expect.element(screen.getByText("caught:useScope")).toBeVisible();
 });
