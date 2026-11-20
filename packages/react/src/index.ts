@@ -105,9 +105,9 @@ type Owned =
 
 const WAITING: Owned = { kind: "waiting" };
 
-/** The scope one effect made, and the state it settled to (absent while a root starts), so a
+/** The scope one effect made, and the state it settled to (`undefined` while a root starts), so a
  * cleanup can tell whether the children rendered with it. */
-type Made = { readonly scope: Scope.Handle | Scope.Starting; owned?: Owned };
+type Made = { readonly scope: Scope.Handle | Scope.Starting; owned: Owned | undefined };
 
 /** Own a created scope for a subtree: create it in an effect (never during render, so a discarded
  * or StrictMode-replayed render leaks nothing), publish it to children only once it exists, and
@@ -140,7 +140,7 @@ function OwnedScopeProvider(props: {
     releasedRef.current = undefined;
     if (released !== undefined) return () => release(released);
 
-    const made: Made = { scope: createRef.current() };
+    const made: Made = { scope: createRef.current(), owned: undefined };
     let mounted = true;
     const settle = (next: Owned): void => {
       made.owned = next;
