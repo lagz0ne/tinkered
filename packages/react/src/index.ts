@@ -105,14 +105,24 @@ type Owned =
 
 const WAITING: Owned = { kind: "waiting" };
 
+/** The scope one effect made, and the state it settled to (absent while a root starts), so a
+ * cleanup can tell whether the children rendered with it. */
+type Made = { readonly scope: Scope.Handle | Scope.Starting; owned?: Owned };
+
 /** Own a created scope for a subtree: create it in an effect (never during render, so a discarded
  * or StrictMode-replayed render leaks nothing), publish it to children only once it exists, and
- * close exactly that scope on unmount. StrictMode's mount→unmount→mount makes a fresh scope for
- * each live mount and never leaves a closed scope on context for a consumer to touch (ADR 0031).
+ * close exactly that scope on unmount. StrictMode's first mount closes its scope, which no render
+ * used yet, and the next live mount makes a fresh one; it never leaves a closed scope on context
+ * for a consumer to touch (ADR 0031).
  * A starting root (ADR 0128) is published once `ready` gives its started handle: nothing renders
- * until then, and a failed start throws to the nearest error boundary. It does not suspend: a
- * Suspense boundary above would hide and show this provider, and StrictMode then replays its
- * effect, which would close the scope its children just subscribed to. */
+ * until then, and a failed start throws to the nearest error boundary. It does not suspend: the
+ * scope is made in an effect, and a render that suspends commits no effect to make it.
+ *
+ * A scope its children never rendered with closes in the cleanup. A rendered one closes one
+ * microtask later: StrictMode replays the effect each time a `<Suspense>` shows this provider again,
+ * and that replay takes the same scope back, so a {@link SessionProvider} under it keeps its
+ * session and the children do not suspend in a loop. A real unmount has no replay, so the scope
+ * still closes. */
 function OwnedScopeProvider(props: {
   readonly create: () => Scope.Handle | Scope.Starting;
   readonly children: ReactNode;
@@ -121,26 +131,53 @@ function OwnedScopeProvider(props: {
   createRef.current = props.create;
 
   const [owned, setOwned] = useState<Owned>(WAITING);
+  const renderedRef = useRef(owned);
+  renderedRef.current = owned;
+  const releasedRef = useRef<Made | undefined>(undefined);
+
   useEffect(() => {
-    const made = createRef.current();
+    const released = releasedRef.current;
+    releasedRef.current = undefined;
+    if (released !== undefined) return () => release(released);
+
+    const made: Made = { scope: createRef.current() };
     let mounted = true;
     const settle = (next: Owned): void => {
+      made.owned = next;
       if (mounted) setOwned(next);
     };
-    if (isStarting(made)) {
-      void made.ready.then(
+    if (isStarting(made.scope)) {
+      void made.scope.ready.then(
         (scope) => settle({ kind: "started", bound: bind(scope) }),
         (error: unknown) => settle({ kind: "failed", error }),
       );
     } else {
-      settle({ kind: "started", bound: bind(made) });
+      settle({ kind: "started", bound: bind(made.scope) });
     }
     return () => {
       mounted = false;
-      setOwned(WAITING);
-      closeScope(made);
+      release(made);
     };
   }, []);
+
+  /** Let go of the effect's scope: close it now if no render used it, else hold it for the replay
+   * and close it in a microtask the replay did not cancel. That microtask also clears `owned`: an
+   * `<Activity>` that hides the provider runs this cleanup and keeps it mounted, so the hidden
+   * children must not keep the closed scope; it shows a fresh one when the effect runs again. */
+  function release(made: Made): void {
+    if (renderedRef.current !== made.owned) {
+      setOwned(WAITING);
+      return closeScope(made.scope);
+    }
+
+    releasedRef.current = made;
+    queueMicrotask(() => {
+      if (releasedRef.current !== made) return;
+      releasedRef.current = undefined;
+      setOwned(WAITING);
+      closeScope(made.scope);
+    });
+  }
 
   if (owned.kind === "failed") throw owned.error;
   if (owned.kind === "waiting") return null;
