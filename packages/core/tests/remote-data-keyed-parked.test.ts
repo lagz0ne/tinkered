@@ -1,6 +1,8 @@
 /**
  * A parked part (one that waits on a fault, ADR 0139 4) keeps its fault until a trigger: a late
- * answer, the part that rides it, and a live part that holds it do not make it ready.
+ * answer, the part that rides it, and a live part that holds it do not make it ready. An awaited
+ * `invalidate` that wakes it ends, even when the new stream is refused or the part leaves
+ * (ADR 0147 d4).
  */
 import { memory } from "@tinkered/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
@@ -97,7 +99,7 @@ async function boot() {
     return () => tab.resolve(board.status(part)).get();
   };
   const invalidate = () => tab.run(board.invalidate, { input: { tasks: { project: "p1" } } });
-  return { rules, read, invalidate };
+  return { rules, tab, read, invalidate };
 }
 
 test("a late answer leaves a parked part and the part that rides it in their fault", async () => {
@@ -130,4 +132,32 @@ test("a live part's answer leaves a parked part it holds in its fault", async ()
   await until(() => wide()?.status === "ready");
 
   expect(one()).toMatchObject({ status: "fault", fault: { fault: "refused" } });
+});
+
+test("await invalidate on a parked part ends when its new stream is refused again", async () => {
+  const app = await boot();
+  app.rules.refuse = 2;
+  const wide = app.read(board.tasks.where({ project: "p1" }));
+  await until(() => wide()?.status === "fault");
+
+  await app.invalidate();
+
+  expect(app.rules.refuse).toBe(0);
+  expect(wide()).toMatchObject({ status: "fault", fault: { fault: "refused" } });
+});
+
+test("await invalidate on a parked part ends when the part leaves before its new stream opens", async () => {
+  const app = await boot();
+  app.rules.refuse = 2;
+  const part = board.tasks.where({ project: "p1" });
+  const stop = app.tab.resolve(part).watch(() => undefined);
+  await until(() => app.tab.resolve(board.status(part)).get()?.status === "fault");
+  const watchHeld = (app.rules.watch = gate());
+  const invalidated = app.invalidate();
+  await until(() => watchHeld.reached);
+
+  stop();
+  watchHeld.open();
+
+  await expect(invalidated).resolves.toBeUndefined();
 });
