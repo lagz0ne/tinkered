@@ -168,9 +168,8 @@ export function ScopeProvider(props: ScopeProviderProps): ReactNode {
  * under it resolve against the session (the nearest `Handle`), so a `data` write is shadowed and does
  * not reach the parent. Created in an effect (StrictMode-safe, like {@link ScopeProvider}'s `create`
  * mode): StrictMode's first mount closes its session, which no render used yet, and the next live
- * mount opens a fresh one; a replay after the children rendered keeps the session (see below). The
- * session is published paired with the parent it belongs to; if the nearest scope changes, the old
- * session is never exposed for the new parent (render null until the effect opens a fresh one).
+ * mount opens a fresh one; a replay after the children rendered keeps the session (see below). A
+ * new nearest scope mounts this provider again (ADR 0144), so a session never outlives its parent.
  * The reset namespace head is saved with this session, including an inherited key.
  * `options` apply when the session is created — changing them for the same parent has no effect until
  * the provider remounts.
@@ -189,24 +188,21 @@ export function SessionProvider(props: {
   const optionsRef = useRef(props.options);
   optionsRef.current = props.options;
 
-  const [owned, setOwned] = useState<SessionOwned | undefined>(undefined);
+  const [owned, setOwned] = useState<Bound | undefined>(undefined);
   const renderedRef = useRef(owned);
   renderedRef.current = owned;
-  const releasedRef = useRef<SessionOwned | undefined>(undefined);
+  const releasedRef = useRef<Bound | undefined>(undefined);
 
   useEffect(() => {
     const released = releasedRef.current;
     releasedRef.current = undefined;
-    if (released !== undefined && released.parent === parent && released.inherited === inherited) {
-      return () => release(released);
-    }
-    if (released !== undefined) closeScope(released.bound.scope);
+    if (released !== undefined) return () => release(released);
 
     const options = optionsRef.current;
     const session = parent.createSession(options);
     const ns = options?.ns;
     const [head] = ns === undefined ? [inherited] : "tags" in ns ? [ns] : ns;
-    const next: SessionOwned = { parent, inherited, bound: bind(session, head) };
+    const next = bind(session, head);
     setOwned(next);
 
     return () => release(next);
@@ -217,10 +213,10 @@ export function SessionProvider(props: {
    * `owned`: an `<Activity>` that hides the provider runs this cleanup and keeps it mounted, so the
    * hidden children must not keep the closed session; it shows a fresh one when the effect runs
    * again. After an unmount React 19 ignores the state update. */
-  function release(current: SessionOwned): void {
+  function release(current: Bound): void {
     if (renderedRef.current !== current) {
       setOwned(undefined);
-      return closeScope(current.bound.scope);
+      return closeScope(current.scope);
     }
 
     releasedRef.current = current;
@@ -228,21 +224,13 @@ export function SessionProvider(props: {
       if (releasedRef.current !== current) return;
       releasedRef.current = undefined;
       setOwned(undefined);
-      closeScope(current.bound.scope);
+      closeScope(current.scope);
     });
   }
 
-  if (owned === undefined || owned.parent !== parent) return null;
-  return provide(owned.bound, props.children);
+  if (owned === undefined) return null;
+  return provide(owned, props.children);
 }
-
-/** The session a {@link SessionProvider} holds, with the parent and inherited head it was opened
- * for: a replay takes it back only when both still match. */
-type SessionOwned = {
-  readonly parent: Scope.Handle;
-  readonly inherited: Namespace | undefined;
-  readonly bound: Bound;
-};
 
 /** Read the nearest scope `Handle`. Raises `NoProvider` when used outside a {@link ScopeProvider}. */
 export function useScope(): Scope.Handle {
@@ -670,7 +658,7 @@ export function useResource<T>(
   if (options.suspense !== false) return useSuspendedResource(scope, handle, ns);
 
   let owner = ref.current;
-  if (owner === undefined || owner.scope !== scope || owner.handle !== handle || owner.ns !== ns) {
+  if (owner === undefined || owner.handle !== handle || owner.ns !== ns) {
     owner = ref.current = new ResourceOwner(scope, handle, ns, force);
   }
 
@@ -969,7 +957,7 @@ export function useRun<T, I>(
   const ref = useRef<RunOwner<T, I> | undefined>(undefined);
 
   let owner = ref.current;
-  if (owner === undefined || owner.scope !== scope || owner.op !== op) {
+  if (owner === undefined || owner.op !== op) {
     if (owner !== undefined) owner.options = undefined;
     owner = ref.current = new RunOwner(scope, op, force);
   }
