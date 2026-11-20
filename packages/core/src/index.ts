@@ -3910,6 +3910,9 @@ function publishSyncResource(
   closeSpan(obs, span, "ok");
 }
 
+/** A failed instance keeps its edges, as a sticky async failure does: it still holds its
+ * dependencies (ADR 0063 d4), so their release must cascade to it (d3), or that release and the
+ * close that joins it never end (ADR 0027). */
 function failResourceBuild(
   owner: Layer,
   target: Resource.Handle<unknown>,
@@ -3920,7 +3923,7 @@ function failResourceBuild(
   obs: Obs,
   span: SpanImpl | undefined,
 ): never {
-  if (rec.gen === gen) detachResourceDependencies(owner, target, rec);
+  if (rec.gen === gen && !owned) detachResourceDependencies(owner, target, rec);
   settleResourceInstance(owned, "failed", error);
   closeSpan(obs, span, "failed");
   throw error;

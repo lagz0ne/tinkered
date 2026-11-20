@@ -987,3 +987,28 @@ test("close resolves after a failed build's dependency is released", async () =>
 
   expect(await Promise.race([closing, open])).toBe("closed");
 });
+
+test("a release ends a failed holder's hooks before its dependency's", () => {
+  const ended: string[] = [];
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(`pool:${end.status}`));
+      return "pool";
+    },
+  });
+  const client = resource({
+    label: "client",
+    depends: { pool },
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(`client:${end.status}`));
+      throw new Error("client fails");
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.resolve(client)).toThrow("client fails");
+
+  scope.release(pool);
+
+  expect(ended).toEqual(["client:failed", "pool:released"]);
+});
