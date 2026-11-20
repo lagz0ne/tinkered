@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **flight-trial/fixture-parse-per-scope** — Every flight-trial test that starts a supplier reads, gunzips and zod-parses the 7 MB flight fixture again (`services/supplier/index.ts` ~89, a module `reader` per scope), about 0.4 s quiet and up to 2 s at load 30. After `flight-trial/supplier-search-timeout` gave the worst test 20 s, another one ("supplier binds its own request role and keeps named HTTP spans and session logs") timed out at 5 s in a push hook under load (2026-11-20 17:33).
+  Next: parse the fixture once per process (a module-level lazy cache in the app, read-only, each scope deep-copies its own offers as today), so tests and the app both stop paying it per scope; or, if the app must keep per-scope parsing, give the file's supplier tests the time they need with the reason.
+  Verify: the flight-trial file passes 30 runs at load 30 or more with no timeout; app behavior unchanged (its tests).
+
 - **react/run-hidden-no-render** — The `RunOwner` TSDoc promises a hidden or unmounted view keeps the latest state without a re-render, but no test pins it: the mutants that drop `live = false` in the cleanup (`index.ts` ~865) survive (review of `react/mutation-floor`).
   Next: a test that hides a `useRun` view with `<Activity>`, lets the run settle, and counts renders before the show; or drop the words from the TSDoc.
   Verify: the test fails with `live = false` removed.
