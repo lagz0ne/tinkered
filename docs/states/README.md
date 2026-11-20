@@ -116,8 +116,8 @@ so main stays green.
   Card: `core/own-signal-leaves-closing`.
   The other break waits for a rule:
   1 case with no rule yet.
-- **remote-part** — RemotePart: 1 rule breaks now
-  (fixes `fb7679b4`, `ee58cbaa`);
+- **remote-part** — RemotePart: 0 rules break now
+  (fixes `fb7679b4`, `ee58cbaa`, `c7e9b623`);
   the spec still shows 3.
   KeyStream: 0 rules break now
   (fix `76f67035`);

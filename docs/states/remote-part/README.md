@@ -59,7 +59,7 @@ No `refetchInterval`.
 TLC reached 340,989 states (`holds.cfg`).
 The spec, the chart and the rerun
 still describe `c9c8817`,
-before the bug 11 fix.
+before the bug 11 and bug 12 fixes.
 So they still show 3 rules break.
 
 - **RefusedWaitsForTrigger** — holds,
@@ -80,7 +80,13 @@ So they still show 3 rules break.
   the part shows link until then");
   ADR 0141 table ("A link on a read heals:
   the backend watches again").
-- **InvalidateAwaitsItsAsk** — breaks.
+- **InvalidateAwaitsItsAsk** — holds,
+  since `c7e9b623`
+  (card `core/invalidate-refused-returns-early`).
+  On a refused part, the await covers
+  the new stream's first answer,
+  not an ask of its own
+  (Duke 2026-11-19, option A).
   ADR 0147 d4 ("To see your own write,
   invalidate", with `await`);
   ADR 0137 d2 (invalidate asks again).
@@ -249,12 +255,26 @@ so it does not see that the part is parked.
 
 ### Bug 12: `await invalidate` returns before any ask
 
-Card `core/invalidate-refused-returns-early`.
+Card `core/invalidate-refused-returns-early`
+fixes it (`c7e9b623`).
 Rule: InvalidateAwaitsItsAsk.
+The text below names the code before the fix.
 
 `reask` calls `wake()`
 and adds no ask to the list it awaits
 (849-850).
+
+The fix is in `reask`, `parked` and `follow`.
+`reask` gives its own resolve to `wake`.
+The part's new stream resolves it
+with its first ask, or on its fault.
+So the await ends with the part
+`ready` or in its new fault.
+If the part leaves first, the await ends too.
+Duke's rule (2026-11-19, option A):
+the await covers the new stream's first answer.
+So the path test checks `ready`,
+and any count of asks.
 
 #### Path 3: a refused part
 
@@ -386,16 +406,19 @@ with back-off.
 `paths/` goes to `packages/core/tests/statechart/`.
 
 - `remote-part-paths.test.ts` —
-  RefusedWaitsForTrigger (path 1)
-  and LinkFaultHeals (path 2),
+  RefusedWaitsForTrigger (path 1),
+  LinkFaultHeals (path 2)
+  and InvalidateAwaitsItsAsk (path 3),
   now in `packages/core/tests/statechart/`.
-  They pass since `fb7679b4`.
+  The first two pass since `fb7679b4`.
   They failed before: that showed bug 11.
+  InvalidateAwaitsItsAsk passes since `c7e9b623`.
+  It failed before: that showed bug 12.
+  It moved with one change:
+  `asksSince: 1` became `asksSince >= 0`.
 - `paths/remote-part-paths.test.ts.txt` —
-  InvalidateAwaitsItsAsk and the
-  "no rule yet" test are left.
-  InvalidateAwaitsItsAsk fails today (path 3).
-  The last test passes: it pins case 7
+  only the "no rule yet" test is left.
+  It passes: it pins case 7
   (see [No rule yet](#no-rule-yet)).
 - `key-stream-paths.test.ts` —
   RefusedEndsAsking (path 4),
@@ -412,7 +435,7 @@ and LinkFaultHeals tests in:
 it cut them from the `.txt`.
 The `.txt` keeps the shared helpers.
 Card `core/invalidate-refused-returns-early`
-moves the InvalidateAwaitsItsAsk test in.
+moved the InvalidateAwaitsItsAsk test in.
 Card `core/refused-key-reopens`
 moved `key-stream-paths` in.
 The "no rule yet" test waits for Duke's rule
@@ -454,7 +477,7 @@ What the code does today:
    B still shows refused.
 
 Test: `remote-part-paths.test.ts.txt`,
-the last test. It passes today.
+its one test. It passes today.
 
 ## What the specs leave out
 
@@ -496,7 +519,7 @@ statechart KeyStream.tla \
 
 - `RemotePart.cfg`: exit 1 today, 3 rules break.
   The spec still describes `c9c8817`,
-  so it does not see the bug 11 fix.
+  so it does not see the bug 11 and bug 12 fixes.
 - `holds.cfg`: exit 0, every rule holds.
 - `KeyStream.cfg`: exit 1 today, 1 rule breaks.
   The spec still describes `c9c8817`,
