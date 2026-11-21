@@ -25,6 +25,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/closed-follows-first-cause** (ADR 0165 amend) — Duke 2026-11-21 14:58 UTC picked A: `closed` follows the first cause too, as `settled` does. Today `close()` first, then a start error, gives `settled` cancelled but `closed` failed (`tests/start-timeout-and-hose.test.ts:545` pins `failed`).
+  Next: after Hedl moves to 0.34.0: amend ADR 0165 (and ADR 0027/0028 if they say otherwise), a scope-life spec rule, the path test red first, then the fix.
+  Verify: scope-life check 0 breaks; path test red on main, green; `scripts/ticket.sh` exit 0; sizes under the caps (or Blocked with the exact size); core mutation >= 85.
+
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -77,10 +81,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/stop-signal-then-later-event** (ADR 0165) — owner: lead (Opus), writer Opus. Bug 3 in [docs/states](docs/states/scope-life/README.md): a stop signal fires during start, then a start error, a timeout or a `close()` comes before the hooks return; the code reports the later event. Duke accepted ADR 0165 (2026-11-21): the first cause wins, `scope.settled` becomes a never-rejecting promise (the twin of `ready`), and the old `settled()` is renamed `idle()`.
-  Next: spec first (scope-life rules from ADR 0165, check, chart into the ADR), then the path test red on main, then the code; minor release; then Hedl moves to it.
-  Verify: scope-life check 0 breaks; path test red on main, green; `scripts/ticket.sh` exit 0; sizes under the caps (or Blocked with the exact size); core mutation >= 85.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -119,6 +119,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/stop-signal-then-later-event** — done 2026-11-21 (ADR 0165, amends ADR 0134 d2). Bug 3: a stop signal during start, then a start error, a timeout or a `close()`, made `ready` report the later event. Now the first cause wins: `ready` rejects with it, and the new `scope.settled` (a promise that never rejects: success with the handle, cancelled with the reason, or failed with the error) names the same cause; a later error is dropped. The handle's `settled()` is renamed `idle()`, same behavior. Fix `aa79955b`. Released as 0.34.0.
+  Proof: scope-life spec on main 12 rules, 199 states, 5 breaks (all bug 3); after the fix 12 rules, 131 states, 0 breaks. Path tests `tests/statechart/scope-life-paths.test.ts` red on main (4 of 5), green; success and close-first shape tests added in review. `scripts/ticket.sh --check-only --no-mutation` exit 0. Size 23,434 B without rpc (cap raised to 23,440 B, Duke 2026-11-21 14:27, option A) and 33,964 B with rpc. Core mutation on `a1ee0229` (clean) 86.56, kills alone 85.6, exit 0. Opus convention-review NOT READY (no success-shape test; a README bullet), one fix round.
 
 - **core/rpc-split** — dropped 2026-11-21 (ADR 0166; Duke 11:12: "Drop the split"). Step 4 of Fable's reconstruction B. Built on box branches `core/rpc-split` (both sides lazy) and `core/rpc-split-c` (server side lazy); all gates green on both; not landed.
   Proof: ws page start set, gzip: main 34,616 B; both sides lazy 34,232 B plus one more fetch; server side lazy 33,575 B (server set +1,069 B). Hedl start set: 259,044 / 258,592 / 257,967 B. Start cost: no difference we can see (`benchctl ab`). The ADR's "Result" section holds the numbers.
