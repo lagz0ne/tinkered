@@ -198,7 +198,7 @@ It moved there from `paths/` in `f3a03adf`.
   and fire the first socket's `close` in that window.
 - The fix is in `drop()` in `src/client.ts`.
   The test did not change then.
-- Card `bun/client-empty-tick`, fix `efe297db`:
+- Card `bun/client-empty-tick`, fix `a1b598ee`:
   a tick with an empty batch opens no socket.
   So step 5 opens no socket now.
   The test expects 1 socket, not 2.
