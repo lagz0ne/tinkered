@@ -10,6 +10,9 @@ the root's start and close in `packages/core`.
 
 ## Rules
 
+The rules come from
+[ADR 0165](../../decisions/0165-settled-is-the-twin-of-ready.md)
+and the ADR 0134 rules it keeps.
 TLC reached 199 states.
 
 - **NoWorkAfterStop** — holds. ADR 0134 d1.
@@ -20,15 +23,29 @@ TLC reached 199 states.
 - **SignalForcesClose** — breaks. ADR 0134 d2.
   A stop signal during start forces the close,
   and the close hooks run.
-- **SignalReasonRejectsReady** — breaks.
-  ADR 0134 d2,
-  [ADR 0085](../../decisions/0085-a-root-owns-its-lifetime-a-stop-signal-closed-and-ready-after-cleanup.md)
-  d4.
-  Then `ready` rejects with the signal's reason.
 - **SignalClosedCancelled** — breaks. ADR 0134 d2.
   Then `closed` is `cancelled`.
-- **FirstErrorWins** — holds. ADR 0134 d2.
+- **FirstErrorWins** — holds. ADR 0134 d2,
+  kept by ADR 0165 d2.
   A start error that comes first wins.
+- **FirstCauseRejectsReady** — breaks.
+  ADR 0165 d2 (amends ADR 0134 d2),
+  [ADR 0085](../../decisions/0085-a-root-owns-its-lifetime-a-stop-signal-closed-and-ready-after-cleanup.md)
+  d4.
+  The first event that ends the start is its cause:
+  a stop signal, a start hook's throw,
+  a start timeout, or a `close()`.
+  `ready` rejects with that cause.
+- **SettledNamesFirstCause** — breaks. ADR 0165 d1, d2.
+  `settled` names the same cause and never rejects.
+  Its status is `success`, `cancelled`
+  (a signal, a close) or `failed`
+  (a start error, a timeout).
+  Main has no `settled`:
+  the spec reads it from `ready`, as the fix builds it.
+- **LaterErrorDropped** — breaks. ADR 0165 d2.
+  A later error is dropped:
+  only a first error or timeout fails the start.
 - **PreAbortedRunsNoHook** — holds. ADR 0134 d3.
   A signal that is already aborted runs no hook.
 - **ReadyRejectsAfterClose** — holds. ADR 0085 d4.
@@ -37,6 +54,10 @@ TLC reached 199 states.
   ADR 0134 Context and Results.
   Once `closed` settles, no port stays open.
 - **NoDeadlock** — holds. From the tool.
+
+Each break needs the stop signal first (bug 3).
+With each break rule guarded by "the signal did not come first",
+the check exits 0.
 
 ## Chart
 
@@ -50,8 +71,8 @@ stateDiagram-v2
     lg1: open
     lg2: closing
     lg3: closed
-    lg4: Breaks SignalClosedCancelled or SignalForcesClose or SignalReasonRejectsReady
-    lg5: Path to the SignalClosedCancelled or SignalForcesClose or SignalReasonRejectsReady bug
+    lg4: Breaks FirstCauseRejectsReady or LaterErrorDropped or SettledNamesFirstCause or SignalClosedCancelled or SignalForcesClose
+    lg5: Path to the FirstCauseRejectsReady or LaterErrorDropped or SettledNamesFirstCause or SignalClosedCancelled or SignalForcesClose bug
   }
   class lg0 blue
   class lg1 teal
@@ -133,7 +154,7 @@ true only in the end states.
 
 ## The bug (bug 3)
 
-All 3 breaks share one cause.
+All 5 breaks share one cause.
 The stop signal fires during start.
 Then a second event comes
 before the running hooks return:
@@ -157,11 +178,12 @@ ADR 0134 d2 names one exception only:
 It does not name a later error, a timeout,
 or a later close.
 
-So Duke picks (card
-`core/stop-signal-then-later-event`, Blocked):
-
-- **Signal wins** — the code changes.
-- **Later event wins** — ADR 0134 d2 changes.
+Duke picked (2026-11-21):
+[ADR 0165](../../decisions/0165-settled-is-the-twin-of-ready.md)
+amends ADR 0134 d2.
+The first cause wins, in both orders.
+So the signal wins here, and the code changes
+(card `core/stop-signal-then-later-event`).
 
 `run` (`packages/bun/src/run.ts`) still exits
 with the signal's code (`code ||=` keeps the first).
@@ -170,7 +192,8 @@ and ADR 0134 d4 says "logs nothing".
 
 ### Path 1: a start error after the signal
 
-Breaks SignalReasonRejectsReady
+Breaks FirstCauseRejectsReady,
+SettledNamesFirstCause, LaterErrorDropped
 and SignalClosedCancelled.
 
 1. The scope starts.
@@ -185,7 +208,8 @@ and SignalClosedCancelled.
 
 ### Path 2: a graceful close after the signal
 
-Breaks SignalForcesClose.
+Breaks SignalForcesClose, SignalClosedCancelled,
+FirstCauseRejectsReady and SettledNamesFirstCause.
 
 1. The scope starts.
    Capsule 1 runs its work before `next()`.
@@ -203,6 +227,9 @@ Breaks SignalForcesClose.
 
 The chart state "failed, StartTimeout,
 after the stop signal".
+Breaks FirstCauseRejectsReady,
+SettledNamesFirstCause, LaterErrorDropped
+and SignalClosedCancelled.
 
 1. The scope starts (`startTimeout: 50`).
 2. The stop signal fires.
@@ -264,4 +291,4 @@ statechart ScopeLife.tla \
   --view view.ts --out "$(mktemp -d)"
 ```
 
-Exit 1 today: 3 rules break.
+Exit 1 today: 5 rules break.

@@ -224,19 +224,51 @@ NoHookStartsAfterStop == ~badHookStart
 SignalForcesClose ==
   (firstStop = "signal" /\ closeState = "done") => (closeMode = "forced" /\ ranCloseHooks = {1, 2})
 
-\* ADR 0134 decision 2 (and ADR 0085 decision 4): then ready rejects with the signal's reason.
-\* "A start error that comes first still wins": that case has firstStop = "error".
-SignalReasonRejectsReady ==
-  /\ firstStop = "signal" => ready /= "resolved"
-  /\ (firstStop = "signal" /\ ready = "rejected") => readyReason = "signal"
-
 \* ADR 0134 decision 2: `closed` is `cancelled` after a stop signal during start.
 SignalClosedCancelled ==
   (firstStop = "signal" /\ closed /= "pending") => closed = "cancelled"
 
-\* ADR 0134 decision 2: a start error that comes first still wins.
+\* ADR 0134 decision 2 (kept by ADR 0165 decision 2): a start error that comes first still wins.
 FirstErrorWins ==
   (firstStop = "error" /\ ready = "rejected") => readyReason = "error"
+
+(* ADR 0165 decision 2 (amends ADR 0134 decision 2; ADR 0085 decision 4): the first event that
+   ends the start is its cause: a stop signal (also one aborted before start), a start hook's
+   throw, a start timeout, or a close(). `ready` rejects with that cause. *)
+Causes == {"pre", "signal", "error", "timeout", "close"}
+ReasonOf(c) ==
+  CASE c \in {"pre", "signal"} -> "signal"
+    [] c = "close" -> "closing"
+    [] OTHER -> c
+StatusOf(c) == IF c \in {"error", "timeout"} THEN "failed" ELSE "cancelled"
+
+(* ADR 0165 decision 1: `settled` is the twin of `ready`. On main it does not exist; the model
+   reads it as the fix builds it, from ready: success with the handle, or the reason ready
+   rejects with, as cancelled (a signal, a close) or failed (a start error, a timeout).
+   It never rejects: it has no "rejected" value. *)
+Settled ==
+  CASE ready = "pending" -> "pending"
+    [] ready = "resolved" -> "success"
+    [] readyReason \in {"signal", "closing"} -> "cancelled"
+    [] OTHER -> "failed"
+
+\* ADR 0165 decision 2: ready rejects with the first cause, in both orders.
+FirstCauseRejectsReady ==
+  /\ firstStop \in Causes => ready /= "resolved"
+  /\ (firstStop \in Causes /\ ready = "rejected") => readyReason = ReasonOf(firstStop)
+
+\* ADR 0165 decisions 1 and 2: settled names the same cause, and its status matches it.
+SettledNamesFirstCause ==
+  /\ Settled \in {"pending", "success", "cancelled", "failed"}
+  /\ (firstStop = "none" /\ Settled /= "pending") => Settled = "success"
+  /\ (firstStop \in Causes /\ Settled /= "pending")
+       => (Settled = StatusOf(firstStop) /\ readyReason = ReasonOf(firstStop))
+
+\* ADR 0165 decision 2: a later error is dropped. Only a first error or timeout fails the start.
+LaterErrorDropped ==
+  /\ (firstStop \in {"pre", "signal", "close"} /\ ready = "rejected")
+       => readyReason \notin {"error", "timeout"}
+  /\ Settled = "failed" => firstStop \in {"error", "timeout"}
 
 \* ADR 0134 decision 3: a signal that aborted before start: no hook runs.
 PreAbortedRunsNoHook ==
