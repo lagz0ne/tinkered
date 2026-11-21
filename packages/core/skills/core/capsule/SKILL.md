@@ -13,7 +13,7 @@ metadata:
     binding only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.32.5'
+  library_version: '0.33.0'
 requires:
   - core
 sources:

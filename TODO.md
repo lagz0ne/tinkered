@@ -81,17 +81,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/rpc-sweep** — Steps 0-2 of Fable's reconstruction B for the rpc chunk, one commit per step: 0 rewrite `build/private-fields.json`; 1 drop unread step keys and share small steps in rpc, rpc-lifecycle and remote-data; 2 remove the config-parameter keyed board and `fill` (Duke 2026-11-20 14:13: "During that journey, we'll clean outdate, old deadcode"; ADR 0135 amended). Size: 35,203 -> 33,771 B with rpc; 23,259 -> 23,251 B without. Lands as 0.33.0: it removes the public `config` and `fill` options and shrinks `transport.lifecycle`'s type.
-  Step 3 (remoteData uses each cell spec's key rules) is parked until step 4's split, which may move the key rules anyway: Core's `holds` and `textsOf` are shortened private names, so a shared helper needs a public name or a +4 B core chunk (prototype: -58 B with rpc, core chunk 22,728 -> 22,732 B).
-  Owner: lead. Writer: branch `core/rpc-sweep`.
-  Next: the lead's reviewer reads the fix round.
-  Verify: per step, the size lines fall and the core chunk does not grow; `vp check`, `vp run -r test`, `ticket.sh` and the core lane (kills >= 85) on the last commit.
-  Impact (`git grep` on `origin/main` for the removed pieces; `scripts/scip.sh refs` on the branch):
-  - `remoteData(cells, { config })`, `board.<config key>` and `fill`: `bench/heap-stop.mjs` (its stop now joins and leaves a keyed part); core `remote-data-keyed` and `remote-data-held` tests and bun `remote-data-keyed` test (deleted; the unkeyed session-write test moved to `remote-data.test.ts`); the config cases of `remote-data-edges` and `remote-data-keyed-cell`.
-  - `lifecycle.isOwn`, `lifecycle.parts`: no reader. `lifecycle` refs: `rpc.ts`, `rpc-transport.ts` (export), `rpc-lifecycle.test.ts` (`runHooks`), `exit-attribute.test.ts`.
-  - `remoteData` refs left: core `main.ts` and 12 core test files; 4 bun test files (on the dist). No app, example or site code.
-  - Docs: the Core README line (gone), ADR 0135 Status, ADR 0137 rule 5 (removal note), `docs/states/remote-part/README.md` (clause gone). History left as is: CHANGELOG 0.31.14, ADR 0136 line 30 (Hedl's old code).
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -135,6 +124,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/rpc-sweep** — done 2026-11-21. Steps 0-2 of Fable's reconstruction B for the rpc chunk: 0 rewrite `build/private-fields.json`; 1 drop unread step keys and share small steps in rpc, rpc-lifecycle and remote-data; 2 remove the config-parameter keyed board and `fill` (Duke 2026-11-20 14:13: "During that journey, we'll clean outdate, old deadcode"; ADR 0135 amended). Released as 0.33.0 (it removes the public `config` and `fill` options and shrinks `transport.lifecycle`'s type).
+  Step 3 (remoteData uses each cell spec's key rules) is parked until step 4's split, which may move the key rules anyway: Core's `holds` and `textsOf` are shortened private names, so a shared helper needs a public name or a +4 B core chunk (prototype: -58 B with rpc, core chunk 22,728 -> 22,732 B).
+  Proof: size on main `0509b59d` 23,268 B without rpc and 35,218 B with rpc; branch 23,257 B and 33,787 B (-11 B, -1,431 B). `pnpm validate`: kept heap per stop 11 B for "a keyed part a reader joins, then leaves" (budget 64 B); it fails only the 3 lanes that fail on main (fast-code ratchets, graph, two hands; same text as main). Core mutation on `86dde4f8` 85.64 on kills alone (5831 killed, 103 timeout, 775 survived, 100 no cov), clean tree at start and end; the landed head's Core src and tests are byte-identical (main moved by `CLAUDE.md` only). `ticket.sh --check-only --no-mutation` exit 0 on the landed head. Opus convention-review READY after one fix round.
+  Impact (`git grep` on `origin/main` for the removed pieces; `scripts/scip.sh refs` on the branch):
+  - `remoteData(cells, { config })`, `board.<config key>` and `fill`: `bench/heap-stop.mjs` (its stop now joins and leaves a keyed part); core `remote-data-keyed` and `remote-data-held` tests and bun `remote-data-keyed` test (deleted; the unkeyed session-write test moved to `remote-data.test.ts`); the config cases of `remote-data-edges` and `remote-data-keyed-cell`.
+  - `lifecycle.isOwn`, `lifecycle.parts`: no reader. `lifecycle` refs: `rpc.ts`, `rpc-transport.ts` (export), `rpc-lifecycle.test.ts` (`runHooks`), `exit-attribute.test.ts`.
+  - `remoteData` refs left: core `main.ts` and 12 core test files; 4 bun test files (on the dist). No app, example or site code.
+  - Docs: the Core README line (gone), ADR 0135 Status, ADR 0137 rule 5 (removal note), `docs/states/remote-part/README.md` (clause gone). History left as is: CHANGELOG 0.31.14, ADR 0136 line 30 (Hedl's old code).
 
 - **core/follow-stop-after-open** — done 2026-11-21. In `remote-data.ts` `follow`, the abort listener on `part.stop.signal` was added after the stream opened; if the last reader left during the open, the signal had already aborted, the listener never fired, and the server stream stayed open until the root closed. Now `follow` checks the signal after it adds the listener. Fix `299db120`. Released as 0.32.5.
   Proof: `remote-data-keyed-cell.test.ts` "a reader that leaves while its part's stream opens ends the stream once it opens", red on main; ticket steps green; sizes 23,268 B / 35,218 B (caps 23,272 / 35,232); Core mutation on `f34160ee` (clean; same src and tests as landed) 86.25, kills alone 85.3, exit 0. Opus convention-review READY after one round.

@@ -9,7 +9,7 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
-## Unreleased
+## 0.33.0
 
 `remoteData` drops its old keyed board (ADR 0135;
 Duke 2026-11-20 14:13: "During that journey,
