@@ -1,6 +1,6 @@
-// Replays the bug paths of the ScopeLife model (/home/paseo/statechart/core/scope-life),
-// one step per model action. Each test asserts the ADR 0134 decision 2 rule; a failure
-// means the model's path reproduces on the real code.
+// Replays the bug 3 paths of the ScopeLife model (docs/states/scope-life), one step per
+// model action. Each test asserts ADR 0165 decision 2: the first cause that ends the start
+// wins; `ready` rejects with it, and `settled` names it.
 import { makeTestClock } from "@tinkered/core/testing";
 import { expect, test } from "vite-plus/test";
 
@@ -64,11 +64,16 @@ test("SignalReasonRejectsReady + SignalClosedCancelled path: a start error after
   const closed = await scope.closed;
   const readyGot = await ready;
 
-  log.push(`closed: ${closed.status}`);
+  const settled = await scope.settled;
+
   expect(log).toContain("capsule 2 close hook (graceful: false)");
   expect(open.size).toBe(0);
-  // ADR 0134 decision 2: ready rejects with the signal's reason; closed is cancelled.
-  expect({ ready: readyGot, closed: closed.status }).toEqual({ ready: sigint, closed: "cancelled" });
+  // ADR 0165 decision 2: the signal came first, so the later start error is dropped.
+  expect({ ready: readyGot, closed: closed.status, settled }).toEqual({
+    ready: sigint,
+    closed: "cancelled",
+    settled: { status: "cancelled", reason: sigint },
+  });
 });
 
 test("SignalForcesClose path: the app calls close({ graceful }) after the stop signal", async () => {
@@ -95,21 +100,24 @@ test("SignalForcesClose path: the app calls close({ graceful }) after the stop s
   const result = await closing;
   const closed = await scope.closed;
   const readyGot = await ready;
+  const settled = await scope.settled;
   c1.release();
   await turns();
 
   expect(result).toBe(closed);
   expect(open.size).toBe(0);
-  // ADR 0134 decision 2: the close is forced, the close hooks run, ready rejects with the
-  // signal's reason, closed is cancelled.
+  // ADR 0134 decision 2: the close is forced and the close hooks run. ADR 0165 decision 2:
+  // the signal came first, so ready and settled name the signal, not the close.
   expect({
     hooks: log.filter((line) => line.includes("close hook")),
     ready: readyGot,
     closed: closed.status,
+    settled,
   }).toEqual({
     hooks: ["capsule 2 close hook (graceful: false)", "capsule 1 close hook (graceful: false)"],
     ready: sigint,
     closed: "cancelled",
+    settled: { status: "cancelled", reason: sigint },
   });
 });
 
@@ -142,10 +150,50 @@ test("chart state 'failed, StartTimeout, after the stop signal': the start times
   // 4, 5. the close hooks run; 6. the scope closes
   const closed = await scope.closed;
   const readyGot = await ready;
+  const settled = await scope.settled;
 
   expect(open.size).toBe(0);
-  // ADR 0134 decision 2: ready rejects with the signal's reason; closed is cancelled.
-  expect({ ready: readyGot, closed: closed.status }).toEqual({ ready: sigint, closed: "cancelled" });
+  // ADR 0165 decision 2: the signal came first, so the later timeout is dropped.
+  expect({ ready: readyGot, closed: closed.status, settled }).toEqual({
+    ready: sigint,
+    closed: "cancelled",
+    settled: { status: "cancelled", reason: sigint },
+  });
+});
+
+test("FirstErrorWins path: a start error before the stop signal fails the start", async () => {
+  const log: string[] = [];
+  const open = new Set<string>();
+  const stop = new AbortController();
+  const c1 = listener("capsule 1", log, open);
+  const c2 = listener("capsule 2", log, open);
+  const sigint = new Error("SIGINT");
+  const startBug = new Error("start bug");
+
+  // 1. the scope starts
+  const scope = createScope({ signal: stop.signal, capsules: [c1.unit, c2.unit] });
+  const ready = scope.ready.then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  await turns();
+  // 2. a start hook throws (capsule 1, before its next())
+  c1.fail(startBug);
+  await turns();
+  // 3. the stop signal fires
+  stop.abort(sigint);
+  // 4, 5. the close hooks run; 6. the scope closes
+  const closed = await scope.closed;
+  const readyGot = await ready;
+  const settled = await scope.settled;
+
+  expect(open.size).toBe(0);
+  // ADR 0165 decision 2: the start error came first, so the later signal is dropped.
+  expect({ ready: readyGot, closed: closed.status, settled }).toEqual({
+    ready: startBug,
+    closed: "failed",
+    settled: { status: "failed", error: startBug },
+  });
 });
 
 test("control: the stop signal alone during start follows ADR 0134 decision 2", async () => {
