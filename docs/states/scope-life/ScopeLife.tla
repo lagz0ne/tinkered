@@ -1,6 +1,7 @@
 ---------------------------- MODULE ScopeLife ----------------------------
-(* A root scope made with a stop signal and two capsules (packages/core/src/index.ts on
-   origin/main 3ff67780: runStartChain, watchRootClose, listenForStop).
+(* A root scope made with a stop signal and two capsules (packages/core/src/index.ts:
+   runStartChain, watchRootClose, listenForStop), with the ADR 0165 fix (card
+   core/stop-signal-then-later-event): a stop signal that came first is the start's cause.
    Capsule 1 is outer, capsule 2 is inner. Each start hook does some async work, calls
    next(), and after next() resolves it opens a port at once (as `serve` runs Bun.serve).
    Its close hook closes that port. Close hooks run in reverse order: capsule 2, then 1.
@@ -56,13 +57,14 @@ Init ==
   /\ badAfterWork = FALSE /\ badHookStart = FALSE
 
 (* end(reason) when its claim wins: claim, then the forced close (scope.close()), and ready
-   rejects with the reason once that close ends. A non-closing reason sets layer.failed. *)
+   rejects with the reason once that close ends. A non-closing reason sets layer.failed.
+   A stop signal that came first is the cause instead (halt): a cancel, no layer.failed. *)
 EndWins(reason) ==
   /\ claimed' = TRUE
   /\ closeState' = "hooks2"
   /\ closeMode' = "forced"
-  /\ pendingReject' = reason
-  /\ realError' = (realError \/ reason \in {"error", "timeout"})
+  /\ pendingReject' = IF halt THEN "signal" ELSE reason
+  /\ realError' = (realError \/ (~halt /\ reason \in {"error", "timeout"}))
 
 (* at(0) settled with CLOSING_REASON (a stop): end(signal) if halted, else nothing. *)
 ChainStopped ==
@@ -117,14 +119,14 @@ Hook2CallsNext ==
 
 (* A start hook throws a real error before its next(). Hook 1 (waiting) rethrows it, so
    at(0) rejects with it: end(error). Its claim wins only if nothing claimed the start yet;
-   else the error sticks on the layer (stick, addError). *)
+   else the error sticks on the layer (stick, addError), unless a stop signal came first. *)
 HookThrows(c) ==
   /\ IF c = 1 THEN h1 = "before" ELSE h2 = "before"
   /\ h1' = IF c = 1 THEN "threw" ELSE "out"
   /\ h2' = IF c = 2 THEN "threw" ELSE h2
   /\ chain' = "settled"
   /\ IF claimed
-       THEN /\ realError' = TRUE
+       THEN /\ realError' = (realError \/ ~halt)
             /\ UNCHANGED <<claimed, closeState, closeMode, pendingReject>>
        ELSE EndWins("error")
   /\ firstStop' = IF firstStop = "none" /\ ready = "pending" THEN "error" ELSE firstStop
@@ -156,14 +158,17 @@ SignalAborts ==
 
 (* The app calls close(): it claims a start under way (end(CLOSING) waits for this close, then
    rejects ready), drops the signal's listener, and runs the close hooks. A later close returns
-   the first one's Result, so only the first is a step. *)
+   the first one's Result, so only the first is a step. A stop signal that came first stays the
+   cause, and the close is forced (stopStart returns true). *)
 UserCloses(mode) ==
   /\ chain /= "notStarted" /\ closeState = "none"
   /\ closeState' = "hooks2"
-  /\ closeMode' = mode
   /\ IF chain = "running" /\ ~claimed
-       THEN /\ claimed' = TRUE /\ pendingReject' = "closing"
-       ELSE UNCHANGED <<claimed, pendingReject>>
+       THEN /\ claimed' = TRUE
+            /\ pendingReject' = IF halt THEN "signal" ELSE "closing"
+            /\ closeMode' = IF halt THEN "forced" ELSE mode
+       ELSE /\ closeMode' = mode
+            /\ UNCHANGED <<claimed, pendingReject>>
   /\ firstStop' = IF firstStop = "none" /\ ready = "pending" THEN "close" ELSE firstStop
   /\ stopSeen' = (stopSeen \/ ready = "pending")
   /\ UNCHANGED <<h1, h2, port1, port2, preAborted, sig, halt, chain, realError, ready,

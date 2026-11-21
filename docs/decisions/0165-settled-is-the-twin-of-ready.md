@@ -164,6 +164,61 @@ stateDiagram-v2
   class s14 breaks
 ```
 
+After the fix, every event after the stop signal
+leads to the forced close, and no red state is left:
+
+```mermaid
+---
+title: "A root with a stop signal and two capsules that listen after next()"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: starting
+    lg1: open
+    lg2: closing
+    lg3: closed
+  }
+  class lg0 blue
+  class lg1 teal
+  class lg2 yellow
+  class lg3 tan
+  s0: Not started
+  s1: Not started, signal already aborted
+  s2: Starting
+  s3: Closing, forced
+  s4: Closing, graceful
+  s5: Stop signal fired, a start hook still runs
+  s6: Ready, both ports open
+  s7: Closed: cancelled
+  s8: Closed: success
+  s9: Closed: failed
+  [*] --> s0
+  [*] --> s1
+  s0 --> s2: the scope starts
+  s1 --> s3: the scope starts, no hook runs
+  s2 --> s3: the app calls close() or a start hook throws or the start times out
+  s2 --> s4: the app calls close({ graceful })
+  s2 --> s5: the stop signal fires
+  s2 --> s6: capsule 2 calls next(), both listen
+  s5 --> s3: the start times out or the app calls close() or a hook calls next(), it rejects or a start hook throws
+  s3 --> s7: the close hooks ran, the scope closes
+  s6 --> s3: the app calls close()
+  s6 --> s4: the app calls close({ graceful }) or the stop signal fires
+  s4 --> s8: the close hooks ran, the scope closes
+  s3 --> s9: the close hooks ran, the scope closes
+  s4 --> s9: the close hooks ran, the scope closes
+  class s0 blue
+  class s1 blue
+  class s2 blue
+  class s3 yellow
+  class s4 yellow
+  class s5 blue
+  class s6 teal
+  class s7 tan
+  class s8 tan
+  class s9 tan
+```
+
 ## Results
 
 - Bug 3's path test moves into Core's tests, red
