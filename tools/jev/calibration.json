@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 2,
-    "falses": 144,
-    "medianTrue": 0.45,
+    "falses": 145,
+    "medianTrue": 0.53,
     "medianFalse": 0.62,
-    "separation": -0.17,
-    "ordered": 0.12,
+    "separation": -0.09,
+    "ordered": 0.25,
     "at": "2026-11-21"
   }
 }
