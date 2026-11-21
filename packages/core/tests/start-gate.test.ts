@@ -206,6 +206,7 @@ test("the starting handle has every member of a started root", async () => {
     onClose: 1,
     spans: 1,
     id: 1,
+    idle: 1,
     settled: 1,
     capsules: 1,
     ready: 1,

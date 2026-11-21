@@ -161,6 +161,10 @@ const now = live.run(countRows);
 - After a failed start or a close, a waiting `run` raises `Disposed`.
 - A waiting `settle` returns its result; it never throws.
 - `ready` resolves to the started handle; its sync calls stay sync.
+- `settled` is its twin (ADR 0165): it never rejects.
+  It gives `{ status: "success", handle }`,
+  `{ status: "cancelled", reason }`
+  or `{ status: "failed", error }`.
 - `isStarting(scope)` tells the two apart.
 - A root with no `capsules` is a plain handle, as before.
 - `await using` closes the scope at the end of the block.
@@ -175,6 +179,11 @@ process.exitCode = exitCode(end);
 
 - `signal` asks the root to close gracefully once `ready` resolves.
   An abort before or during start waits for start to end.
+  Then the close is forced, and `closed` is `cancelled`.
+- The first cause that ends a start wins (ADR 0165):
+  a stop signal, a start error, a start timeout, or a `close()`.
+  `ready` rejects with it, and `settled` names it.
+  A later error, timeout or close is dropped.
   The root stays usable until then.
   In-flight work can finish; the stop never aborts `ctx.signal`.
   A waiting run hook and its cleanup count as in-flight work.
@@ -741,6 +750,7 @@ const ended = await result;
 - Finishing the call removes its abort listener.
   Calls without a signal keep their existing return shape and lifetime.
 
+`await scope.idle()` waits until the scope's in-flight work ends.
 Stop in-flight work through `ctx.signal`. A forced close aborts the signal, waits for
 in-flight operations and resource builds to settle, then runs resource `ctx.defer` hooks.
 Waiting until `defer` to stop work that close is waiting for can deadlock.
@@ -1528,7 +1538,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An operation composes through its controller, or through a bare dep delivered as a callable subflow;
   a void-input operation is always a callable subflow, never a value.
 - An async operation runs to its awaited value.
-- A rejecting operation rejects with its cause, and `settled` still drains when it finishes.
+- A rejecting operation rejects with its cause, and `idle()` still drains when it finishes.
 - A scope run that catches a subflow's managed error returns normally without failing its scope.
 - A tagged scope run that catches a subflow's managed error returns normally without failing its child
   session.
@@ -1571,7 +1581,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A failed unreceived subflow's span keeps its error even though its caller finishes normally.
 - A forced close after a caught managed subflow error cancels the session, rather than failing it.
 - A caller two subflows deep can catch a managed error without failing the session.
-- `settled` stays pending until owned work finishes.
+- `idle()` stays pending until owned work finishes.
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
 - An operation preset gets empty deps: the real node's deps are not built.
 - An operation preset does not read an unbound tag.
@@ -1725,7 +1735,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A failure already known before the cascade rolls back the remaining children.
 - A reused error object counts as the later session's own body failure; a child's own throw wins over a
   manual close of the same cause, which never demotes the parent's own body failure.
-- `settled` inside `session(fn)` drains owned work without waiting on the body.
+- `idle()` inside `session(fn)` drains owned work without waiting on the body.
 - A teardown hook may return its own `close` without hanging; concurrent closes join the one teardown
   and share its error.
 - A close whose owned work waits on a child's hook still completes; closing another scope from a cleanup
@@ -1735,7 +1745,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A close re-entered during a failing teardown reports the failure.
 - A close re-entered during a clean forced teardown reports cancelled.
 - A forced close with a cleanup still settles cancelled.
-- `settled` stays pending until an operation's async cleanup finishes.
+- `idle()` stays pending until an operation's async cleanup finishes.
 - A session hook that throws before next still lets the body run and rethrows the hook error.
 - Two session hooks see each ordered end in turn.
 - A body that rejects inside session fails the close with its cause.

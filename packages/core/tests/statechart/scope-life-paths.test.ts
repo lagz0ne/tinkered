@@ -39,7 +39,7 @@ function listener(name: string, log: string[], open: Set<string>) {
   return { unit, release, fail };
 }
 
-test("SignalReasonRejectsReady + SignalClosedCancelled path: a start error after the stop signal", async () => {
+test("FirstCauseRejectsReady + SignalClosedCancelled path: a start error after the stop signal", async () => {
   const log: string[] = [];
   const open = new Set<string>();
   const stop = new AbortController();

@@ -485,7 +485,7 @@ test("an async operation runs to its awaited value", async () => {
   expect(await p).toBe(42);
 });
 
-test("a rejecting async operation rejects with its cause, and settled still drains", async () => {
+test("a rejecting async operation rejects with its cause, and idle still drains", async () => {
   const cause = new Error("boom");
   const gate = deferred();
   const boom = operation({
@@ -498,7 +498,7 @@ test("a rejecting async operation rejects with its cause, and settled still drai
   const scope = createScope();
   const p = scope.run(boom);
   let drained = false;
-  const s = scope.settled().then(() => {
+  const s = scope.idle().then(() => {
     drained = true;
   });
 
@@ -640,7 +640,7 @@ test("a read in flight still sees the snapshot from before a later write", async
   expect(await p).toBe(0);
 });
 
-test("settled reports work as pending until it finishes", async () => {
+test("idle reports work as pending until it finishes", async () => {
   const gate = deferred();
   const slow = operation({
     label: "slow",
@@ -652,7 +652,7 @@ test("settled reports work as pending until it finishes", async () => {
   const scope = createScope();
   const p = scope.run(slow);
   let joined = false;
-  const s = scope.settled().then(() => {
+  const s = scope.idle().then(() => {
     joined = true;
   });
 
@@ -1406,7 +1406,7 @@ test("a factory context is dead after a synchronous throw: a late onOutcome fail
   }
 });
 
-test("settled() inside session(fn) drains owned work without waiting on the body itself", async () => {
+test("idle() inside session(fn) drains owned work without waiting on the body itself", async () => {
   const gate = deferred();
   const slow = operation({
     label: "slow",
@@ -1418,7 +1418,7 @@ test("settled() inside session(fn) drains owned work without waiting on the body
   const done = await createScope().session(async (s) => {
     void s.run(slow);
     gate.resolve();
-    await s.settled();
+    await s.idle();
     return "ok";
   });
   expect(done).toBe("ok");
@@ -3615,7 +3615,7 @@ test("a graceful close still force-rolls-back children when the scope already fa
 
   child.resolve(tx);
   await scope.run(failer).catch(() => undefined);
-  await scope.settled();
+  await scope.idle();
 
   const result = await scope.close({ graceful: true });
   expect(result.status).toBe("failed");

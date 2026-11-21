@@ -136,7 +136,7 @@ test("a close re-entered during a failing teardown reports the failure", async (
   });
 
   scope.resolve(probe);
-  await scope.settled().catch(() => undefined);
+  await scope.idle().catch(() => undefined);
   await failed;
   const result = await scope.close();
 
@@ -185,7 +185,7 @@ test("a forced close with a cleanup still settles cancelled", async () => {
   expect(seen).toEqual(["cancelled"]);
 });
 
-test("settled stays pending until an operation's async cleanup finishes", async () => {
+test("idle stays pending until an operation's async cleanup finishes", async () => {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -203,7 +203,7 @@ test("settled stays pending until an operation's async cleanup finishes", async 
   scope.run(op);
 
   let settled = false;
-  const waiting = scope.settled().then(() => {
+  const waiting = scope.idle().then(() => {
     settled = true;
   });
 
