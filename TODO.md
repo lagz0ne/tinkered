@@ -77,6 +77,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/rpc-split** — ADR 0166. Step 4 of Fable's reconstruction B: rpc and remoteData load one side at start (client: `remote`, `read`; server: `implement`, `serve`), each side a lazy module of its own; the size gate counts per side; a Vite page-bundle check. No API change.
+  Owner: lead "Split rpc by side" (cloud thread); Opus writer on the box.
+  Next: writer builds it in `../tinkered-rpc-split`.
+  Verify: gate prints core alone, client set, server set, all files; client set at least 1.5 KB under 33,787 B; page check shows no static path to the server side; Core, bun, site tests; statechart checks for rpc-call, rpc-stream, remote-part; mutation 85 on kills.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
