@@ -111,7 +111,7 @@ test("a late default dependency stays open through its dependent's async cleanup
   expect(ended).toEqual(["client:released"]);
 
   finishCleanup();
-  await scope.settled();
+  await scope.idle();
   expect(ended).toEqual(["client:released", "pool:released"]);
   await scope.close();
 });
@@ -144,7 +144,7 @@ test("release finishes a borrowed client before its pool", async () => {
 
   finish();
   await running;
-  await scope.settled();
+  await scope.idle();
   expect(ended).toEqual(["client:released", "pool:released"]);
   await scope.close();
 });
@@ -402,7 +402,7 @@ test("release awaits interleaved async hooks in reverse registration order", asy
   expect(order).toEqual(["last", "middle"]);
 
   finishMiddle();
-  await scope.settled();
+  await scope.idle();
   expect(order).toEqual(["last", "middle", "first"]);
   await scope.close();
 });
@@ -443,7 +443,7 @@ test("a dependency stays open through every hook of its dependent", async () => 
   expect(order).toEqual(["client-last", "client-first"]);
 
   finish();
-  await scope.settled();
+  await scope.idle();
   expect(order).toEqual(["client-last", "client-first", "pool"]);
   await scope.close();
 });
@@ -503,7 +503,7 @@ test("a released build keeps its end when it rejects after release", async () =>
 
   rejectBuild(cause);
   await expect(first).rejects.toBe(cause);
-  await scope.settled();
+  await scope.idle();
 
   expect(ends).toEqual(["released"]);
   await scope.close();
@@ -572,7 +572,7 @@ test("a named late client holds only its own dependency bucket", async () => {
 
   finish();
   expect(await pending).toBe(false);
-  await scope.settled();
+  await scope.idle();
   expect(ended).toEqual(["B", "A"]);
   await scope.close();
 });
@@ -607,7 +607,7 @@ test("a warm dependency stays open through its client's late build", async () =>
   finish();
   expect(await building).toBe(false);
 
-  await scope.settled();
+  await scope.idle();
   expect(value.closed).toBe(true);
   await scope.close();
 });
@@ -643,7 +643,7 @@ test("a warm hookless bridge holds its pool through a client's late build", asyn
   finish();
   expect(await building).toBe(false);
 
-  await scope.settled();
+  await scope.idle();
   expect(value.closed).toBe(true);
   await scope.close();
 });
@@ -688,7 +688,7 @@ test("a child build keeps a preset root pool open through its hookless bridge", 
   finish();
   expect(await building).toBe(false);
 
-  await root.settled();
+  await root.idle();
   expect(closed).toBe(true);
   await root.close();
 });
@@ -794,7 +794,7 @@ test("a preset cleanup waits for a hookless dependent's late build", async () =>
   finish();
   expect(await building).toBe(false);
 
-  await scope.settled();
+  await scope.idle();
   expect(closed).toBe(true);
   await scope.close();
 });
@@ -931,7 +931,7 @@ test("a late build gives its waiting run a value and ends its hook once as relea
 
   finish();
   expect(await running).toBe(42);
-  await scope.settled();
+  await scope.idle();
   expect(ends).toEqual(["released"]);
   await scope.close();
   expect(ends).toEqual(["released"]);
@@ -958,7 +958,7 @@ test("release waits for the borrowed run body and all its defers", async () => {
   expect(ended).toEqual(["body open", "last defer starts open"]);
 
   cleanup.resolve();
-  await scope.settled();
+  await scope.idle();
   expect(ended).toEqual([
     "body open",
     "last defer starts open",

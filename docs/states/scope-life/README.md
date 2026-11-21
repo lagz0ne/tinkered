@@ -5,30 +5,50 @@ A stop during start ends the start
 
 The spec: a root with a stop signal
 and two capsules that listen after `next()`.
-It describes commit `3ff6778` (release 0.28.0),
-the root's start and close in `packages/core`.
+It describes the root's start and close in `packages/core`,
+with the ADR 0165 fix (`aa79955b`,
+card `core/stop-signal-then-later-event`).
 
 ## Rules
 
-TLC reached 199 states.
+The rules come from
+[ADR 0165](../../decisions/0165-settled-is-the-twin-of-ready.md)
+and the ADR 0134 rules it keeps.
+TLC reached 131 states.
+On main before the fix it reached 199,
+and 5 rules broke.
 
 - **NoWorkAfterStop** — holds. ADR 0134 d1.
   After a stop, `next()` rejects,
   so no hook does work after its `next()`.
 - **NoHookStartsAfterStop** — holds. ADR 0134 d1.
   A hook that has not started does not start.
-- **SignalForcesClose** — breaks. ADR 0134 d2.
+- **SignalForcesClose** — holds (fix `aa79955b`). ADR 0134 d2.
   A stop signal during start forces the close,
   and the close hooks run.
-- **SignalReasonRejectsReady** — breaks.
-  ADR 0134 d2,
+- **SignalClosedCancelled** — holds (fix `aa79955b`). ADR 0134 d2.
+  Then `closed` is `cancelled`.
+- **FirstErrorWins** — holds. ADR 0134 d2,
+  kept by ADR 0165 d2.
+  A start error that comes first wins.
+- **FirstCauseRejectsReady** — holds (fix `aa79955b`).
+  ADR 0165 d2 (amends ADR 0134 d2),
   [ADR 0085](../../decisions/0085-a-root-owns-its-lifetime-a-stop-signal-closed-and-ready-after-cleanup.md)
   d4.
-  Then `ready` rejects with the signal's reason.
-- **SignalClosedCancelled** — breaks. ADR 0134 d2.
-  Then `closed` is `cancelled`.
-- **FirstErrorWins** — holds. ADR 0134 d2.
-  A start error that comes first wins.
+  The first event that ends the start is its cause:
+  a stop signal, a start hook's throw,
+  a start timeout, or a `close()`.
+  `ready` rejects with that cause.
+- **SettledNamesFirstCause** — holds (fix `aa79955b`). ADR 0165 d1, d2.
+  `settled` names the same cause and never rejects.
+  Its status is `success`, `cancelled`
+  (a signal, a close) or `failed`
+  (a start error, a timeout).
+  Main has no `settled`:
+  the spec reads it from `ready`, as the fix builds it.
+- **LaterErrorDropped** — holds (fix `aa79955b`). ADR 0165 d2.
+  A later error is dropped:
+  only a first error or timeout fails the start.
 - **PreAbortedRunsNoHook** — holds. ADR 0134 d3.
   A signal that is already aborted runs no hook.
 - **ReadyRejectsAfterClose** — holds. ADR 0085 d4.
@@ -38,7 +58,17 @@ TLC reached 199 states.
   Once `closed` settles, no port stays open.
 - **NoDeadlock** — holds. From the tool.
 
+On main, each break needed the stop signal first (bug 3).
+With each break rule guarded by "the signal did not come first",
+the check of main exited 0.
+
 ## Chart
+
+The chart after the fix.
+Every event after the stop signal
+leads to the forced close.
+The chart of main, with bug 3 in red,
+is in [ADR 0165](../../decisions/0165-settled-is-the-twin-of-ready.md).
 
 ```mermaid
 ---
@@ -50,15 +80,11 @@ stateDiagram-v2
     lg1: open
     lg2: closing
     lg3: closed
-    lg4: Breaks SignalClosedCancelled or SignalForcesClose or SignalReasonRejectsReady
-    lg5: Path to the SignalClosedCancelled or SignalForcesClose or SignalReasonRejectsReady bug
   }
   class lg0 blue
   class lg1 teal
   class lg2 yellow
   class lg3 tan
-  class lg4 breaks
-  class lg5 bugPath
   s0: Not started
   s1: Not started, signal already aborted
   s2: Starting
@@ -69,11 +95,6 @@ stateDiagram-v2
   s7: Closed: cancelled
   s8: Closed: success
   s9: Closed: failed
-  s10: Closed: cancelled, ready rejected with the closing reason, after the stop signal
-  s11: Closed: success, ready rejected with the closing reason, after the stop signal
-  s12: Closed: failed, ready rejected with the start error, after the stop signal
-  s13: Closed: failed, ready rejected with StartTimeout, after the stop signal
-  s14: Closed: failed, ready rejected with the closing reason, after the stop signal
   [*] --> s0
   [*] --> s1
   s0 --> s2: the scope starts
@@ -82,50 +103,23 @@ stateDiagram-v2
   s2 --> s4: the app calls close({ graceful })
   s2 --> s5: the stop signal fires
   s2 --> s6: capsule 2 calls next(), both listen
-  s5 --> s3: the app calls close() or the start times out or a hook calls next(), it rejects or a start hook throws
-  s5 --> s4: the app calls close({ graceful })
+  s5 --> s3: the start times out or the app calls close() or a hook calls next(), it rejects or a start hook throws
   s3 --> s7: the close hooks ran, the scope closes
-  s4 --> s4: a close hook runs
-  s3 --> s3: a close hook runs
   s6 --> s3: the app calls close()
   s6 --> s4: the app calls close({ graceful }) or the stop signal fires
   s4 --> s8: the close hooks ran, the scope closes
   s3 --> s9: the close hooks ran, the scope closes
   s4 --> s9: the close hooks ran, the scope closes
-  s3 --> s10: the close hooks ran, the scope closes
-  s4 --> s11: the close hooks ran, the scope closes
-  s3 --> s13: the close hooks ran, the scope closes
-  s3 --> s12: the close hooks ran, the scope closes
-  s3 --> s14: the close hooks ran, the scope closes
-  s4 --> s14: the close hooks ran, the scope closes
-  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
   class s0 blue
-  class s0 bugPath
   class s1 blue
   class s2 blue
-  class s2 bugPath
   class s3 yellow
-  class s3 bugPath
   class s4 yellow
-  class s4 bugPath
   class s5 blue
-  class s5 bugPath
   class s6 teal
   class s7 tan
   class s8 tan
   class s9 tan
-  class s10 tan
-  class s10 breaks
-  class s11 tan
-  class s11 breaks
-  class s11 bugPath
-  class s12 tan
-  class s12 breaks
-  class s12 bugPath
-  class s13 tan
-  class s13 breaks
-  class s14 tan
-  class s14 breaks
 ```
 
 The chart hides `Done`: a step that changes nothing,
@@ -133,7 +127,10 @@ true only in the end states.
 
 ## The bug (bug 3)
 
-All 3 breaks share one cause.
+Fixed in `aa79955b`.
+The rest of this part tells the bug on main.
+
+All 5 breaks share one cause.
 The stop signal fires during start.
 Then a second event comes
 before the running hooks return:
@@ -157,11 +154,12 @@ ADR 0134 d2 names one exception only:
 It does not name a later error, a timeout,
 or a later close.
 
-So Duke picks (card
-`core/stop-signal-then-later-event`, Blocked):
-
-- **Signal wins** — the code changes.
-- **Later event wins** — ADR 0134 d2 changes.
+Duke picked (2026-11-21):
+[ADR 0165](../../decisions/0165-settled-is-the-twin-of-ready.md)
+amends ADR 0134 d2.
+The first cause wins, in both orders.
+So the signal wins here, and the code changes
+(card `core/stop-signal-then-later-event`).
 
 `run` (`packages/bun/src/run.ts`) still exits
 with the signal's code (`code ||=` keeps the first).
@@ -170,7 +168,8 @@ and ADR 0134 d4 says "logs nothing".
 
 ### Path 1: a start error after the signal
 
-Breaks SignalReasonRejectsReady
+Breaks FirstCauseRejectsReady,
+SettledNamesFirstCause, LaterErrorDropped
 and SignalClosedCancelled.
 
 1. The scope starts.
@@ -185,7 +184,8 @@ and SignalClosedCancelled.
 
 ### Path 2: a graceful close after the signal
 
-Breaks SignalForcesClose.
+Breaks SignalForcesClose, SignalClosedCancelled,
+FirstCauseRejectsReady and SettledNamesFirstCause.
 
 1. The scope starts.
    Capsule 1 runs its work before `next()`.
@@ -203,6 +203,9 @@ Breaks SignalForcesClose.
 
 The chart state "failed, StartTimeout,
 after the stop signal".
+Breaks FirstCauseRejectsReady,
+SettledNamesFirstCause, LaterErrorDropped
+and SignalClosedCancelled.
 
 1. The scope starts (`startTimeout: 50`).
 2. The stop signal fires.
@@ -213,23 +216,23 @@ after the stop signal".
 
 ## Path tests
 
-`paths/statechart-scope-life.test.ts.txt`
-goes to `packages/core/tests/`.
+The path test lives in Core's tests:
+`packages/core/tests/statechart/scope-life-paths.test.ts`.
+All 5 tests pass.
 
-- Today: 3 fail (paths 1 to 3).
-  A fail shows the bug.
-- The control (the signal alone) passes.
+- Paths 1 to 3: the signal comes first,
+  so `ready` rejects with the signal's reason,
+  `settled` is `cancelled` with it,
+  and `closed` is `cancelled`.
+- A start error, then the signal:
+  the error wins, and `settled` is `failed`.
+- The control (the signal alone).
 
-Card `core/stop-signal-then-later-event` moves it,
-without the `.txt`, once Duke picks.
-If the ADR changes instead,
-the 3 tests change to the new rule.
-
-Once moved, run:
+Run:
 
 ```sh
 cd packages/core
-vp test tests/statechart-scope-life.test.ts
+vp test tests/statechart/scope-life-paths.test.ts
 ```
 
 ## What the spec leaves out
@@ -264,4 +267,4 @@ statechart ScopeLife.tla \
   --view view.ts --out "$(mktemp -d)"
 ```
 
-Exit 1 today: 3 rules break.
+Exit 0 today: every rule holds.

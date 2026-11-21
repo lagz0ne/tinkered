@@ -13,7 +13,7 @@ metadata:
     binding only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.33.0'
+  library_version: '0.34.0'
 requires:
   - core
 sources:
@@ -80,6 +80,12 @@ await live.close();
   call is the install.
 - `await app.ready` gives the started scope. Its
   sync calls stay sync.
+- `await app.settled` gives the same end as a
+  value, never a throw: `success` with `handle`,
+  `cancelled` with `reason`, or `failed` with
+  `error` (ADR 0165).
+- `await live.idle()` waits until the scope's
+  in-flight work ends.
 
 ## Core patterns
 

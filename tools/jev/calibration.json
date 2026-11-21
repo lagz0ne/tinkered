@@ -12,21 +12,21 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 154,
+    "falses": 156,
     "medianTrue": 0.84,
-    "medianFalse": 0.61,
-    "separation": 0.23,
+    "medianFalse": 0.6,
+    "separation": 0.24,
     "ordered": 0.76,
     "at": "2026-11-21"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 433,
-    "medianTrue": 0.92,
+    "falses": 436,
+    "medianTrue": 0.91,
     "medianFalse": 0.45,
-    "separation": 0.47,
-    "ordered": 0.97,
+    "separation": 0.46,
+    "ordered": 0.98,
     "at": "2026-11-21"
   },
   "configNotTag": {
@@ -202,20 +202,20 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 77,
+    "falses": 79,
     "medianTrue": 0.8,
     "medianFalse": 0.58,
     "separation": 0.22,
-    "ordered": 0.81,
+    "ordered": 0.84,
     "at": "2026-11-21"
   },
   "waitsOnSideWork": {
     "status": "provisional",
     "trues": 1,
-    "falses": 80,
-    "medianTrue": 0.79,
-    "medianFalse": 0.58,
-    "separation": 0.21,
+    "falses": 85,
+    "medianTrue": 0.81,
+    "medianFalse": 0.56,
+    "separation": 0.25,
     "ordered": 1,
     "at": "2026-11-21"
   },
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 2,
-    "falses": 145,
-    "medianTrue": 0.53,
+    "falses": 148,
+    "medianTrue": 0.55,
     "medianFalse": 0.62,
-    "separation": -0.09,
-    "ordered": 0.25,
+    "separation": -0.07,
+    "ordered": 0.28,
     "at": "2026-11-21"
   }
 }

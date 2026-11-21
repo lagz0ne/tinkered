@@ -86,9 +86,10 @@ so main stays green.
   Cards: `core/keyed-entry-dropped`,
   `core/keyed-watch-after-close`,
   `core/keyed-wake-after-close`.
-- **scope-life** — 3 rules break.
-  Card: `core/stop-signal-then-later-event`
-  (Blocked: Duke picks).
+- **scope-life** — 0 rules break now
+  (fix `aa79955b`, ADR 0165);
+  the spec models the fix.
+  Card: `core/stop-signal-then-later-event`.
 - **rpc-call** — 0 rules break now (fix `730d7e26`);
   the spec still shows 1.
   Card: `bun/client-drop-keeps-frames`.
