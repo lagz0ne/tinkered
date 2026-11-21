@@ -1,10 +1,10 @@
 # 0166 rpc loads one side at start
 
-Date: 2026-11-21. Status: accepted (Duke,
-2026-11-20 16:42 UTC, option a: "lazy module at
-start"). Decisions 2 to 7 are the lead's picks;
-Duke can change them.
-Amends: ADR 0130, "rpc code is in its own chunk".
+Date: 2026-11-21. Status: dropped after the
+build (Duke, 2026-11-21 11:12 UTC: "Drop the
+split"). It was accepted on 2026-11-20 16:42 UTC
+(option a: "lazy module at start"). See "Result".
+ADR 0130 stays as it is: rpc is one chunk.
 
 ## What the user said
 
@@ -97,9 +97,9 @@ new name.
    - core alone: cap 23,272 B, as today;
    - core, shared and client side: cap 35,232 B;
    - core, shared and server side: cap 35,232 B;
-   - it prints the total of all files too.
-   The cap numbers do not move here. A lower cap
-   goes to Duke with exact bytes after the build.
+   - it prints the total of all files too;
+   - the cap numbers do not move here. A lower cap
+     goes to Duke with exact bytes after the build.
 6. **A page-bundle check.** A Vite build of a
    small page that uses `remote` and `read`:
    - the server side is a file of its own;
@@ -113,12 +113,12 @@ new name.
 
 ```ts
 // a page: loads the client side at start
-api({ remote: ws.client })
-board({ read: ws.client })
+api({ remote: ws.client });
+board({ read: ws.client });
 
 // a server: loads the server side at start
-api({ implement: { "todo.add": add } })
-board({ serve: true })
+api({ implement: { "todo.add": add } });
+board({ serve: true });
 ```
 
 ## Amends
@@ -140,3 +140,41 @@ three.
 - Statechart specs `rpc-call`, `rpc-stream` and
   `remote-part` model the same steps. Their
   checks run again on the moved code.
+
+## Result
+
+The split was built and every gate passed, on
+box branches `core/rpc-split` (B, both sides
+lazy) and `core/rpc-split-c` (C, only the server
+side lazy). A real page gained little, so Duke
+dropped it. Nothing landed in the code.
+
+Bytes a page loads at start, gzip:
+
+- **main:** ws page 34,616 B; Hedl 259,044 B;
+  one file.
+- **B:** ws page 34,232 B (-384); Hedl
+  258,592 B (-452); one more file, fetched
+  after the start code runs.
+- **C:** ws page 33,575 B (-1,041); Hedl
+  257,967 B (-1,077); one file. A server set
+  grows by 1,069 B.
+
+Why B saved so little:
+
+- Fable's stub build counted about 1.9 KB per
+  side, in one file.
+- Each extra file loses about 450 to 550 B of
+  gzip context.
+- Vite already joins Core and the rpc chunk into
+  one page file.
+
+Other facts from the build:
+
+- Start cost: "no difference we can see", once
+  each side is imported once per process. With
+  an `import()` per root, B was 4.2% slower.
+- Bun puts every dynamic import in its one
+  server file. So a Bun server gains nothing.
+- Report: `/home/paseo/plans/rpc-split/report.md`
+  on the box.

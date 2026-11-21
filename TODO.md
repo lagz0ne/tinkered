@@ -77,11 +77,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/rpc-split** — ADR 0166. Step 4 of Fable's reconstruction B: rpc and remoteData load one side at start (client: `remote`, `read`; server: `implement`, `serve`), each side a lazy module of its own; the size gate counts per side; a Vite page-bundle check. No API change.
-  Owner: lead "Split rpc by side" (cloud thread); Opus writer on the box.
-  Next: writer builds it in `../tinkered-rpc-split`.
-  Verify: gate prints core alone, client set, server set, all files; client set at least 1.5 KB under 33,787 B; page check shows no static path to the server side; Core, bun, site tests; statechart checks for rpc-call, rpc-stream, remote-part; mutation 85 on kills.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -125,6 +120,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/rpc-split** — dropped 2026-11-21 (ADR 0166; Duke 11:12: "Drop the split"). Step 4 of Fable's reconstruction B. Built on box branches `core/rpc-split` (both sides lazy) and `core/rpc-split-c` (server side lazy); all gates green on both; not landed.
+  Proof: ws page start set, gzip: main 34,616 B; both sides lazy 34,232 B plus one more fetch; server side lazy 33,575 B (server set +1,069 B). Hedl start set: 259,044 / 258,592 / 257,967 B. Start cost: no difference we can see (`benchctl ab`). The ADR's "Result" section holds the numbers.
 
 - **flight-trial/fixture-parse-per-scope** — done 2026-11-21 (ADR 0100). Each supplier scope read, gunzipped and zod-parsed the 7 MB fixture. Now a test file that starts several suppliers parses it once in `beforeAll` and presets the exported `flightFixture` resource into each supplier scope; the app keeps one scope per process, so it parses once. A module-level cache was the first design; review caught that ADR 0100 bans a module-level cache, so the test owns the parse. The real factory still runs in `protocol`, `requests`, `service-observation` and `entries`.
   Proof: bench queue (`benchctl ab`, 4 supplier scopes, base `0509b59d`): median 2,194 ms to 1,444 ms, verdict b is faster (-34.2%). 30 runs of the flight-trial tests at load 12.2-16.5: 30/30 passed, 0 timeouts (the box did not reach load 30). The first supplier test is back to the 5 s default (0.72-1.71 s over the 30 runs). Gate EXIT 0. flight-trial mutation on `811c4553` (clean; same `tools/flight-trial` as landed) 90.99, kills alone 85.7, exit 0. Opus convention-review READY with the ADR 0100 question; one fix round (preset, not cache).
