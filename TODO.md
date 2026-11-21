@@ -25,10 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **flight-trial/fixture-parse-per-scope** — Every flight-trial test that starts a supplier reads, gunzips and zod-parses the 7 MB flight fixture again (`services/supplier/index.ts` ~89, a module `reader` per scope), about 0.4 s quiet and up to 2 s at load 30. After `flight-trial/supplier-search-timeout` gave the worst test 20 s, another one ("supplier binds its own request role and keeps named HTTP spans and session logs") timed out at 5 s in a push hook under load (2026-11-20 17:33).
-  Next: parse the fixture once per process (a module-level lazy cache in the app, read-only, each scope deep-copies its own offers as today), so tests and the app both stop paying it per scope; or, if the app must keep per-scope parsing, give the file's supplier tests the time they need with the reason.
-  Verify: the flight-trial file passes 30 runs at load 30 or more with no timeout; app behavior unchanged (its tests).
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -124,6 +120,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **flight-trial/fixture-parse-per-scope** — done 2026-11-21 (ADR 0100). Each supplier scope read, gunzipped and zod-parsed the 7 MB fixture. Now a test file that starts several suppliers parses it once in `beforeAll` and presets the exported `flightFixture` resource into each supplier scope; the app keeps one scope per process, so it parses once. A module-level cache was the first design; review caught that ADR 0100 bans a module-level cache, so the test owns the parse. The real factory still runs in `protocol`, `requests`, `service-observation` and `entries`.
+  Proof: bench queue (`benchctl ab`, 4 supplier scopes, base `0509b59d`): median 2,194 ms to 1,444 ms, verdict b is faster (-34.2%). 30 runs of the flight-trial tests at load 12.2-16.5: 30/30 passed, 0 timeouts (the box did not reach load 30). The first supplier test is back to the 5 s default (0.72-1.71 s over the 30 runs). Gate EXIT 0. flight-trial mutation on `811c4553` (clean; same `tools/flight-trial` as landed) 90.99, kills alone 85.7, exit 0. Opus convention-review READY with the ADR 0100 question; one fix round (preset, not cache).
 
 - **flight-trial/mutation-lane-dist** — done 2026-11-21. The flight-trial mutation lane failed its first test run on main: "the supplier entry serves its settings and closes cleanly on SIGTERM" gave `Unexpected end of JSON input`. Both entry tests' child mode spawns `../dist/index.mjs`, but `stryker.config.json` left `dist` out of the sandbox, so the child printed nothing (the payment one never ran: the runner stops at the first failure). Broken since `8ffbb857` (2026-10-07), when the child moved to `dist`. Now `dist` is copied (built, not mutated). Found while landing `flight-trial/fixture-parse-per-scope`.
   Proof: lane on `0509b59d` (main) with the old config: dry run fails, exit 1; with this config: 88.79, kills alone 86.8 (1,540 / 1,775), exit 0. The lane needs a fresh `vp run -r build` first, as every gate does. Opus convention-review READY, no fix round (3 card nits applied).
