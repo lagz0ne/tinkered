@@ -9,6 +9,18 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.32.5
+
+A remote part whose last reader leaves while its
+stream opens now ends that stream.
+
+- Before, the stop signal fired during the open,
+  before the stream listened for it. So the
+  server stream stayed open until the root
+  scope closed.
+- Now the stream checks the signal once it
+  opens, and ends at once if it already fired.
+
 ## 0.32.4
 
 The bun client no longer opens a stray socket

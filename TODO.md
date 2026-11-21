@@ -79,10 +79,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
-- **core/follow-stop-after-open** — In `src/remote-data.ts` `follow`, the abort listener on `part.stop.signal` is added after the stream opens; if the last reader left during the open, the signal already aborted, the listener never fires, and the server stream stays open until the root closes (writer and review of `core/remote-parked-part-wakes`).
-  Next: a Core test that leaves while the stream opens, then checks the stream ends; fix with `if (part.stop.signal.aborted) signals.stop();` after the listener, as `round` does.
-  Verify: that test fails on main and passes.
-
 ## Doing
 
 ## Review
@@ -128,6 +124,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/follow-stop-after-open** — done 2026-11-21. In `remote-data.ts` `follow`, the abort listener on `part.stop.signal` was added after the stream opened; if the last reader left during the open, the signal had already aborted, the listener never fired, and the server stream stayed open until the root closed. Now `follow` checks the signal after it adds the listener. Fix `299db120`. Released as 0.32.5.
+  Proof: `remote-data-keyed-cell.test.ts` "a reader that leaves while its part's stream opens ends the stream once it opens", red on main; ticket steps green; sizes 23,268 B / 35,218 B (caps 23,272 / 35,232); Core mutation on `f34160ee` (clean; same src and tests as landed) 86.25, kills alone 85.3, exit 0. Opus convention-review READY after one round.
 
 - **bun/client-empty-tick** — done 2026-11-21. After `drop()` emptied `out`, the tick `post` had scheduled still ran with nothing to send and opened a new socket, which stayed open until the scope closed. Now a tick with an empty batch returns and opens no socket. Fix `a1b598ee`. Released as 0.32.4.
   Proof: step 5 of `statechart-rpc-call.test.ts` expects 1 socket, red on main (`sockets: 2`); bun, entry and site tests green; bun mutation on `bfa3e0ec` (clean; same src and tests as landed) 86.78 (kills alone 86.3) and 91.53, exit 0. Opus convention-review READY, no fix round.
