@@ -1,7 +1,6 @@
 ---------------------------- MODULE ScopeLife ----------------------------
-(* A root scope made with a stop signal and two capsules (packages/core/src/index.ts:
-   runStartChain, watchRootClose, listenForStop), with the ADR 0165 fix (card
-   core/stop-signal-then-later-event): a stop signal that came first is the start's cause.
+(* A root scope made with a stop signal and two capsules (packages/core/src/index.ts on
+   origin/main 3ff67780: runStartChain, watchRootClose, listenForStop).
    Capsule 1 is outer, capsule 2 is inner. Each start hook does some async work, calls
    next(), and after next() resolves it opens a port at once (as `serve` runs Bun.serve).
    Its close hook closes that port. Close hooks run in reverse order: capsule 2, then 1.
@@ -57,14 +56,13 @@ Init ==
   /\ badAfterWork = FALSE /\ badHookStart = FALSE
 
 (* end(reason) when its claim wins: claim, then the forced close (scope.close()), and ready
-   rejects with the reason once that close ends. A non-closing reason sets layer.failed.
-   A stop signal that came first is the cause instead (halt): a cancel, no layer.failed. *)
+   rejects with the reason once that close ends. A non-closing reason sets layer.failed. *)
 EndWins(reason) ==
   /\ claimed' = TRUE
   /\ closeState' = "hooks2"
   /\ closeMode' = "forced"
-  /\ pendingReject' = IF halt THEN "signal" ELSE reason
-  /\ realError' = (realError \/ (~halt /\ reason \in {"error", "timeout"}))
+  /\ pendingReject' = reason
+  /\ realError' = (realError \/ reason \in {"error", "timeout"})
 
 (* at(0) settled with CLOSING_REASON (a stop): end(signal) if halted, else nothing. *)
 ChainStopped ==
@@ -119,14 +117,14 @@ Hook2CallsNext ==
 
 (* A start hook throws a real error before its next(). Hook 1 (waiting) rethrows it, so
    at(0) rejects with it: end(error). Its claim wins only if nothing claimed the start yet;
-   else the error sticks on the layer (stick, addError), unless a stop signal came first. *)
+   else the error sticks on the layer (stick, addError). *)
 HookThrows(c) ==
   /\ IF c = 1 THEN h1 = "before" ELSE h2 = "before"
   /\ h1' = IF c = 1 THEN "threw" ELSE "out"
   /\ h2' = IF c = 2 THEN "threw" ELSE h2
   /\ chain' = "settled"
   /\ IF claimed
-       THEN /\ realError' = (realError \/ ~halt)
+       THEN /\ realError' = TRUE
             /\ UNCHANGED <<claimed, closeState, closeMode, pendingReject>>
        ELSE EndWins("error")
   /\ firstStop' = IF firstStop = "none" /\ ready = "pending" THEN "error" ELSE firstStop
@@ -158,17 +156,14 @@ SignalAborts ==
 
 (* The app calls close(): it claims a start under way (end(CLOSING) waits for this close, then
    rejects ready), drops the signal's listener, and runs the close hooks. A later close returns
-   the first one's Result, so only the first is a step. A stop signal that came first stays the
-   cause, and the close is forced (stopStart returns true). *)
+   the first one's Result, so only the first is a step. *)
 UserCloses(mode) ==
   /\ chain /= "notStarted" /\ closeState = "none"
   /\ closeState' = "hooks2"
+  /\ closeMode' = mode
   /\ IF chain = "running" /\ ~claimed
-       THEN /\ claimed' = TRUE
-            /\ pendingReject' = IF halt THEN "signal" ELSE "closing"
-            /\ closeMode' = IF halt THEN "forced" ELSE mode
-       ELSE /\ closeMode' = mode
-            /\ UNCHANGED <<claimed, pendingReject>>
+       THEN /\ claimed' = TRUE /\ pendingReject' = "closing"
+       ELSE UNCHANGED <<claimed, pendingReject>>
   /\ firstStop' = IF firstStop = "none" /\ ready = "pending" THEN "close" ELSE firstStop
   /\ stopSeen' = (stopSeen \/ ready = "pending")
   /\ UNCHANGED <<h1, h2, port1, port2, preAborted, sig, halt, chain, realError, ready,
@@ -229,51 +224,19 @@ NoHookStartsAfterStop == ~badHookStart
 SignalForcesClose ==
   (firstStop = "signal" /\ closeState = "done") => (closeMode = "forced" /\ ranCloseHooks = {1, 2})
 
+\* ADR 0134 decision 2 (and ADR 0085 decision 4): then ready rejects with the signal's reason.
+\* "A start error that comes first still wins": that case has firstStop = "error".
+SignalReasonRejectsReady ==
+  /\ firstStop = "signal" => ready /= "resolved"
+  /\ (firstStop = "signal" /\ ready = "rejected") => readyReason = "signal"
+
 \* ADR 0134 decision 2: `closed` is `cancelled` after a stop signal during start.
 SignalClosedCancelled ==
   (firstStop = "signal" /\ closed /= "pending") => closed = "cancelled"
 
-\* ADR 0134 decision 2 (kept by ADR 0165 decision 2): a start error that comes first still wins.
+\* ADR 0134 decision 2: a start error that comes first still wins.
 FirstErrorWins ==
   (firstStop = "error" /\ ready = "rejected") => readyReason = "error"
-
-(* ADR 0165 decision 2 (amends ADR 0134 decision 2; ADR 0085 decision 4): the first event that
-   ends the start is its cause: a stop signal (also one aborted before start), a start hook's
-   throw, a start timeout, or a close(). `ready` rejects with that cause. *)
-Causes == {"pre", "signal", "error", "timeout", "close"}
-ReasonOf(c) ==
-  CASE c \in {"pre", "signal"} -> "signal"
-    [] c = "close" -> "closing"
-    [] OTHER -> c
-StatusOf(c) == IF c \in {"error", "timeout"} THEN "failed" ELSE "cancelled"
-
-(* ADR 0165 decision 1: `settled` is the twin of `ready`. On main it does not exist; the model
-   reads it as the fix builds it, from ready: success with the handle, or the reason ready
-   rejects with, as cancelled (a signal, a close) or failed (a start error, a timeout).
-   It never rejects: it has no "rejected" value. *)
-Settled ==
-  CASE ready = "pending" -> "pending"
-    [] ready = "resolved" -> "success"
-    [] readyReason \in {"signal", "closing"} -> "cancelled"
-    [] OTHER -> "failed"
-
-\* ADR 0165 decision 2: ready rejects with the first cause, in both orders.
-FirstCauseRejectsReady ==
-  /\ firstStop \in Causes => ready /= "resolved"
-  /\ (firstStop \in Causes /\ ready = "rejected") => readyReason = ReasonOf(firstStop)
-
-\* ADR 0165 decisions 1 and 2: settled names the same cause, and its status matches it.
-SettledNamesFirstCause ==
-  /\ Settled \in {"pending", "success", "cancelled", "failed"}
-  /\ (firstStop = "none" /\ Settled /= "pending") => Settled = "success"
-  /\ (firstStop \in Causes /\ Settled /= "pending")
-       => (Settled = StatusOf(firstStop) /\ readyReason = ReasonOf(firstStop))
-
-\* ADR 0165 decision 2: a later error is dropped. Only a first error or timeout fails the start.
-LaterErrorDropped ==
-  /\ (firstStop \in {"pre", "signal", "close"} /\ ready = "rejected")
-       => readyReason \notin {"error", "timeout"}
-  /\ Settled = "failed" => firstStop \in {"error", "timeout"}
 
 \* ADR 0134 decision 3: a signal that aborted before start: no hook runs.
 PreAbortedRunsNoHook ==

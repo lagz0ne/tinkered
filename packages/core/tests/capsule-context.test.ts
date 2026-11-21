@@ -142,7 +142,7 @@ test("a hook load holds its resource through release and run cleanup", async () 
   gate.resolve();
 
   expect(await running).toBe(7);
-  await scope.idle();
+  await scope.settled();
   expect(events).toEqual(["hook:true", "defer:true", "released"]);
   await scope.close();
 });

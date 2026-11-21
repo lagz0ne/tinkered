@@ -7,11 +7,15 @@ stateDiagram-v2
     lg1: open
     lg2: closing
     lg3: closed
+    lg4: Breaks SignalClosedCancelled or SignalForcesClose or SignalReasonRejectsReady
+    lg5: Path to the SignalClosedCancelled or SignalForcesClose or SignalReasonRejectsReady bug
   }
   class lg0 blue
   class lg1 teal
   class lg2 yellow
   class lg3 tan
+  class lg4 breaks
+  class lg5 bugPath
   s0: Not started
   s1: Not started, signal already aborted
   s2: Starting
@@ -22,6 +26,11 @@ stateDiagram-v2
   s7: Closed: cancelled
   s8: Closed: success
   s9: Closed: failed
+  s10: Closed: cancelled, ready rejected with the closing reason, after the stop signal
+  s11: Closed: success, ready rejected with the closing reason, after the stop signal
+  s12: Closed: failed, ready rejected with the start error, after the stop signal
+  s13: Closed: failed, ready rejected with StartTimeout, after the stop signal
+  s14: Closed: failed, ready rejected with the closing reason, after the stop signal
   [*] --> s0
   [*] --> s1
   s0 --> s2: the scope starts
@@ -30,20 +39,47 @@ stateDiagram-v2
   s2 --> s4: the app calls close({ graceful })
   s2 --> s5: the stop signal fires
   s2 --> s6: capsule 2 calls next(), both listen
-  s5 --> s3: the start times out or the app calls close() or a hook calls next(), it rejects or a start hook throws
+  s5 --> s3: the app calls close() or the start times out or a hook calls next(), it rejects or a start hook throws
+  s5 --> s4: the app calls close({ graceful })
   s3 --> s7: the close hooks ran, the scope closes
+  s4 --> s4: a close hook runs
+  s3 --> s3: a close hook runs
   s6 --> s3: the app calls close()
   s6 --> s4: the app calls close({ graceful }) or the stop signal fires
   s4 --> s8: the close hooks ran, the scope closes
   s3 --> s9: the close hooks ran, the scope closes
   s4 --> s9: the close hooks ran, the scope closes
+  s3 --> s10: the close hooks ran, the scope closes
+  s4 --> s11: the close hooks ran, the scope closes
+  s3 --> s13: the close hooks ran, the scope closes
+  s3 --> s12: the close hooks ran, the scope closes
+  s3 --> s14: the close hooks ran, the scope closes
+  s4 --> s14: the close hooks ran, the scope closes
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
   class s0 blue
+  class s0 bugPath
   class s1 blue
   class s2 blue
+  class s2 bugPath
   class s3 yellow
+  class s3 bugPath
   class s4 yellow
+  class s4 bugPath
   class s5 blue
+  class s5 bugPath
   class s6 teal
   class s7 tan
   class s8 tan
   class s9 tan
+  class s10 tan
+  class s10 breaks
+  class s11 tan
+  class s11 breaks
+  class s11 bugPath
+  class s12 tan
+  class s12 breaks
+  class s12 bugPath
+  class s13 tan
+  class s13 breaks
+  class s14 tan
+  class s14 breaks

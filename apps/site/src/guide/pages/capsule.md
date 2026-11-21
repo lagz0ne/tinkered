@@ -38,9 +38,6 @@ const app = createScope({
 const live = await app.ready;
 ```
 
-- `ready` throws if the start fails.
-  `app.settled` gives the same end as a value:
-  `success`, `cancelled` or `failed`.
 - Config goes in the call, never as root
   `tags`.
 - Reach a unit through the binding:

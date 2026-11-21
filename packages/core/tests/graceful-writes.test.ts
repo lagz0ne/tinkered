@@ -647,7 +647,7 @@ for (const hooked of [false, true]) {
         },
       });
 
-      await root.idle();
+      await root.settled();
 
       const running = root.run({ run: () => finish.promise });
       const closing = root.close({ graceful: true });

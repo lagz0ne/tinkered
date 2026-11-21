@@ -756,7 +756,7 @@ export declare namespace Scope {
    */
   export type Starting<H extends Handle = Handle> = Omit<
     Handle,
-    "run" | "settle" | "controller" | "createSession" | "ready" | "settled"
+    "run" | "settle" | "controller" | "createSession" | "ready"
   > & {
     controller<V, K extends Data.Key>(target: Data.Keyed<V, K>, ns?: NsArg): KeyedController<V, K>;
     controller<T>(target: Data.Cell<T>, ns?: NsArg): DataController<T>;
@@ -778,19 +778,7 @@ export declare namespace Scope {
     createSession(options?: Options): Starting;
     /** Settles when every start settled, with the started handle (ADR 0128). */
     readonly ready: Promise<H>;
-    /** `ready`'s outcome as a value: the same handle or the same cause (ADR 0165). */
-    readonly settled: Promise<StartOutcome<H>>;
   };
-
-  /**
-   * How a start ended, as `settled` gives it: the twin of `ready`, which throws (ADR 0165 d1).
-   * The first cause that ends the start wins: a stop signal or a `close()` is `cancelled`, a
-   * start hook's throw or a start timeout is `failed`. A later error is dropped (ADR 0165 d2).
-   */
-  export type StartOutcome<H = void> =
-    | { readonly status: "success"; readonly handle: H }
-    | { readonly status: "cancelled"; readonly reason: unknown }
-    | { readonly status: "failed"; readonly error: unknown };
 
   /** An operation's controller on a {@link Starting} root: each call is a promise. */
   export type StartingController<T, I> = {
@@ -941,9 +929,8 @@ export declare namespace Scope {
     /** This session's id, as its spans carry it in `session.id`: given at open while a tap is
      * on. The root and a session opened with no tap have none. */
     readonly id: number | undefined;
-    /** Resolve once all in-flight operation work owned by this scope has settled. Named `idle`
-     * since ADR 0165 d3: `settled` is the start's outcome, the twin of `ready`. */
-    idle(): Promise<void>;
+    /** Resolve once all in-flight operation work owned by this scope has settled. */
+    settled(): Promise<void>;
     /** Shut this scope down: close children, join owned calls and their cleanup, seal state,
      * then tear down resources. `opts.graceful` keeps state usable for active calls and their cleanup while
      * refusing new outside calls; the default (forced) seals writes and aborts work now
@@ -956,8 +943,6 @@ export declare namespace Scope {
      * and rejects with the start error only after cleanup ends (ADR 0085). A close already under
      * way is joined. A scope with no capsules is ready at once. */
     readonly ready: Promise<void>;
-    /** `ready`'s outcome as a value; it never rejects (ADR 0165). */
-    readonly settled: Promise<StartOutcome>;
     /** What this scope knows about each installed capsule, in `capsules` order (ADR 0121). Live:
      * a read shows the state now. Empty on a scope with no capsules. */
     readonly capsules: readonly Capsule.Record[];
@@ -2757,7 +2742,7 @@ function failureOf(layer: Layer): { cause: unknown } | undefined {
   return panics === undefined ? layer.failed : { cause: panics[0] };
 }
 
-/** Track owned async work so `idle()`/`close` join it. `onReject` decides where a rejection
+/** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
  * goes: the owner's primary failure (operations, current-generation builds) or the secondary
  * bucket (release/abandoned cleanups) which never changes the outcome (ADR 0017). */
 function track(
@@ -4489,8 +4474,6 @@ function abortSubtree(root: Layer, reason = root.reason ?? new CancelReason()): 
 const SUCCESS: Scope.Outcome = { status: "success" };
 /** A scope with no capsules is ready at once: one shared, already-resolved promise. */
 const READY: Promise<void> = Promise.resolve();
-const STARTED: Scope.StartOutcome = { status: "success", handle: undefined };
-const SETTLED: Promise<Scope.StartOutcome> = Promise.resolve(STARTED);
 
 /** An empty drain still yields at its caller's await, without allocating an async task. */
 function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
@@ -5126,14 +5109,12 @@ function runInline<R, I>(
 class ScopeHandle implements Scope.Handle {
   declare protected layer: Layer;
   declare readonly ready: Promise<void>;
-  declare readonly settled: Promise<Scope.StartOutcome>;
   declare private releaser:
     | ((target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: unknown) => void)
     | undefined;
   constructor(layer: Layer) {
     this.layer = layer;
     this.ready = READY;
-    this.settled = SETTLED;
     this.releaser = undefined;
   }
   private controllerOf(
@@ -5308,7 +5289,7 @@ class ScopeHandle implements Scope.Handle {
     ensureLive(this.layer);
     addDefer(this.layer, { fn: () => fn(), owned: undefined });
   }
-  async idle(): Promise<void> {
+  async settled(): Promise<void> {
     const layer = this.layer;
     while (layer.pending.size) await Promise.all(layer.pending);
   }
@@ -5592,21 +5573,9 @@ function extendHandle(
     failReady = rejectReady;
   });
   ignoreRejection(ready);
-  let report!: (outcome: Scope.StartOutcome) => void;
-  const settled = new Promise<Scope.StartOutcome>((resolve) => {
-    report = resolve;
-  });
-  const done = (): void => {
-    settleReady();
-    report(STARTED);
-  };
-  const failed = (error: unknown, cancelled: boolean): void => {
-    failReady(error);
-    report(cancelled ? { status: "cancelled", reason: error } : { status: "failed", error });
-  };
 
   const lifetime: RootLifetime = {};
-  const extended = new ExtendedRoot(layer, ready, settled, session);
+  const extended = new ExtendedRoot(layer, ready, session);
 
   if (signal) {
     extended.closed = new Promise<Scope.Result>((resolveClosed) => {
@@ -5618,7 +5587,7 @@ function extendHandle(
   if (resolvers) extended.resolve = resolveThrough(layer, resolvers);
   if (signal) listenForStop(extended, signal, lifetime);
 
-  runStartChain(layer, extended, lifetime, done, failed, startTimeout, signal);
+  runStartChain(layer, extended, lifetime, settleReady, failReady, startTimeout, signal);
   return extended;
 }
 
@@ -6186,15 +6155,14 @@ function closingOf(layer: Layer): AbortSignal {
  * start's returned value (awaited) is stored per capsule; the records flip `settled` only when
  * that capsule's start settled. A rejected start records the layer failure (so a later close
  * settles `failed`), closes through the current handle, and rejects `ready` with the same error
- * only after that close ends. The first cause wins: a stop signal before the error makes it a
- * cancel (ADR 0165 d2). Close claims startup at once; one microtask lets the close handler
+ * only after that close ends. Close claims startup at once; one microtask lets the close handler
  * retain cleanup before startup joins it. */
 function runStartChain(
   layer: Layer,
   scope: Scope.Handle,
   lifetime: RootLifetime,
   done: () => void,
-  failed: (error: unknown, cancelled: boolean) => void,
+  failed: (error: unknown) => void,
   timeout: number,
   signal: AbortSignal | undefined,
 ): void {
@@ -6275,36 +6243,24 @@ function runStartChain(
     stop.abort(CLOSING_REASON);
     return true;
   };
-  /** An error after the start was claimed sticks on the layer, unless a stop signal came first:
-   * then it is dropped (ADR 0165 d2). */
-  const late = (error: unknown): void => {
-    if (error === CLOSING_REASON || halt) return;
-
-    stick(layer, error);
-    addError(layer, error);
-  };
-  /** The first cause that ends the start wins (ADR 0165 d2). A stop signal that came first, and
-   * that no close claimed, is that cause: a later error, timeout, or close is dropped. */
   const end = async (error: unknown, closing = false): Promise<void> => {
-    if (!claim()) return late(error);
-    return halt ? finish(halt.reason, true) : finish(error, closing);
-  };
-  /** Close the claimed start, then reject `ready` with its cause. */
-  const finish = async (cause: unknown, cancelled: boolean): Promise<void> => {
-    if (cancelled) await Promise.resolve();
-    else layer.failed ??= { cause };
+    if (!claim()) {
+      if (error !== CLOSING_REASON) {
+        stick(layer, error);
+        addError(layer, error);
+      }
+      return;
+    }
+    if (closing) await Promise.resolve();
+    else layer.failed ??= { cause: error };
 
     try {
       await (lifetime.closing ?? layer.closing ?? scope.close());
     } finally {
-      failed(cause, cancelled);
+      failed(error);
     }
   };
-  /** A close claims the start. It is forced when a stop signal came first (ADR 0134 d2). */
-  lifetime.stopStart = () => {
-    ignoreRejection(end(CLOSING_REASON, true));
-    return halt !== undefined;
-  };
+  lifetime.stopStart = () => ignoreRejection(end(CLOSING_REASON, true));
   if (timeout > 0 && timeout !== Infinity) {
     try {
       ignoreRejection(
@@ -6324,7 +6280,8 @@ function runStartChain(
         if (halted()) return end(halt?.reason, true);
         if (claim()) done();
       },
-      (error: unknown) => end(error),
+      (error: unknown) =>
+        halted() && error === CLOSING_REASON ? end(halt?.reason, true) : end(error),
     ),
   );
 }
@@ -6616,18 +6573,11 @@ class HookedHandle extends ScopeHandle {
  * `Object.create` over the plain handle, so roots with the same options share one V8 shape. */
 class ExtendedRoot extends ScopeHandle {
   declare readonly ready: Promise<void>;
-  declare readonly settled: Promise<Scope.StartOutcome>;
   declare closed?: Promise<Scope.Result>;
   declare private chain: readonly Capsule.Binding[] | undefined;
-  constructor(
-    layer: Layer,
-    ready: Promise<void>,
-    settled: Promise<Scope.StartOutcome>,
-    chain: readonly Capsule.Binding[] | undefined,
-  ) {
+  constructor(layer: Layer, ready: Promise<void>, chain: readonly Capsule.Binding[] | undefined) {
     super(layer);
     this.ready = ready;
-    this.settled = settled;
     this.chain = chain;
   }
   override createSession(options?: Scope.Options): Scope.Handle {
@@ -6657,20 +6607,8 @@ class HookedSession extends HookedHandle {
 
 type Verb = (...args: unknown[]) => unknown;
 
-/** What every face of one root shares: whether its start ended, its `ready`, and the root's
- * `settled`. */
-type Gate = {
-  open: boolean;
-  readonly ready: Promise<Scope.Handle>;
-  readonly settled: Promise<Scope.StartOutcome>;
-};
-
-/** A face's `settled`: the root's outcome, with the handle the face's `ready` gives (ADR 0165). */
-function settledAs(gate: Gate, handle: Scope.Handle): Promise<Scope.StartOutcome<Scope.Handle>> {
-  return gate.settled.then((outcome) =>
-    outcome.status === "success" ? { status: "success", handle } : outcome,
-  );
-}
+/** What every face of one root shares: whether its start ended, and its `ready`. */
+type Gate = { open: boolean; readonly ready: Promise<Scope.Handle> };
 
 /** Call `target[verb]` at once after start, else once start ends. Always a promise. */
 function later(gate: Gate, target: object, verb: string, args: unknown[]): Promise<unknown> {
@@ -6707,17 +6645,14 @@ export function isStarting(scope: Scope.Handle | Scope.Starting): scope is Scope
  */
 class StartingFace {
   declare readonly ready: Promise<Scope.Handle>;
-  declare readonly settled: Promise<Scope.StartOutcome<Scope.Handle>>;
   declare protected target: Scope.Handle;
   declare private gate: Gate;
   declare private closer: Scope.Handle["close"] | undefined;
   constructor(target: Scope.Handle, ready: Promise<Scope.Handle>, gate: Gate) {
     this.target = target;
     this.ready = ready;
-    this.settled = settledAs(gate, target);
     this.gate = gate;
     this.closer = undefined;
-
     startingFaces.add(this);
   }
   run(...args: unknown[]): Promise<unknown> {
@@ -6754,8 +6689,8 @@ class StartingFace {
   spans(): readonly Observe.Span[] {
     return this.target.spans();
   }
-  idle(): Promise<void> {
-    return this.target.idle();
+  settled(): Promise<void> {
+    return this.target.settled();
   }
   get release(): Scope.Handle["release"] {
     return this.target.release;
@@ -6802,7 +6737,7 @@ function startingHandle(
     gate.open = true;
     return root;
   });
-  const gate: Gate = { open: false, ready, settled: root.settled };
+  const gate: Gate = { open: false, ready };
   ignoreRejection(ready);
   const Face = "closed" in root ? SignalFace : StartingFace;
   return new Face(root, gate.ready, gate) as unknown as Scope.Starting;
@@ -6918,8 +6853,7 @@ function readExtRoutes(exts: readonly Capsule.Binding[]): ExtRoutes {
 /** Only the capsule path owns this state. The first close includes the hooks' after-work;
  * a start failure joins it, and a stop request never starts another close (ADR 0085). */
 type RootLifetime = {
-  /** Claims a start under way; true when a stop signal came first, so the close is forced. */
-  stopStart?: () => boolean;
+  stopStart?: () => void;
   /** Asks a start under way to end once its running hooks return. */
   halt?: (reason: unknown) => void;
   closing?: Promise<Scope.Result>;
@@ -6938,7 +6872,7 @@ function watchRootClose(
   lifetime: RootLifetime,
 ): Scope.Handle["close"] {
   return (options = {}) => {
-    if (lifetime.stopStart?.()) options = { ...options, graceful: false };
+    lifetime.stopStart?.();
     lifetime.detach?.();
     if (!lifetime.closing) {
       lifetime.closing =

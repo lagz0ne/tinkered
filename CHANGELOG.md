@@ -9,25 +9,6 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
-## 0.34.0
-
-A start's first cause now wins, and `settled` is
-the twin of `ready` (ADR 0165).
-
-- New: `scope.settled`, a promise that never
-  rejects. It resolves to
-  `{ status: "success", handle }`,
-  `{ status: "cancelled", reason }` or
-  `{ status: "failed", error }`.
-- The first event that ends a start wins: a stop
-  signal, a start hook's throw, a start timeout,
-  or a `close()`. `ready` rejects with it, and
-  `settled` names it. A later error is dropped.
-  Before, the last event won (bug 3).
-- Breaking: the handle's `settled()` is now
-  `idle()`. Same behavior: it waits until the
-  scope's in-flight work ends. Rename each call.
-
 ## 0.33.0
 
 `remoteData` drops its old keyed board (ADR 0135;

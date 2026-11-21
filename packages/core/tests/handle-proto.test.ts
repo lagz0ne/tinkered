@@ -60,7 +60,7 @@ test("scope and both session forms share their verbs on one prototype", async ()
     "releaseNs",
     "spans",
     "onClose",
-    "idle",
+    "settled",
     "close",
   ];
   for (const verb of verbs) {

@@ -4,7 +4,6 @@ Date: 2026-11-10. Status: accepted; built; released in 0.16.2.
 Accepted: Duke, 2026-11-10 08:42 UTC: "ok, do that".
 Changes: ADR 0085 decision 2 (a stop during start).
 Found by: the Hedl thread, on 0.16.1 (test N2c).
-Amended by ADR 0165 (d2): the first cause that ends a start wins.
 
 ## Context
 

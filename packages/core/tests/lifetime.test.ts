@@ -138,7 +138,7 @@ test("close cancels a pending start and joins the hooks already running", async 
   expect(events).toEqual(["close:before", "close:after", "ready"]);
 });
 
-test("a stop before a start error wins: closed is cancelled after cleanup (ADR 0165)", async () => {
+test("closed reports the start error after cleanup even when a stop was requested", async () => {
   const stop = new AbortController();
   const cleanupStarted = gate();
   const cleanup = gate();
@@ -162,15 +162,16 @@ test("a stop before a start error wins: closed is cancelled after cleanup (ADR 0
     },
   });
   const scope = createScope({ signal: stop.signal, capsules: [piece] });
-  const ready = expect(scope.ready).rejects.toBe(stop.signal.reason);
+  const ready = expect(scope.ready).rejects.toBe(error);
   await cleanupStarted.promise;
   expect(await Promise.race([scope.closed, Promise.resolve("pending")])).toBe("pending");
 
   cleanup.release();
   await ready;
   const ended = await scope.closed;
+  if (ended.status !== "failed") throw ended;
 
-  expect(ended.status).toBe("cancelled");
+  expect(ended.error).toBe(error);
   expect(closes).toEqual([{}]);
 });
 

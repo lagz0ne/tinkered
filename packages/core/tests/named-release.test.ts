@@ -113,7 +113,7 @@ test("a named run borrows the bucket selected after earlier dependencies resolve
 
   finish();
   await running;
-  await scope.idle();
+  await scope.settled();
   expect(ended).toEqual(["B", "A"]);
   await scope.close();
 });
@@ -164,7 +164,7 @@ test("a named run borrows a replacement built after an earlier dependency releas
 
   finish();
   await running;
-  await scope.idle();
+  await scope.settled();
   expect(ended).toEqual(["client"]);
   await scope.close();
 });
@@ -227,7 +227,7 @@ test("a named run keeps a late dependency cleanup alive through its dependent", 
 
   finishRun();
   await running;
-  await scope.idle();
+  await scope.settled();
   expect(held.closed).toBe(true);
   expect(ended).toHaveLength(2);
   expect(ended).toContain("client");
@@ -283,7 +283,7 @@ test("a named run keeps dependencies borrowed after its dependent is released", 
 
   finish();
   await running;
-  await scope.idle();
+  await scope.settled();
   expect(ended).toEqual(["client", "pool"]);
   await scope.close();
 });
@@ -335,7 +335,7 @@ test("a named run keeps a scope pool alive through its session client", async ()
 
   finish();
   await running;
-  await scope.idle();
+  await scope.settled();
   expect(ended).toEqual(["client", "pool"]);
   await scope.close();
 });
@@ -359,7 +359,7 @@ test("releaseNs cleans one resource bucket and close drains the buckets left beh
   const firstA = scope.resolve(client, { ns: a });
   const firstB = scope.resolve(client, { ns: b });
   scope.releaseNs(client, a);
-  await scope.idle();
+  await scope.settled();
 
   expect(ended).toEqual([`${firstA.build}:released`]);
   const secondA = scope.resolve(client, { ns: a });
@@ -396,7 +396,7 @@ test("release without ns drops every named resource bucket", async () => {
   scope.resolve(client, { ns: b });
 
   scope.release(client);
-  await scope.idle();
+  await scope.settled();
 
   expect(ended).toEqual(["2:released", "1:released"]);
   expect(scope.resolve(client, { ns: a })).toEqual({ build: 3 });
@@ -438,7 +438,7 @@ test("releaseNs waits for its own live borrow but not a sibling namespace", asyn
 
   finish();
   await running;
-  await scope.idle();
+  await scope.settled();
   expect(ended).toEqual(["released", "released"]);
   await scope.close();
 });
@@ -483,7 +483,7 @@ test("releaseNs keeps a dependency alive until its named dependent borrow ends",
 
   finish();
   await running;
-  await scope.idle();
+  await scope.settled();
   expect(ended).toEqual(["client:1", "base:1"]);
   expect(scope.resolve(client, { ns: a })).toEqual({ base: { build: 2 }, build: 2 });
   await scope.close();
@@ -754,7 +754,7 @@ test("releaseNs waits for an async cleanup without a live borrow", async () => {
   expect(ended).toBe(false);
 
   finish();
-  await scope.idle();
+  await scope.settled();
   expect(ended).toBe(true);
   await scope.close();
 });
@@ -786,7 +786,7 @@ test("release waits for a live borrow from a named bucket", async () => {
 
   finish();
   await running;
-  await scope.idle();
+  await scope.settled();
 
   expect(ended).toEqual(["released"]);
   await scope.close();
@@ -816,7 +816,7 @@ test("a late named resource build cleans up and never fills its released bucket"
 
   finish();
   expect(await first).toEqual({ build: 1 });
-  await scope.idle();
+  await scope.settled();
 
   expect(ended).toEqual(["1:released"]);
   expect(scope.resolve(client, { ns: a })).not.toBe(first);
@@ -846,7 +846,7 @@ test("release supersedes a named build before its late cleanup registers", async
 
   finish();
   await first;
-  await scope.idle();
+  await scope.settled();
 
   expect(ended).toEqual(["released"]);
   expect(scope.resolve(client, { ns: a })).not.toBe(first);
@@ -887,13 +887,13 @@ test("a rebuilt chain dependent leaves its old fallback bucket", async () => {
 
   const rebuilt = scope.resolve(client, { ns: [a, b] });
   scope.releaseNs(base, b);
-  await scope.idle();
+  await scope.settled();
 
   expect(scope.resolve(client, { ns: [a, b] })).toBe(rebuilt);
   expect(ended).toEqual(["client:1", "base:1"]);
 
   scope.releaseNs(base, a);
-  await scope.idle();
+  await scope.settled();
   expect(ended).toEqual(["client:1", "base:1", "client:2", "base:2"]);
   await scope.close();
 });
@@ -1397,7 +1397,7 @@ test("releaseNs does not run a closing child's cleanup twice", async () => {
 
   finish();
   await closing;
-  await root.idle();
+  await root.settled();
 
   expect(ended).toEqual(["client", "pool"]);
   await root.close({ graceful: true });
@@ -1651,7 +1651,7 @@ test("a late named dependency finishes after its dependent (N5)", async () => {
   scope.releaseNs(client, ns);
   finishRun();
   await running;
-  await scope.idle();
+  await scope.settled();
   expect(ended).toEqual(["client:released", "pool:released"]);
   await scope.close({ graceful: true });
 });
