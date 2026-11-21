@@ -114,6 +114,38 @@ test("a session made on the starting handle starts with it", async () => {
   expect(live.run(readNow)).toBe("open");
 });
 
+test("settled gives the handle ready gives, on the root and on a session made during start", async () => {
+  gate = Promise.withResolvers();
+  await using app = createScope({ capsules: [store] });
+  const session = app.createSession();
+
+  gate.resolve();
+  const settled = await app.settled;
+  const sessionSettled = await session.settled;
+
+  if (settled.status !== "success") throw settled;
+  if (sessionSettled.status !== "success") throw sessionSettled;
+  expect(settled.handle).toBe(await app.ready);
+  expect(sessionSettled.handle).toBe(await session.ready);
+});
+
+test("a close during start: settled is cancelled with the reason ready rejects with", async () => {
+  gate = Promise.withResolvers();
+  const app = createScope({ capsules: [store] });
+  const ready = app.ready.then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+
+  await app.close();
+  gate.resolve();
+  const settled = await app.settled;
+
+  if (settled.status !== "cancelled") throw settled;
+  expect(settled.reason).toBe(await ready);
+  expect(settled.reason).toMatchObject({ code: 20 });
+});
+
 test("a session's ready rejects when start fails", async () => {
   await using app = createScope({ capsules: [broken] });
 

@@ -178,15 +178,15 @@ process.exitCode = exitCode(end);
 ```
 
 - `signal` asks the root to close gracefully once `ready` resolves.
+  In-flight work can finish; the stop never aborts `ctx.signal`.
+  A waiting run hook and its cleanup count as in-flight work.
   An abort before or during start waits for start to end.
+  The root stays usable until then.
   Then the close is forced, and `closed` is `cancelled`.
 - The first cause that ends a start wins (ADR 0165):
   a stop signal, a start error, a start timeout, or a `close()`.
   `ready` rejects with it, and `settled` names it.
-  A later error, timeout or close is dropped.
-  The root stays usable until then.
-  In-flight work can finish; the stop never aborts `ctx.signal`.
-  A waiting run hook and its cleanup count as in-flight work.
+  A later error or timeout is dropped; a later `close()` joins the first close.
 - A failed start records its error and closes through the handle's current `close`.
   Every close hook runs, including its after-work.
   `ready` rejects with the start error only after that forced close ends.
