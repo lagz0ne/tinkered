@@ -397,8 +397,9 @@ const steps = resource({
       });
     };
 
-    /** A plain key's value now. Async as the old `valueOf` was: the first push still goes out
-     * after the same microtasks, a timing this sweep keeps. */
+    /** A plain key's value now: read at once, at the join, and handed back after an await. That
+     * await keeps the order the old `valueOf` gave: the stream's first push goes out after the
+     * watch op has returned to rpc, not inside its run. */
     const valueNow = async (own: Served, key: string) => own.roots.get(key)!.get();
 
     /** A plain key's stream, as rpc runs it: the value now, then each write. Join first, then
