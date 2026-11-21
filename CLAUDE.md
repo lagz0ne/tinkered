@@ -65,6 +65,33 @@ For a plan, a design, a decision, or "how does X work":
 
 Skills live in `.agents/skills/`, linked from `.claude/skills/`.
 
+## States: the chart is the contract
+
+How we change a state machine.
+The words and the run command: [docs/states/README.md](docs/states/README.md).
+
+- A machine's change starts in its spec, in `docs/states/`.
+- Its rules come only from ADR decisions, by number.
+- The spec models the code as it is.
+- Run the check before code: `statechart` (on this box,
+  `/home/paseo/tools/bin/statechart`).
+- A broken rule found then costs one ADR edit.
+- The chart goes in the ADR.
+- Judge the behavior from the chart.
+- A bug counts only when its path fails as a test on the real code.
+- Until its fix, the path stays in `paths/*.test.ts.txt`.
+- Its fix card moves it into the package tests, red on main first.
+- The writer's brief holds the chart and the bug paths.
+- Writer and reviewer: see "Helper writers".
+- A diff to a machine's code reruns that machine's check.
+- The card's proof line names it: rules, states, 0 breaks.
+- Stop the card as Blocked, and Duke picks, when:
+  - two path tests contradict (list the options);
+  - a fix changes what an API means (list the options);
+  - a fix needs more size-cap room (give the exact size).
+- One mutation run at a time on this box.
+- Queue each run detached; a foreground wait dies at 2 hours.
+
 ## Finding code: SCIP
 
 `scripts/scip.sh` finds a symbol's definition and every file that uses it.
@@ -174,18 +201,17 @@ verdict does.
 
 ## Helper writers
 
-Roles per card (user 2026-10-09: "Instead of using sol as writer, use haiku,
-opus drives and review"; 16:32 UTC: "As replacement to current writer"):
+Roles per card (Duke, 2026-11-20: writers are Opus, never Haiku):
 
 - **Lead:** Claude Opus 5.5 (high). It drives: it writes the card and the
   brief, starts the writer, follows it, sends the one fix round, and lands.
-- **Writer:** Claude Haiku 5.5 (`claude/claude-haiku-5-5`, thinking high,
+- **Writer:** Claude Opus 5.5 (`claude/claude-opus-5-5`, thinking high,
   mode auto). Its own Paseo agent, in `../tinkered-<task>`. It writes the
   code, runs the gates, and commits. It never pushes.
 - **Reviewer:** a separate Claude Opus 5.5 agent (high), using
   `convention-review`. Verdict: READY or NOT READY. One fix round,
   done by the same writer.
-- Haiku replaces Codex Sol (`codex/gpt-6.1-sol`) one for one.
+- Never Haiku, for any role.
 
 One package per writer. The writer's fixed rules:
 `docs/roadmap/contributor-brief.md`.

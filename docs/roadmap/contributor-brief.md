@@ -7,8 +7,9 @@ block, when there is one). You finish all checks before the lead reads.
 
 ## Roles (user 2026-10-09)
 
-- You are the writer: Claude Haiku 5.5
-  (`claude/claude-haiku-5-5`, thinking high, mode auto).
+- You are the writer: Claude Opus 5.5
+  (`claude/claude-opus-5-5`, thinking high, mode auto).
+  Never Haiku (Duke, 2026-11-20).
 - You write the code, run the gates, and commit. Never push.
 - The lead (Claude Opus 5.5) wrote this brief and follows you.
 - A separate Opus 5.5 reviewer reads your branch.
