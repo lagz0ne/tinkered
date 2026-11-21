@@ -76,7 +76,9 @@ const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // 24 B (Duke 2026-11-20 03:12: option A; 1-2 B of it is the hashed rpc chunk name).
 // A status watch that holds its part (ADR 0164; its watcher hears `pending`) raised it by 16 B
 // (Duke 2026-11-20 09:45: "Raise the no-rpc cap by 16 B too, for the status fix").
-const coreCap = 23272;
+// ADR 0165 (settled is the twin of ready; the first cause wins; settled() is idle()) raised it by
+// 168 B (Duke 2026-11-21 14:27 UTC: option A, via the project lead).
+const coreCap = 23440;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
 // derived (ADR 0150) raised this cap by 1 KiB too.
