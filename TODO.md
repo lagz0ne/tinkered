@@ -77,6 +77,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/stop-signal-then-later-event** (ADR 0165) — owner: lead (Opus), writer Opus. Bug 3 in [docs/states](docs/states/scope-life/README.md): a stop signal fires during start, then a start error, a timeout or a `close()` comes before the hooks return; the code reports the later event. Duke accepted ADR 0165 (2026-11-21): the first cause wins, `scope.settled` becomes a never-rejecting promise (the twin of `ready`), and the old `settled()` is renamed `idle()`.
+  Next: spec first (scope-life rules from ADR 0165, check, chart into the ADR), then the path test red on main, then the code; minor release; then Hedl moves to it.
+  Verify: scope-life check 0 breaks; path test red on main, green; `scripts/ticket.sh` exit 0; sizes under the caps (or Blocked with the exact size); core mutation >= 85.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -92,11 +96,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
-
-- **core/stop-signal-then-later-event** — bug 3 in [docs/states](docs/states/scope-life/README.md). A stop signal fires during start, then a start error, a timeout or a `close()` comes before the hooks return. The code reports the later event; ADR 0134 d2 says the signal wins.
-  Missing: Duke's choice. Signal wins: the code changes. Later event wins: ADR 0134 d2 changes.
-  Next once picked: move `paths/statechart-scope-life.test.ts.txt` into Core's tests (changed to the new rule if the ADR wins).
-  Verify: its 3 path tests and the control pass; the scope-life check shows 0 breaks.
 
 ## Parked
 
