@@ -12,12 +12,12 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 151,
-    "medianTrue": 0.82,
+    "falses": 152,
+    "medianTrue": 0.83,
     "medianFalse": 0.59,
-    "separation": 0.23,
+    "separation": 0.24,
     "ordered": 0.76,
-    "at": "2026-11-20"
+    "at": "2026-11-21"
   },
   "stateOutsideCell": {
     "status": "provisional",
@@ -62,12 +62,12 @@
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 2,
-    "falses": 95,
-    "medianTrue": 0.81,
-    "medianFalse": 0.88,
-    "separation": -0.07,
-    "ordered": 0.12,
-    "at": "2026-11-20"
+    "falses": 96,
+    "medianTrue": 0.77,
+    "medianFalse": 0.89,
+    "separation": -0.11,
+    "ordered": 0.07,
+    "at": "2026-11-21"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
@@ -202,12 +202,12 @@
   "awaitsSyncWork": {
     "status": "provisional",
     "trues": 4,
-    "falses": 73,
-    "medianTrue": 0.82,
+    "falses": 74,
+    "medianTrue": 0.79,
     "medianFalse": 0.6,
-    "separation": 0.22,
-    "ordered": 0.83,
-    "at": "2026-11-20"
+    "separation": 0.19,
+    "ordered": 0.8,
+    "at": "2026-11-21"
   },
   "waitsOnSideWork": {
     "status": "provisional",
