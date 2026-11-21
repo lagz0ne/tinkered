@@ -1,7 +1,7 @@
 export { generateFlights, readFlights } from "./flights";
 export type { Flights } from "./flights";
 export { isError } from "./errors";
-export { app as supplierApp, supplierId, holdMs } from "../services/supplier/index";
+export { app as supplierApp, supplierId, holdMs, flightFixture } from "../services/supplier/index";
 export type { Supplier } from "../services/supplier/index";
 export {
   app as paymentApp,

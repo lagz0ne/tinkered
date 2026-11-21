@@ -1,7 +1,8 @@
 import { once } from "node:events";
 import { createConnection } from "node:net";
 import { createScope, capsule, type Scope } from "@tinkered/core";
-import { expect, test } from "vite-plus/test";
+import { beforeAll, expect, test } from "vite-plus/test";
+import { preset } from "@tinkered/core/testing";
 import { z } from "zod";
 import {
   supplierApp,
@@ -13,6 +14,9 @@ import {
   stopSignal,
   webhookUrl,
   webhookSecret,
+  flightFixture,
+  readFlights,
+  type Flights,
 } from "../src/index";
 import { web } from "../services/http";
 
@@ -21,6 +25,16 @@ const services = [
   { name: "payment", app: paymentApp, path: "/v1/payment_intents" },
 ];
 const calls = z.object({ data: z.array(z.object({ route: z.string(), status: z.number() })) });
+
+/**
+ * Four tests start a supplier, so the file parses the 7 MB fixture once and shares it (ADR
+ * 0100: the test owns it). The payment roots never read it.
+ */
+let flights: Flights.Reader;
+beforeAll(async () => {
+  flights = await readFlights();
+});
+const sharedFixture = preset(flightFixture, () => Promise.resolve(flights));
 
 function createGate<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -51,6 +65,7 @@ test.each(services)(
     const scope = createScope({
       signal: stop.signal,
       capsules: [capture, app],
+      presets: [sharedFixture],
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -97,6 +112,7 @@ test.each(services)(
     const scope = createScope({
       signal: stop.signal,
       capsules: [capture, app],
+      presets: [sharedFixture],
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -168,6 +184,7 @@ test.each(services)(
     const scope = createScope({
       signal: stop.signal,
       capsules: app,
+      presets: [sharedFixture],
       tags: [
         supplierId("supplier-a"),
         port(0),
@@ -221,6 +238,7 @@ test.each(services)(
     const scope = createScope({
       signal: stop.signal,
       capsules: app,
+      presets: [sharedFixture],
       tags: [
         supplierId("supplier-a"),
         port(0),

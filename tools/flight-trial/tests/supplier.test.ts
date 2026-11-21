@@ -1,14 +1,18 @@
 import { createScope } from "@tinkered/core";
-import { afterEach, expect, test } from "vite-plus/test";
+import { preset } from "@tinkered/core/testing";
+import { afterEach, beforeAll, expect, test } from "vite-plus/test";
 import { z } from "zod";
 import {
   controlToken,
+  flightFixture,
   holdMs,
   host,
   port,
   stopSignal,
   supplierApp,
+  readFlights,
   supplierId,
+  type Flights,
 } from "../src/index";
 
 const offersSchema = z.object({
@@ -80,6 +84,15 @@ const searchBody = {
     cabin_class: "economy",
   },
 };
+/**
+ * Every test here starts a supplier, so the file parses the 7 MB fixture once and shares it (ADR
+ * 0100: the test owns it). Files that start one supplier keep the real `flightFixture` factory.
+ */
+let flights: Flights.Reader;
+beforeAll(async () => {
+  flights = await readFlights();
+});
+const sharedFixture = preset(flightFixture, () => Promise.resolve(flights));
 const running: { stop: AbortController; closed: Promise<unknown> }[] = [];
 afterEach(async () => {
   for (const app of running.splice(0)) {
@@ -102,15 +115,12 @@ async function search(url: string) {
   return body.data.offers;
 }
 
-/**
- * Two suppliers each read, gunzip, and zod-parse the 7 MB fixture, then deep-copy their own offers:
- * about 0.4 s each on a quiet box, peak 4.4 s at load 34; 20 s leaves room without hiding a hang.
- */
 test("search returns data flights shared by suppliers A and B", async () => {
   const stopA = new AbortController();
   const scopeA = createScope({
     signal: stopA.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -127,6 +137,7 @@ test("search returns data flights shared by suppliers A and B", async () => {
   const scopeB = createScope({
     signal: stopB.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -152,13 +163,14 @@ test("search returns data flights shared by suppliers A and B", async () => {
         offer.slices.at(0)?.destination.iata_code === "AMS",
     ),
   ).toBe(true);
-}, 20000);
+});
 
 test("only one of two parallel orders takes the last seat", async () => {
   const stopUrl = new AbortController();
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -188,6 +200,7 @@ test("an expired hold frees its seat on the service clock", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -235,6 +248,7 @@ test("price changes make a searched offer stale", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -268,6 +282,7 @@ test("a paid hold keeps its seat after the hold time", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -307,6 +322,7 @@ test("the call log counts a delayed call before it ends and records its final st
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -355,6 +371,7 @@ test("control can repeat a route reply without taking another seat", async () =>
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -383,6 +400,7 @@ test("control needs the grader token", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -411,6 +429,7 @@ test("holds expire on real time before the grader sets a clock", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -444,6 +463,7 @@ test("the grader can change a loaded flight before its first search", async () =
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -509,6 +529,7 @@ test("a business group pays its fare for each passenger and uses only that cabin
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -579,6 +600,7 @@ test("search filters the date and the whole group's seat count", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -643,6 +665,7 @@ test("bad supplier requests return a named Duffel error", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -719,6 +742,7 @@ test("a hold accepts only its exact amount and keeps its payment fields", async 
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -772,6 +796,7 @@ test("a scenario reset restores stock and clears quotes, orders, route rules and
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -822,6 +847,7 @@ test("the grader rejects bad flight, route, scenario and clock changes", async (
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -873,6 +899,7 @@ test("an expired hold does not undo a later grader seat edit", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -903,6 +930,7 @@ test("stopping a service ends its virtual waits and closes its HTTP port", async
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -945,6 +973,7 @@ test("advancing before setting a clock starts a test clock from real time", asyn
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -977,6 +1006,7 @@ test("a delayed call cannot restore a replaced route rule", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -1031,6 +1061,7 @@ test("parallel delayed calls consume only the chosen number of repeats", async (
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -1086,6 +1117,7 @@ test("a call finishing after reset cannot return to the new call log", async () 
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -1131,6 +1163,7 @@ test("only an unpaid hold can accept a payment", async () => {
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -1177,6 +1210,7 @@ test("an early quote survives 200 searches and expires on the service clock", as
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -1232,6 +1266,7 @@ test("stored offer count and state bytes stay bounded after many searches", asyn
   const scopeUrl = createScope({
     signal: stopUrl.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -1276,6 +1311,7 @@ test("search accepts supported passenger kinds and rejects an unknown kind", asy
   const scope = createScope({
     signal: stop.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),
@@ -1316,6 +1352,7 @@ test("an expired business hold restores its cabin for the default one passenger"
   const scope = createScope({
     signal: stop.signal,
     capsules: supplierApp,
+    presets: [sharedFixture],
     tags: [
       port(0),
       host("127.0.0.1"),

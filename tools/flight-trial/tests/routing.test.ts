@@ -1,6 +1,7 @@
 import { createScope, capsule, data, operation, tag, type Observe } from "@tinkered/core";
+import { preset } from "@tinkered/core/testing";
 import { z } from "zod";
-import { afterEach, beforeEach, expect, test } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, expect, test } from "vite-plus/test";
 import {
   supplierApp,
   paymentApp,
@@ -11,6 +12,9 @@ import {
   stopSignal,
   webhookUrl,
   webhookSecret,
+  flightFixture,
+  readFlights,
+  type Flights,
 } from "../src/index";
 
 /** The real graph rejects a missing driver; no HTTP code or globals are patched. */
@@ -57,6 +61,15 @@ async function post(url: string, path: string, body: unknown) {
   });
 }
 
+/**
+ * Each test starts a supplier, so the file parses the 7 MB fixture once and shares it (ADR
+ * 0100: the test owns it). The payment root never reads it.
+ */
+let flights: Flights.Reader;
+beforeAll(async () => {
+  flights = await readFlights();
+});
+const sharedFixture = preset(flightFixture, () => Promise.resolve(flights));
 const running: {
   stop: AbortController;
   closed: Promise<unknown>;
@@ -72,6 +85,7 @@ beforeEach(async () => {
     const scope = createScope({
       signal: stop.signal,
       capsules: [failingCalls, app],
+      presets: [sharedFixture],
       observe: { log: (entry) => logs.push(entry) },
       tags: [
         supplierId("supplier-a"),

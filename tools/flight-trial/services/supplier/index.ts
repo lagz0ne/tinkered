@@ -86,7 +86,12 @@ const state = data<Supplier.State>({
   label: "supplier state",
   initial: createState([], "default"),
 });
-const reader = resource({ label: "flight fixture", factory: () => readFlights() });
+/**
+ * Each scope reads, gunzips, and zod-parses the 7 MB fixture: the app runs one scope per process.
+ * The reader is read-only and `offers` deep-copies for each scope, so a test that starts several
+ * supplier scopes may preset this with one parse it owns and shares (ADR 0100).
+ */
+export const flightFixture = resource({ label: "flight fixture", factory: () => readFlights() });
 const scenarioSchema = z.object({ name: z.enum(["default", "last-seat"]) });
 const searchSchema = z.object({
   data: z.object({
@@ -361,7 +366,7 @@ const resetScenario = operation({
     supplierState: state.controller,
     rules: rules.controller,
     calls: calls.controller,
-    reader,
+    reader: flightFixture,
     supplierId,
   },
   async run({ supplierState, rules, calls, reader, supplierId }, ctx) {
