@@ -162,12 +162,12 @@
   "partialStub": {
     "status": "provisional",
     "trues": 0,
-    "falses": 50,
+    "falses": 51,
     "medianTrue": null,
     "medianFalse": 0.08,
     "separation": null,
     "ordered": 0,
-    "at": "2026-11-20"
+    "at": "2026-11-21"
   },
   "memoKeyIgnoresInput": {
     "status": "provisional",
