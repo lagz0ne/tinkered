@@ -4489,8 +4489,6 @@ function abortSubtree(root: Layer, reason = root.reason ?? new CancelReason()): 
 const SUCCESS: Scope.Outcome = { status: "success" };
 /** A scope with no capsules is ready at once: one shared, already-resolved promise. */
 const READY: Promise<void> = Promise.resolve();
-const STARTED: Scope.StartOutcome = { status: "success", handle: undefined };
-const SETTLED: Promise<Scope.StartOutcome> = Promise.resolve(STARTED);
 
 /** An empty drain still yields at its caller's await, without allocating an async task. */
 function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
@@ -6664,6 +6662,11 @@ type Gate = {
   readonly ready: Promise<Scope.Handle>;
   readonly settled: Promise<Scope.StartOutcome>;
 };
+
+/** A start that succeeds, and a scope with no capsules: settled at once (ADR 0165). Declared in
+ * this end block so the hot helpers above keep one-byte V8 slots (`scripts/check-slots.mjs`). */
+const STARTED: Scope.StartOutcome = { status: "success", handle: undefined };
+const SETTLED: Promise<Scope.StartOutcome> = Promise.resolve(STARTED);
 
 /** A face's `settled`: the root's outcome, with the handle the face's `ready` gives (ADR 0165). */
 function settledAs(gate: Gate, handle: Scope.Handle): Promise<Scope.StartOutcome<Scope.Handle>> {
