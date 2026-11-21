@@ -9,6 +9,18 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.32.4
+
+The bun client no longer opens a stray socket
+after a drop.
+
+- Before, a drop (a close or a `reset`) emptied
+  the unsent messages, but the tick already
+  scheduled still ran. With nothing to send, it
+  opened a new socket that stayed open until the
+  scope closed.
+- Now a tick with nothing to send opens no socket.
+
 ## 0.32.3
 
 Tests only: no code changes (ADR 0032 d2).

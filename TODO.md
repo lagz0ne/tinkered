@@ -79,9 +79,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
-- **bun/client-empty-tick** — After `drop()` empties `out`, the tick it scheduled still runs with nothing to send and opens a new socket, which stays open until the scope closes (review of `bun/client-drop-keeps-frames`, the tick in `post`). Next: the tick returns when its batch is empty; step 5 of `statechart-rpc-call.test.ts` then expects 1 socket.
-  Verify: a bun test shows no socket opens after a drop with nothing left to send; the rpc-call path test passes.
-
 - **core/follow-stop-after-open** — In `src/remote-data.ts` `follow`, the abort listener on `part.stop.signal` is added after the stream opens; if the last reader left during the open, the signal already aborted, the listener never fires, and the server stream stays open until the root closes (writer and review of `core/remote-parked-part-wakes`).
   Next: a Core test that leaves while the stream opens, then checks the stream ends; fix with `if (part.stop.signal.aborted) signals.stop();` after the listener, as `round` does.
   Verify: that test fails on main and passes.
@@ -131,6 +128,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **bun/client-empty-tick** — done 2026-11-21. After `drop()` emptied `out`, the tick `post` had scheduled still ran with nothing to send and opened a new socket, which stayed open until the scope closed. Now a tick with an empty batch returns and opens no socket. Fix `a1b598ee`. Released as 0.32.4.
+  Proof: step 5 of `statechart-rpc-call.test.ts` expects 1 socket, red on main (`sockets: 2`); bun, entry and site tests green; bun mutation on `bfa3e0ec` (clean; same src and tests as landed) 86.78 (kills alone 86.3) and 91.53, exit 0. Opus convention-review READY, no fix round.
 
 - **react/run-hidden-no-render** — done 2026-11-21 (ADR 0032 d2). A test now pins the `RunOwner` promise: a run that ends while an Activity hides its view renders nothing, and the show renders the latest state. Test only, no `src` change. Released as 0.32.3.
   Proof: `use-run-owner.test.tsx` fails with `this.live = false` removed (`expected 3 to be 2`), passes with it; React gate EXIT 0; React mutation on `15932f0d` (clean; same src and tests as landed) 91.17, exit 0. Opus convention-review READY, one round (say why the hidden rerender is there).
