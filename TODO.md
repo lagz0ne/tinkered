@@ -29,10 +29,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: parse the fixture once per process (a module-level lazy cache in the app, read-only, each scope deep-copies its own offers as today), so tests and the app both stop paying it per scope; or, if the app must keep per-scope parsing, give the file's supplier tests the time they need with the reason.
   Verify: the flight-trial file passes 30 runs at load 30 or more with no timeout; app behavior unchanged (its tests).
 
-- **react/run-hidden-no-render** — The `RunOwner` TSDoc promises a hidden or unmounted view keeps the latest state without a re-render, but no test pins it: the mutants that drop `live = false` in the cleanup (`index.ts` ~865) survive (review of `react/mutation-floor`).
-  Next: a test that hides a `useRun` view with `<Activity>`, lets the run settle, and counts renders before the show; or drop the words from the TSDoc.
-  Verify: the test fails with `live = false` removed.
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -135,6 +131,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **react/run-hidden-no-render** — done 2026-11-21 (ADR 0032 d2). A test now pins the `RunOwner` promise: a run that ends while an Activity hides its view renders nothing, and the show renders the latest state. Test only, no `src` change. Released as 0.32.3.
+  Proof: `use-run-owner.test.tsx` fails with `this.live = false` removed (`expected 3 to be 2`), passes with it; React gate EXIT 0; React mutation on `15932f0d` (clean; same src and tests as landed) 91.17, exit 0. Opus convention-review READY, one round (say why the hidden rerender is there).
 
 - **core/failed-holder-blocks-close** — done 2026-11-20 (ADR 0063 d3/d4, ADR 0027). A failed build kept its instance, which still held its dependency, but lost its edges; a release of that dependency then waited for the failed holder, and `close()` never resolved. Now a failed instance keeps its edges, so the release ends it first, then the dependency. Fix `336a2885`. Released as 0.32.2.
   Proof: `instance-release.test.ts` close tests, red on main; ticket steps green; sizes 23,267 B / 35,212 B (caps 23,272 / 35,232); Core mutation on `0cf8a38a` (clean tree) 86.14, kills alone 85.3, exit 0. Opus convention-review READY after one round (throw a cause, T07).

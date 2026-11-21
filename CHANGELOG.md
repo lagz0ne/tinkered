@@ -9,6 +9,14 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.32.3
+
+Tests only: no code changes (ADR 0032 d2).
+
+- A new React test pins that `useRun` does not
+  render a hidden view when its run ends. The
+  show then renders the latest state.
+
 ## 0.32.2
 
 A `close()` after a failed build's dependency
