@@ -77,18 +77,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/hot-bytecode-back** — owner: lead (Claude, project thread "Make pnpm validate green on main"); writer: Opus on the box. Duke 2026-11-22 11:09, option B: shrink Core back under the fast-code bytecode baseline, do not raise it. Growth found by bisect (each Core commit built with its own lockfile, Node 24.21):
-  - `runOnce` 504 to 526: +19 `af675583` (ADR 0120 v2, `Capsules.check` at the top), +3 `81ef104f` (ADR 0162, `closeSpan` takes the result).
-  - `runHookChain` 190 to 215: the same two commits.
-  - `resolveDep` 223 to 247: `a6657bd1` (ADR 0151, `slotOf` around `tagRequired`), +1 `03f68248`.
-    Next: the writer moves that work out of the three functions with no change in behavior, then `--rebaseline-engine` on the box's Node 26.13.1.
-    Verify: `node scripts/check-fast-code.mjs` passes bytecode, inlining and closures on Node 26.13.1, with `runOnce` <= 504, `runHookChain` <= 190, `resolveDep` <= 223; `scripts/ticket.sh --check-only`; `check-slots`; size under its caps; `benchctl ab` verdict; Core mutation 85.
-
 - **repo/validate-three-lanes-red** — owner: lead (Claude, project thread "Make pnpm validate green on main"). `pnpm validate` fails 3 lanes on main; each lane prints only its last 3 lines, so the full list is longer:
   - fast-code: F9 Core slot 410 (baseline 365); bytecode `runOnce` 526, `resolveDep` 247, `runHookChain` 215 on Node 24.21.0 (baselines 504, 223, 190); the box's Node 26.13.1 hides that behind "Engine changed".
   - graph: `bun` and `entry` ship no span-tree test; `entry`'s `http.request` opens a hand-rolled `http GET /x` span.
   - two hands: 11 hits, all in `bun` and `entry` src (drivers since 2026-11-09 and 2026-11-16, never added to the list) and in the site's router root and its copy of `entry`'s routes.
-    Next: graph fixed and released (0.34.2). Two hands green (Duke 2026-11-22 10:50, option A: the drivers and the site's router root on the allowed list). Fast-code: Duke 11:09 picked B, shrink Core first (card `core/hot-bytecode-back`). The F9 name counts are a separate measure: they go back to Duke with numbers after that card.
+    Next: fast-code bytecode back under budget and the engine on Node 26.13.1; only the F9 name counts are red (Core 412, React 38): back to Duke with numbers.
     Verify: `pnpm validate` exit 0 on the box's Node.
 
 ## Review
@@ -129,6 +122,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/hot-bytecode-back** — done 2026-11-22 (Duke 2026-11-22 11:09, option B). `runOnce`, `runHookChain` and `resolveDep` are back under their bytecode budget, with no change in behavior. The capsule checks moved out of the hot path; A16c, A16d and A16e pin them: an op held in a tag slot raises `CapsuleMissing` before any work, before its run hook, and on an `ns` call after close. The fast-code baseline moved to Node 26.13.1.
+  Proof: Node 26.13.1 bytecode `runOnce` 527 -> 497, `runHookChain` 215 -> 169, `resolveDep` 247 -> 215; `node scripts/check-fast-code.mjs` bytecode, inlining (3/3), closures and client PASS (slots FAIL is the F9 count, `repo/validate-three-lanes-red`). Size 23,440 B without rpc (cap 23,441 B) and 33,971 B with rpc (cap 35,232 B); `node scripts/check-slots.mjs` exit 0. `benchctl ab`, 40 rounds x3 vs main: op b is faster x3 (-2.1/-4.6/-4.1%), run b is faster x3 (-2.4/-5.4/-2.8%), tagged and hooked no difference we can see x3. Core mutation on `70373525` (clean, `6f203c8c` after the rebase) 86.68, kills alone 85.77, exit 0. Opus convention-review NOT READY (A16e, TSDoc, the `openHookRun` name), one fix round.
 
 - **bun/ws-early-stop** — done 2026-11-22 (found by the port review, project thread "Fix two remote stream bugs"). A ws watch and its stop in one frame: the stop came before the watch's controller was kept (after `await createSession`), so it was dropped and the server stream ran until the socket closed. Now the stop is kept before the first await, a 503 drops it, and a watch stopped while its session opened serves nothing (ADR 0090: an aborted signal starts no body). A watch now counts toward `maxWatches` from its arrival.
   Proof: three new tests in `packages/bun/tests/ws-server.test.ts` fail without the fix (one checks each call and watch closes its session); bun tests 126 green; `vp check` 0 errors; Opus convention-review NOT READY (line comments, 503 deleted a call's id, session passed to a helper), one fix round; bun mutation on `12c47e59` (clean) 87.05, kills alone 86.9, exit 0. Released as 0.34.3.
