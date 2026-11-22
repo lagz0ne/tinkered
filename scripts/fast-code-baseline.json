@@ -1,20 +1,20 @@
 {
-  "node": "v24.21.0",
-  "v8": "13.6.233.17-node.53",
+  "node": "v26.13.1",
+  "v8": "14.6.202.34-node.40",
   "slots": {
     "core": 365,
     "react": 21
   },
   "bytecode": {
-    "runOnce": 504,
+    "runOnce": 497,
     "settleRun": 53,
     "OperationCtx": 132,
-    "buildHooklessResource": 454,
-    "resolveDep": 223,
-    "runHookChain": 190,
-    "runHookBody": 311,
+    "buildHooklessResource": 383,
+    "resolveDep": 215,
+    "runHookChain": 169,
+    "runHookBody": 300,
     "invokeRunHooks": 49,
-    "stepRunHook": 201
+    "stepRunHook": 200
   },
   "closures": {
     "runOnce": 0,
