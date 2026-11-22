@@ -8,7 +8,7 @@ and two capsules that listen after `next()`.
 It describes the root's start and close in `packages/core`,
 with the ADR 0165 fix (`aa79955b`,
 card `core/stop-signal-then-later-event`)
-and its d2 amend (`45622e2b`,
+and its d2 amend (`5ac894d3`,
 card `core/closed-follows-first-cause`).
 
 ## Rules
@@ -53,7 +53,7 @@ and 1 rule broke (ClosedFollowsFirstCause).
 - **LaterErrorDropped** — holds (fix `aa79955b`). ADR 0165 d2.
   A later error is dropped:
   only a first error or timeout fails the start.
-- **ClosedFollowsFirstCause** — holds (fix `45622e2b`).
+- **ClosedFollowsFirstCause** — holds (fix `5ac894d3`).
   ADR 0165 d2, amended
   (Duke, 2026-11-21 14:58 UTC).
   `closed` names the same first cause.
@@ -61,6 +61,8 @@ and 1 rule broke (ClosedFollowsFirstCause).
   A stop signal or a close first never does:
   a later start error is dropped,
   and is not in `teardownErrors`.
+  A later error after a timeout is also
+  left out of `teardownErrors`.
   The close's mode picks `cancelled` (forced)
   or `success` (graceful), as ADR 0028 says.
 - **PreAbortedRunsNoHook** — holds. ADR 0134 d3.
@@ -243,7 +245,7 @@ All 6 tests pass.
   a `close()`, then a start error.
   `closed` and `settled` are `cancelled`,
   with no `teardownErrors`.
-  Red on main before fix `45622e2b`.
+  Red on main before fix `5ac894d3`.
 - The control (the signal alone).
 
 Run:

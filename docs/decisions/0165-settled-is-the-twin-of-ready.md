@@ -72,6 +72,8 @@ scope's in-flight work ends.
      The later error is not in `teardownErrors`:
      it is a start error, not a cleanup throw
      (ADR 0027), and a later error is dropped.
+     A later error after a timeout is also
+     left out of `teardownErrors`.
 3. **The old `settled()` is now `idle()`.**
    - `handle.idle()` waits until the scope's
      in-flight work ends, as `settled()` did.

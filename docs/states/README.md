@@ -87,7 +87,7 @@ so main stays green.
   `core/keyed-watch-after-close`,
   `core/keyed-wake-after-close`.
 - **scope-life** — 0 rules break now
-  (fixes `aa79955b`, `45622e2b`, ADR 0165);
+  (fixes `aa79955b`, `5ac894d3`, ADR 0165);
   the spec models the fixes.
   Cards: `core/stop-signal-then-later-event`,
   `core/closed-follows-first-cause`.
