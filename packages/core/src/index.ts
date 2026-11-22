@@ -3214,10 +3214,13 @@ function stripNs<I>(call: Scope.Invocation<I>): Scope.Invocation<I> | undefined 
 }
 
 /** Release a run's borrows: the resource instances its deps held for the run's whole lifetime
- * (ADR 0026 Q2). */
+ * (ADR 0026 Q2). An index loop, not `for…of`: the iterator's bytecode would push this out of
+ * {@link runOnce}'s shared inline budget (F1). */
 function releaseBorrows(held: HeldBorrows | undefined): void {
   if (!held) return;
-  for (const owned of held.list) {
+  const list = held.list;
+  for (let i = 0; i < list.length; i++) {
+    const owned = list[i];
     if (--owned.borrows === 0 && owned.idle) {
       owned.idle.wake();
       owned.idle = undefined;
