@@ -275,6 +275,15 @@ LaterErrorDropped ==
        => readyReason \notin {"error", "timeout"}
   /\ Settled = "failed" => firstStop \in {"error", "timeout"}
 
+(* ADR 0165 decision 2, amended (Duke 2026-11-21 14:58 UTC): `closed` names the same first cause
+   as `settled`. A start error or a timeout that came first fails it. A stop signal or a close
+   that came first never does: a later error is dropped. The close's mode still picks
+   cancelled (forced) or success (graceful), as ADR 0028 says. *)
+ClosedFollowsFirstCause ==
+  (firstStop \in Causes /\ closed /= "pending")
+    => closed = IF StatusOf(firstStop) = "failed" THEN "failed"
+                ELSE IF closeMode = "forced" THEN "cancelled" ELSE "success"
+
 \* ADR 0134 decision 3: a signal that aborted before start: no hook runs.
 PreAbortedRunsNoHook ==
   preAborted => (h1 = "idle" /\ h2 = "idle")

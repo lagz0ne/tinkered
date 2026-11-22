@@ -4,6 +4,9 @@ Date: 2026-09-15. Status: accepted. Supersedes the **wish** of
 [0027](0027-close-returns-a-result-and-never-throws.md) (keeps 0027's "close returns a `Result`, never
 throws"). Refines [0026](0026-teardown-is-reverse-registration-lifo.md).
 
+Amended by [ADR 0165](0165-settled-is-the-twin-of-ready.md) d2 (Duke, 2026-11-21 14:58 UTC):
+a root start error after a `close()` claimed the start is dropped, so `closed` is not `failed`.
+
 ## Context
 
 `close(outcome?)` took a wished `Outcome` (`success | cancelled | failed`). ADR 0027 already said

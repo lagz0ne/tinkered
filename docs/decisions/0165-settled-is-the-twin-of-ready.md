@@ -64,6 +64,14 @@ scope's in-flight work ends.
    - This amends ADR 0134 d2. Its "a start error
      that comes first still wins" now holds for
      every cause, in both orders.
+   - `closed` names the same first cause
+     (Duke, 2026-11-21 14:58 UTC).
+     A `close()` first, then a start error:
+     `settled` and `closed` are both `cancelled`.
+     A graceful close stays `success` (ADR 0028).
+     The later error is not in `teardownErrors`:
+     it is a start error, not a cleanup throw
+     (ADR 0027), and a later error is dropped.
 3. **The old `settled()` is now `idle()`.**
    - `handle.idle()` waits until the scope's
      in-flight work ends, as `settled()` did.
@@ -217,6 +225,79 @@ stateDiagram-v2
   class s7 tan
   class s8 tan
   class s9 tan
+```
+
+The amend to d2 (`closed` names the first cause),
+on main before its fix.
+Orange: `Closed: failed` breaks
+ClosedFollowsFirstCause in some cases.
+The path: the scope starts,
+the app calls `close()`,
+the close hooks run,
+a start hook throws,
+and the scope closes `failed`.
+
+```mermaid
+---
+title: "A root with a stop signal and two capsules that listen after next()"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: starting
+    lg1: open
+    lg2: closing
+    lg3: closed
+    lg4: Breaks ClosedFollowsFirstCause in some cases
+    lg5: Path to the ClosedFollowsFirstCause bug
+  }
+  class lg0 blue
+  class lg1 teal
+  class lg2 yellow
+  class lg3 tan
+  class lg4 mayBreak
+  class lg5 bugPath
+  s0: Not started
+  s1: Not started, signal already aborted
+  s2: Starting
+  s3: Closing, forced
+  s4: Closing, graceful
+  s5: Stop signal fired, a start hook still runs
+  s6: Ready, both ports open
+  s7: Closed: cancelled
+  s8: Closed: success
+  s9: Closed: failed
+  [*] --> s0
+  [*] --> s1
+  s0 --> s2: the scope starts
+  s1 --> s3: the scope starts, no hook runs
+  s2 --> s3: the app calls close() or a start hook throws or the start times out
+  s2 --> s4: the app calls close({ graceful })
+  s2 --> s5: the stop signal fires
+  s3 --> s3: a close hook runs or a start hook throws
+  s2 --> s6: capsule 2 calls next(), both listen
+  s5 --> s3: the start times out or the app calls close() or a hook calls next(), it rejects or a start hook throws
+  s3 --> s7: the close hooks ran, the scope closes
+  s6 --> s3: the app calls close()
+  s6 --> s4: the app calls close({ graceful }) or the stop signal fires
+  s4 --> s8: the close hooks ran, the scope closes
+  s3 --> s9: the close hooks ran, the scope closes
+  s4 --> s9: the close hooks ran, the scope closes
+  classDef mayBreak fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06
+  class s0 blue
+  class s0 bugPath
+  class s1 blue
+  class s2 blue
+  class s2 bugPath
+  class s3 yellow
+  class s3 bugPath
+  class s4 yellow
+  class s5 blue
+  class s6 teal
+  class s7 tan
+  class s8 tan
+  class s9 tan
+  class s9 mayBreak
+  class s9 bugPath
 ```
 
 ## Results
