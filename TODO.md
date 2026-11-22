@@ -25,10 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **repo/validate-three-lanes-red** — `pnpm validate` fails 3 lanes on main (`ce428e0e`, found while landing ADR 0165): fast-code `inlining` says "Engine changed: v26.13.1 / 14.6.202.34-node.40" (needs `--rebaseline-engine`); `graph` says `entry` declares operations but ships no span-tree test, and a hand-rolled `obs.child(\`http ...\`)`span;`two hands`flags`packages/bun/src/ws.ts:381`and`packages/entry/src/server/routes.ts:108,134` (`Scope.Handle`outside a root, driver src or test).
-Next: per lane, decide fix or rule change (the engine rebaseline needs its numbers checked first).
-Verify:`pnpm validate` exit 0.
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -80,6 +76,13 @@ Verify:`pnpm validate` exit 0.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
 ## Doing
+
+- **repo/validate-three-lanes-red** — owner: lead (Claude, project thread "Make pnpm validate green on main"). `pnpm validate` fails 3 lanes on main; each lane prints only its last 3 lines, so the full list is longer:
+  - fast-code: F9 Core slot 410 (baseline 365); bytecode `runOnce` 526, `resolveDep` 247, `runHookChain` 215 on Node 24.21.0 (baselines 504, 223, 190); the box's Node 26.13.1 hides that behind "Engine changed".
+  - graph: `bun` and `entry` ship no span-tree test; `entry`'s `http.request` opens a hand-rolled `http GET /x` span.
+  - two hands: 11 hits, all in `bun` and `entry` src (drivers since 2026-11-09 and 2026-11-16, never added to the list) and in the site's router root and its copy of `entry`'s routes.
+    Next: graph fixed (`6979203f`). Two hands (the allowed list) and the fast-code baseline (a raise, like a size cap) wait for Duke's picks.
+    Verify: `pnpm validate` exit 0 on the box's Node.
 
 ## Review
 
