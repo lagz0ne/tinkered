@@ -12,22 +12,22 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 156,
-    "medianTrue": 0.84,
+    "falses": 157,
+    "medianTrue": 0.82,
     "medianFalse": 0.6,
-    "separation": 0.24,
-    "ordered": 0.76,
-    "at": "2026-11-21"
+    "separation": 0.22,
+    "ordered": 0.74,
+    "at": "2026-11-22"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 436,
-    "medianTrue": 0.91,
+    "falses": 437,
+    "medianTrue": 0.93,
     "medianFalse": 0.45,
-    "separation": 0.46,
+    "separation": 0.48,
     "ordered": 0.98,
-    "at": "2026-11-21"
+    "at": "2026-11-22"
   },
   "configNotTag": {
     "status": "provisional",
@@ -212,12 +212,12 @@
   "waitsOnSideWork": {
     "status": "provisional",
     "trues": 1,
-    "falses": 85,
-    "medianTrue": 0.81,
-    "medianFalse": 0.56,
-    "separation": 0.25,
+    "falses": 86,
+    "medianTrue": 0.77,
+    "medianFalse": 0.57,
+    "separation": 0.2,
     "ordered": 1,
-    "at": "2026-11-21"
+    "at": "2026-11-22"
   },
   "recomputesSameValue": {
     "status": "provisional",
@@ -232,11 +232,11 @@
   "shapeGrowsPerCall": {
     "status": "provisional",
     "trues": 2,
-    "falses": 148,
-    "medianTrue": 0.55,
+    "falses": 149,
+    "medianTrue": 0.49,
     "medianFalse": 0.62,
-    "separation": -0.07,
-    "ordered": 0.28,
-    "at": "2026-11-21"
+    "separation": -0.13,
+    "ordered": 0.19,
+    "at": "2026-11-22"
   }
 }
