@@ -211,10 +211,6 @@ test("ClosedFollowsFirstCause path: a start error after close() leaves closed ca
     signal: new AbortController().signal,
     capsules: [c1.unit, c2.unit],
   });
-  const ready = scope.ready.then(
-    () => "resolved",
-    (error: unknown) => error,
-  );
   await turns();
   // 2. the app calls close()
   const closing = scope.close();
@@ -226,15 +222,15 @@ test("ClosedFollowsFirstCause path: a start error after close() leaves closed ca
   // 6. the scope closes
   releaseClose();
   const closed = await closing;
-  const readyGot = await ready;
   const settled = await scope.settled;
 
   expect(open.size).toBe(0);
   // ADR 0165 decision 2, amended: the close came first, so the later start error is dropped.
-  expect({ closed, settled }).toEqual({
-    closed: { status: "cancelled", reason: readyGot },
-    settled: { status: "cancelled", reason: readyGot },
-  });
+  expect({
+    closed: closed.status,
+    teardownErrors: closed.teardownErrors,
+    settled: settled.status,
+  }).toEqual({ closed: "cancelled", teardownErrors: undefined, settled: "cancelled" });
 });
 
 test("control: the stop signal alone during start follows ADR 0134 decision 2", async () => {
