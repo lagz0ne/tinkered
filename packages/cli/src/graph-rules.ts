@@ -6,7 +6,10 @@ import type { Tools } from "./tools";
 /** `*` stands for one label part or more: `issues.*` holds `issues.archived`, not `issues`. */
 function matches([head, ...rest]: readonly string[], parts: readonly string[]): boolean {
   if (head === undefined) return !parts.length;
-  if (head !== "*") return parts[0] === head && matches(rest, parts.slice(1));
+  if (head !== "*") {
+    const [first, ...after] = parts;
+    return first === head && matches(rest, after);
+  }
   return parts.some((_, index) => matches(rest, parts.slice(index + 1)));
 }
 
