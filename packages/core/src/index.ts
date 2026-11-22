@@ -6184,8 +6184,8 @@ function closingOf(layer: Layer): AbortSignal {
  * start's returned value (awaited) is stored per capsule; the records flip `settled` only when
  * that capsule's start settled. A rejected start records the layer failure (so a later close
  * settles `failed`), closes through the current handle, and rejects `ready` with the same error
- * only after that close ends. The first cause wins: a stop signal before the error makes it a
- * cancel (ADR 0165 d2). Close claims startup at once; one microtask lets the close handler
+ * only after that close ends. The first cause wins: after a stop signal or a close, the error
+ * is dropped (ADR 0165 d2). Close claims startup at once; one microtask lets the close handler
  * retain cleanup before startup joins it. */
 function runStartChain(
   layer: Layer,
@@ -6273,18 +6273,11 @@ function runStartChain(
     stop.abort(CLOSING_REASON);
     return true;
   };
-  /** An error after the start was claimed sticks on the layer, unless a stop signal came first:
-   * then it is dropped (ADR 0165 d2). */
-  const late = (error: unknown): void => {
-    if (error === CLOSING_REASON || halt) return;
-
-    stick(layer, error);
-    addError(layer, error);
-  };
   /** The first cause that ends the start wins (ADR 0165 d2). A stop signal that came first, and
-   * that no close claimed, is that cause: a later error, timeout, or close is dropped. */
+   * that no close claimed, is that cause. A later error, timeout, or close is dropped: it neither
+   * fails `closed` nor joins its `teardownErrors`. */
   const end = async (error: unknown, closing = false): Promise<void> => {
-    if (!claim()) return late(error);
+    if (!claim()) return;
     return halt ? finish(halt.reason, true) : finish(error, closing);
   };
   /** Close the claimed start, then reject `ready` with its cause. */

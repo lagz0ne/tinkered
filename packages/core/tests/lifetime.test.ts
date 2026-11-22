@@ -93,7 +93,7 @@ test("a rejected start runs every close hook through the current handle", async 
   ]);
 });
 
-test("close cancels a pending start and joins the hooks already running", async () => {
+test("close cancels a pending start, joins the hooks already running, and drops a late start error (ADR 0165 d2 amend)", async () => {
   const start = gate();
   const closing = gate();
   const cleanup = gate();
@@ -132,9 +132,8 @@ test("close cancels a pending start and joins the hooks already running", async 
   cleanup.release();
   expect(await ready).toBe(closeSignal.reason);
   const result = await ended;
-  if (result.status !== "failed") throw result;
-  expect(result.error).toBe(error);
-  expect(result.teardownErrors).toEqual([error]);
+  if (result.status !== "cancelled") throw result;
+  expect(result.teardownErrors).toBeUndefined();
   expect(events).toEqual(["close:before", "close:after", "ready"]);
 });
 

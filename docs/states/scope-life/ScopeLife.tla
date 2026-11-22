@@ -2,6 +2,7 @@
 (* A root scope made with a stop signal and two capsules (packages/core/src/index.ts:
    runStartChain, watchRootClose, listenForStop), with the ADR 0165 fix (card
    core/stop-signal-then-later-event): a stop signal that came first is the start's cause.
+   With its amend (card core/closed-follows-first-cause): a start error after a claim is dropped.
    Capsule 1 is outer, capsule 2 is inner. Each start hook does some async work, calls
    next(), and after next() resolves it opens a port at once (as `serve` runs Bun.serve).
    Its close hook closes that port. Close hooks run in reverse order: capsule 2, then 1.
@@ -119,15 +120,14 @@ Hook2CallsNext ==
 
 (* A start hook throws a real error before its next(). Hook 1 (waiting) rethrows it, so
    at(0) rejects with it: end(error). Its claim wins only if nothing claimed the start yet;
-   else the error sticks on the layer (stick, addError), unless a stop signal came first. *)
+   else the error is dropped (ADR 0165 d2, amended: card core/closed-follows-first-cause). *)
 HookThrows(c) ==
   /\ IF c = 1 THEN h1 = "before" ELSE h2 = "before"
   /\ h1' = IF c = 1 THEN "threw" ELSE "out"
   /\ h2' = IF c = 2 THEN "threw" ELSE h2
   /\ chain' = "settled"
   /\ IF claimed
-       THEN /\ realError' = (realError \/ ~halt)
-            /\ UNCHANGED <<claimed, closeState, closeMode, pendingReject>>
+       THEN UNCHANGED <<claimed, closeState, closeMode, pendingReject, realError>>
        ELSE EndWins("error")
   /\ firstStop' = IF firstStop = "none" /\ ready = "pending" THEN "error" ELSE firstStop
   /\ UNCHANGED <<port1, port2, preAborted, sig, halt, ready, readyReason, closed,
