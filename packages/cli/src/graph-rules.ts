@@ -17,11 +17,12 @@ function matches([head, ...rest]: readonly string[], parts: readonly string[]): 
 const cellOf = (write: string) => write.slice(0, write.lastIndexOf(".")).split(".");
 
 /**
- * Each op `start` reaches through its calls, and theirs in turn. `blind` is each op on the way
- * whose calls have a `?`: an op there may be called, unseen.
+ * Each op `start` reaches through its calls, and theirs in turn: not `start` itself, unless a
+ * call leads back to it. `blind` is each op on the way whose calls have a `?`: an op there may
+ * be called, unseen. Calls are sorted, so the order of `blind` is the same on each run.
  */
 function reach(start: Graph.Line, byLabel: ReadonlyMap<string, Graph.Line>) {
-  const reached = new Set([start.label]);
+  const reached = new Set<string>();
   const blind = new Set<string>();
   const queue = [start];
   for (const { label, calls } of queue) {
@@ -32,7 +33,7 @@ function reach(start: Graph.Line, byLabel: ReadonlyMap<string, Graph.Line>) {
       reached.add(callee);
     }
   }
-  return { reached, blind: [...blind].sort() };
+  return { reached, blind: [...blind] };
 }
 
 /** What `line` breaks of `rule`, if it breaks it: the rule's op and its `except` ops are exempt. */

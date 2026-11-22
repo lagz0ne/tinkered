@@ -94,7 +94,12 @@ const ops = {
     `deps.ok.run(); ${write}`,
   ),
   peek: op("doc.peek", "{ ok: box.required }", "deps.ok.run();"),
-  via: op("doc.via.do", "{ ok: doc_peek, list: titles.controller }", `deps.ok.run(); ${write}`),
+  via: op(
+    "doc.via.do",
+    "{ ok: doc_peek, also: doc_blind_do, list: titles.controller }",
+    `deps.ok.run(); deps.also.run(); ${write}`,
+  ),
+  hand: op("doc.hand", "{ list: titles.controller }", "[deps.list].pop();"),
 };
 
 const imports = [
@@ -193,22 +198,23 @@ test("an op the rule excepts, with its reason, is no finding", { timeout: 60_000
 });
 
 test("the rule's own op writes a matching cell and is no finding", { timeout: 60_000 }, () => {
-  const folder = appOf(["lock"], [{ writes: "docs.locked", calls: "docs.lock" }]);
+  const folder = appOf(["lock", "remove"], [{ writes: "docs.locked", calls: "docs.lock" }]);
 
   const { code, out } = main(["check", folder], "/");
 
   expect(out).toBe(
-    "ran: tsc, lint, rules (2 files), graph (2 operations, 1 rule)\ntinker check: OK\n",
+    "ran: tsc, lint, rules (2 files), graph (3 operations, 1 rule)\ntinker check: OK\n",
   );
   expect(code).toBe(0);
 });
 
 test(
-  "a pattern names a cell: any write method matches, and `*` stands for one part or more",
+  "a pattern names a cell: any write method matches, `*` stands for one part or more, " +
+    "and a write the graph cannot see matches none",
   { timeout: 60_000 },
   () => {
     const folder = appOf(
-      ["bump", "remove"],
+      ["bump", "remove", "hand"],
       [
         { writes: "docs.title", calls: "doc.title" },
         { writes: "docs.*", calls: "doc.part" },
@@ -240,7 +246,7 @@ test(
       "src/docs.ts:5 tinker/graph-rule doc.blind.do writes{docs.title.set}, " +
         "calls{?} in doc.blind.do cannot prove docs.canEdit",
       "src/docs.ts:21 tinker/graph-rule doc.via.do writes{docs.title.set}, " +
-        "calls{?} in doc.peek cannot prove docs.canEdit",
+        "calls{?} in doc.blind.do, doc.peek cannot prove docs.canEdit",
     ]);
   },
 );
@@ -250,7 +256,10 @@ test.each([
   [{ graph: { rules: {} } }, "`graph.rules` is a list"],
   [{ graph: { rules: ["docs.*"] } }, "`graph.rules` is a list"],
   [{ graph: { rules: [{ calls: "docs.canEdit" }] } }, "`graph.rules` is a list"],
-  [{ graph: { rules: [{ writes: "docs*", calls: "docs.canEdit" }] } }, "`graph.rules` is a list"],
+  [
+    { graph: { rules: [rule, { writes: "docs*", calls: "docs.canEdit" }] } },
+    "`graph.rules` is a list",
+  ],
   [
     { graph: { rules: [{ writes: "docs..title", calls: "docs.canEdit" }] } },
     "`graph.rules` is a list",
