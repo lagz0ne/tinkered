@@ -77,11 +77,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/hot-bytecode-back** — owner: lead (Claude, project thread "Make pnpm validate green on main"); writer: Opus on the box. Duke 2026-11-22 11:09, option B: shrink Core back under the fast-code bytecode baseline, do not raise it. Growth found by bisect (each Core commit built with its own lockfile, Node 24.21):
+  - `runOnce` 504 to 526: +19 `af675583` (ADR 0120 v2, `Capsules.check` at the top), +3 `81ef104f` (ADR 0162, `closeSpan` takes the result).
+  - `runHookChain` 190 to 215: the same two commits.
+  - `resolveDep` 223 to 247: `a6657bd1` (ADR 0151, `slotOf` around `tagRequired`), +1 `03f68248`.
+    Next: the writer moves that work out of the three functions with no change in behavior, then `--rebaseline-engine` on the box's Node 26.13.1.
+    Verify: `node scripts/check-fast-code.mjs` passes bytecode, inlining and closures on Node 26.13.1, with `runOnce` <= 504, `runHookChain` <= 190, `resolveDep` <= 223; `scripts/ticket.sh --check-only`; `check-slots`; size under its caps; `benchctl ab` verdict; Core mutation 85.
+
 - **repo/validate-three-lanes-red** — owner: lead (Claude, project thread "Make pnpm validate green on main"). `pnpm validate` fails 3 lanes on main; each lane prints only its last 3 lines, so the full list is longer:
   - fast-code: F9 Core slot 410 (baseline 365); bytecode `runOnce` 526, `resolveDep` 247, `runHookChain` 215 on Node 24.21.0 (baselines 504, 223, 190); the box's Node 26.13.1 hides that behind "Engine changed".
   - graph: `bun` and `entry` ship no span-tree test; `entry`'s `http.request` opens a hand-rolled `http GET /x` span.
   - two hands: 11 hits, all in `bun` and `entry` src (drivers since 2026-11-09 and 2026-11-16, never added to the list) and in the site's router root and its copy of `entry`'s routes.
-    Next: graph fixed and released (0.34.2). Two hands green (Duke 2026-11-22 10:50, option A: the drivers and the site's router root on the allowed list). The fast-code baseline (a raise, like a size cap) waits for Duke's pick.
+    Next: graph fixed and released (0.34.2). Two hands green (Duke 2026-11-22 10:50, option A: the drivers and the site's router root on the allowed list). Fast-code: Duke 11:09 picked B, shrink Core first (card `core/hot-bytecode-back`). The F9 name counts are a separate measure: they go back to Duke with numbers after that card.
     Verify: `pnpm validate` exit 0 on the box's Node.
 
 ## Review
