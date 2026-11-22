@@ -40,7 +40,7 @@ bun --bun tinker check
 2. **rules:** Tinker's rules, then the app's
    other lint.
 3. **graph:** the graph of the code must match
-   `tinker.graph`.
+   `tinker.graph`, and keep each graph rule.
 
 - Only the first stage that fails prints.
 - At most 5 findings print.
@@ -176,6 +176,58 @@ tinker.graph says writes{}
 - Did not mean it? Fix the code.
 - No `tinker.graph` is one finding, when the app
   has an operation.
+
+### Graph rules
+
+A graph rule says: each op that writes these
+cells must call this op (ADR 0167). Write it in
+`tinker.json`:
+
+```json
+{ "graph": { "rules": [
+  { "writes": "issues.*",
+    "calls": "issues.canWrite",
+    "except": {
+      "team.create.do": "No team yet."
+    } }
+] } }
+```
+
+- `writes`: a cell pattern. A pattern names a
+  cell, never a method: `issues.list` holds
+  `issues.list.set` and `issues.list.delete`.
+- `*` stands for one label part or more:
+  `issues.*` holds `issues.archived`, not
+  `issues`.
+- `calls`: the op each writer must reach in its
+  `calls{}`, directly or through the ops it
+  calls.
+- The rule's own op is exempt.
+- `except`: an op, with its reason.
+
+The graph stage tests each rule on the code's
+graph. Each op that breaks one is a finding:
+
+```text
+src/issues/ops.server.ts:88 tinker/graph-rule
+team.archive.do writes{issues.archived.set},
+calls has no issues.canWrite
+```
+
+A `?` in `calls{}` of the op, or of an op on the
+way, is a finding too. The rule cannot be
+proved:
+
+```text
+src/issues/ops.server.ts:88 tinker/graph-rule
+team.archive.do writes{issues.archived.set},
+calls{?} in team.archive.do cannot prove
+issues.canWrite
+```
+
+A write the graph marks `?` is not tested: its
+cell is not known. No rule, no finding: the
+check finds no copy by itself.
 
 ## The tests and the exits
 
@@ -444,6 +496,7 @@ Each exception carries its reason as text.
 - `page.files`: where the page's files are.
   Default: `src/**`.
 - `page.skip`: globs to leave out of the page.
+- `graph.rules`: see Graph rules above.
 
 ## Gaps: a finding you cannot fix yet
 
