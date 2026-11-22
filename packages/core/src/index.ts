@@ -3218,8 +3218,7 @@ function stripNs<I>(call: Scope.Invocation<I>): Scope.Invocation<I> | undefined 
  * {@link runOnce}'s shared inline budget (F1). */
 function releaseBorrows(held: HeldBorrows | undefined): void {
   if (!held) return;
-  const list = held.list;
-  for (let i = 0; i < list.length; i++) {
+  for (let i = 0, list = held.list; i < list.length; i++) {
     const owned = list[i];
     if (--owned.borrows === 0 && owned.idle) {
       owned.idle.wake();
