@@ -373,7 +373,8 @@ function factsOf(checker: ts.TypeChecker, { options, run }: Exits.Operation): Fa
 
 const sorted = (items: Iterable<string>) => [...items].sort();
 
-const listed = (name: string, items: Iterable<string>) => `${name}{${sorted(items).join(",")}}`;
+/** A part of a line: its name, then its items, already sorted. */
+const listed = (name: string, items: readonly string[]) => `${name}{${items.join(",")}}`;
 
 /**
  * The app's graph, from its code: one line per operation, sorted by label in code-unit order,
@@ -384,15 +385,18 @@ export function graphOf(root: string): Graph.Line[] {
   if (!app) return [];
 
   const lines = app.operations.map((operation): Graph.Line => {
-    const { reads, writes, calls } = factsOf(app.checker, operation);
+    const facts = factsOf(app.checker, operation);
     const { path, line, label, exits } = operation;
+    const writes = sorted(facts.writes);
+    const calls = sorted(facts.calls);
+
     const parts = [
-      listed("exits", exits),
-      listed("reads", reads),
+      listed("exits", sorted(exits)),
+      listed("reads", sorted(facts.reads)),
       listed("writes", writes),
       listed("calls", calls),
     ];
-    return { path, line, label, exits, parts, writes: sorted(writes), calls: sorted(calls) };
+    return { path, line, label, exits, parts, writes, calls };
   });
   return lines.sort((a, b) => (a.label < b.label ? -1 : 1));
 }
