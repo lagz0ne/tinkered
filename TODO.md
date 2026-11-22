@@ -81,7 +81,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   - fast-code: F9 Core slot 410 (baseline 365); bytecode `runOnce` 526, `resolveDep` 247, `runHookChain` 215 on Node 24.21.0 (baselines 504, 223, 190); the box's Node 26.13.1 hides that behind "Engine changed".
   - graph: `bun` and `entry` ship no span-tree test; `entry`'s `http.request` opens a hand-rolled `http GET /x` span.
   - two hands: 11 hits, all in `bun` and `entry` src (drivers since 2026-11-09 and 2026-11-16, never added to the list) and in the site's router root and its copy of `entry`'s routes.
-    Next: graph fixed (`6979203f`). Two hands (the allowed list) and the fast-code baseline (a raise, like a size cap) wait for Duke's picks.
+    Next: graph fixed and released (0.34.2). Two hands (the allowed list) and the fast-code baseline (a raise, like a size cap) wait for Duke's picks.
     Verify: `pnpm validate` exit 0 on the box's Node.
 
 ## Review

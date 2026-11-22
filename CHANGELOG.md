@@ -9,6 +9,19 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.2
+
+`@tinkered/entry`: `http.request` puts its
+attributes on its own span (ADR 0058).
+
+- Before, it opened a second span by hand,
+  `http GET /path`, only to hold the method, the
+  path and the status.
+- Now `http.request`'s own span holds
+  `http.request.method`, `url.path` and
+  `http.response.status_code`. A trace has one
+  span less per request.
+
 ## 0.34.1
 
 `closed` now follows a start's first cause, as
