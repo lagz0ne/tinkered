@@ -587,6 +587,47 @@ test("closed drops a real start error after close has claimed startup (ADR 0165 
   expect(closed).toEqual({ status: "success" });
 });
 
+test("closed drops a real start error after a start timeout (ADR 0165 d2)", async () => {
+  const clock = makeTestClock();
+  const error = new Error("real start bug");
+  let rejectStart!: (error: unknown) => void;
+  let releaseCleanup!: () => void;
+  const start = new Promise<void>((_resolve, reject) => {
+    rejectStart = reject;
+  });
+  const cleanup = new Promise<void>((resolve) => {
+    releaseCleanup = resolve;
+  });
+  const scope = createScope({
+    clock,
+    signal: new AbortController().signal,
+    startTimeout: 20,
+    capsules: [
+      capsule({
+        label: "late-failure",
+        hooks: {
+          start(event) {
+            event.defer(() => cleanup);
+            return start;
+          },
+        },
+      }),
+    ],
+  });
+  const ready = scope.ready.catch((error: unknown) => error);
+
+  clock.advance(20);
+  for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+  rejectStart(error);
+  for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+  releaseCleanup();
+  const timeout = await ready;
+  const closed = await scope.closed;
+
+  if (!isError(timeout, "StartTimeout")) throw timeout;
+  expect(closed).toEqual({ status: "failed", error: timeout });
+});
+
 test("an explicit nested namespace chooses its own observation setting", async () => {
   const names: string[] = [];
   const quiet = namespace({ observe: false });
