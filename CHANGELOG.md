@@ -9,6 +9,17 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.4
+
+`@tinkered/core`: no API change.
+
+- Core's hot run path is back under its
+  bytecode budget.
+- A plain op and a plain run are 2-5% faster
+  in the bench.
+- A capsule check now also guards an `ns` call
+  made after its run closed.
+
 ## 0.34.3
 
 `@tinkered/bun`: a ws stop in the same frame
