@@ -73,44 +73,43 @@ export const httpRequest = operation({
   label: "http.request",
   input: requestShape,
   depends: { http },
-  run: ({ http }, { input, obs, signal, raise: coreRaise }) => {
+  run: async ({ http }, { input, obs, signal, raise: coreRaise }) => {
     const raise: Errors.Raise = coreRaise;
 
     const { url, method, headers, body } = input;
     const path = new URL(url).pathname;
-    return obs.child(`http ${method} ${path}`, async (span) => {
-      if (span) {
-        span.attributes["http.request.method"] = method;
-        span.attributes["url.path"] = path;
-      }
-      try {
-        const response = await http.send(url, { method, headers, body, signal: signal });
-        if (span) span.attributes["http.response.status_code"] = response.status;
-        return response;
-      } catch (cause) {
-        signal.throwIfAborted();
-        const failure = failureShape.safeParse(cause);
-        if (!failure.success) {
-          return raise("HttpRequestFailed", {
-            method,
-            path,
-          });
-        }
-
-        const nested = failureShape.safeParse(failure.data.cause);
-        const details = nested.success ? nested.data : failure.data;
-        const name = nameShape.optional().catch(undefined);
-        const code = codeShape.optional().catch(undefined);
-
+    const span = obs.span;
+    if (span) {
+      span.attributes["http.request.method"] = method;
+      span.attributes["url.path"] = path;
+    }
+    try {
+      const response = await http.send(url, { method, headers, body, signal: signal });
+      if (span) span.attributes["http.response.status_code"] = response.status;
+      return response;
+    } catch (cause) {
+      signal.throwIfAborted();
+      const failure = failureShape.safeParse(cause);
+      if (!failure.success) {
         return raise("HttpRequestFailed", {
           method,
           path,
-          cause: {
-            name: name.parse(details.name) ?? name.parse(failure.data.name),
-            code: code.parse(details.code) ?? code.parse(failure.data.code),
-          },
         });
       }
-    });
+
+      const nested = failureShape.safeParse(failure.data.cause);
+      const details = nested.success ? nested.data : failure.data;
+      const name = nameShape.optional().catch(undefined);
+      const code = codeShape.optional().catch(undefined);
+
+      return raise("HttpRequestFailed", {
+        method,
+        path,
+        cause: {
+          name: name.parse(details.name) ?? name.parse(failure.data.name),
+          code: code.parse(details.code) ?? code.parse(failure.data.code),
+        },
+      });
+    }
   },
 });
