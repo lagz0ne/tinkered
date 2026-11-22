@@ -86,11 +86,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **cli/graph-rule** (ADR 0167) — owner: graph-rule writer (Claude, worktree `../tinkered-graph-rule`, branch `graph-rule`). `tinker.json` takes `graph.rules`; the `graph` stage of `tinker check` reports `tinker/graph-rule`.
-  Next: the lead's review, then landing.
-  Proof: 16 fixture tests in `packages/cli/tests/graph-rules.test.ts`, all red without the code; `vp check` 0 errors; `vp run -r test` exit 0 (2,386 tests); `vp run prose` 0 hits; `vp run skills` 13 ids.
-  Mutation (changed files, on `08c2bb58`): 875 killed, 180 timeout at load 17-19; the timeouts re-run at 60 s, concurrency 2: 111 killed. Kills alone 986/1080, 91.3 %. Later kill check on `graph-rules.ts`: 69 of 71 killed, 1 a real hang; the last one killed after.
-
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
   Review: [code READY on d188bacb](/home/paseo/plans/mutation-fix-review.md).
@@ -127,6 +122,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **cli/graph-rule** — done 2026-11-22 (ADR 0167). `tinker.json` takes `graph.rules`: a cell pattern, the operation that makes the check, and `except` operations with a reason. The `graph` stage of `tinker check` reports `tinker/graph-rule` for each operation that writes a matching cell but does not reach that operation in its calls; a `?` on the way is a finding too. The operation skill says how to read the graph before a check, and how to write a rule.
+  Proof: 18 fixture tests in `packages/cli/tests/graph-rules.test.ts`, red without the code. On the landed tip: `vp check` 0 errors, `vp run -r test` exit 0 (2,394 tests), `vp run prose` exit 0, `vp run skills` exit 0; strict census: no new hit. cli mutation, changed files, on `ce7d05d0` (clean; main's later commits change only `packages/cli/package.json`'s version): 861 killed, 195 timeout, 17 survived at load 10-19; the 195 timeouts re-run at 60 s, concurrency 2, and merged: 992 killed, 1 timeout, 80 survived, 5 no cover. Kills alone 992/1,078, 92.02 %. Opus convention-review NOT READY (G1/S14 index read; nits T3, F11, C14, L4), one fix round by the lead.
 
 - **core/hot-bytecode-back** — done 2026-11-22 (Duke 2026-11-22 11:09, option B). `runOnce`, `runHookChain` and `resolveDep` are back under their bytecode budget, with no change in behavior. The capsule checks moved out of the hot path; A16c, A16d and A16e pin them: an op held in a tag slot raises `CapsuleMissing` before any work, before its run hook, and on an `ns` call after close. The fast-code baseline moved to Node 26.13.1.
   Proof: Node 26.13.1 bytecode `runOnce` 527 -> 497, `runHookChain` 215 -> 169, `resolveDep` 247 -> 215; `node scripts/check-fast-code.mjs` bytecode, inlining (3/3), closures and client PASS (slots FAIL is the F9 count, `repo/validate-three-lanes-red`). Size 23,440 B without rpc (cap 23,441 B) and 33,971 B with rpc (cap 35,232 B); `node scripts/check-slots.mjs` exit 0. `benchctl ab`, 40 rounds x3 vs main: op b is faster x3 (-2.1/-4.6/-4.1%), run b is faster x3 (-2.4/-5.4/-2.8%), tagged and hooked no difference we can see x3. Core mutation on `70373525` (clean, `6f203c8c` after the rebase) 86.68, kills alone 85.77, exit 0. Opus convention-review NOT READY (A16e, TSDoc, the `openHookRun` name), one fix round. Released as 0.34.4.
