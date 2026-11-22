@@ -11,9 +11,18 @@ export declare namespace Graph {
   /**
    * One line of the graph: an operation, where it is, and its facts. `parts` are `exits{…}`,
    * `reads{…}`, `writes{…}` and `calls{…}`, in that order. A fact is never a judgement: the
-   * reader of the line judges it (ADR 0161, amended).
+   * reader of the line judges it (ADR 0161, amended). `writes` and `calls` are those facts,
+   * sorted, for the graph rules (ADR 0167).
    */
-  type Line = { path: string; line: number; label: string; exits: string[]; parts: string[] };
+  type Line = {
+    path: string;
+    line: number;
+    label: string;
+    exits: string[];
+    parts: string[];
+    writes: string[];
+    calls: string[];
+  };
 }
 
 /** The app's committed graph, at its root (ADR 0161). */
@@ -117,7 +126,7 @@ type Dep = { touches: Map<string, Touch>; hides: Hide[]; named: boolean; value?:
 const allSets: Hide[] = ["reads", "writes", "calls"];
 
 /** The mark of a fact the graph could not see: never a guess at the fact. */
-const unseen = "?";
+export const unseen = "?";
 
 /** What each call the graph knows on an operation or a cell adds. */
 function touchesOf({ made, label, read }: Unit) {
@@ -362,7 +371,9 @@ function factsOf(checker: ts.TypeChecker, { options, run }: Exits.Operation): Fa
   return fn?.body ? reader.read(fn.body) : reader.hideRun();
 }
 
-const listed = (name: string, items: Iterable<string>) => `${name}{${[...items].sort().join(",")}}`;
+const sorted = (items: Iterable<string>) => [...items].sort();
+
+const listed = (name: string, items: Iterable<string>) => `${name}{${sorted(items).join(",")}}`;
 
 /**
  * The app's graph, from its code: one line per operation, sorted by label in code-unit order,
@@ -381,7 +392,7 @@ export function graphOf(root: string): Graph.Line[] {
       listed("writes", writes),
       listed("calls", calls),
     ];
-    return { path, line, label, exits, parts };
+    return { path, line, label, exits, parts, writes: sorted(writes), calls: sorted(calls) };
   });
   return lines.sort((a, b) => (a.label < b.label ? -1 : 1));
 }

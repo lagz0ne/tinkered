@@ -22,6 +22,12 @@ export declare namespace Check {
    * entry contract runs before any scope exists, so it cannot be an operation.
    */
   type Entries = Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /**
+   * A graph rule (ADR 0167): each operation that writes a cell `writes` matches must reach
+   * `calls` through its calls, directly or through the ops it calls. In `writes`, a `*` part
+   * stands for one label part or more. `except` maps an operation to its reason.
+   */
+  type GraphRule = { writes: string; calls: string; except?: Readonly<Record<string, string>> };
   /** The app's `tinker.json`. Every key may be absent. */
   type Config = {
     plain?: { entries?: Entries };
@@ -40,6 +46,8 @@ export declare namespace Check {
      * the check, and each exit an operation declares must be reached by a test (ADR 0159).
      */
     tests?: string;
+    /** The rules the `graph` stage tests the code's graph against (ADR 0167). */
+    graph?: { rules?: readonly GraphRule[] };
   };
   /** One row of the gaps doc: its id, whether it is open, its count, and its marked lines. */
   type Gap = { gap: string; open: boolean; lines: number; marked: number };
@@ -80,6 +88,21 @@ function isGlobs(value: unknown) {
   return Array.isArray(value) && value.every((glob) => typeof glob === "string");
 }
 
+/** A `*` part stands for whole label parts: `issues*` is no pattern. */
+function isPattern(value: unknown) {
+  return (
+    typeof value === "string" &&
+    value.split(".").every((part) => part === "*" || (part !== "" && !part.includes("*")))
+  );
+}
+
+function isRule(value: unknown) {
+  if (!isRecord(value) || !isPattern(value.writes) || typeof value.calls !== "string") {
+    return false;
+  }
+  return value.except === undefined || isReasons(value.except);
+}
+
 /** Each part of the config: where it is, the test it passes, and what to say when it fails. */
 const parts: readonly [keys: readonly string[], ok: (value: unknown) => boolean, why: string][] = [
   [[], isRecord, "the file is not an object"],
@@ -90,6 +113,12 @@ const parts: readonly [keys: readonly string[], ok: (value: unknown) => boolean,
   [["page", "skip"], isReasons, "`page.skip` maps a glob to a reason"],
   [["gaps"], (value) => typeof value === "string", "`gaps` is the path of the gaps doc"],
   [["tests"], (value) => typeof value === "string", "`tests` is the command that runs the tests"],
+  [["graph"], isRecord, "`graph` is an object"],
+  [
+    ["graph", "rules"],
+    (value) => Array.isArray(value) && value.every(isRule),
+    "`graph.rules` is a list of { writes, calls, except }; a `*` in `writes` is a whole part",
+  ],
 ];
 
 function parse(text: string): unknown {
@@ -170,6 +199,7 @@ export function readApp(root: string) {
     found,
     ...(config.gaps ? { doc: gapsDoc(root, config.gaps) } : {}),
     ...(config.tests ? { tests: config.tests } : {}),
+    rules: config.graph?.rules ?? [],
   };
 }
 

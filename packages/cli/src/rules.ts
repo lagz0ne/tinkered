@@ -34,5 +34,6 @@ export const rules = [
     ...Object.values(taught),
     "tinker/exit",
     "tinker/graph",
+    "tinker/graph-rule",
   ]),
 ];

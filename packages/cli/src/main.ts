@@ -8,6 +8,7 @@ import type { Check } from "./check";
 import { isError } from "./errors";
 import { applyGaps } from "./gaps";
 import { graphFile, graphFindings, graphOf, graphText } from "./graph";
+import { ruleFindings } from "./graph-rules";
 import { rules } from "./rules";
 import { fixOf, listSkills, loadSkill, sectionsOf } from "./skills";
 import type { Skills } from "./skills";
@@ -55,8 +56,8 @@ const usage = `usage:
   tinker skill load <skill>
 
 check runs the app's types (tsc, the kind gate, the cast gate), then its rules (Tinker's
-rules and the app's other lint), then its graph (the code's graph must match tinker.graph),
-then its tests when tinker.json names their command: each exit an operation declares must be
+rules and the app's other lint), then its graph (the code's graph must match tinker.graph,
+and keep each graph rule in tinker.json), then its tests when tinker.json names their command: each exit an operation declares must be
 reached by a test. Only the first stage that fails prints. Each finding prints its fix.
 "tinker check: OK" and exit 0 is the only sign that the work is done.
 
@@ -105,7 +106,7 @@ function failed(
  * tests (ADR 0161); no gap allows a graph finding.
  */
 function stages(root: string): Main.Report {
-  const { sources, found, doc, tests } = readApp(root);
+  const { sources, found, doc, tests, rules } = readApp(root);
   const tools = runTools(root, sources);
   const all = [...tools.types, ...found, ...tools.rules];
   const isOwn = ({ rule }: Tools.Found) => rule.startsWith("tinker/");
@@ -123,12 +124,26 @@ function stages(root: string): Main.Report {
   if (broken.length) return failed(root, "rules", broken, gaps);
 
   const ran = [...tools.ran, `rules (${sources.length} files)`];
-  return afterRules(root, { ran, skipped: tools.skipped, gaps, ...(tests ? { tests } : {}) });
+  return afterRules(root, {
+    ran,
+    skipped: tools.skipped,
+    gaps,
+    rules,
+    ...(tests ? { tests } : {}),
+  });
+}
+
+/** The graph stage on the `ran:` line: its operations, and its rules when the app has any. */
+function graphRan(operations: number, rules: number) {
+  const tested = rules ? `, ${rules} ${rules > 1 ? "rules" : "rule"}` : "";
+  return `graph (${operations} operations${tested})`;
 }
 
 /**
- * The stages after clean rules: the graph, then the tests and their exits. `ran` names the
- * graph only when the app has an operation: an app with none needs no `tinker.graph`.
+ * The stages after clean rules: the graph, then the tests and their exits. The graph stage
+ * compares the code's graph with `tinker.graph`, and tests it against the app's graph rules
+ * (ADR 0167). `ran` names the graph only when the app has an operation: an app with none needs
+ * no `tinker.graph`.
  */
 function afterRules(
   root: string,
@@ -136,14 +151,21 @@ function afterRules(
     ran,
     skipped,
     gaps,
+    rules,
     tests,
-  }: { ran: string[]; skipped: string[]; gaps: Check.Gap[]; tests?: string },
+  }: {
+    ran: string[];
+    skipped: string[];
+    gaps: Check.Gap[];
+    rules: readonly Check.GraphRule[];
+    tests?: string;
+  },
 ): Main.Report {
   const graph = graphOf(root);
-  const changed = graphFindings(root, graph);
+  const changed = [...graphFindings(root, graph), ...ruleFindings(graph, rules)];
   if (changed.length) return failed(root, "graph", changed, gaps);
 
-  if (graph.length) ran.push(`graph (${graph.length} operations)`);
+  if (graph.length) ran.push(graphRan(graph.length, rules.length));
   if (skipped.length) return { kind: "incomplete", ran, skipped, gaps };
   if (!tests) return { kind: "ok", ran, gaps };
 

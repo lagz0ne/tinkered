@@ -5,8 +5,8 @@ description: >
   Tinker app: its label, input shape, deps, run
   body, how to call it, or how it fails. Also
   when a check prints tinker/plain,
-  tinker/floating or tinker/graph, or for a
-  Workflow SDK flow.
+  tinker/floating, tinker/graph or
+  tinker/graph-rule, or for a Workflow SDK flow.
 metadata:
   purpose: >
     How to write, call and fail an operation,
@@ -295,6 +295,52 @@ a later change misses is a bug.
 When a rule changes, the graph lists each
 operation that reads its cell or calls its
 check. Change each one.
+
+Then write the rule in `tinker.json`. The check
+holds it from then on (ADR 0167):
+
+```json
+{ "graph": { "rules": [
+  { "writes": "docs.*",
+    "calls": "docs.canEdit",
+    "except": {
+      "doc.create.do": "No doc yet."
+    } }
+] } }
+```
+
+- `writes`: a cell pattern. `*` stands for one
+  label part or more. `docs.*` holds
+  `docs.locked`, not `docs`.
+- `calls`: the operation that makes the check.
+- `except`: an operation, with its reason.
+
+### HIGH: an op writes a cell but skips its check [tinker/graph-rule]
+
+A graph rule in `tinker.json` names a cell
+pattern and an operation. Each operation that
+writes a cell that matches must reach that
+operation in `calls{}`, directly or through an
+op it calls. The rule's own operation is exempt.
+
+A `?` in `calls{}` on the way is a finding too:
+the check cannot see the call, so the rule
+cannot be proved.
+
+Wrong: a new change writes the doc, and skips
+the check.
+
+```text
+src/docs/ops.server.ts:40 tinker/graph-rule
+  doc.rename.do writes{docs.title.set},
+  calls has no docs.canEdit
+```
+
+Right: call the check from the operation, as a
+dep. If the operation must not make the check,
+add it to the rule's `except`, with the reason.
+For a `?`, write the call so the graph can see
+it.
 
 ### MEDIUM: `Date.now()` or `Math.random()` in a run
 
