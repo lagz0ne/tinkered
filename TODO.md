@@ -84,11 +84,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
     Next: fast-code bytecode back under budget and the engine on Node 26.13.1; only the F9 name counts are red (Core 412, React 38): back to Duke with numbers.
     Verify: `pnpm validate` exit 0 on the box's Node.
 
-- **cli/graph-rule** (ADR 0167) — owner: graph-rule writer (Claude, worktree `../tinkered-graph-rule`, branch `graph-rule`). `tinker.json` takes `graph.rules`; the `graph` stage of `tinker check` reports `tinker/graph-rule`.
-  Next: config shape, then the rule test in `packages/cli/src/graph.ts`, then the skill and README lines.
-  Verify: fixture tests (direct, transitive, break, except, named op, `?`, bad config) red without the code, green with it; `vp check`, `vp run -r test`, `vp run prose`, `vp run skills` exit 0; cli mutation >= 85.
-
 ## Review
+
+- **cli/graph-rule** (ADR 0167) — owner: graph-rule writer (Claude, worktree `../tinkered-graph-rule`, branch `graph-rule`). `tinker.json` takes `graph.rules`; the `graph` stage of `tinker check` reports `tinker/graph-rule`.
+  Next: the lead's review, then landing.
+  Proof: 16 fixture tests in `packages/cli/tests/graph-rules.test.ts`, all red without the code; `vp check` 0 errors; `vp run -r test` exit 0 (2,386 tests); `vp run prose` 0 hits; `vp run skills` 13 ids.
+  Mutation (changed files, on `08c2bb58`): 875 killed, 180 timeout at load 17-19; the timeouts re-run at 60 s, concurrency 2: 111 killed. Kills alone 986/1080, 91.3 %. Later kill check on `graph-rules.ts`: 69 of 71 killed, 1 a real hang; the last one killed after.
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
