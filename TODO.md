@@ -77,6 +77,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **ci/validate-lanes** — owner: lead (Claude, project thread "Make pnpm validate green on main"). CI did not run `pnpm validate`, so lanes went red unseen (`repo/validate-three-lanes-red`). A `validate` job on the box runner runs it on every push to main, on the Node that `scripts/fast-code-baseline.json` pins. `scripts/validate.mjs` uses the workspace's own `vp`, not a box-only path.
+  Verify: the `validate` job green on its first push to main.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.

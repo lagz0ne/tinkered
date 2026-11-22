@@ -2,7 +2,8 @@
 // (timing) run separately via `bench` in a sandbox; heap is a memory delta and runs here.
 import { execSync } from "node:child_process";
 
-const VP = "/home/paseo/.local/vp/bin/vp";
+// `pnpm validate` puts the workspace's own `vp` on PATH, on the box and in CI.
+const VP = "vp";
 const strip = "node --experimental-strip-types";
 
 const lanes = [
