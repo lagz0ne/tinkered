@@ -542,7 +542,7 @@ test("close wins while a completed start still has ready pending", async () => {
   expect(error).toBe(closingSignal.reason);
 });
 
-test("closed keeps a real start error after close has claimed startup", async () => {
+test("closed drops a real start error after close has claimed startup (ADR 0165 d2 amend)", async () => {
   const clock = makeTestClock();
   const error = new Error("real start bug");
   let rejectStart!: (error: unknown) => void;
@@ -584,9 +584,7 @@ test("closed keeps a real start error after close has claimed startup", async ()
   await closing;
   const closed = await scope.closed;
 
-  if (closed.status !== "failed") throw closed;
-  expect(closed.error).toBe(error);
-  expect(closed.teardownErrors).toEqual([error]);
+  expect(closed).toEqual({ status: "success" });
 });
 
 test("an explicit nested namespace chooses its own observation setting", async () => {

@@ -11,8 +11,8 @@ const turns = async (n = 20): Promise<void> => {
 };
 
 /** Capsule `name`: its start waits on a gate (the "before next()" work), awaits next(), then
- * opens its port. Its close hook closes the port. */
-function listener(name: string, log: string[], open: Set<string>) {
+ * opens its port. Its close hook closes the port, and waits for `hold` when one is given. */
+function listener(name: string, log: string[], open: Set<string>, hold?: Promise<void>) {
   let release!: () => void;
   let fail!: (error: unknown) => void;
   const gate = new Promise<void>((resolve, reject) => {
@@ -32,6 +32,7 @@ function listener(name: string, log: string[], open: Set<string>) {
       async close({ next, options }) {
         open.delete(name);
         log.push(`${name} close hook (graceful: ${options.graceful === true})`);
+        if (hold) await hold;
         return next();
       },
     },
@@ -193,6 +194,46 @@ test("FirstErrorWins path: a start error before the stop signal fails the start"
     ready: startBug,
     closed: "failed",
     settled: { status: "failed", error: startBug },
+  });
+});
+
+test("ClosedFollowsFirstCause path: a start error after close() leaves closed cancelled", async () => {
+  const log: string[] = [];
+  const open = new Set<string>();
+  let releaseClose!: () => void;
+  const held = new Promise<void>((resolve) => (releaseClose = resolve));
+  const c1 = listener("capsule 1", log, open, held);
+  const c2 = listener("capsule 2", log, open);
+  const startBug = new Error("start bug");
+
+  // 1. the scope starts
+  const scope = createScope({
+    signal: new AbortController().signal,
+    capsules: [c1.unit, c2.unit],
+  });
+  const ready = scope.ready.then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  await turns();
+  // 2. the app calls close()
+  const closing = scope.close();
+  // 3, 4. the close hooks run (capsule 1's waits)
+  await turns();
+  // 5. a start hook throws (capsule 1, before its next())
+  c1.fail(startBug);
+  await turns();
+  // 6. the scope closes
+  releaseClose();
+  const closed = await closing;
+  const readyGot = await ready;
+  const settled = await scope.settled;
+
+  expect(open.size).toBe(0);
+  // ADR 0165 decision 2, amended: the close came first, so the later start error is dropped.
+  expect({ closed, settled }).toEqual({
+    closed: { status: "cancelled", reason: readyGot },
+    settled: { status: "cancelled", reason: readyGot },
   });
 });
 
