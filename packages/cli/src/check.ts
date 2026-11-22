@@ -199,7 +199,7 @@ export function readApp(root: string) {
     found,
     ...(config.gaps ? { doc: gapsDoc(root, config.gaps) } : {}),
     ...(config.tests ? { tests: config.tests } : {}),
-    rules: config.graph?.rules ?? [],
+    graphRules: config.graph?.rules ?? [],
   };
 }
 

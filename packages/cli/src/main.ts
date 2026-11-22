@@ -57,8 +57,8 @@ const usage = `usage:
 
 check runs the app's types (tsc, the kind gate, the cast gate), then its rules (Tinker's
 rules and the app's other lint), then its graph (the code's graph must match tinker.graph,
-and keep each graph rule in tinker.json), then its tests when tinker.json names their command: each exit an operation declares must be
-reached by a test. Only the first stage that fails prints. Each finding prints its fix.
+and keep each graph rule in tinker.json), then its tests when tinker.json names their
+command: each exit an operation declares must be reached by a test. Only the first stage that fails prints. Each finding prints its fix.
 "tinker check: OK" and exit 0 is the only sign that the work is done.
 
 graph prints the app's graph: one line per operation, with its exits and what its run reads,
@@ -106,7 +106,7 @@ function failed(
  * tests (ADR 0161); no gap allows a graph finding.
  */
 function stages(root: string): Main.Report {
-  const { sources, found, doc, tests, rules } = readApp(root);
+  const { sources, found, doc, tests, graphRules } = readApp(root);
   const tools = runTools(root, sources);
   const all = [...tools.types, ...found, ...tools.rules];
   const isOwn = ({ rule }: Tools.Found) => rule.startsWith("tinker/");
@@ -128,14 +128,14 @@ function stages(root: string): Main.Report {
     ran,
     skipped: tools.skipped,
     gaps,
-    rules,
+    graphRules,
     ...(tests ? { tests } : {}),
   });
 }
 
 /** The graph stage on the `ran:` line: its operations, and its rules when the app has any. */
-function graphRan(operations: number, rules: number) {
-  const tested = rules ? `, ${rules} ${rules > 1 ? "rules" : "rule"}` : "";
+function graphRan(operations: number, graphRules: number) {
+  const tested = graphRules ? `, ${graphRules} ${graphRules > 1 ? "rules" : "rule"}` : "";
   return `graph (${operations} operations${tested})`;
 }
 
@@ -151,21 +151,21 @@ function afterRules(
     ran,
     skipped,
     gaps,
-    rules,
+    graphRules,
     tests,
   }: {
     ran: string[];
     skipped: string[];
     gaps: Check.Gap[];
-    rules: readonly Check.GraphRule[];
+    graphRules: readonly Check.GraphRule[];
     tests?: string;
   },
 ): Main.Report {
   const graph = graphOf(root);
-  const changed = [...graphFindings(root, graph), ...ruleFindings(graph, rules)];
+  const changed = [...graphFindings(root, graph), ...ruleFindings(graph, graphRules)];
   if (changed.length) return failed(root, "graph", changed, gaps);
 
-  if (graph.length) ran.push(graphRan(graph.length, rules.length));
+  if (graph.length) ran.push(graphRan(graph.length, graphRules.length));
   if (skipped.length) return { kind: "incomplete", ran, skipped, gaps };
   if (!tests) return { kind: "ok", ran, gaps };
 
