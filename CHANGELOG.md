@@ -9,6 +9,20 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.3
+
+`@tinkered/bun`: a ws stop in the same frame
+as its watch now ends the watch.
+
+- Before, the server kept a watch's stop only
+  after its session opened.
+  A stop sent in the same frame found nothing.
+  The server stream ran until the socket closed.
+- Now the stop is kept at once.
+  A watch stopped before it starts runs nothing.
+- A watch now counts toward `maxWatches`
+  from the moment it arrives.
+
 ## 0.34.2
 
 `@tinkered/entry`: `http.request` puts its
