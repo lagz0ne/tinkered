@@ -1040,6 +1040,75 @@ test("A16b a scope without mail runs an inline op on a mail export: CapsuleMissi
   expect(work).toEqual([]);
 });
 
+test("A16c an op slot holds mail.send with no mail: a plain or tags call raises CapsuleMissing before any work", async () => {
+  const seen: string[] = [];
+  const router = capsule({
+    label: "router",
+    hooks: {
+      session: ({ next }) => {
+        seen.push("session");
+        return next();
+      },
+    },
+  });
+  const zone = tag({ label: "zone", default: "root" });
+  const slot = tag<typeof mail.send>({ label: "mail.slot" });
+  const plain = operation({
+    label: "plain",
+    depends: { send: slot },
+    run: ({ send }) => send.run(),
+  });
+  const tagged = operation({
+    label: "tagged",
+    depends: { send: slot },
+    run: ({ send }) => send.run({ tags: [zone("east")] }),
+  });
+  const scope = createScope({ capsules: [router()], tags: [slot(mail.send)] });
+  await scope.ready;
+
+  const results = await Promise.all([
+    Promise.resolve(scope.settle(plain)),
+    Promise.resolve(scope.settle(tagged)),
+  ]);
+
+  for (const result of results) {
+    if (result.status !== "failed") throw new Error(`expected failed, got ${result.status}`);
+    if (!isError(result.error, "CapsuleMissing")) throw result.error;
+    expect(result.error.payload).toEqual({ unit: "mail.send", capsule: "mail" });
+  }
+  expect(seen).toEqual([]);
+  await scope.close();
+});
+
+test("A16d with a run hook, an op slot holding mail.send with no mail: CapsuleMissing before its hook", async () => {
+  const seen: string[] = [];
+  const audit = capsule({
+    label: "audit",
+    hooks: {
+      run: ({ op, next }) => {
+        seen.push(op.label ?? "inline");
+        return next();
+      },
+    },
+  });
+  const slot = tag<typeof mail.send>({ label: "mail.slot" });
+  const plain = operation({
+    label: "plain",
+    depends: { send: slot },
+    run: ({ send }) => send.run(),
+  });
+  const scope = createScope({ capsules: [audit()], tags: [slot(mail.send)] });
+  await scope.ready;
+
+  const result = await Promise.resolve(scope.settle(plain));
+
+  if (result.status !== "failed") throw new Error(`expected failed, got ${result.status}`);
+  if (!isError(result.error, "CapsuleMissing")) throw result.error;
+  expect(result.error.payload).toEqual({ unit: "mail.send", capsule: "mail" });
+  expect(seen).toEqual(["plain"]);
+  await scope.close();
+});
+
 /** A sink capsule's own units, for A24: a queue it loads and a flush it runs, in start. The
  * queue keeps its state in the sink's own namespace (ADR 0119), so the quiet one is not seen. */
 function sinkCapsule(quiet: boolean) {

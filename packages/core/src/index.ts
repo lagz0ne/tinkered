@@ -2286,6 +2286,7 @@ function resolveEdge(
   return tagSlot(layer, dep, up, chain, caller);
 }
 
+/** A bare tag reads as its `.required` edge: the same tag read and slot (ADR 0151). */
 function resolveDep(
   layer: Layer,
   dep: Scope.Dependency,
@@ -2293,12 +2294,12 @@ function resolveDep(
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
-  if (isEdge(dep)) return resolveEdge(layer, dep, up, chain, caller);
-  if (isData(dep)) return readCell(layer, dep, chain);
-  if (isTag(dep)) return slotOf(layer, tagRequired(layer, dep, chain), up, chain, caller);
-  if (isOperation(dep)) return operationController(layer, dep, up, chain, caller);
-  if (isResource(dep)) return resourceSlot(layer, dep, up, chain);
-  if (isCapsule(dep)) return resolveCapsule(layer, dep);
+  const unit = isTag(dep) ? dep.required : dep;
+  if (isEdge(unit)) return resolveEdge(layer, unit, up, chain, caller);
+  if (isData(unit)) return readCell(layer, unit, chain);
+  if (isOperation(unit)) return operationController(layer, unit, up, chain, caller);
+  if (isResource(unit)) return resourceSlot(layer, unit, up, chain);
+  if (isCapsule(unit)) return resolveCapsule(layer, unit);
 
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
@@ -3035,6 +3036,7 @@ function runTagged<T, I>(
   call: Scope.Invocation<I>,
   inheritedChain: readonly Namespace[] | undefined,
 ): Awaited<T> | Promise<Awaited<T>> {
+  Capsules.check(layer, target);
   const tags = call.tags;
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner = stripNs(call);
@@ -3197,6 +3199,7 @@ function runNsCall<I>(
   caller: RunState | undefined,
   call: Scope.Invocation<I> & { readonly ns: Ns },
 ): unknown {
+  Capsules.check(layer, target);
   ensureRunning(layer, caller);
   return runUntagged(layer, target, up, stripNs(call), nsChainOf(call.ns), caller);
 }
@@ -3319,7 +3322,6 @@ function runOnce<T, I>(
   replay: Replay,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  Capsules.check(layer, target);
   if (call !== undefined) {
     if (hasCallSession(call)) return runTagged(layer, target, up, caller, call, chain);
     if (call.ns !== undefined) {
@@ -3333,9 +3335,8 @@ function runOnce<T, I>(
     }
   }
 
-  ensureRunning(layer, caller);
+  const span = openRun(layer, target, up, chain, caller);
   const obs = layer.obs;
-  const span = openSpan(obs, layer, up, target.label, "operation", chain, target);
   const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
 
   /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
@@ -7219,9 +7220,7 @@ function runHookChain<T, I>(
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  Capsules.check(layer, target);
-  const span = openSpan(layer.obs, layer, up, target.label, "operation", chain, target);
-  const run = createHookRun(layer, span, target.label, call, caller);
+  const run = createHookRun(layer, target, up, chain, call, caller);
   let result: unknown;
   try {
     result = invokeRunHooks(run, target, hookTarget, call, chain);
@@ -7239,17 +7238,22 @@ function runHookChain<T, I>(
   return trackHookRun(run, result, true);
 }
 
-/** Set the hook record's fields together so reading tools or starting work keeps its shape. */
+/** Set the hook record's fields together so reading tools or starting work keeps its shape.
+ * The capsule check (ADR 0121) and the span open here, before the record, so
+ * {@link runHookChain} stays in its bytecode budget (F1). */
 function createHookRun(
   layer: Layer,
-  span: SpanImpl | undefined,
-  label: string,
+  target: Operation.Handle<unknown, unknown>,
+  up: SpanImpl | undefined,
+  chain: readonly Namespace[] | undefined,
   call: Scope.Invocation<unknown> | undefined,
   caller: RunState | undefined,
 ): HookRun {
+  Capsules.check(layer, target);
+  const label = target.label;
   return {
     layer: layer,
-    span,
+    span: openSpan(layer.obs, layer, up, label, "operation", chain, target),
     label,
     call,
     held: undefined,
@@ -9088,6 +9092,21 @@ function tooDeep(queue: readonly Round[], at: number): never {
   return raise("UpdateDepth", { depth: (queue[at] as Round).depth, cells });
 }
 
+/** A plain run's first steps, kept out of {@link runOnce} so its bytecode stays in the inline
+ * budget (F1): the capsule check before any work (ADR 0121), then the open check, then the span.
+ * In this end block so the hot helpers above keep one-byte V8 slots. */
+function openRun(
+  layer: Layer,
+  target: Operation.Handle<unknown, unknown>,
+  up: SpanImpl | undefined,
+  chain: readonly Namespace[] | undefined,
+  caller: RunState | undefined,
+): SpanImpl | undefined {
+  Capsules.check(layer, target);
+  ensureRunning(layer, caller);
+  return openSpan(layer.obs, layer, up, target.label, "operation", chain, target);
+}
+
 /** A tag's value as `depends` takes it (ADR 0151): a unit in a slot arrives as that unit
  * would, any other value as is. */
 function slotOf(
@@ -9108,18 +9127,17 @@ function tagSlot(
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
 ): unknown {
-  const as = (value: unknown): unknown => slotOf(layer, value, up, chain, caller);
   const raw = tagEdge(layer, dep, chain);
   if (dep.kind === "all") {
-    const items = (raw as unknown[]).map(as);
+    const items = (raw as unknown[]).map((value) => slotOf(layer, value, up, chain, caller));
     return items.some(isThenable) ? Promise.all(items) : items;
   }
-  if (dep.kind !== "optional") return as(raw);
+  if (dep.kind !== "optional") return slotOf(layer, raw, up, chain, caller);
 
   const found = raw as Tag.Presence<unknown>;
   if (!found.present) return found;
 
-  const value = as(found.value);
+  const value = slotOf(layer, found.value, up, chain, caller);
   return isThenable(value)
     ? (value as PromiseLike<unknown>).then((built) => ({ present: true, value: built }))
     : { present: true, value };
