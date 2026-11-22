@@ -9,6 +9,19 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.1
+
+`closed` now follows a start's first cause, as
+`settled` does (ADR 0165 d2).
+
+- Before, a `close()` during start, then a start
+  error, gave `settled` cancelled but `closed`
+  failed, with the error in `teardownErrors`.
+- Now both report cancelled, and the late error
+  is dropped.
+- A start error that comes after a start timeout
+  is also left out of `teardownErrors`.
+
 ## 0.34.0
 
 A start's first cause now wins, and `settled` is

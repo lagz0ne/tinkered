@@ -29,10 +29,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Next: per lane, decide fix or rule change (the engine rebaseline needs its numbers checked first).
 Verify:`pnpm validate` exit 0.
 
-- **core/closed-follows-first-cause** (ADR 0165 amend) — Duke 2026-11-21 14:58 UTC picked A: `closed` follows the first cause too, as `settled` does. Today `close()` first, then a start error, gives `settled` cancelled but `closed` failed (`tests/start-timeout-and-hose.test.ts:545` pins `failed`).
-  Next: after Hedl moves to 0.34.0: amend ADR 0165 (and ADR 0027/0028 if they say otherwise), a scope-life spec rule, the path test red first, then the fix.
-  Verify: scope-life check 0 breaks; path test red on main, green; `scripts/ticket.sh` exit 0; sizes under the caps (or Blocked with the exact size); core mutation >= 85.
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -123,6 +119,9 @@ Verify:`pnpm validate` exit 0.
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/closed-follows-first-cause** — done 2026-11-22 (ADR 0165 d2 amend; ADR 0028 notes it). `closed` now follows the first cause, as `settled` does (Duke 2026-11-21 14:58 UTC, option A): `close()` first, then a start error, gives both cancelled, and the late error is not in `teardownErrors`. A later error after a start timeout is also left out of `teardownErrors`. Fix `5ac894d3`. Released as 0.34.1.
+  Proof: scope-life spec on main breaks only ClosedFollowsFirstCause (131 states); after the fix 13 rules, 127 states, 0 breaks. Path test and the timeout-first test red on main, green; the old pinning tests now name the new rule. `scripts/ticket.sh --check-only --no-mutation` exit 0; size 23,413 B / 33,945 B (caps 23,441 / 35,232); `node scripts/check-slots.mjs` exit 0; `pnpm validate` fails only the 3 lanes that fail on main (`repo/validate-three-lanes-red`). Core mutation on `e1c078ef` (clean) 86.84, kills alone 85.7, exit 0. Opus convention-review NOT READY (the timeout-first drop was unstated; the fix commit was red alone), one fix round by a second Opus writer (the first one's agent was closed).
 
 - **core/stop-signal-then-later-event** — done 2026-11-21 (ADR 0165, amends ADR 0134 d2). Bug 3: a stop signal during start, then a start error, a timeout or a `close()`, made `ready` report the later event. Now the first cause wins: `ready` rejects with it, and the new `scope.settled` (a promise that never rejects: success with the handle, cancelled with the reason, or failed with the error) names the same cause; a later error is dropped. The handle's `settled()` is renamed `idle()`, same behavior. Fix `aa79955b`. Released as 0.34.0.
   Proof: scope-life spec on main 12 rules, 199 states, 5 breaks (all bug 3); after the fix 12 rules, 131 states, 0 breaks. Path tests `tests/statechart/scope-life-paths.test.ts` red on main (4 of 5), green; success and close-first shape tests added in review. `scripts/ticket.sh --check-only --no-mutation` exit 0. First landed as `f49fdb40`: CI's slot gate put `settleRun` at V8 slot 256, so it was reverted (`ed9b97f0`); the two new consts moved to the end block (`8db2c22f`). Size 23,441 B without rpc (cap 23,441 B: Duke 2026-11-21 14:27 and 23:19 UTC, option A both times) and 33,972 B with rpc. `node scripts/check-slots.mjs` exit 0 (headroom 0); `pnpm validate`: 3 lanes fail, the same 3 on main without this card (`ce428e0e`): see `repo/validate-three-lanes-red`. Core mutation on `27c506b6` (clean) 87.94, kills alone 85.2, exit 0 (a first run at load 18 was 84.9 on kills alone, from 246 timeouts). Opus convention-review NOT READY (no success-shape test; a README bullet), one fix round.
