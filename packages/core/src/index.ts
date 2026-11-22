@@ -2530,8 +2530,9 @@ function markExit(span: SpanImpl, value: object | null): void {
   if (typeof exit === "string") span.attributes["tinker.exit"] = exit;
 }
 
-/** `out` is the error when failed, else the run's value. A value that answers with a string
- * `kind`, or an rpc `Refused`, names its exit in `tinker.exit`; a plain value names none. */
+/** `out` is the error when failed, else the run's value. Only the open test stays here: with
+ * observing off no span is open, so {@link endSpan} stays cold and out of {@link runOnce}'s
+ * inline budget (F1), which then fits {@link finishRun}. */
 function closeSpan(
   obs: Obs,
   span: SpanImpl | undefined,
@@ -2539,21 +2540,7 @@ function closeSpan(
   out?: unknown,
 ): void {
   if (!span || span.end !== undefined) return;
-
-  const end = obs.clock();
-  span.end = end;
-  span.status = status;
-  if (status === "failed") span.error = out;
-  else if (typeof out === "object") markExit(span, out);
-
-  if (obs.limit > 0) {
-    obs.history.push(span);
-    if (obs.history.length > obs.limit) obs.history.shift();
-  }
-
-  const sink = obs.export;
-  if (sink) isolate(() => sink(span));
-  logStep(obs, span, status, end);
+  endSpan(obs, span, status, out);
 }
 
 function logStep(obs: Obs, span: SpanImpl, status: "ok" | "failed", end: number): void {
@@ -9094,9 +9081,31 @@ function tooDeep(queue: readonly Round[], at: number): never {
   return raise("UpdateDepth", { depth: (queue[at] as Round).depth, cells });
 }
 
+/** End an open span: its end, status, and error or exit, then history, export and log. A value
+ * that answers with a string `kind`, or an rpc `Refused`, names its exit in `tinker.exit`; a plain
+ * value names none. In this end block so the hot helpers above keep one-byte V8 slots. */
+function endSpan(obs: Obs, span: SpanImpl, status: "ok" | "failed", out: unknown): void {
+  const end = obs.clock();
+  span.end = end;
+  span.status = status;
+  if (status === "failed") span.error = out;
+  else if (typeof out === "object") markExit(span, out);
+
+  if (obs.limit > 0) {
+    obs.history.push(span);
+    if (obs.history.length > obs.limit) obs.history.shift();
+  }
+
+  const sink = obs.export;
+  if (sink) isolate(() => sink(span));
+  logStep(obs, span, status, end);
+}
+
 /** A plain run's first steps, kept out of {@link runOnce} so its bytecode stays in the inline
  * budget (F1): the capsule check before any work (ADR 0121), then the open check, then the span.
- * In this end block so the hot helpers above keep one-byte V8 slots. */
+ * The `on` test before {@link openSpan} keeps that call cold when observing is off, so its
+ * 78 bytes leave runOnce's shared TurboFan budget. In this end block so the hot helpers above
+ * keep one-byte V8 slots. */
 function openRun(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
@@ -9106,7 +9115,9 @@ function openRun(
 ): SpanImpl | undefined {
   Capsules.check(layer, target);
   ensureRunning(layer, caller);
-  return openSpan(layer.obs, layer, up, target.label, "operation", chain, target);
+  return layer.obs.on
+    ? openSpan(layer.obs, layer, up, target.label, "operation", chain, target)
+    : undefined;
 }
 
 /** A tag's value as `depends` takes it (ADR 0151): a unit in a slot arrives as that unit
