@@ -1109,6 +1109,24 @@ test("A16d with a run hook, an op slot holding mail.send with no mail: CapsuleMi
   await scope.close();
 });
 
+test("A16e an op slot's mail.send kept past its run, called with { ns } after close, with no mail: CapsuleMissing", async () => {
+  const slot = tag<typeof mail.send>({ label: "mail.slot" });
+  const keep = operation({
+    label: "keep",
+    depends: { send: slot },
+    run: ({ send }) => send,
+  });
+  const scope = createScope({ tags: [slot(mail.send)] });
+  await scope.ready;
+  const send = scope.run(keep);
+  await scope.close();
+
+  const error = caught(() => send.run({ ns: namespace() }));
+
+  if (!isError(error, "CapsuleMissing")) throw error;
+  expect(error.payload).toEqual({ unit: "mail.send", capsule: "mail" });
+});
+
 /** A sink capsule's own units, for A24: a queue it loads and a flush it runs, in start. The
  * queue keeps its state in the sink's own namespace (ADR 0119), so the quiet one is not seen. */
 function sinkCapsule(quiet: boolean) {

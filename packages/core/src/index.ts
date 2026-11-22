@@ -3014,7 +3014,9 @@ function hasCallSession<I>(
 /** Run `target` in a child session bound with the call's tags or signal (ADR 0038, 0090) — sugar over
  * `session({ tags }, (s) => s.run(target, { input }))`. The value comes back as the body gave it
  * when the session ended in place, and through a promise when the session must wait (ADR 0072).
- * `parent` carries through so a subflow's span still nests under its caller. */
+ * `parent` carries through so a subflow's span still nests under its caller. The capsule check
+ * comes first, before the session (ADR 0121); it sits here, not in {@link runOnce}, for the F1
+ * inline budget. */
 function runTagged<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
@@ -3178,7 +3180,9 @@ function runTaggedFrame<T, I>(
 }
 
 /** Run `target` in the call's namespace (ADR 0059). The real layer remains the owner of
- * lifecycle state and registries; the chain travels beside it through resolution. */
+ * lifecycle state and registries; the chain travels beside it through resolution. The capsule
+ * check comes first, before the open check (ADR 0121); it sits here, not in {@link runOnce}, for
+ * the F1 inline budget. */
 function runNsCall<I>(
   layer: Layer,
   target: Operation.Handle<unknown, I>,
@@ -7209,7 +7213,7 @@ function runHookChain<T, I>(
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  const run = createHookRun(layer, target, up, chain, call, caller);
+  const run = openHookRun(layer, target, up, chain, call, caller);
   let result: unknown;
   try {
     result = invokeRunHooks(run, target, hookTarget, call, chain);
@@ -7227,10 +7231,10 @@ function runHookChain<T, I>(
   return trackHookRun(run, result, true);
 }
 
-/** Set the hook record's fields together so reading tools or starting work keeps its shape.
- * The capsule check (ADR 0121) and the span open here, before the record, so
+/** Checks the capsule (ADR 0121), then opens the span, then sets the hook record's fields
+ * together so reading tools or starting work keeps its shape. The check and the span sit here so
  * {@link runHookChain} stays in its bytecode budget (F1). */
-function createHookRun(
+function openHookRun(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
   up: SpanImpl | undefined,
