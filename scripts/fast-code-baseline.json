@@ -2,8 +2,8 @@
   "node": "v26.13.1",
   "v8": "14.6.202.34-node.40",
   "slots": {
-    "core": 365,
-    "react": 21
+    "core": 412,
+    "react": 38
   },
   "bytecode": {
     "runOnce": 497,

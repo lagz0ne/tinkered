@@ -77,13 +77,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **repo/validate-three-lanes-red** — owner: lead (Claude, project thread "Make pnpm validate green on main"). `pnpm validate` fails 3 lanes on main; each lane prints only its last 3 lines, so the full list is longer:
-  - fast-code: F9 Core slot 410 (baseline 365); bytecode `runOnce` 526, `resolveDep` 247, `runHookChain` 215 on Node 24.21.0 (baselines 504, 223, 190); the box's Node 26.13.1 hides that behind "Engine changed".
-  - graph: `bun` and `entry` ship no span-tree test; `entry`'s `http.request` opens a hand-rolled `http GET /x` span.
-  - two hands: 11 hits, all in `bun` and `entry` src (drivers since 2026-11-09 and 2026-11-16, never added to the list) and in the site's router root and its copy of `entry`'s routes.
-    Next: fast-code bytecode back under budget and the engine on Node 26.13.1; only the F9 name counts are red (Core 412, React 38): back to Duke with numbers.
-    Verify: `pnpm validate` exit 0 on the box's Node.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -122,6 +115,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **repo/validate-three-lanes-red** — done 2026-11-22. `pnpm validate` exits 0 on the box's Node (v26.13.1). The three red lanes had three causes:
+  - graph: `entry`'s `http.request` now sets its attributes on its own span (no hand-rolled `http GET /x` span); `bun` and `entry` ship span-tree tests (0.34.2).
+  - two hands: `bun` and `entry` src, `apps/*/src/routes.tsx` and `apps/*/tinker/components/requests/` join the allowlist (Duke 2026-11-22 10:50, option A).
+  - fast-code: bytecode back under budget in `core/hot-bytecode-back` (0.34.4, Duke 11:09, option B); the F9 name counts reset to Core 412, React 38 (Duke 22:58 UTC, option A).
+    Proof: `pnpm validate` on Node v26.13.1: all 22 deterministic lanes PASS, exit 0; `node scripts/check-fast-code.mjs` slots actual Core 412, React 38.
 
 - **cli/graph-rule** — done 2026-11-22 (ADR 0167). `tinker.json` takes `graph.rules`: a cell pattern, the operation that makes the check, and `except` operations with a reason. The `graph` stage of `tinker check` reports `tinker/graph-rule` for each operation that writes a matching cell but does not reach that operation in its calls; a `?` on the way is a finding too. The operation skill says how to read the graph before a check, and how to write a rule.
   Proof: 18 fixture tests in `packages/cli/tests/graph-rules.test.ts`, red without the code. On the landed tip: `vp check` 0 errors, `vp run -r test` exit 0 (2,394 tests), `vp run prose` exit 0, `vp run skills` exit 0; strict census: no new hit. cli mutation, changed files, on `ce7d05d0` (clean; main's later commits change only `packages/cli/package.json`'s version): 861 killed, 195 timeout, 17 survived at load 10-19; the 195 timeouts re-run at 60 s, concurrency 2, and merged: 992 killed, 1 timeout, 80 survived, 5 no cover. Kills alone 992/1,078, 92.02 %. Opus convention-review NOT READY (G1/S14 index read; nits T3, F11, C14, L4), one fix round by the lead.
