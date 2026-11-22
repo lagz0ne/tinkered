@@ -79,7 +79,9 @@ const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // ADR 0165 (settled is the twin of ready; the first cause wins; settled() is idle()) raised it by
 // 168 B (Duke 2026-11-21 14:27 UTC: option A, via the project lead), then by 1 B more once its two
 // new consts moved below the hot helpers for their one-byte V8 slots (Duke 2026-11-21 23:19 UTC: A).
-const coreCap = 23441;
+// ADR 0169 (a stream call keeps its signal and tags for its stream) raised it by 6 B for the
+// stream-key marker (pending Duke's pick, 2026-11-22).
+const coreCap = 23447;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
 // derived (ADR 0150) raised this cap by 1 KiB too.
