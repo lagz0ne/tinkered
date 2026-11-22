@@ -69,6 +69,12 @@ type Socket = {
   pusher: (ws: ServerWebSocket<Socket>, i: number) => (text: string) => void;
   one: (ws: ServerWebSocket<Socket>, m: Msg) => Promise<unknown>;
   run: (ws: ServerWebSocket<Socket>, m: Msg) => Promise<unknown>;
+  watch: (
+    ws: ServerWebSocket<Socket>,
+    m: Msg,
+    left: AbortSignal,
+    serve: () => Promise<boolean | undefined>,
+  ) => Promise<unknown>;
 };
 
 /** Makes one WebSocket server. */
@@ -263,12 +269,16 @@ export function createWs() {
               if (bad || full) return own.emit(ws, { i: m.i, e: bad ? 400 : 429 });
               return own.run(ws, m);
             },
-            /** A call or a watch, in its own session of the scope. */
+            /**
+             * A call or a watch, in its own session of the scope. A watch's stop is kept before the
+             * first await, so a stop in the same frame finds it.
+             */
             async run(ws, m) {
               const { meta, execution } = idOff(Object(m.m));
               const trace = traceparentOf(meta.traceparent);
               // Only a watch has a stop of its own: a call ends with its answer, or with the socket.
               const stop = m.w ? new AbortController() : undefined;
+              if (stop) own.watches.set(m.i, stop);
               const left = AbortSignal.any(
                 stop ? [stop.signal, own.gone.signal] : [own.gone.signal],
               );
@@ -276,23 +286,30 @@ export function createWs() {
               const session = await Promise.resolve()
                 .then(() => scope.createSession({ trace, tags }))
                 .catch(() => null);
-              if (!session) return own.emit(ws, { i: m.i, e: 503 });
+              if (!session) return (own.watches.delete(m.i), own.emit(ws, { i: m.i, e: 503 }));
 
               const input = { address: String(m.a), text: String(m.t), meta, execution };
               if (!m.w) {
                 const reply = await session.run(serve, { input }).finally(() => session.close());
                 return own.emit(ws, reply === null ? { i: m.i, e: 404 } : { i: m.i, t: reply });
               }
-
-              own.watches.set(m.i, stop!);
               const push = own.pusher(ws, m.i);
-              await Promise.resolve(session.run(serveStream, { input: { ...input, left, push } }))
+              const served = () => session.run(serveStream, { input: { ...input, left, push } });
+              return own.watch(ws, m, left, served).finally(() => session.close());
+            },
+            /**
+             * A watch, until its key ends, its stop, or the socket's end. One stopped while its
+             * session opened serves nothing (ADR 0090: an aborted signal starts no body): its key
+             * would wait on a `closed` that aborted before it looked.
+             */
+            async watch(ws, m, left, served) {
+              await Promise.resolve(left.aborted || served())
                 .then((found) => own.emit(ws, found ? { i: m.i, end: 1 } : { i: m.i, e: 404 }))
                 .catch((error) => {
                   log.error("ws stream failed", { address: m.a, cause: String(error) });
                   own.emit(ws, { i: m.i, end: 1 });
                 })
-                .finally(() => (own.watches.delete(m.i), void session.close()));
+                .finally(() => own.watches.delete(m.i));
             },
           };
           return bun.upgrade(req, { data: own }) ? null : new Response(null, { status: 426 });

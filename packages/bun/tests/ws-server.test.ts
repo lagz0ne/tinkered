@@ -1,4 +1,12 @@
-import { channel, createScope, execution, operation, rpc, transport } from "@tinkered/core";
+import {
+  capsule,
+  channel,
+  createScope,
+  execution,
+  operation,
+  rpc,
+  transport,
+} from "@tinkered/core";
 import type { Observe } from "@tinkered/core";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
@@ -64,13 +72,13 @@ type Door = {
 };
 
 /** A scope with the server on a real port; `spans` and `logs` are what it observed. */
-async function boot(options: Record<string, unknown> = {}) {
+async function boot(options: Record<string, unknown> = {}, more: unknown[] = []) {
   const spans: string[] = [];
   const logs: Observe.Log[] = [];
   const server = wsServer.server({ path: "/rpc", services: [api as never], ...options });
   const scope = await createScope({
     observe: { export: (s) => void spans.push(s.name), log: (l) => void logs.push(l) },
-    capsules: [api({ implement: { greet, forever, done, wait } }), server],
+    capsules: [api({ implement: { greet, forever, done, wait } }), server, ...(more as never[])],
   }).ready;
 
   const door = scope.resolve(server) as never as Door;
@@ -163,6 +171,56 @@ test("a watch: pushes, then a stop ends it; a key that ends by itself ends the w
   await s.until(() => s.got().length === 3);
   expect(s.got()[2]).toEqual({ i: 2, end: 1 });
   expect(spans).toContain("ws.serveStream");
+});
+
+test("a stop in the same frame as its watch ends the watch, and frees its slot", async () => {
+  const { url } = await boot({ maxWatches: 1 });
+  const s = await socketTo(url);
+
+  s.socket.send(
+    JSON.stringify([
+      { i: 1, a: "forever", t: "null", w: 1 },
+      { i: 1, x: 1 },
+    ]),
+  );
+  await s.until(() => s.got().length === 1);
+  s.socket.send(JSON.stringify([{ i: 2, a: "forever", t: "null", w: 1 }]));
+  await s.until(() => s.got().length === 2);
+
+  expect(s.got()).toEqual([
+    { i: 1, end: 1 },
+    { i: 2, t: JSON.stringify({ ok: true, value: 1 }) },
+  ]);
+});
+
+test("each call and each watch closes its session when it ends", async () => {
+  const sessions = { open: 0, closed: 0 };
+  const count = capsule({
+    label: "count",
+    hooks: {
+      session: async (event) => {
+        sessions.open++;
+        const end = await event.next();
+        sessions.closed++;
+        return end;
+      },
+    },
+  });
+  const { url } = await boot({}, [count]);
+  const s = await socketTo(url);
+
+  s.socket.send(
+    JSON.stringify([
+      { i: 1, a: "greet", t: JSON.stringify({ name: "a" }) },
+      { i: 2, a: "forever", t: "null", w: 1 },
+    ]),
+  );
+  await s.until(() => s.got().length === 2);
+  s.socket.send(JSON.stringify([{ i: 2, x: 1 }]));
+  await s.until(() => s.got().length === 3);
+  await s.until(() => sessions.closed === sessions.open);
+
+  expect(sessions.open).toBeGreaterThan(0);
 });
 
 test("a call whose socket closes: its request's stop fires", async () => {
@@ -277,6 +335,22 @@ test("a message after the scope closed answers 503", async () => {
   s.socket.send(JSON.stringify([{ i: 1, a: "greet", t: '{"name":"a"}' }]));
   await s.until(() => s.got().length === 1);
   expect(s.got()).toEqual([{ i: 1, e: 503 }]);
+});
+
+test("a watch after the scope closed answers 503, and holds no slot", async () => {
+  const { url, scope } = await boot({ maxWatches: 1 });
+  const s = await socketTo(url);
+  await scope.close();
+
+  s.socket.send(JSON.stringify([{ i: 1, a: "forever", t: "null", w: 1 }]));
+  await s.until(() => s.got().length === 1);
+  s.socket.send(JSON.stringify([{ i: 2, a: "forever", t: "null", w: 1 }]));
+  await s.until(() => s.got().length === 2);
+
+  expect(s.got()).toEqual([
+    { i: 1, e: 503 },
+    { i: 2, e: 503 },
+  ]);
 });
 
 test("a codec that throws: a call logs ws message failed, a watch logs ws stream failed and ends", async () => {
