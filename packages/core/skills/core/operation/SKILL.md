@@ -258,6 +258,44 @@ Right: read the change. If you meant it, run
 reviewer reads its diff. If you did not mean it,
 fix the code.
 
+### HIGH: one check written in two operations
+
+`tinker.graph` shows each place that reads a
+cell. Read it before you write a check, and
+again in the diff after `tinker graph --write`.
+
+- Before: find the lines that read the cell your
+  check needs. If an operation already makes
+  that check, call it.
+- After: a cell in `reads{}` on a new line, for
+  the same check, is a copy. Move the check into
+  one operation, and call it from each.
+
+Wrong: each change reads the lock itself.
+
+```text
+doc.edit.do reads{docs.locked.of, ...
+doc.share.do reads{docs.locked.of, ...
+doc.delete.do reads{docs.locked.of, ...
+```
+
+Right: one operation reads it. The others call
+that operation.
+
+```text
+docs.canEdit reads{docs.locked.of}
+doc.edit.do calls{docs.canEdit}
+doc.share.do calls{docs.canEdit}
+doc.delete.do calls{docs.canEdit}
+```
+
+The rule then changes in one place. A copy that
+a later change misses is a bug.
+
+When a rule changes, the graph lists each
+operation that reads its cell or calls its
+check. Change each one.
+
 ### MEDIUM: `Date.now()` or `Math.random()` in a run
 
 The run then gives a new answer in each test. Use
