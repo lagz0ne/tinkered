@@ -87,9 +87,10 @@ so main stays green.
   `core/keyed-watch-after-close`,
   `core/keyed-wake-after-close`.
 - **scope-life** — 0 rules break now
-  (fix `aa79955b`, ADR 0165);
-  the spec models the fix.
-  Card: `core/stop-signal-then-later-event`.
+  (fixes `aa79955b`, `45622e2b`, ADR 0165);
+  the spec models the fixes.
+  Cards: `core/stop-signal-then-later-event`,
+  `core/closed-follows-first-cause`.
 - **rpc-call** — 0 rules break now (fix `730d7e26`);
   the spec still shows 1.
   Card: `bun/client-drop-keeps-frames`.

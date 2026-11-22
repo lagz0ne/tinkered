@@ -7,16 +7,20 @@ The spec: a root with a stop signal
 and two capsules that listen after `next()`.
 It describes the root's start and close in `packages/core`,
 with the ADR 0165 fix (`aa79955b`,
-card `core/stop-signal-then-later-event`).
+card `core/stop-signal-then-later-event`)
+and its d2 amend (`45622e2b`,
+card `core/closed-follows-first-cause`).
 
 ## Rules
 
 The rules come from
 [ADR 0165](../../decisions/0165-settled-is-the-twin-of-ready.md)
 and the ADR 0134 rules it keeps.
-TLC reached 131 states.
+TLC reached 127 states.
 On main before the fix it reached 199,
 and 5 rules broke.
+Before the amend's fix it reached 131,
+and 1 rule broke (ClosedFollowsFirstCause).
 
 - **NoWorkAfterStop** — holds. ADR 0134 d1.
   After a stop, `next()` rejects,
@@ -49,6 +53,16 @@ and 5 rules broke.
 - **LaterErrorDropped** — holds (fix `aa79955b`). ADR 0165 d2.
   A later error is dropped:
   only a first error or timeout fails the start.
+- **ClosedFollowsFirstCause** — holds (fix `45622e2b`).
+  ADR 0165 d2, amended
+  (Duke, 2026-11-21 14:58 UTC).
+  `closed` names the same first cause.
+  A start error or a timeout first fails it.
+  A stop signal or a close first never does:
+  a later start error is dropped,
+  and is not in `teardownErrors`.
+  The close's mode picks `cancelled` (forced)
+  or `success` (graceful), as ADR 0028 says.
 - **PreAbortedRunsNoHook** — holds. ADR 0134 d3.
   A signal that is already aborted runs no hook.
 - **ReadyRejectsAfterClose** — holds. ADR 0085 d4.
@@ -109,7 +123,6 @@ stateDiagram-v2
   s6 --> s4: the app calls close({ graceful }) or the stop signal fires
   s4 --> s8: the close hooks ran, the scope closes
   s3 --> s9: the close hooks ran, the scope closes
-  s4 --> s9: the close hooks ran, the scope closes
   class s0 blue
   class s1 blue
   class s2 blue
@@ -218,7 +231,7 @@ and SignalClosedCancelled.
 
 The path test lives in Core's tests:
 `packages/core/tests/statechart/scope-life-paths.test.ts`.
-All 5 tests pass.
+All 6 tests pass.
 
 - Paths 1 to 3: the signal comes first,
   so `ready` rejects with the signal's reason,
@@ -226,6 +239,11 @@ All 5 tests pass.
   and `closed` is `cancelled`.
 - A start error, then the signal:
   the error wins, and `settled` is `failed`.
+- ClosedFollowsFirstCause:
+  a `close()`, then a start error.
+  `closed` and `settled` are `cancelled`,
+  with no `teardownErrors`.
+  Red on main before fix `45622e2b`.
 - The control (the signal alone).
 
 Run:
