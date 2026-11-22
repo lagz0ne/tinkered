@@ -77,9 +77,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **ci/validate-lanes** — owner: lead (Claude, project thread "Make pnpm validate green on main"). CI did not run `pnpm validate`, so lanes went red unseen (`repo/validate-three-lanes-red`). A `validate` job on the box runner runs it on every push to main, on the Node that `scripts/fast-code-baseline.json` pins. `scripts/validate.mjs` uses the workspace's own `vp`, not a box-only path.
-  Verify: the `validate` job green on its first push to main.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -118,6 +115,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **ci/validate-lanes** — done 2026-11-22. CI runs `pnpm validate` on every push to main, in a `validate` job on the box runner, on the Node that `scripts/fast-code-baseline.json` pins. `scripts/validate.mjs` uses the workspace's own `vp`, not a box-only path.
+  Proof: CI run 45083550206 on `d25a71dd`: the `validate` job green (all lanes, 3 min); locally with no box path, 22 of 22 lanes PASS on Node v26.13.1.
 
 - **repo/validate-three-lanes-red** — done 2026-11-22. `pnpm validate` exits 0 on the box's Node (v26.13.1). The three red lanes had three causes:
   - graph: `entry`'s `http.request` now sets its attributes on its own span (no hand-rolled `http GET /x` span); `bun` and `entry` ship span-tree tests (0.34.2).
