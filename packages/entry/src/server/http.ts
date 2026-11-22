@@ -83,6 +83,7 @@ export const httpRequest = operation({
       span.attributes["http.request.method"] = method;
       span.attributes["url.path"] = path;
     }
+
     try {
       const response = await http.send(url, { method, headers, body, signal: signal });
       if (span) span.attributes["http.response.status_code"] = response.status;

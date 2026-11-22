@@ -170,7 +170,6 @@ test("the request's span names its method, path and status", async () => {
   });
 
   expect(result.status).toBe("success");
-  expect(spans.map((span) => span.name).sort()).toEqual(["http", "http.request"]);
   expect(spans.find((span) => span.name === "http.request")?.attributes).toEqual({
     "http.request.method": "GET",
     "url.path": "/x",

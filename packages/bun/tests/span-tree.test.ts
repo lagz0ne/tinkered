@@ -6,15 +6,13 @@ import { z } from "zod";
 import { ws as wsClient } from "@/client";
 import { serve, ws } from "@/index";
 
-// The graph produces the trace (ADR 0058): a call from a tab to the server, read on each side.
-
 const closers: Array<() => unknown> = [];
 
 afterEach(async () => {
   for (const c of closers.splice(0).reverse()) await c();
 });
 
-/** The span tree as indented `name` lines, in start order. */
+/** The span tree as indented `name` lines, in start order: the graph produces the trace (ADR 0058). */
 function shape(spans: readonly Observe.Span[]): string[] {
   const byId = new Map(spans.map((span) => [span.id, span]));
   const depth = (span: Observe.Span): number => {
