@@ -210,31 +210,44 @@ test("the rule's own op writes a matching cell and is no finding", { timeout: 60
   expect(code).toBe(0);
 });
 
-test(
-  "a pattern names a cell: any write method matches, `*` stands for one part or more, " +
-    "and a write the graph cannot see matches none",
-  { timeout: 60_000 },
-  () => {
-    const folder = appOf(
-      ["bump", "remove", "hand"],
-      [
-        { writes: "docs.title", calls: "doc.title" },
-        { writes: "docs.*", calls: "doc.part" },
-        { writes: "*", calls: "doc.all" },
-      ],
-    );
+test("a pattern names a cell, so any write method matches it", { timeout: 60_000 }, () => {
+  const folder = appOf(["remove"], [{ writes: "docs.title", calls: "doc.title" }]);
 
-    const { out } = main(["check", folder], "/");
+  const { out } = main(["check", folder], "/");
 
-    const head = "src/docs.ts:13 tinker/graph-rule doc.delete.do writes{docs.title.delete}";
-    expect(findings(out)).toEqual([
-      "src/docs.ts:5 tinker/graph-rule docs.bump writes{docs.set}, calls has no doc.all",
-      `${head}, calls has no doc.title`,
-      `${head}, calls has no doc.part`,
-      `${head}, calls has no doc.all`,
-    ]);
-  },
-);
+  expect(findings(out)).toEqual([
+    "src/docs.ts:5 tinker/graph-rule doc.delete.do writes{docs.title.delete}, " +
+      "calls has no doc.title",
+  ]);
+});
+
+test("`*` in a pattern stands for one label part or more", { timeout: 60_000 }, () => {
+  const folder = appOf(
+    ["bump", "remove"],
+    [
+      { writes: "docs.*", calls: "doc.part" },
+      { writes: "*", calls: "doc.all" },
+    ],
+  );
+
+  const { out } = main(["check", folder], "/");
+
+  const head = "src/docs.ts:13 tinker/graph-rule doc.delete.do writes{docs.title.delete}";
+  expect(findings(out)).toEqual([
+    "src/docs.ts:5 tinker/graph-rule docs.bump writes{docs.set}, calls has no doc.all",
+    `${head}, calls has no doc.part`,
+    `${head}, calls has no doc.all`,
+  ]);
+});
+
+test("a write the graph cannot see matches no pattern", { timeout: 60_000 }, () => {
+  const folder = appOf(["hand"], [{ writes: "*", calls: "doc.all" }]);
+
+  const { code, out } = main(["check", folder], "/");
+
+  expect(findings(out)).toEqual([]);
+  expect(code).toBe(0);
+});
 
 test(
   "a `?` in calls, its own or on the way, cannot prove the rule and is a finding",
