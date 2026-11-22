@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { afterAll, expect, test } from "vite-plus/test";
@@ -97,6 +97,12 @@ const ops = {
   via: op("doc.via.do", "{ ok: doc_peek, list: titles.controller }", `deps.ok.run(); ${write}`),
 };
 
+const imports = [
+  `import { operation } from "@tinkered/core";`,
+  ``,
+  `import { box, canEdit, count, locked, titles } from "./units";`,
+].join("\n");
+
 /**
  * An app with these operations, in this order, and these graph rules, its `tinker.graph`
  * written as the code is: only a rule can fail its graph stage.
@@ -106,21 +112,13 @@ function appOf(names: (keyof typeof ops)[], rules: unknown[]) {
   folders.push(folder);
   symlinkSync(at("node_modules"), join(folder, "node_modules"));
 
-  const code = [
-    `import { operation } from "@tinkered/core";`,
-    ``,
-    `import { box, canEdit, count, locked, titles } from "./units";`,
-    ...names.map((name) => `\n${ops[name]}`),
-  ].join("\n");
+  mkdirSync(join(folder, "src"));
   const files = {
     ...configs,
-    "src/docs.ts": code,
+    "src/docs.ts": [imports, ...names.map((name) => ops[name])].join("\n\n"),
     "tinker.json": JSON.stringify({ graph: { rules } }),
   };
-  for (const [path, text] of Object.entries(files)) {
-    mkdirSync(dirname(join(folder, path)), { recursive: true });
-    writeFileSync(join(folder, path), text);
-  }
+  for (const [path, text] of Object.entries(files)) writeFileSync(join(folder, path), text);
 
   main(["graph", folder, "--write"], "/");
   return folder;

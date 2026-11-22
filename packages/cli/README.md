@@ -203,7 +203,8 @@ cells must call this op (ADR 0167). Write it in
   `calls{}`, directly or through the ops it
   calls.
 - The rule's own op is exempt.
-- `except`: an op, with its reason.
+- `except`: an op, with its reason. That op is
+  no finding.
 
 The graph stage tests each rule on the code's
 graph. Each op that breaks one is a finding:
