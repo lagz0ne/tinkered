@@ -85,6 +85,7 @@ const ops = {
     `deps.ok.run(); ${write}`,
   ),
   remove: op("doc.delete.do", "{ list: titles.controller }", `deps.list.delete({ id: "a" });`),
+  swap: op("doc.swap.do", "{ list: titles.controller }", `deps.list.delete({ id: "a" }); ${write}`),
   lock: op("docs.lock", "{ lock: locked.controller }", "deps.lock.set(true);"),
   create: op("doc.create.do", "{ list: titles.controller }", write),
   bump: op("docs.bump", "{ total: count.controller }", "deps.total.set(1);"),
@@ -167,14 +168,15 @@ test(
   "an op that writes a matching cell and never calls the rule's op is a finding with its fix",
   { timeout: 60_000 },
   () => {
-    const folder = appOf(["remove"], [rule]);
+    const folder = appOf(["swap"], [rule]);
 
     const { code, out } = main(["check", folder], "/");
 
     expect(code).toBe(1);
     expect(out).toContain(
       [
-        "src/docs.ts:5 tinker/graph-rule doc.delete.do writes{docs.title.delete}, calls has no docs.canEdit",
+        "src/docs.ts:5 tinker/graph-rule doc.swap.do " +
+          "writes{docs.title.delete,docs.title.set}, calls has no docs.canEdit",
         "  Right: call the check from the operation, as a",
       ].join("\n"),
     );
