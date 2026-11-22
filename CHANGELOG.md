@@ -9,6 +9,27 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.5
+
+`@tinkered/cli`: `tinker.json` takes
+`graph.rules`, and `tinker check` tests them
+(ADR 0167).
+
+- A graph rule says: each op that writes these
+  cells must call this op.
+- The graph stage reports each op that breaks
+  a rule as `tinker/graph-rule`.
+- A `?` in `calls{}` on the way is a finding:
+  the rule cannot be proved.
+- `except` names an op, with its reason.
+
+`@tinkered/core`: no API change.
+
+- The core/operation skill has a section
+  "one check written in two operations".
+- It says: read `tinker.graph` before you write
+  a check, and call the op that already makes it.
+
 ## 0.34.4
 
 `@tinkered/core`: no API change.
