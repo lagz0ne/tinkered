@@ -58,7 +58,8 @@ const usage = `usage:
 check runs the app's types (tsc, the kind gate, the cast gate), then its rules (Tinker's
 rules and the app's other lint), then its graph (the code's graph must match tinker.graph,
 and keep each graph rule in tinker.json), then its tests when tinker.json names their
-command: each exit an operation declares must be reached by a test. Only the first stage that fails prints. Each finding prints its fix.
+command: each exit an operation declares must be reached by a test. Only the first stage
+that fails prints. Each finding prints its fix.
 "tinker check: OK" and exit 0 is the only sign that the work is done.
 
 graph prints the app's graph: one line per operation, with its exits and what its run reads,

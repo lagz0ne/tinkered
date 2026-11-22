@@ -315,13 +315,13 @@ holds it from then on (ADR 0167):
 - `calls`: the operation that makes the check.
 - `except`: an operation, with its reason.
 
-### HIGH: an op writes a cell but skips its check [tinker/graph-rule]
+### HIGH: an operation writes a cell but skips its check [tinker/graph-rule]
 
 A graph rule in `tinker.json` names a cell
 pattern and an operation. Each operation that
 writes a cell that matches must reach that
 operation in `calls{}`, directly or through an
-op it calls. The rule's own operation is exempt.
+operation it calls. The rule's own operation is exempt.
 
 A `?` in `calls{}` on the way is a finding too:
 the check cannot see the call, so the rule
