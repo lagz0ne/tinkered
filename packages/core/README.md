@@ -1709,7 +1709,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A recovered inner start leaves ready and close successful.
 - A tap called after ready raises a managed error.
 - A clock sleep throw or rejection leaves startup waiting without a timeout.
-- A real start error after close begins fails `closed` and keeps the error.
+- A real start error after close begins, or after a start timeout, is dropped: it does not fail `closed` and is not in `teardownErrors` (ADR 0165 d2).
 - An explicit nested namespace chooses its own observation setting.
 - A held controller keeps its last write alive after its root closes, with or without a watcher or an `onClose` hook.
 - A held controller keeps its last write alive after its session closes, fast, under a session hook, or swept by its root.
