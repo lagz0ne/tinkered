@@ -11,11 +11,17 @@
    statechart/core4/rpc-stream/probe.md. *)
 EXTENDS Naturals
 
-CONSTANTS MaxPush
+(* Fetch = FALSE: the code before ADR 0169 (main 74211a57): a call with a
+   signal or tags runs in its own child session (ADR 0090), which ends when
+   the call answers. Fetch = TRUE: ADR 0169, the fetch rule: a stream call
+   opens no child session; the signal stops the stream, the tags bind its
+   run. *)
+CONSTANTS MaxPush, Fetch
 
 VARIABLES
   path,      \* remote or here
   hasSignal, \* the caller passed a signal
+  hasTags,   \* the caller passed tags
   call,      \* pending (no iterable yet) or answered
   src,       \* the op: running, done (returned), closed (its channel closed)
   q,         \* values sent and not read yet
@@ -27,39 +33,46 @@ VARIABLES
   link,      \* up or closed (remote only)
   cutBy      \* ghost: what stopped the op first: none, op, break, signal, link
 
-vars == <<path, hasSignal, call, src, q, pushed, endWith, reader, got, signal, link, cutBy>>
+vars == <<path, hasSignal, hasTags, call, src, q, pushed, endWith, reader, got, signal, link, cutBy>>
 
 Init ==
-  /\ path \in {"remote", "here"} /\ hasSignal \in BOOLEAN
+  /\ path \in {"remote", "here"} /\ hasSignal \in BOOLEAN /\ hasTags \in BOOLEAN
   /\ call = "pending" /\ src = "running" /\ q = 0 /\ pushed = 0
   /\ endWith = "clean" /\ reader = "none" /\ got = "none"
   /\ signal = "live" /\ link = "up" /\ cutBy = "none"
 
 Reading == reader \in {"none", "reading"}
 
-(* Core: a call with a signal runs in a child session (ADR 0090). Here, the
-   op is that session's work, so the call answers only once the op ends.
-   Remote, the watch runs with rpc's own leave signal: the call answers. *)
+(* A signal or tags give the call its own child session (ADR 0038, 0090),
+   unless Fetch (ADR 0169 d1). *)
+Session == ~Fetch /\ (hasSignal \/ hasTags)
+
+(* Before ADR 0169: here, the op is the session's work, so the call answers
+   only once the op ends. Remote, the session ends at the answer and stops
+   the watch: the stream is cut, and the watch's catch ends it clean. With
+   Fetch, the call answers at once and nothing stops. *)
 CallAnswers ==
   /\ call = "pending"
-  /\ (path = "remote" \/ ~hasSignal \/ src # "running")
+  /\ (path = "remote" \/ ~Session \/ src # "running")
   /\ call' = "answered"
-  /\ UNCHANGED <<path, hasSignal, src, q, pushed, endWith, reader, got, signal, link, cutBy>>
+  /\ src' = IF path = "remote" /\ Session /\ src = "running" THEN "closed" ELSE src
+  /\ cutBy' = IF path = "remote" /\ Session /\ src = "running" THEN "answer" ELSE cutBy
+  /\ UNCHANGED <<path, hasSignal, hasTags, q, pushed, endWith, reader, got, signal, link>>
 
 OpSends ==
   /\ src = "running" /\ pushed < MaxPush
   /\ q' = q + 1 /\ pushed' = pushed + 1
-  /\ UNCHANGED <<path, hasSignal, call, src, endWith, reader, got, signal, link, cutBy>>
+  /\ UNCHANGED <<path, hasSignal, hasTags, call, src, endWith, reader, got, signal, link, cutBy>>
 
 OpEnds ==
   /\ src = "running"
   /\ src' = "done" /\ cutBy' = "op"
-  /\ UNCHANGED <<path, hasSignal, call, q, pushed, endWith, reader, got, signal, link>>
+  /\ UNCHANGED <<path, hasSignal, hasTags, call, q, pushed, endWith, reader, got, signal, link>>
 
 ReaderGetsValue ==
   /\ call = "answered" /\ Reading /\ q > 0
   /\ q' = q - 1 /\ reader' = "reading"
-  /\ UNCHANGED <<path, hasSignal, call, src, pushed, endWith, got, signal, link, cutBy>>
+  /\ UNCHANGED <<path, hasSignal, hasTags, call, src, pushed, endWith, got, signal, link, cutBy>>
 
 (* pull 249-250: no value left and the source ended: the loop ends, or
    throws the fault the stream ended with. *)
@@ -67,7 +80,7 @@ ReaderLoopEnds ==
   /\ call = "answered" /\ Reading /\ q = 0 /\ src # "running"
   /\ reader' = IF endWith = "clean" THEN "ended" ELSE "threw"
   /\ got' = endWith
-  /\ UNCHANGED <<path, hasSignal, call, src, q, pushed, endWith, signal, link, cutBy>>
+  /\ UNCHANGED <<path, hasSignal, hasTags, call, src, q, pushed, endWith, signal, link, cutBy>>
 
 (* pull 256-259: a break; `end` aborts leave (remote: the watch's signal;
    here: the channel's closed). *)
@@ -76,21 +89,22 @@ ReaderBreaks ==
   /\ reader' = "left"
   /\ src' = IF src = "running" THEN "closed" ELSE src
   /\ cutBy' = IF src = "running" THEN "break" ELSE cutBy
-  /\ UNCHANGED <<path, hasSignal, call, q, pushed, endWith, got, signal, link>>
+  /\ UNCHANGED <<path, hasSignal, hasTags, call, q, pushed, endWith, got, signal, link>>
 
-(* The caller's signal aborts. Its child session closes. Remote: the watch
-   run throws there, and watchOver's bug() calls it `failed` (its hook signal
-   is leave's, not aborted). Here: the listener aborts leave, the channel
-   closes, and the op's run rejects with Core's AbortError. *)
+(* The caller's signal aborts. Before ADR 0169, its child session closes:
+   remote, the watch's catch sees the call's own stop and ends clean (bug 14
+   fix); here, the op's run rejects with Core's AbortError. With Fetch, the
+   signal aborts the stream's leave, as a break does: the channel closes and
+   the op ends; the watch's catch sees the leave and ends clean. *)
 SignalAborts ==
   /\ hasSignal /\ signal = "live"
   /\ signal' = "aborted"
   /\ src' = IF src = "running" THEN "closed" ELSE src
-  /\ endWith' = IF src = "running" /\ reader # "left"
-                  THEN (IF path = "remote" THEN "failed" ELSE "abort")
+  /\ endWith' = IF src = "running" /\ reader # "left" /\ path = "here" /\ ~Fetch
+                  THEN "abort"
                   ELSE endWith
   /\ cutBy' = IF src = "running" THEN "signal" ELSE cutBy
-  /\ UNCHANGED <<path, hasSignal, call, q, pushed, reader, got, link>>
+  /\ UNCHANGED <<path, hasSignal, hasTags, call, q, pushed, reader, got, link>>
 
 (* memory open 265: the server goes away; the open ends as `gone`, a link
    fault, pushed last (watchOver 177). *)
@@ -100,7 +114,7 @@ LinkCloses ==
   /\ src' = IF src = "running" THEN "closed" ELSE src
   /\ endWith' = IF src = "running" /\ reader # "left" THEN "link" ELSE endWith
   /\ cutBy' = IF src = "running" THEN "link" ELSE cutBy
-  /\ UNCHANGED <<path, hasSignal, call, q, pushed, reader, got, signal>>
+  /\ UNCHANGED <<path, hasSignal, hasTags, call, q, pushed, reader, got, signal>>
 
 Finished == reader \in {"ended", "threw", "left"}
 Done == Finished /\ UNCHANGED vars
@@ -132,4 +146,16 @@ OwnStopIsNotFailed == cutBy = "signal" => got # "failed"
    closed while it ran never ends clean for its reader. *)
 LinkCloseIsLink ==
   (cutBy = "link" /\ reader \in {"ended", "threw"}) => got = "link"
+(* ADR 0169 d1: "The call answers with the reader at once": whatever the op
+   does, the call can answer. *)
+AnswersAtOnce == call = "pending" => ENABLED CallAnswers
+
+(* ADR 0169 d1: "The stream lives with the caller's owner": the answer
+   never stops it. *)
+AnswerKeepsStream == cutBy # "answer"
+
+(* ADR 0169 d2: the caller's signal stops the stream as a break does, and
+   the loop ends clean (ADR 0133 d1: a cancellation). *)
+SignalEndsClean ==
+  (cutBy = "signal" /\ reader \in {"ended", "threw"}) => got = "clean"
 =============================================================================

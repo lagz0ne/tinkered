@@ -1,73 +1,63 @@
 ---
-title: "An rpc stream call and its reader (ADR 0133)"
+title: "An rpc stream call and its reader (ADR 0133, ADR 0169)"
 ---
 stateDiagram-v2
   state "Legend" as legend {
     lg0: remote
     lg1: here
-    lg2: Breaks OwnStopIsNotFailed
-    lg3: Path to the OwnStopIsNotFailed bug
   }
   class lg0 blue
   class lg1 teal
-  class lg2 breaks
-  class lg3 bugPath
   state "Call run here (implement)" as s0 {
     s1: Call sent
-    s2: Call waits for the op to end (it has a signal)
+    s2: Call sent, with a signal or tags
     s3: Reading
     s4: Reader left (break)
     s5: Reading, the op stopped
-    s6: Loop threw AbortError
-    s7: Loop ended clean
+    s6: Loop ended clean
     [*] --> s1
     [*] --> s2
   }
-  state "Call to a server" as s8 {
-    s9: Call sent
+  state "Call to a server" as s7 {
+    s8: Call sent
+    s9: Call sent, with a signal or tags
     s10: Reading
     s11: Reading, the op stopped
     s12: Reader left (break)
     s13: Loop threw link
-    s14: Loop threw failed
-    s15: Loop ended clean
+    s14: Loop ended clean
+    [*] --> s8
     [*] --> s9
   }
   [*] --> s0
-  [*] --> s8
+  [*] --> s7
   s1 --> s3: the call answers
+  s8 --> s10: the call answers
+  s2 --> s3: the call answers
   s9 --> s10: the call answers
-  s2 --> s1: the caller's signal aborts or the op ends
+  s8 --> s11: the call answers
   s9 --> s11: the call answers
+  s2 --> s5: the call answers
   s1 --> s5: the call answers
   s3 --> s4: the reader breaks
-  s3 --> s5: the op ends
+  s3 --> s5: the op ends or the caller's signal aborts
   s10 --> s11: the link closes or the op ends or the caller's signal aborts
   s10 --> s12: the reader breaks
   s11 --> s12: the reader breaks
   s11 --> s13: the loop reaches the end
-  s5 --> s4: the reader breaks
   s5 --> s6: the loop reaches the end
+  s5 --> s4: the reader breaks
   s11 --> s14: the loop reaches the end
-  s5 --> s7: the loop reaches the end
-  s11 --> s15: the loop reaches the end
-  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
   class s1 teal
   class s2 teal
   class s3 teal
   class s4 teal
   class s5 teal
   class s6 teal
-  class s7 teal
+  class s8 blue
   class s9 blue
-  class s9 bugPath
   class s10 blue
-  class s10 bugPath
   class s11 blue
-  class s11 bugPath
   class s12 blue
   class s13 blue
   class s14 blue
-  class s14 breaks
-  class s14 bugPath
-  class s15 blue

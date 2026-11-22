@@ -554,9 +554,9 @@ const steps = resource({
             stop(reason?: unknown): void;
           };
 
-          // Not the run's own signal: a call with one ends its layer, and the stream with it,
-          // when the call returns. The loop's signal stops the stream instead; the listener
-          // goes with the round, so rounds do not pile listeners on the signal.
+          // The loop's signal stops the stream; the listener goes with the round, so rounds do
+          // not pile listeners on the signal. (Before ADR 0169, the run's own signal ended the
+          // stream when the call returned.)
           signal.addEventListener("abort", () => values.stop(signal.reason), {
             once: true,
             signal: done.signal,

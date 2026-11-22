@@ -68,14 +68,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **hedl/tasks-keyed** — keyed data k07. Unblocked: Core 0.23.0 has the window (ADR 0139 2). In Hedl: the panel reads `where({ project }, { order: "-created", limit: 50 })`; the load takes `order` and `limit`; the projector calls `invalidate` for each notice; the tasks board has no session tag. k08 (checks, Inbox) and k09 (`remoteData` loses `config`) follow in the track.
   Verify: the e2e flows pass; a task change sends one member to a reader of that project; a reader of another project gets nothing.
 
-- **core/local-stream-signal** — A stream key run here (`implement`) with a call `signal` never answers: the call's child session waits for the stream op, and the reader has no values to leave. Seen while measuring ADR 0133 (`tab.run(local.open, { input, signal })`).
-  Pinned today by the second test of [`docs/states/rpc-stream/paths/rpc-stream-paths.test.ts.txt`](docs/states/rpc-stream/README.md#no-rule-yet) (it passes: the call answers only when the signal aborts, then the loop throws `AbortError`). Next: change that test to the fix, then move it into Core's tests.
-  Verify: that call answers its values; a `break` ends the op.
-
 - **core/size-guard-cast-yield-arg** — A cast that reaches a value through `yield`, `yield*` or a call argument (`Array.from(s)`, `const [{ layer }] = Array.from(s)`) still builds clean. TS 7 types these reads, so the never-less rule holds; this card flags them for safety.
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
 ## Doing
+
+- **core/stream-call-session** — owner: lead (Claude, project thread "Fix two remote stream bugs"). Duke 2026-11-22 14:57 UTC picked A, the fetch rule (ADR 0169). Any rpc stream call with a `signal` or `tags` broke: its child session (ADR 0090) ended when the call returned the reader, so a remote stream was cut at the answer and a stream run here never answered (old card `core/local-stream-signal`). Now a stream key's call opens no child session; the signal stops the stream as a break does; the tags bind the stream's own run.
+  Verify: rpc-stream spec 0 breaks (before: 3); new kit cases on memory and ws, and new path tests, red on main and green; `scripts/ticket.sh --check-only`; size under caps; `check-slots`; Core mutation 85; Opus convention-review.
 
 ## Review
 

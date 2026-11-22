@@ -1,199 +1,207 @@
 # rpc-stream
 
-A call stopped by its own signal is cancelled
-for its caller
-([ADR 0133](../../decisions/0133-a-call-stopped-by-its-own-signal-is-cancelled-for-its-caller.md)).
-`failed` means a throw, a bug
-([ADR 0154](../../decisions/0154-core-keeps-the-meaning-the-backend-keeps-the-bytes.md)
-d2,
-[ADR 0141](../../decisions/0141-a-fault-says-who-spoke.md)).
+One rpc stream call and its reader.
+
+- A call stopped by its own signal is cancelled
+  for its caller
+  ([ADR 0133](../../decisions/0133-a-call-stopped-by-its-own-signal-is-cancelled-for-its-caller.md)).
+- `failed` means a throw, a bug
+  ([ADR 0154](../../decisions/0154-core-keeps-the-meaning-the-backend-keeps-the-bytes.md)
+  d2,
+  [ADR 0141](../../decisions/0141-a-fault-says-who-spoke.md)).
+- A stream call keeps its signal and tags
+  for its stream: the fetch rule
+  ([ADR 0169](../../decisions/0169-a-stream-call-keeps-its-signal-and-tags-for-its-stream.md)).
 
 The spec: one stream call,
 to a server (memory) or run here (`implement`),
-with or without a caller's `signal`.
+with or without a caller's `signal`,
+with or without `tags`.
 The op sends 1 value.
 Steps: the call answers, values come,
 the op ends, the reader breaks,
 the signal aborts, the link closes.
 
-It describes commit `c9c8817`
-(its lines match `3ff6778`):
+The constant `Fetch` picks the code:
 
-- `packages/core/src/rpc.ts`: `pull` 220,
-  the remote path 363-390, `runHere` 406-450.
+- `RpcStream.cfg`: `Fetch = TRUE`,
+  the code since ADR 0169.
+- `RpcStream-before.cfg`: `Fetch = FALSE`,
+  the code before (main `74211a57`).
+
+The lines it models:
+
+- `packages/core/src/rpc.ts`:
+  `pull`, `leaving`, `sendKey`, `runHere`.
+- `packages/core/src/index.ts`:
+  `runHookCall`.
 - `packages/core/src/rpc-protocol.ts`:
-  `watchOver` 159, `bug` 196.
-- `packages/core/src/memory.ts`: `open` 251.
+  `watchOver`, `bug`.
+- `packages/core/src/memory.ts`: `open`.
 
 ## Rules
 
-TLC reached 188 states.
-The spec, the chart and the rerun
-still describe `c9c8817`,
-before the bug 14 fix.
-So they still show 1 rule breaks.
+With `RpcStream.cfg`, TLC reached 394 states.
+0 rules break.
 
 - **OwnStopIsNotFailed** — holds,
   since `b0b86a5e` and `62b3364f`
   (card `core/own-signal-stream-failed`).
-  ADR 0133 d1 (a call stopped by its own signal
-  is a cancellation);
-  ADR 0154 d2 and ADR 0141
-  (`failed` means a throw, a bug).
-- **CallerSignalEndsStream** — holds. ADR 0133 d4.
+  ADR 0133 d1; ADR 0154 d2 and ADR 0141.
+- **CallerSignalEndsStream** — holds.
+  ADR 0133 d4.
 - **BreakEndsStream** — holds.
   ADR 0133 d4 and its proof.
 - **LinkCloseIsLink** — holds.
   ADR 0141 table, ADR 0154 d2.
+- **AnswersAtOnce** — holds.
+  ADR 0169 d1: the call answers at once.
+- **AnswerKeepsStream** — holds.
+  ADR 0169 d1: the answer never stops
+  the stream.
+- **SignalEndsClean** — holds.
+  ADR 0169 d2: the signal ends the loop clean.
 - **NoDeadlock** — holds. From the tool.
+
+With `RpcStream-before.cfg`, TLC reached
+411 states. 3 rules break.
+Card `core/stream-call-session` fixed all 3.
 
 ## Chart
 
 ```mermaid
 ---
-title: "An rpc stream call and its reader (ADR 0133)"
+title: "An rpc stream call and its reader (ADR 0133, ADR 0169)"
 ---
 stateDiagram-v2
   state "Legend" as legend {
     lg0: remote
     lg1: here
-    lg2: Breaks OwnStopIsNotFailed
-    lg3: Path to the OwnStopIsNotFailed bug
   }
   class lg0 blue
   class lg1 teal
-  class lg2 breaks
-  class lg3 bugPath
   state "Call run here (implement)" as s0 {
     s1: Call sent
-    s2: Call waits for the op to end (it has a signal)
+    s2: Call sent, with a signal or tags
     s3: Reading
     s4: Reader left (break)
     s5: Reading, the op stopped
-    s6: Loop threw AbortError
-    s7: Loop ended clean
+    s6: Loop ended clean
     [*] --> s1
     [*] --> s2
   }
-  state "Call to a server" as s8 {
-    s9: Call sent
+  state "Call to a server" as s7 {
+    s8: Call sent
+    s9: Call sent, with a signal or tags
     s10: Reading
     s11: Reading, the op stopped
     s12: Reader left (break)
     s13: Loop threw link
-    s14: Loop threw failed
-    s15: Loop ended clean
+    s14: Loop ended clean
+    [*] --> s8
     [*] --> s9
   }
   [*] --> s0
-  [*] --> s8
+  [*] --> s7
   s1 --> s3: the call answers
+  s8 --> s10: the call answers
+  s2 --> s3: the call answers
   s9 --> s10: the call answers
-  s2 --> s1: the caller's signal aborts or the op ends
+  s8 --> s11: the call answers
   s9 --> s11: the call answers
+  s2 --> s5: the call answers
   s1 --> s5: the call answers
   s3 --> s4: the reader breaks
-  s3 --> s5: the op ends
+  s3 --> s5: the op ends or the caller's signal aborts
   s10 --> s11: the link closes or the op ends or the caller's signal aborts
   s10 --> s12: the reader breaks
   s11 --> s12: the reader breaks
   s11 --> s13: the loop reaches the end
-  s5 --> s4: the reader breaks
   s5 --> s6: the loop reaches the end
+  s5 --> s4: the reader breaks
   s11 --> s14: the loop reaches the end
-  s5 --> s7: the loop reaches the end
-  s11 --> s15: the loop reaches the end
-  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
   class s1 teal
   class s2 teal
   class s3 teal
   class s4 teal
   class s5 teal
   class s6 teal
-  class s7 teal
+  class s8 blue
   class s9 blue
-  class s9 bugPath
   class s10 blue
-  class s10 bugPath
   class s11 blue
-  class s11 bugPath
   class s12 blue
   class s13 blue
   class s14 blue
-  class s14 breaks
-  class s14 bugPath
-  class s15 blue
 ```
-
-- s14 breaks OwnStopIsNotFailed.
 
 The chart hides `Done`: a step that changes nothing,
 true only in the end states.
 
-## Bug 14: your own signal ends a stream as `failed`
+## Before ADR 0169: a signal or tags cut the stream
 
-Card `core/own-signal-stream-failed`.
-Rule: OwnStopIsNotFailed.
+Card `core/stream-call-session`.
+It also closes card `core/local-stream-signal`.
 
-The signal closes the call's child session.
-The watch run throws there.
-`watchOver`'s `bug` (`rpc-protocol.ts:196`)
-checks the watch's own leave signal,
-which is not aborted.
-So it logs a bug and says `failed`.
+A call with a `signal` or `tags`
+ran in its own child session (ADR 0090).
+That session ended when its body returned,
+as a transaction callback does.
+A stream call returns its reader at once.
 
-The memory test "a caller's signal ends the stream"
-caught any rpc fault, so it did not see this.
+### Path 1: AnswersAtOnce
 
-Fixed in `b0b86a5e` and `62b3364f`.
-Two places took the stop as a bug,
-and each one alone said `failed`:
+1. You call a stream run here with tags.
+   The op runs.
+   The call cannot answer:
+   its session waits for the op to end.
 
-- `watchOver` in `rpc-protocol.ts`
-  (it pushed `failed`);
-- the watch's catch in `rpc.ts`
-  (it threw `failed`).
-
-Now each one checks whose stop it was,
-not the error's name:
-
-- The memory and ws clients give `watchOver`
-  the watch's own session signal.
-  A leave and the call's own stop both abort it.
-  So `bug` sees the stop and pushes nothing.
-- The catch in `rpc.ts` checks
-  the call's own session signal.
-  Once it aborted, the stream ends clean.
-
-Any other throw still logs a bug and says `failed`.
-That holds for an `AbortError` the caller did not cause,
-such as a meta op whose own fetch stopped.
-The memory test now rejects a `failed` fault.
-
-### Path 1: a remote call with a signal
+### Path 2: AnswerKeepsStream
 
 1. You call a remote stream with a signal.
-   The call answers.
+2. The call answers.
+   Its session ends and stops the watch.
+   The reader gets only what came before.
+
+### Path 3: SignalEndsClean
+
+1. You call a stream run here with a signal.
+   The call waits.
 2. The caller's signal aborts.
-3. The loop reaches the end.
-   It throws `failed`.
-   ADR 0133 d1 wants a cancellation.
+3. The call answers.
+4. The loop reaches the end.
+   It throws Core's `AbortError`.
+
+The fix (ADR 0169):
+
+- A stream key's call opens no child session
+  (`runHookCall` in `index.ts`).
+- The caller's signal aborts the stream's leave,
+  as a break does (`leaving` in `rpc.ts`).
+- The call's tags bind the stream's own run.
 
 ## Path tests
 
-- The OwnStopIsNotFailed test (path 1)
-  lives in
-  `packages/core/tests/statechart/rpc-stream-paths.test.ts`.
-  Card `core/own-signal-stream-failed`
-  moved it there and cut it from the `.txt`.
-  It passes since `b0b86a5e`.
-- `paths/rpc-stream-paths.test.ts.txt`
-  now holds only the second test.
-  It passes.
-  It pins card `core/local-stream-signal`
-  (see [No rule yet](#no-rule-yet)).
-  That card changes it to its fix,
-  then moves it in.
+- `packages/core/tests/statechart/rpc-stream-paths.test.ts`:
+  - path 1 of bug 14 (OwnStopIsNotFailed);
+  - a stream run here with a signal
+    answers at once, and the signal ends it
+    clean (paths 1 and 3);
+  - an aborted signal runs nothing (ADR 0169 d4);
+  - a stream run here with tags answers at once,
+    and its op reads the tags (ADR 0169 d3);
+  - a stream call's tags reach its lifecycle
+    hooks, here and remote (ADR 0169 d3).
+- `packages/core/tests/kit/backend.ts`,
+  on memory and on ws (path 2):
+  - a stream with a signal reads until
+    the signal aborts;
+  - a stream with tags reads until
+    the reader leaves;
+  - an aborted signal reads nothing,
+    and the server runs nothing.
+
+Each one fails before the fix.
 
 Run:
 
@@ -202,32 +210,6 @@ cd packages/core
 vp test tests/statechart/rpc-stream-paths.test.ts
 ```
 
-## No rule yet
-
-### A stream run here with a signal waits
-
-Card `core/local-stream-signal` (on the board).
-A stream key run here, called with a `signal`,
-does not answer until its op ends.
-ADR 0090 runs the call in a child session;
-that session answers when its work ends.
-ADR 0133 lists the card under "Not done here",
-with no rule.
-
-What the code does today
-(chart: "Call waits for the op to end"):
-
-1. You call with a signal.
-   After 300 ms it still waits.
-2. The signal aborts. The call answers.
-3. The loop reads the value.
-   Then it throws Core's `AbortError`
-   ("The scope closed before this work finished"),
-   not the signal's reason.
-
-Test: `rpc-stream-paths.test.ts.txt`,
-its one test. It passes today.
-
 ## What the spec leaves out
 
 - `stop()` from outside the loop
@@ -235,9 +217,8 @@ its one test. It passes today.
 - A fault from the server (refused, invalid),
   and a throw in the op.
 - Two loops on one reader (the one-waiter `wake`).
-- The abort listener `runHere` leaves
-  on the caller's signal (`rpc.ts:434`):
-  a heap leak, not a state.
+- A signal that aborted before the call
+  (ADR 0169 d4; tested, not modelled).
 - More than 1 value.
 
 ## Rerun
@@ -249,6 +230,6 @@ statechart RpcStream.tla \
   --view view.ts --out "$(mktemp -d)"
 ```
 
-Exit 1: 1 rule breaks.
-The spec still describes `c9c8817`,
-before the bug 14 fix.
+Exit 0: every rule holds.
+With `--config RpcStream-before.cfg`:
+exit 1, 3 rules break.

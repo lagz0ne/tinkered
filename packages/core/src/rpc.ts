@@ -18,6 +18,7 @@ import type {
   Stream,
   Watch,
 } from "./rpc-transport";
+import { streamKeys } from "./stream-keys";
 
 /**
  * A key's contract: input and output shapes, no error list. A domain outcome (a todo that is gone)
@@ -258,6 +259,31 @@ const steps = resource({
     };
 
     /**
+     * A stream's leave (ADR 0169): the reader's break or `stop()` aborts it, and so does the
+     * caller's signal, as a fetch signal stops the body. A signal that already aborted starts
+     * nothing: the stream's run would wait on a `closed` that aborted before it looked. The
+     * listener goes when the reader leaves.
+     */
+    const leaving = (signal: AbortSignal | undefined) => {
+      const leave = new AbortController();
+      const stop = () => leave.abort(signal?.reason);
+      if (signal?.aborted) stop();
+      signal?.addEventListener("abort", stop, { once: true, signal: leave.signal });
+      return leave;
+    };
+
+    /**
+     * A stream call's own tags (ADR 0169): it has no call session to hold them, so they are the
+     * first tags of its lifecycle. The hooks read them, and a hook's tags come after, as before.
+     * A reply call's session already holds them.
+     */
+    const streamTags = (reply: boolean, call: Event["call"]) => (reply ? [] : flatTags(call?.tags));
+
+    /** Authored tags (nested lists, empty slots) as one flat list. */
+    const flatTags = (tags: Tag.Bindings): Tag.Binding<unknown>[] =>
+      !tags ? [] : "tag" in tags ? [tags] : tags.flatMap(flatTags);
+
+    /**
      * Client: a bytes key's input, as the protocol sends it: the value without its bytes field,
      * and the bytes as a Blob of a type the key takes (its first type when the Blob has another).
      */
@@ -357,8 +383,7 @@ const steps = resource({
               return answer.value;
             }
 
-            // The reader leaves (a break, or `stop()`): the watch ends, as the server's channel does.
-            const leave = new AbortController();
+            const leave = leaving(signal);
             return pull(
               (push) =>
                 Promise.resolve(
@@ -386,6 +411,7 @@ const steps = resource({
           },
           {
             reply,
+            tags: streamTags(reply, invocation),
             signal: invocation?.signal,
             shape: contract.output,
             kind: kindOf(def),
@@ -422,10 +448,10 @@ const steps = resource({
             }
 
             // A stream: the op sends into a queue; leaving the for-await closes the channel.
-            const leave = new AbortController();
-            invocation?.signal?.addEventListener("abort", () => leave.abort(), { once: true });
+            const leave = leaving(invocation?.signal);
             return pull(
               (push) => {
+                if (leave.signal.aborted) return Promise.resolve();
                 const out = channel({ send: sendOf(push, contract.output), closed: leave.signal });
                 return Promise.resolve(run(implementation, { input, tags: [...tags, out] }, work));
               },
@@ -436,6 +462,7 @@ const steps = resource({
           },
           {
             reply,
+            tags: streamTags(reply, invocation),
             signal: event.signal,
             shape: contract.output,
             kind: "failed",
@@ -651,6 +678,7 @@ export function rpc<const C extends Contracts>(
     ]),
   ) as unknown as Ops<C>;
   const keyOf = new Map<unknown, string>(keys.map((key) => [ops[key], key]));
+  for (const key of keys) if (contracts[key]!.mode === "stream") streamKeys.add(ops[key]);
 
   const retryKey = tag<Partial<Record<Fault, number>>>({ label: `${name}.retry`, default: {} });
   const onStartKey = tag<readonly OnStart[]>({ label: `${name}.onStart`, default: [] });

@@ -13,10 +13,9 @@ const GOT: Record<string, string> = {
   abort: "Loop threw AbortError",
 };
 
-function waiting(v: V): string {
-  const stuck = v.path === "here" && v.hasSignal && v.src === "running";
-  return stuck ? "Call waits for the op to end (it has a signal)" : "Call sent";
-}
+/** Shown on every call with a signal or tags: before ADR 0169 a call run here waited there. */
+const waiting = (v: V) =>
+  v.hasSignal || v.hasTags ? "Call sent, with a signal or tags" : "Call sent";
 
 const reading = (v: V) => (v.src === "running" ? "Reading" : "Reading, the op stopped");
 
@@ -31,7 +30,7 @@ export const state = (v: V) => [PATH[v.path], inner(v)];
 
 export const group = (v: V) => v.path;
 export const colors = { remote: "blue", here: "teal" };
-export const title = "An rpc stream call and its reader (ADR 0133)";
+export const title = "An rpc stream call and its reader (ADR 0133, ADR 0169)";
 
 const LABEL: Record<string, string | null> = {
   CallAnswers: "the call answers",

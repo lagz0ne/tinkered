@@ -130,17 +130,19 @@ so main stays green.
   `core/invalidate-refused-returns-early`,
   `core/refused-key-reopens`.
   1 case with no rule yet.
-- **rpc-stream** — 0 rules break now
-  (fix `b0b86a5e`, `62b3364f`); the spec still shows 1.
-  Card: `core/own-signal-stream-failed`.
-  Its `.txt` test pins `core/local-stream-signal`.
+- **rpc-stream** — 0 rules break
+  (fixes `b0b86a5e`, `62b3364f`, and ADR 0169).
+  Its spec models ADR 0169;
+  `RpcStream-before.cfg` models the code before.
+  Cards: `core/own-signal-stream-failed`,
+  `core/stream-call-session`.
 - **react-run-resource** — UseRun: 0 rules break now
   (fix `495e2c29`);
   the spec still shows 2.
   UseResource: rules hold.
   Card: `react/use-run-hidden`.
 
-The 7 cases with no rule yet wait for Duke
+The 6 cases with no rule yet wait for Duke
 (card `core/states-rules-undecided`, Blocked).
 
 ## Bugs, by number

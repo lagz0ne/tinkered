@@ -3,6 +3,7 @@ import { causesOf, closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } 
 import type { Origin, RunResult } from "./errors";
 import type { presetSym } from "./preset-symbol";
 import { refusedBrand } from "./refused-symbol";
+import { streamKeys } from "./stream-keys";
 import { nextTraceWord, seededTraceRandom } from "./trace-random";
 
 export { originOf };
@@ -5615,7 +5616,9 @@ function extendHandle(
 }
 
 /** Hooked calls select their owner before starting the hook chain. An owned call therefore
- * passes the same child through session hooks, run hooks, and the body, once each. */
+ * passes the same child through session hooks, run hooks, and the body, once each. An rpc stream
+ * key's call is not owned: its reader outlives the call, so the stream keeps the call's signal
+ * and tags (ADR 0169). A stream key runs only under rpc's run hook, so only this path checks. */
 function runHookCall<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
@@ -5627,7 +5630,7 @@ function runHookCall<T, I>(
 ): unknown {
   ensureRunning(layer, caller);
   const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
-  if (!hasCallSession(call)) {
+  if (!hasCallSession(call) || streamKeys.has(target)) {
     return runHookChain(layer, target, up, chain, caller, hookTarget, call);
   }
 

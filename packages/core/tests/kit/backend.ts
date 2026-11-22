@@ -1,10 +1,12 @@
 import {
+  channel,
   createScope,
   data,
   execution,
   operation,
   remoteData,
   rpc,
+  tag,
   transport,
 } from "@tinkered/core";
 import type { Capsule, Scope } from "@tinkered/core";
@@ -33,7 +35,11 @@ const api = rpc({
   shut: { input: z.null(), output: z.null() },
   boom: { input: z.null(), output: z.null() },
   who: { input: z.null(), output: z.string() },
+  ticks: { mode: "stream", input: z.null(), output: z.number() },
 });
+
+/** A tag a caller binds on a call: it means nothing to the server. */
+const note = tag<string>({ label: "kit.note", default: "" });
 
 /** What an older or other client knows: an address the server lacks, and a looser `greet`. */
 const gone = rpc({ lost: { input: z.null(), output: z.null() } });
@@ -79,7 +85,22 @@ export function backendKit<S>(name: string, make: () => Backend<S>): void {
     input: hook.start,
     run: (_, { input }) => (input.key === "shut" ? input.refuse({ why: "closed" }) : undefined),
   });
+  /** How many `ticks` runs started and ended: each ends when its channel closes. */
+  const ticked = { started: 0, ended: 0 };
   const ops = {
+    ticks: operation({
+      label: "kit.ticks",
+      input: z.null(),
+      depends: { out: channel.required },
+      run: async ({ out }) => {
+        ticked.started++;
+        for (let n = 1; !out.closed.aborted; n++) {
+          out.send(n);
+          await tick(10);
+        }
+        ticked.ended++;
+      },
+    }),
     greet: operation({
       label: "kit.greet",
       input: api.greet.input,
@@ -181,6 +202,51 @@ export function backendKit<S>(name: string, make: () => Backend<S>): void {
     expect(one).toMatch(/^[\w-]{1,64}$/);
     expect(two).not.toBe(one);
     expect(fault).toMatchObject({ execution: expect.stringMatching(/^[\w-]{1,64}$/) });
+  });
+
+  test(`${name}: a stream called with a signal runs until the signal aborts (ADR 0169)`, async () => {
+    const app = await start();
+    const tab = await app.client();
+    const stop = new AbortController();
+    const before = ticked.ended;
+
+    const got: number[] = [];
+    for await (const n of await tab.run(api.ticks, { input: null, signal: stop.signal })) {
+      got.push(n);
+      if (n === 3) stop.abort();
+    }
+    await until(() => ticked.ended > before);
+
+    expect(got).toEqual([1, 2, 3]);
+  });
+
+  test(`${name}: a stream called with an aborted signal reads nothing, and nothing runs`, async () => {
+    const app = await start();
+    const tab = await app.client();
+    const before = ticked.started;
+
+    const got: number[] = [];
+    for await (const n of await tab.run(api.ticks, { input: null, signal: AbortSignal.abort() })) {
+      got.push(n);
+    }
+    await tab.run(api.greet, { input: { name: "after" } });
+
+    expect({ got, started: ticked.started - before }).toEqual({ got: [], started: 0 });
+  });
+
+  test(`${name}: a stream called with tags runs until the reader leaves (ADR 0169)`, async () => {
+    const app = await start();
+    const tab = await app.client();
+    const before = ticked.ended;
+
+    const got: number[] = [];
+    for await (const n of await tab.run(api.ticks, { input: null, tags: [note("mine")] })) {
+      got.push(n);
+      if (n === 3) break;
+    }
+    await until(() => ticked.ended > before);
+
+    expect(got).toEqual([1, 2, 3]);
   });
 
   test(`${name}: a write on the server reaches each client that reads the cell`, async () => {
