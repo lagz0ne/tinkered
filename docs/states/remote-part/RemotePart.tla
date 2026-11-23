@@ -6,10 +6,15 @@
    One keyed board, key "tasks". Two parts on that key, A and B, that
    share no member (no part rides another). Readers: at most Readers in
    all, counted per part. No refetchInterval. One link; it drops at most
-   MaxDrops times. At most MaxAsks asks in all. *)
+   MaxDrops times. At most MaxAsks asks in all.
+   A server signal may name one member of a part: the ask is `of` that
+   member, not the whole part (ServerSignalsMember). Those lines follow
+   main 8e2b0b5b: settle 682, apply 722, stand 660. MemberFault picks the
+   code: FALSE is the code before card core/member-ask-fault-hidden, where
+   a member ask's fault reaches no part; TRUE is the fix. *)
 EXTENDS Naturals, FiniteSets
 
-CONSTANTS Parts, Readers, MaxAsks, MaxDrops
+CONSTANTS Parts, Readers, MaxAsks, MaxDrops, MemberFault
 
 P == Parts
 
@@ -18,7 +23,8 @@ VARIABLES
   stream,     \* each part's stream: off, opening, open, backoff, parked
   status,     \* each part's state: none, pending, ready, refused, link
   members,    \* each part has members in the cell
-  asks,       \* asks in flight: [id, p, newer] (newer: a later ask started)
+  asks,       \* asks in flight: [id, p, whole, newer]
+              \* (whole: the part, else one member; newer: a later ask holds it)
   nextId,     \* the id the next ask gets (bound: MaxAsks)
   link,       \* up or down
   drops,      \* link drops so far (bound: MaxDrops)
@@ -28,10 +34,11 @@ VARIABLES
   stale,        \* an answer was put in after a later ask of its part started
   appliedId,    \* the ask whose answer or fault set the state; 0 = a stream did
   invAt,        \* an awaited invalidate of the part: the first id it may wait on
-  invReturned   \* an invalidate returned before an ask it started set the state
+  invReturned,  \* an invalidate returned before an ask it started set the state
+  faultHidden   \* a member ask's fault settled on a part in use, which kept its state
 
 vars == <<refs, stream, status, members, asks, nextId, link, drops, keyFault,
-          lastStarted, stale, appliedId, invAt, invReturned>>
+          lastStarted, stale, appliedId, invAt, invReturned, faultHidden>>
 
 InUse(p) == refs[p] > 0
 Reading == LET S[Q \in SUBSET P] == IF Q = {} THEN 0
@@ -48,14 +55,21 @@ Init ==
   /\ lastStarted = [p \in P |-> 0] /\ stale = FALSE
   /\ appliedId = [p \in P |-> 0]
   /\ invAt = [p \in P |-> 0] /\ invReturned = FALSE
+  /\ faultHidden = FALSE
 
-(* ask 789: a new ask; each ask in flight of the part now has a later one. *)
-StartAsk(p) ==
+(* ask 789: a new ask. Each ask in flight of the part that the new one holds
+   now has a later one (settle 683: newer). A whole ask holds every ask of
+   its part; a member ask holds only an ask of that member (one member per
+   part here). lastStarted counts whole asks: a member ask after a whole one
+   leaves the whole answer in. *)
+StartAsk(p, whole) ==
   /\ nextId <= MaxAsks
-  /\ asks' = {IF a.p = p THEN [a EXCEPT !.newer = TRUE] ELSE a : a \in asks}
-             \cup {[id |-> nextId, p |-> p, newer |-> FALSE]}
+  /\ asks' = {IF a.p = p /\ (whole \/ ~a.whole) THEN [a EXCEPT !.newer = TRUE]
+              ELSE a : a \in asks}
+             \cup {[id |-> nextId, p |-> p, whole |-> whole, newer |-> FALSE]}
   /\ nextId' = nextId + 1
-  /\ lastStarted' = [lastStarted EXCEPT ![p] = nextId]
+  /\ lastStarted' = IF whole THEN [lastStarted EXCEPT ![p] = nextId]
+                    ELSE lastStarted
 
 (* A fault from a stream: mark 591 sets the key fault, stand 770 the part. *)
 StreamFault(p, kind, next) ==
@@ -74,7 +88,7 @@ ReaderReads(p) ==
             /\ appliedId' = [appliedId EXCEPT ![p] = 0]
        ELSE UNCHANGED <<stream, status, appliedId>>
   /\ UNCHANGED <<members, asks, nextId, link, drops, keyFault,
-                 lastStarted, stale, invAt, invReturned>>
+                 lastStarted, stale, invAt, invReturned, faultHidden>>
 
 (* listen 935: the last reader leaves: the stream stops, the state and the
    members go. The asks in flight stay; their answers find no part in use. *)
@@ -87,14 +101,14 @@ ReaderLeaves(p) ==
                  /\ members' = [members EXCEPT ![p] = FALSE]
        ELSE UNCHANGED <<stream, status, members>>
   /\ UNCHANGED <<asks, nextId, link, drops, keyFault, lastStarted, stale,
-                 appliedId, invAt, invReturned>>
+                 appliedId, invAt, invReturned, faultHidden>>
 
 (* follow 869: the watch call is taken. *)
 StreamOpens(p) ==
   /\ stream[p] = "opening" /\ link = "up"
   /\ stream' = [stream EXCEPT ![p] = "open"]
   /\ UNCHANGED <<refs, status, members, asks, nextId, link, drops, keyFault,
-                 lastStarted, stale, appliedId, invAt, invReturned>>
+                 lastStarted, stale, appliedId, invAt, invReturned, faultHidden>>
 
 (* follow 882-891: the server refuses the stream (at the open, or as a push):
    a fault that is an answer; the part parks (ADR 0139 4). *)
@@ -102,15 +116,25 @@ StreamRefused(p) ==
   /\ stream[p] \in {"opening", "open"} /\ link = "up"
   /\ StreamFault(p, "refused", "parked")
   /\ UNCHANGED <<refs, members, asks, nextId, link, drops, lastStarted, stale,
-                 invAt, invReturned>>
+                 invAt, invReturned, faultHidden>>
 
 (* follow 878: a server signal names the part; the client asks. The open
    watch says "all dirty" first, so this is also the first ask. *)
 ServerSignals(p) ==
   /\ stream[p] = "open" /\ link = "up"
-  /\ StartAsk(p)
+  /\ StartAsk(p, TRUE)
   /\ UNCHANGED <<refs, stream, status, members, link, drops, keyFault, stale,
-                 appliedId, invAt, invReturned>>
+                 appliedId, invAt, invReturned, faultHidden>>
+
+(* follow 781 (main): the server's pass names one member of the part, as
+   after a delete of that member alone. The client asks for that member.
+   An open watch says "all dirty" first, so a member signal comes only
+   after the part had its first answer (members). *)
+ServerSignalsMember(p) ==
+  /\ stream[p] = "open" /\ link = "up" /\ members[p]
+  /\ StartAsk(p, FALSE)
+  /\ UNCHANGED <<refs, stream, status, members, link, drops, keyFault, stale,
+                 appliedId, invAt, invReturned, faultHidden>>
 
 (* reask 844: invalidate(part). A parked part wakes: its stream opens again,
    and the stream's first signal asks. Any other part asks now. The caller
@@ -121,10 +145,10 @@ YouInvalidate(p) ==
   /\ IF stream[p] = "parked"
        THEN /\ stream' = [stream EXCEPT ![p] = "opening"]
             /\ UNCHANGED <<asks, nextId, lastStarted>>
-       ELSE /\ StartAsk(p)
+       ELSE /\ StartAsk(p, TRUE)
             /\ UNCHANGED stream
   /\ UNCHANGED <<refs, status, members, link, drops, keyFault, stale,
-                 appliedId, invReturned>>
+                 appliedId, invReturned, faultHidden>>
 
 (* reask 852: the invalidate's promise settles once its asks have settled
    (settle 824 waits for later asks too). *)
@@ -134,20 +158,29 @@ InvalidateReturns(p) ==
   /\ invAt' = [invAt EXCEPT ![p] = 0]
   /\ invReturned' = (invReturned \/ (InUse(p) /\ appliedId[p] < invAt[p]))
   /\ UNCHANGED <<refs, stream, status, members, asks, nextId, link, drops,
-                 keyFault, lastStarted, stale, appliedId>>
+                 keyFault, lastStarted, stale, appliedId, faultHidden>>
 
 (* settle 821-822, apply 828: an answer or a fault; dropped when a later ask
-   of the part started or the part is not in use. *)
+   that holds it started or the part is not in use.
+   A whole ask sets the part's state. A member ask (main: apply 722, stand
+   660) puts its member in and clears the key's fault, but the part keeps
+   its state: one member does not make a part ready. Its fault goes to
+   board.faults; with MemberFault it is the part's fault too. *)
+SetsState(a, kind) == a.whole \/ (MemberFault /\ kind # "ready")
 Settle(a, kind) ==
   /\ asks' = asks \ {a}
   /\ IF ~a.newer /\ InUse(a.p)
-       THEN /\ status' = [status EXCEPT ![a.p] = kind]
+       THEN /\ status' = IF SetsState(a, kind)
+                          THEN [status EXCEPT ![a.p] = kind] ELSE status
             /\ members' = IF kind = "ready" THEN [members EXCEPT ![a.p] = TRUE]
                           ELSE members
             /\ keyFault' = IF kind = "ready" THEN "none" ELSE kind
-            /\ appliedId' = [appliedId EXCEPT ![a.p] = a.id]
-            /\ stale' = (stale \/ a.id # lastStarted[a.p])
-       ELSE UNCHANGED <<status, members, keyFault, appliedId, stale>>
+            /\ appliedId' = IF SetsState(a, kind)
+                            THEN [appliedId EXCEPT ![a.p] = a.id] ELSE appliedId
+            /\ stale' = (stale \/ (a.whole /\ a.id # lastStarted[a.p]))
+            /\ faultHidden' = (faultHidden \/
+                 (kind # "ready" /\ ~SetsState(a, kind) /\ status[a.p] # kind))
+       ELSE UNCHANGED <<status, members, keyFault, appliedId, stale, faultHidden>>
 
 AskAnswered(i) ==
   \E a \in asks :
@@ -162,9 +195,14 @@ AskRefused(i) ==
     /\ UNCHANGED <<refs, stream, nextId, link, drops, lastStarted, invAt, invReturned>>
 
 (* The link drops: every watch and every call in flight fails with link, at
-   once (a socket that closes). Per part, only its newest ask can apply. *)
+   once (a socket that closes). Per part, only its newest ask can apply.
+   Touched: a fault reaches board.faults. Hit: it reaches the part's state
+   (a member ask's fault does only with MemberFault). *)
 Newest(p) == {a \in asks : a.p = p /\ ~a.newer}
-Hit(p) == InUse(p) /\ (Newest(p) # {} \/ stream[p] \in {"opening", "open"})
+Live(p) == stream[p] \in {"opening", "open"}
+Touched(p) == InUse(p) /\ (Newest(p) # {} \/ Live(p))
+Setting(p) == {a \in Newest(p) : SetsState(a, "link")}
+Hit(p) == InUse(p) /\ (Setting(p) # {} \/ Live(p))
 LinkDrops ==
   /\ link = "up" /\ drops < MaxDrops
   /\ link' = "down" /\ drops' = drops + 1
@@ -172,11 +210,13 @@ LinkDrops ==
   /\ stream' = [p \in P |-> IF stream[p] \in {"opening", "open"} THEN "backoff"
                             ELSE stream[p]]
   /\ status' = [p \in P |-> IF Hit(p) THEN "link" ELSE status[p]]
-  /\ keyFault' = IF \E p \in P : Hit(p) THEN "link" ELSE keyFault
+  /\ keyFault' = IF \E p \in P : Touched(p) THEN "link" ELSE keyFault
   /\ appliedId' = [p \in P |->
        IF ~Hit(p) THEN appliedId[p]
-       ELSE IF stream[p] \in {"opening", "open"} THEN 0
-       ELSE (CHOOSE a \in Newest(p) : TRUE).id]
+       ELSE IF Live(p) THEN 0
+       ELSE (CHOOSE a \in Setting(p) : TRUE).id]
+  /\ faultHidden' = (faultHidden \/
+       \E p \in P : Touched(p) /\ ~Hit(p) /\ status[p] # "link")
   /\ UNCHANGED <<refs, members, nextId, lastStarted, stale, invAt, invReturned>>
 
 AskLinkFault(i) ==
@@ -190,20 +230,20 @@ StreamLinkFault(p) ==
   /\ stream[p] \in {"opening", "open"} /\ link = "down"
   /\ StreamFault(p, "link", "backoff")
   /\ UNCHANGED <<refs, members, asks, nextId, link, drops, lastStarted, stale,
-                 invAt, invReturned>>
+                 invAt, invReturned, faultHidden>>
 
 LinkReturns ==
   /\ link = "down"
   /\ link' = "up"
   /\ UNCHANGED <<refs, stream, status, members, asks, nextId, drops, keyFault,
-                 lastStarted, stale, appliedId, invAt, invReturned>>
+                 lastStarted, stale, appliedId, invAt, invReturned, faultHidden>>
 
 (* follow 895: the back-off sleep ends; the stream opens again. *)
 StreamRetries(p) ==
   /\ stream[p] = "backoff" /\ link = "up"
   /\ stream' = [stream EXCEPT ![p] = "opening"]
   /\ UNCHANGED <<refs, status, members, asks, nextId, link, drops, keyFault,
-                 lastStarted, stale, appliedId, invAt, invReturned>>
+                 lastStarted, stale, appliedId, invAt, invReturned, faultHidden>>
 
 Next ==
   \/ \E p \in P : ReaderReads(p)
@@ -211,6 +251,7 @@ Next ==
   \/ \E p \in P : StreamOpens(p)
   \/ \E p \in P : StreamRefused(p)
   \/ \E p \in P : ServerSignals(p)
+  \/ \E p \in P : ServerSignalsMember(p)
   \/ \E p \in P : YouInvalidate(p)
   \/ \E p \in P : InvalidateReturns(p)
   \/ \E p \in P : StreamLinkFault(p)
@@ -256,5 +297,12 @@ LinkFaultHeals ==
    read) and ADR 0137 d2 (invalidate marks the part dirty and asks again):
    when an awaited invalidate returns, an ask it started set the state. *)
 InvalidateAwaitsItsAsk == ~invReturned
+
+(* ADR 0139 d4 ("The part goes to fault and waits for a trigger") and d1 (a
+   part has its own state: not read yet, ready, or a fault). A fault of an ask
+   for a part in use is that part's fault, whether the ask named the whole
+   part or one member of it. So no fault settles while the part shows a state
+   other than that fault. *)
+MemberFaultReachesPart == ~faultHidden
 
 =============================================================================

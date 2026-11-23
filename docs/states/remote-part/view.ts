@@ -31,9 +31,9 @@ function partLabel(v: V, p: string): string {
   return `${STATUS[v.status[p]]}, ${STREAM[v.stream[p]]}${awaited(v, p)}`;
 }
 
+// member.cfg reads part A alone, so only the parts in the spec show.
 export const state = (v: V) => ({
-  "Part A": partLabel(v, "A"),
-  "Part B": partLabel(v, "B"),
+  ...Object.fromEntries(Object.keys(v.status).map((p) => [`Part ${p}`, partLabel(v, p)])),
   "board.faults.tasks": KEY_FAULT[v.keyFault],
 });
 
@@ -45,6 +45,7 @@ const LABEL: Record<string, string | null> = {
   StreamOpens: "the stream opens",
   StreamRefused: "the server refuses the stream",
   ServerSignals: "the server signals: an ask goes out",
+  ServerSignalsMember: "the server signals one member: an ask for it goes out",
   YouInvalidate: "you invalidate the part",
   InvalidateReturns: "your invalidate returns",
   AskAnswered: "an answer comes",

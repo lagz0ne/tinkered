@@ -24,7 +24,7 @@ at commit `c9c8817` (its lines match `3ff6778`):
   (not keyed) on a reading root.
   `round` 620, `loop` 663.
 
-Three configs:
+Five configs:
 
 - `RemotePart.cfg` — every RemotePart rule.
   `chart.mmd` draws it.
@@ -32,9 +32,17 @@ Three configs:
   The main run stops at 100,000 states
   after the first break,
   so this run checks them in full.
-  It draws no chart: 340,989 states.
+  It draws no chart: 409,215 states.
 - `KeyStream.cfg` with `key-view.ts` —
   `chart-key.mmd` draws it.
+- `member-before.cfg` — part A alone,
+  with member asks, on the code before
+  card `core/member-ask-fault-hidden`
+  (`MemberFault = FALSE`).
+  `chart-member.mmd` draws it.
+- `member.cfg` — the same, with the fix
+  (`MemberFault = TRUE`).
+  The other configs set it too.
 
 Words:
 
@@ -54,9 +62,16 @@ Up to 2 readers in all. At most 2 asks.
 The link drops at most once.
 No `refetchInterval`.
 
+A server signal may name one member of a part
+(`ServerSignalsMember`).
+Its ask is `of` that member, not the whole part.
+It comes only after the part's first answer:
+an open watch says "all dirty" first.
+These steps follow main `42de06d4`.
+
 ### Rules
 
-TLC reached 340,989 states (`holds.cfg`).
+TLC reached 409,215 states (`holds.cfg`).
 The spec, the chart and the rerun
 still describe `c9c8817`,
 before the bug 11 and bug 12 fixes.
@@ -97,6 +112,16 @@ So they still show 3 rules break.
   ADR 0137 d3.
   The spec copies the code's `later` list,
   so this check cannot fail.
+- **MemberFaultReachesPart** — holds
+  with the fix (card `core/member-ask-fault-hidden`).
+  `member-before.cfg` breaks it.
+  ADR 0139 d4 ("The part goes to `fault`
+  and waits for a trigger");
+  ADR 0139 d1 (a part has its own state).
+  A fault of an ask for a part in use
+  is that part's fault,
+  whether the ask named the whole part
+  or one member of it.
 - **NoDeadlock** — holds. From the tool.
 
 ### Chart
@@ -288,6 +313,83 @@ and any count of asks.
 5. The ask comes later,
    from the new stream's first signal.
 
+### Bug 17: a member ask's fault reaches no part
+
+Card `core/member-ask-fault-hidden`.
+Rule: MemberFaultReachesPart.
+
+`apply` (722) puts a fault in `board.faults`,
+then calls `stand` (660).
+`stand` sets a state only on the parts
+that the ask holds whole.
+An `of` ask for one member
+never holds a `where` part whole.
+So its fault reaches no part.
+That is right for `ready`:
+one member does not make a part ready.
+It is wrong for a fault.
+
+TLC: 2,998 states, 1 break (`member-before.cfg`).
+With the fix: 2,860 states, 0 breaks (`member.cfg`).
+`holds.cfg` with the fix:
+409,215 states, every rule holds.
+
+```mermaid
+---
+title: "A member ask's fault (member-before.cfg)"
+---
+stateDiagram-v2
+  state "Part A" as r0 {
+    s0: Not read
+    s1: Pending, stream opening
+    s2: Pending, watching
+    s3: Ready, watching
+    [*] --> s0
+    s0 --> s1: a reader reads the part
+    s1 --> s2: the stream opens
+    s2 --> s3: an answer comes
+  }
+  --
+  state "board.faults.tasks" as r1 {
+    s4: No fault
+    s5: refused
+    [*] --> s4
+    s4 --> s5: the ask is refused [when Ready]
+  }
+```
+
+The full chart is `chart-member.mmd`.
+s5 breaks MemberFaultReachesPart:
+the key shows refused,
+and part A still shows ready.
+
+#### Path 5: one member's ask is refused
+
+1. A reader reads part A.
+2. The stream opens.
+3. The server signals; an answer comes.
+   A shows ready.
+4. One run removes the reader's access
+   and deletes one member of A.
+   The pass names that member.
+5. The ask for that member is refused.
+6. `board.faults.tasks` shows refused.
+   A still shows ready,
+   and the deleted member stays.
+   ADR 0139 d4 wants A in fault.
+
+When the run changes two members,
+the pass names the whole part.
+That ask is refused, and A goes to fault.
+So today the state hangs on how many
+members one run changed.
+
+Test: `paths/member-fault-paths.test.ts.txt`.
+It has the path, a `failed` twin,
+and the two-member control.
+On main the path and its twin fail;
+the control passes.
+
 ## KeyStream
 
 The spec: one plain key of a reading root.
@@ -420,6 +522,11 @@ with back-off.
   only the "no rule yet" test is left.
   It passes: it pins case 7
   (see [No rule yet](#no-rule-yet)).
+- `paths/member-fault-paths.test.ts.txt` —
+  MemberFaultReachesPart (path 5),
+  its `failed` twin, and the two-member control.
+  Card `core/member-ask-fault-hidden`
+  moves it in.
 - `key-stream-paths.test.ts` —
   RefusedEndsAsking (path 4),
   now in `packages/core/tests/statechart/`.
@@ -488,8 +595,9 @@ RemotePart:
   Parts A and B share no member.
 - `refetchInterval` (the `tick` loop).
   Only `invalidate` and server signals are triggers.
-- Narrow asks (one member).
-  Each ask names the whole part.
+- Narrow asks other than one member's `of` ask.
+  A pass that names a share of the part
+  (a `where` of more fields) is not modeled.
 - Members per key: `members` is one flag per part.
 - The abort listeners `follow` adds
   at each open and park (861, 877):
@@ -521,12 +629,21 @@ statechart RemotePart.tla \
 statechart KeyStream.tla \
   --config KeyStream.cfg \
   --view key-view.ts --out "$(mktemp -d)"
+statechart RemotePart.tla \
+  --config member-before.cfg \
+  --view view.ts --out "$(mktemp -d)"
+statechart RemotePart.tla \
+  --config member.cfg \
+  --view view.ts --out "$(mktemp -d)"
 ```
 
 - `RemotePart.cfg`: exit 1 today, 3 rules break.
   The spec still describes `c9c8817`,
   so it does not see the bug 11 and bug 12 fixes.
 - `holds.cfg`: exit 0, every rule holds.
+- `member-before.cfg`: exit 1,
+  MemberFaultReachesPart breaks.
+- `member.cfg`: exit 0, every rule holds.
 - `KeyStream.cfg`: exit 1 today, 1 rule breaks.
   The spec still describes `c9c8817`,
   so it does not see the bug 13 fix.

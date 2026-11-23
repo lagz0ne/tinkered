@@ -129,6 +129,9 @@ so main stays green.
   Cards: `core/remote-parked-part-wakes`,
   `core/invalidate-refused-returns-early`,
   `core/refused-key-reopens`.
+  MemberFaultReachesPart:
+  `member-before.cfg` breaks it on main;
+  card `core/member-ask-fault-hidden`.
   1 case with no rule yet.
 - **rpc-stream** — 0 rules break
   (fixes `b0b86a5e`, `62b3364f`, and ADR 0169).
@@ -206,6 +209,10 @@ The cards on `TODO.md` use these numbers.
 16. `onSuccess` never fires when a run ends
     while hidden or after unmount.
     [react-run-resource](react-run-resource/README.md).
+17. A member ask's fault reaches no part:
+    `board.faults` shows refused,
+    the part still shows `ready`.
+    [remote-part](remote-part/README.md).
 
 The session loop under StrictMode is
 [session-provider](session-provider/README.md).

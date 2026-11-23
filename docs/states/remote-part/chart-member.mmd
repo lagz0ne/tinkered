@@ -1,0 +1,38 @@
+---
+title: "Two parts of one keyed board (ADR 0136-0139): A and B on tasks"
+---
+stateDiagram-v2
+  direction LR
+  state "Legend" as legend {
+    lg0: Breaks MemberFaultReachesPart
+    lg1: Path to the MemberFaultReachesPart bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  state "At the same time" as all {
+    state "Part A" as r0 {
+      s0: Not read
+      s1: Pending, stream opening
+      s2: Pending, watching
+      s3: Ready, watching
+      [*] --> s0
+      s0 --> s1: a reader reads the part
+      s1 --> s2: the stream opens
+      s2 --> s3: an answer comes
+    }
+    --
+    state "board.faults.tasks" as r1 {
+      s4: No fault
+      s5: refused
+      [*] --> s4
+      s4 --> s5: the ask is refused [when Ready, watching]
+    }
+  }
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 bugPath
+  class s2 bugPath
+  class s3 bugPath
+  class s4 bugPath
+  class s5 breaks
+  class s5 bugPath

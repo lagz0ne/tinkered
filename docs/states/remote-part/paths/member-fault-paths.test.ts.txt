@@ -1,0 +1,143 @@
+// Replays of the remote-part model (docs/states/remote-part/RemotePart.tla, member.cfg):
+// each test runs one model path, one step per action, on the real code.
+import { memory } from "@tinkered/core/testing";
+import { afterEach, expect, test } from "vite-plus/test";
+import { z } from "zod";
+
+import { createScope, data, operation, remoteData, transport } from "@/main";
+
+const { hook } = transport;
+
+type Issue = { teamId: string; id: string; title: string };
+const Issue = z.object({ teamId: z.string(), id: z.string(), title: z.string() });
+
+const issues = data({
+  label: "member.issues",
+  mode: "keyed",
+  parse: Issue,
+  key: (i) => ({ teamId: i.teamId, id: i.id }),
+});
+
+/** The teams the reader is a member of: the read guard checks it. Server side only. */
+const access = data<readonly string[]>({ label: "member.access", initial: ["T1"] });
+
+const board = remoteData({ issues });
+const issue = (id: string): Issue => ({ teamId: "T1", id, title: id });
+
+const closers: Array<() => unknown> = [];
+
+afterEach(async () => {
+  for (const close of closers.splice(0).reverse()) await close();
+});
+
+const until = async (ok: () => boolean) => {
+  for (let tries = 0; !ok(); tries++) {
+    if (tries > 300) throw new Error("timed out");
+    await new Promise((done) => setTimeout(done, 10));
+  }
+};
+
+/**
+ * A server with issues a, b, c in team T1, and a tab that reads the part `{ teamId: "T1" }`.
+ * The guard refuses a team the reader is not a member of. With `failMember`, it throws on an
+ * ask for one member: a fault that is not an answer.
+ */
+async function boot() {
+  const rules = { failMember: false };
+  const guard = operation({
+    label: "member.guard",
+    input: hook.start,
+    depends: { access: access.controller },
+    run: ({ access }, { input }) => {
+      const part = Object(Object(input.input).part) as { teamId?: string; id?: string };
+      if (rules.failMember && input.key.endsWith(".ask") && part.id) {
+        throw new Error("the store is down");
+      }
+      if (part.teamId && !access.get().includes(part.teamId)) {
+        return input.refuse({ notMember: part.teamId });
+      }
+    },
+  });
+  /** One run: the reader leaves the team (when `leave`), and the named issues go. */
+  const change = operation({
+    label: "member.change",
+    input: z.object({ leave: z.boolean(), gone: z.array(z.string()) }),
+    depends: { items: issues.controller, access: access.controller },
+    run: ({ items, access }, { input }) => {
+      if (input.leave) access.set([]);
+      for (const id of input.gone) items.delete({ teamId: "T1", id });
+    },
+  });
+  const add = operation({
+    label: "member.add",
+    input: Issue,
+    depends: { items: issues.controller },
+    run: ({ items }, { input }) => items.set(input),
+  });
+
+  const server = await createScope({
+    capsules: [board({ serve: true, onStart: [guard] }), memory.server({ services: [board] })],
+  }).ready;
+  closers.push(() => server.close());
+  for (const id of ["a", "b", "c"]) await server.run(add, { input: issue(id) });
+
+  const tab = await createScope({
+    capsules: [memory.client({ peer: server }), board({ read: memory.client })],
+  }).ready;
+  closers.push(() => tab.close());
+
+  const part = board.issues.where({ teamId: "T1" });
+  const reader = tab.resolve(part);
+  closers.push(reader.watch(() => undefined));
+  return {
+    rules,
+    ids: () => reader.get().map((i) => i.id),
+    status: () => tab.resolve(board.status(part)).get(),
+    keyFault: () => tab.resolve(board.faults).get().issues,
+    change: (leave: boolean, gone: string[]) =>
+      server.run(change, { input: { leave, gone } }),
+  };
+}
+
+test("MemberFaultReachesPart: a refused ask for one member puts the part in fault", async () => {
+  const app = await boot();
+  // 1. A reader reads the part.  2. The stream opens.  3-4. The server signals; an answer comes.
+  await until(() => app.status()?.status === "ready");
+  expect(app.ids()).toEqual(["a", "b", "c"]);
+
+  // 5. One run: the reader leaves the team, and one member goes. The pass names that member.
+  await app.change(true, ["a"]);
+  // 6. The ask for that member is refused.
+  await until(() => app.keyFault() !== undefined);
+
+  expect(app.keyFault()).toMatchObject({ fault: "refused", payload: { notMember: "T1" } });
+  expect(app.status()).toMatchObject({
+    status: "fault",
+    fault: { fault: "refused", payload: { notMember: "T1" } },
+  });
+});
+
+test("control: a run that changes two members asks for the whole part, which goes to fault", async () => {
+  const app = await boot();
+  await until(() => app.status()?.status === "ready");
+
+  await app.change(true, ["a", "b"]);
+
+  await until(() => app.status()?.status === "fault");
+  expect(app.status()).toMatchObject({
+    status: "fault",
+    fault: { fault: "refused", payload: { notMember: "T1" } },
+  });
+});
+
+test("MemberFaultReachesPart: an ask for one member that fails puts the part in fault", async () => {
+  const app = await boot();
+  await until(() => app.status()?.status === "ready");
+
+  app.rules.failMember = true;
+  await app.change(false, ["a"]);
+  await until(() => app.keyFault() !== undefined);
+
+  expect(app.keyFault()).toMatchObject({ fault: "failed" });
+  expect(app.status()).toMatchObject({ status: "fault", fault: { fault: "failed" } });
+});
