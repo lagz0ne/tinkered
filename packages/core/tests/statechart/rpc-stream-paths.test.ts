@@ -1,5 +1,7 @@
 // Replays of the rpc-stream model (statechart/core4/rpc-stream/RpcStream.tla):
 // each test runs one model path, one step per action, on the real code.
+import { getEventListeners } from "node:events";
+
 import { memory } from "@tinkered/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
@@ -79,6 +81,22 @@ test("a stream run here with a signal answers at once, and the signal ends it cl
 
   // ADR 0133 d1: a stop by the call's own signal is a cancellation; ADR 0169: no child session.
   expect({ seen, got }).toEqual({ seen: [1], got: "clean" });
+});
+
+test("a stream that ends drops its listener on the caller's signal (ADR 0169)", async () => {
+  const tab = await createScope({ capsules: [api({ implement: { open } })] }).ready;
+  closers.push(() => tab.close());
+  const kept = new AbortController();
+
+  // One signal kept across calls, as a page keeps its own.
+  for (let call = 0; call < 3; call++) {
+    for await (const n of await tab.run(api.open, { input: null, signal: kept.signal })) {
+      expect(n).toBe(1);
+      break;
+    }
+  }
+
+  expect(getEventListeners(kept.signal, "abort")).toHaveLength(0);
 });
 
 test("a stream with a signal that already aborted runs nothing (ADR 0090, ADR 0169)", async () => {

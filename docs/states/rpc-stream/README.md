@@ -188,6 +188,8 @@ The fix (ADR 0169):
     answers at once, and the signal ends it
     clean (paths 1 and 3);
   - an aborted signal runs nothing (ADR 0169 d4);
+  - a stream that ends drops its listener
+    on the caller's signal (ADR 0169 d2);
   - a stream run here with tags answers at once,
     and its op reads the tags (ADR 0169 d3);
   - a stream call's tags reach its lifecycle
