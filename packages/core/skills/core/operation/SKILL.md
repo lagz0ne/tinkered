@@ -301,17 +301,25 @@ holds it from then on (ADR 0167):
 
 ```json
 { "graph": { "rules": [
-  { "writes": "docs.*",
+  { "writes": "docs.title",
     "calls": "docs.canEdit",
     "except": {
       "doc.create.do": "No doc yet."
-    } }
+    } },
+  { "writes": "docs.body",
+    "calls": "docs.canEdit" }
 ] } }
 ```
 
 - `writes`: a cell pattern. `*` stands for one
   label part or more. `docs.*` holds
   `docs.locked`, not `docs`.
+- A `*` pattern holds every cell under it, the
+  page's own cells too. `docs.*` holds
+  `docs.me`, which a sign-in op writes in the
+  page: a finding. Name the server cells, as
+  above, or put the page op in `except` with its
+  reason.
 - `calls`: the operation that makes the check.
 - `except`: an operation, with its reason.
 

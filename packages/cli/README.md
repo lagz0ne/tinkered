@@ -185,11 +185,15 @@ cells must call this op (ADR 0167). Write it in
 
 ```json
 { "graph": { "rules": [
-  { "writes": "issues.*",
+  { "writes": "issues.list",
+    "calls": "issues.canWrite" },
+  { "writes": "issues.members",
     "calls": "issues.canWrite",
     "except": {
       "team.create.do": "No team yet."
-    } }
+    } },
+  { "writes": "issues.archived",
+    "calls": "issues.canWrite" }
 ] } }
 ```
 
@@ -199,6 +203,12 @@ cells must call this op (ADR 0167). Write it in
 - `*` stands for one label part or more:
   `issues.*` holds `issues.archived`, not
   `issues`.
+- A `*` pattern holds every cell under it, the
+  page's own cells too. `issues.*` holds
+  `issues.me`, which `issues.signIn` writes in
+  the page: a finding. Name the server cells, as
+  above, or put the page op in `except` with its
+  reason.
 - `calls`: the op each writer must reach in its
   `calls{}`, directly or through the ops it
   calls.
