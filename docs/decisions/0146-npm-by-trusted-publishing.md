@@ -50,8 +50,13 @@ The scope `@tinkered` was free.
    `scripts/npm-setup.sh` does the first publish
    and `npm trust github` for each. Duke runs it
    once, and again for a new package.
-6. **Not on npm yet means skip.** The job warns
-   and goes on, so main stays green before setup.
+6. **Not on npm yet means skip, then red.** The
+   job publishes every other package, then fails
+   and names the missing one. The red run opens a
+   trunk issue, so the one-time step is not
+   missed. CI on main stays green.
+   Changed 2026-11-23: a warning alone hid
+   `@tinkered/devtools` for six releases.
 
 ## Rejected
 

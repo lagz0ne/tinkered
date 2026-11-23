@@ -105,7 +105,8 @@ jobs:
   # It builds nothing: it publishes the npm tarballs the box job attached.
   # A package npm does not know yet is skipped: its first publish and its
   # trust are Duke's one-time step: npm-first.yml from a phone, or
-  # scripts/npm-setup.sh from a laptop (ADR 0146).
+  # scripts/npm-setup.sh from a laptop (ADR 0146). The job publishes the
+  # rest, then fails and names it, so the red run opens an issue.
   # A renamed package is a new package to npm (analyze -> cli in 0.26.0).
   npm:
     needs: publish
@@ -129,10 +130,11 @@ jobs:
             --pattern 'npm-tinkered-*.tgz'
       - name: Publish
         run: |
+          missing=()
           for t in npm-tinkered-*-"$VERSION".tgz; do
             name="@tinkered/$(basename "$t" | sed -E 's/^npm-tinkered-(.*)-[0-9.]+\.tgz$/\1/')"
             if ! npm view "$name" name >/dev/null 2>&1; then
-              echo "::warning::$name is not on npm yet. Run npm-first.yml once."
+              missing+=("$name")
               continue
             fi
             if npm view "$name@$VERSION" version >/dev/null 2>&1; then
@@ -141,3 +143,8 @@ jobs:
             fi
             npm publish "$t" --access public
           done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Not on npm yet: ${missing[*]}. Duke's one-time step:" \
+              "scripts/npm-setup.sh $VERSION (laptop) or npm-first.yml (phone)."
+            exit 1
+          fi

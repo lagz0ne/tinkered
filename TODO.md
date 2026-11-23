@@ -240,6 +240,14 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
   Left: its first npm publish is Duke's step (npm-first.yml).
   [Progress](docs/roadmap/devtools/PROGRESS.md).
 
+- **release/npm-missing-red** — done 2026-11-23. `@tinkered/devtools` sat
+  off npm for six releases (0.34.1 to 0.34.6): the npm job only warned.
+  Now it publishes the rest, then fails and names the missing package;
+  trunk-status opens the issue (ADR 0146 rule 6).
+  Proof: release run of 0.34.6 shows the warning for devtools;
+  `npm-tinkered-devtools-0.34.6.tgz` on the release names `@tinkered/core`
+  by `^0.34.6`.
+
 - **bun/client-drop-keeps-frames** — done 2026-11-18 (bug 4, [rpc-call](docs/states/rpc-call/README.md); ADR 0141). `drop()` in `packages/bun/src/client.ts` empties the frame buffer, so a call failed as `link, sent: false` is never sent. Fix `730d7e26`. Released as 0.31.1.
   Proof: the rpc-call path test moved to `packages/bun/tests/statechart-rpc-call.test.ts`; red without the fix (`ranB: true`), green with it; all bun tests in one `bun test` process 131 pass, 0 fail; build, `vp check` (80 warnings, as main), bun tests, exit 0; bun mutation on `eaa81256` (bun source and tests byte-identical to the landed head) 86.81 and `run.ts` 91.53, exit 0. Opus convention-review READY, one fix round (test name, one doc line); the land gate found the path test leaked its globals in one process, so `nextTick` reads `setImmediate` at each call (one extra call per frame; accepted for the path test's seam, review T2 question) and the test puts its globals back; delta review READY.
 
