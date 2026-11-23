@@ -129,9 +129,10 @@ so main stays green.
   Cards: `core/remote-parked-part-wakes`,
   `core/invalidate-refused-returns-early`,
   `core/refused-key-reopens`.
-  MemberFaultReachesPart:
-  `member-before.cfg` breaks it on main;
-  card `core/member-ask-fault-hidden`.
+  MemberFaultReachesPart: 0 breaks now
+  (fix `e9b2f29b`);
+  `member-before.cfg` models the code before.
+  Card `core/member-ask-fault-hidden`.
   1 case with no rule yet.
 - **rpc-stream** — 0 rules break
   (fixes `b0b86a5e`, `62b3364f`, and ADR 0169).

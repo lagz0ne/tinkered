@@ -384,11 +384,20 @@ That ask is refused, and A goes to fault.
 So today the state hangs on how many
 members one run changed.
 
-Test: `paths/member-fault-paths.test.ts.txt`.
+Test: `member-fault-paths.test.ts`,
+now in `packages/core/tests/statechart/`.
 It has the path, a `failed` twin,
 and the two-member control.
-On main the path and its twin fail;
-the control passes.
+The path and its twin pass since `e9b2f29b`.
+They failed before: that showed bug 17.
+
+The fix keeps a part's stream fault
+on that part alone.
+Two `where` parts that share members
+each have their own stream.
+A refused stream for one
+leaves the other ready.
+A fourth test, a control, pins that.
 
 ## KeyStream
 
@@ -522,11 +531,13 @@ with back-off.
   only the "no rule yet" test is left.
   It passes: it pins case 7
   (see [No rule yet](#no-rule-yet)).
-- `paths/member-fault-paths.test.ts.txt` —
+- `member-fault-paths.test.ts` —
   MemberFaultReachesPart (path 5),
-  its `failed` twin, and the two-member control.
-  Card `core/member-ask-fault-hidden`
-  moves it in.
+  its `failed` twin, the two-member control,
+  and the stream-fault control,
+  now in `packages/core/tests/statechart/`.
+  The path and its twin pass since `e9b2f29b`.
+  They failed before: that showed bug 17.
 - `key-stream-paths.test.ts` —
   RefusedEndsAsking (path 4),
   now in `packages/core/tests/statechart/`.
