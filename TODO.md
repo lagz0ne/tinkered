@@ -73,6 +73,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **core/member-ask-fault-hidden** — A reader holds `issues.where({ teamId })`. One run removes the reader's access and deletes one member. The pass names that member; its `of` ask is refused, so `board.faults` shows refused, but `board.status(part)` stays `ready` and the deleted member stays. With two members changed, the whole part is asked and the part goes to fault. ADR 0139 d4: a refused part goes to fault. Cause: `apply` in `remote-data.ts` calls `stand`, which sets a state only on parts the ask holds whole.
+  Owner: Opus lead; Opus writer in `../tinkered-member-fault`.
+  Next: the writer moves `docs/states/remote-part/paths/member-fault-paths.test.ts.txt` into `packages/core/tests/statechart/`, red, then fixes `apply`.
+  Verify: remote-part `member.cfg` 0 breaks (`member-before.cfg` breaks MemberFaultReachesPart); the 3 path tests pass; `vp check`, Core tests, `scripts/ticket.sh` exit 0; mutation 85 or more.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
