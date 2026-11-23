@@ -94,8 +94,7 @@ async function boot() {
     ids: () => reader.get().map((i) => i.id),
     status: () => tab.resolve(board.status(part)).get(),
     keyFault: () => tab.resolve(board.faults).get().issues,
-    change: (leave: boolean, gone: string[]) =>
-      server.run(change, { input: { leave, gone } }),
+    change: (leave: boolean, gone: string[]) => server.run(change, { input: { leave, gone } }),
   };
 }
 
