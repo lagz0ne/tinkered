@@ -30,13 +30,6 @@ afterEach(async () => {
   for (const close of closers.splice(0).reverse()) await close();
 });
 
-const until = async (ok: () => boolean) => {
-  for (let tries = 0; !ok(); tries++) {
-    if (tries > 300) throw new Error("timed out");
-    await new Promise((done) => setTimeout(done, 10));
-  }
-};
-
 /**
  * A server with issues a, b, c in team T1, and a tab that reads the part `{ teamId: "T1" }`.
  * The guard refuses a team the reader is not a member of. With `failMember`, it throws on an
@@ -79,7 +72,7 @@ async function boot() {
     capsules: [board({ serve: true, onStart: [guard] }), memory.server({ services: [board] })],
   }).ready;
   closers.push(() => server.close());
-  for (const id of ["a", "b", "c"]) await server.run(add, { input: issue(id) });
+  for (const id of ["a", "b", "c"]) server.run(add, { input: issue(id) });
 
   const tab = await createScope({
     capsules: [memory.client({ peer: server }), board({ read: memory.client })],
@@ -91,6 +84,7 @@ async function boot() {
   closers.push(reader.watch(() => undefined));
   return {
     rules,
+    tab,
     ids: () => reader.get().map((i) => i.id),
     status: () => tab.resolve(board.status(part)).get(),
     keyFault: () => tab.resolve(board.faults).get().issues,
@@ -101,13 +95,13 @@ async function boot() {
 test("MemberFaultReachesPart: a refused ask for one member puts the part in fault", async () => {
   const app = await boot();
   // 1. A reader reads the part.  2. The stream opens.  3-4. The server signals; an answer comes.
-  await until(() => app.status()?.status === "ready");
+  await expect.poll(() => app.status()?.status).toBe("ready");
   expect(app.ids()).toEqual(["a", "b", "c"]);
 
   // 5. One run: the reader leaves the team, and one member goes. The pass names that member.
-  await app.change(true, ["a"]);
+  app.change(true, ["a"]);
   // 6. The ask for that member is refused.
-  await until(() => app.keyFault() !== undefined);
+  await expect.poll(() => app.keyFault()).toBeDefined();
 
   expect(app.keyFault()).toMatchObject({ fault: "refused", payload: { notMember: "T1" } });
   expect(app.status()).toMatchObject({
@@ -118,11 +112,11 @@ test("MemberFaultReachesPart: a refused ask for one member puts the part in faul
 
 test("control: a run that changes two members asks for the whole part, which goes to fault", async () => {
   const app = await boot();
-  await until(() => app.status()?.status === "ready");
+  await expect.poll(() => app.status()?.status).toBe("ready");
 
-  await app.change(true, ["a", "b"]);
+  app.change(true, ["a", "b"]);
 
-  await until(() => app.status()?.status === "fault");
+  await expect.poll(() => app.status()?.status).toBe("fault");
   expect(app.status()).toMatchObject({
     status: "fault",
     fault: { fault: "refused", payload: { notMember: "T1" } },
@@ -131,12 +125,25 @@ test("control: a run that changes two members asks for the whole part, which goe
 
 test("MemberFaultReachesPart: an ask for one member that fails puts the part in fault", async () => {
   const app = await boot();
-  await until(() => app.status()?.status === "ready");
+  await expect.poll(() => app.status()?.status).toBe("ready");
 
   app.rules.failMember = true;
-  await app.change(false, ["a"]);
-  await until(() => app.keyFault() !== undefined);
+  app.change(false, ["a"]);
+  await expect.poll(() => app.keyFault()).toBeDefined();
 
   expect(app.keyFault()).toMatchObject({ fault: "failed" });
   expect(app.status()).toMatchObject({ status: "fault", fault: { fault: "failed" } });
+});
+
+test("control: a part's refused stream leaves an overlapping part with its own stream ready", async () => {
+  const app = await boot();
+  const mine = board.issues.where({ id: "a" });
+  closers.push(app.tab.resolve(mine).watch(() => undefined));
+  await expect.poll(() => app.tab.resolve(board.status(mine)).get()?.status).toBe("ready");
+
+  const theirs = board.issues.where({ teamId: "T2" });
+  closers.push(app.tab.resolve(theirs).watch(() => undefined));
+  await expect.poll(() => app.tab.resolve(board.status(theirs)).get()?.status).toBe("fault");
+
+  expect(app.tab.resolve(board.status(mine)).get()).toMatchObject({ status: "ready" });
 });

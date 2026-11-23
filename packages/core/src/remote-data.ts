@@ -655,17 +655,21 @@ const steps = resource({
       const every = (config.refetchInterval as { value?: Record<string, number> }).value?.[key];
       const cell = event.load(def.made[key]!, meta) as unknown as Keyed;
       const joined = new Map<string, Joined>();
-      /** Sets the state of a part, and of each part in use that it holds whole. A part that waits
-       * on a fault, or rides one that does, keeps its fault until a trigger (ADR 0139 4). */
-      const stand = (asked: Ask, now: PartState) => {
+      /** Sets the state of a part, and of each part in use that it holds whole. With `member`, it
+       * also reaches each part in use that holds a member of it: an ask's fault is a fault of
+       * every part it asked for, but one member does not make a part ready, and a part's stream
+       * fault is that part's own (ADR 0139 4). A part that waits on a fault, or rides one that
+       * does, keeps its fault until a trigger. */
+      const stand = (asked: Ask, now: PartState, member?: boolean) => {
         if (signal.aborted) return;
         for (const j of joined.values()) {
           if ((j.rides ?? j).wake) continue;
-          if (shares(asked, j.ask) && (asked.window || holds(asked, j.ask.part))) {
-            states.set({ ...now, at: partSlot(key, j.ask) });
-          }
+          if (reaches(asked, j.ask, member)) states.set({ ...now, at: partSlot(key, j.ask) });
         }
       };
+      /** Whether `stand` reaches a part in use. A window reaches only itself (ADR 0139 2). */
+      const reaches = (asked: Ask, part: Ask, member?: boolean) =>
+        shares(asked, part) && (member || asked.window || holds(asked, part.part));
       const stays = (member: Data.Key) => [...joined.values()].some((j) => holds(j.ask, member));
 
       const pending = new Set<Asking>();
@@ -714,10 +718,12 @@ const steps = resource({
       };
 
       /**
-       * Puts one answer in the cell, or its fault in `board.faults`. When each part it is for
-       * waits on a fault, or rides one that does (its cover is among them), only a broken link
-       * gets in: the backend heals a link, so it wakes them and their streams open again. Any
-       * other answer leaves them waiting (ADR 0139 4, 0141).
+       * Puts one answer in the cell, or its fault in `board.faults`. A fault also puts each part in
+       * use that holds a member of the ask in fault; an answer makes ready only the parts the ask
+       * holds whole (ADR 0139 4). When each part it is for waits on a fault, or rides one that
+       * does (its cover is among them), only a broken link gets in: the backend heals a link, so
+       * it wakes them and their streams open again. Any other answer leaves them waiting (ADR 0139
+       * 4, 0141).
        */
       const apply = (asked: Ask, got: (() => void) | { error: unknown }) => {
         const parts = [...joined.values()].filter((j) => narrowed(j.ask, asked.part));
@@ -737,7 +743,7 @@ const steps = resource({
 
           if (parked) parts.forEach((j) => j.wake?.());
           mark(key, fault);
-          stand(asked, { status: "fault", fault });
+          stand(asked, { status: "fault", fault }, true);
         }
       };
 
