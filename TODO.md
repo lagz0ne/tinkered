@@ -73,6 +73,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **bun/body-limit-per-handler** — GitHub issue #57 (Duke 2026-11-23 23:39 UTC: "Address the body limit issue then release"). `serve` sets Bun's `maxRequestBodySize` to the largest handler `maxBody`; `ws.server`'s is its largest `bytes()` max. So one 16 MiB bytes key lets every handler route read 16 MiB. `Handler.maxBody` already says "The largest request body this handler takes": `serve` will enforce it per handler (default 1 MiB, Bun's), as Hono's and Fastify's `bodyLimit` do: Content-Length first, then a count of the stream, 413. `maxRequestBodySize` stays the server backstop. No state machine here, so no chart.
+  Owner: Opus lead; Opus writer in `../tinkered-body-limit`.
+  Next: the writer adds the tests red, then the fix in `packages/bun/src/serve.ts`.
+  Verify: real `Bun.serve` tests red on main, green after: a handler route with no `maxBody` answers 413 past 1 MiB (by Content-Length, and chunked) beside a 16 MiB bytes key; the bytes key still takes 16 MiB; a handler's own `maxBody` holds; `vp check`, bun tests, `pnpm validate` exit 0; bun mutation 85 or more.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
