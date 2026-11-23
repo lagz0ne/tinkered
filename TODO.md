@@ -73,9 +73,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/stream-call-session** — owner: lead (Claude, project thread "Fix two remote stream bugs"). Duke 2026-11-22 14:57 UTC picked A, the fetch rule (ADR 0169). Any rpc stream call with a `signal` or `tags` broke: its child session (ADR 0090) ended when the call returned the reader, so a remote stream was cut at the answer and a stream run here never answered (old card `core/local-stream-signal`). Now a stream key's call opens no child session; the signal stops the stream as a break does; the tags bind the stream's own run.
-  Verify: rpc-stream spec 0 breaks (before: 3); new kit cases on memory and ws, and new path tests, red on main and green; `scripts/ticket.sh --check-only`; size under caps; `check-slots`; Core mutation 85; Opus convention-review.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -114,6 +111,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/stream-call-session** — done 2026-11-23 (ADR 0169, project thread "Fix two remote stream bugs"; closes `core/local-stream-signal`). Any rpc stream call with a `signal` or `tags` broke: its child session (ADR 0090) ended when the call returned the reader, so a remote stream was cut at the answer and a stream run here never answered. Duke 2026-11-22 14:57 UTC picked A, the fetch rule: a stream key's call opens no child session (one check in `runHookCall`); the signal stops the stream as a break does; the tags bind the stream's own run and its lifecycle hooks; an aborted signal starts nothing. Duke 2026-11-22 22:57 UTC picked A for size: the no-rpc cap goes up 6 B to 23,447 B.
+  Proof: rpc-stream spec 394 states, 0 breaks (before: 411 states, 3 breaks); kit cases on memory and ws and 4 path tests red on main, green; Core 1477 tests; `vp check` 0 errors; Opus convention-review NOT READY (tags missed the lifecycle hooks, tests), one fix round; on the box (Node 26.13.1) on `921b6ae3` (clean, same Core code as landed): fast-code bytecode and inlining PASS, same as main; `ticket.sh --check-only` exit 0; size 23,447 B (cap 23,447 B), 34,071 B with rpc; `check-slots` exit 0; Core mutation 87.20, kills alone 85.60, exit 0. Released as 0.34.6.
 
 - **ci/validate-lanes** — done 2026-11-22. CI runs `pnpm validate` on every push to main, in a `validate` job on the box runner, on the Node that `scripts/fast-code-baseline.json` pins. `scripts/validate.mjs` uses the workspace's own `vp`, not a box-only path.
   Proof: CI run 45083550206 on `d25a71dd`: the `validate` job green (all lanes, 3 min); locally with no box path, 22 of 22 lanes PASS on Node v26.13.1.

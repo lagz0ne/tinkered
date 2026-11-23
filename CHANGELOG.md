@@ -9,6 +9,25 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.6
+
+`@tinkered/core`: no API change. A stream
+call keeps its `signal` and `tags` for its
+stream (ADR 0169), as `fetch` does.
+
+- A stream call with a `signal` or `tags`
+  answers at once. Before, a stream run here
+  never answered.
+- A remote stream with a `signal` or `tags`
+  reads every value. Before, it was cut when
+  the call answered.
+- The caller's signal ends the stream clean,
+  as a break does.
+- The call's tags bind the stream's own run
+  and its lifecycle hooks.
+- A signal that already aborted starts
+  nothing.
+
 ## 0.34.5
 
 `@tinkered/cli`: `tinker.json` takes
