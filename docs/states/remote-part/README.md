@@ -315,19 +315,25 @@ and any count of asks.
 
 ### Bug 17: a member ask's fault reaches no part
 
-Card `core/member-ask-fault-hidden`.
+Card `core/member-ask-fault-hidden` fixes it
+(`e9b2f29b`).
 Rule: MemberFaultReachesPart.
 
-`apply` (722) puts a fault in `board.faults`,
-then calls `stand` (660).
-`stand` sets a state only on the parts
-that the ask holds whole.
+`apply` (722) put a fault in `board.faults`,
+then called `stand` (660).
+`stand` set a state only on the parts
+that the ask held whole.
 An `of` ask for one member
 never holds a `where` part whole.
-So its fault reaches no part.
-That is right for `ready`:
+So its fault reached no part.
+That was right for `ready`:
 one member does not make a part ready.
-It is wrong for a fault.
+It was wrong for a fault.
+
+The fix: an ask's fault reaches
+each part in use that holds a member of the ask.
+So it also reaches an overlapping part,
+one the ask does not hold whole.
 
 TLC: 2,998 states, 1 break (`member-before.cfg`).
 With the fix: 2,860 states, 0 breaks (`member.cfg`).
@@ -381,7 +387,7 @@ and part A still shows ready.
 When the run changes two members,
 the pass names the whole part.
 That ask is refused, and A goes to fault.
-So today the state hangs on how many
+So the state hung on how many
 members one run changed.
 
 Test: `member-fault-paths.test.ts`,
@@ -397,7 +403,10 @@ Two `where` parts that share members
 each have their own stream.
 A refused stream for one
 leaves the other ready.
-A fourth test, a control, pins that.
+A control test pins that.
+A fifth test pins the overlap:
+a refused ask for one part
+puts an overlapping part in fault.
 
 ## KeyStream
 
@@ -534,7 +543,7 @@ with back-off.
 - `member-fault-paths.test.ts` —
   MemberFaultReachesPart (path 5),
   its `failed` twin, the two-member control,
-  and the stream-fault control,
+  the stream-fault control, and the overlap test,
   now in `packages/core/tests/statechart/`.
   The path and its twin pass since `e9b2f29b`.
   They failed before: that showed bug 17.

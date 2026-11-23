@@ -1,5 +1,7 @@
-// Replays of the remote-part model (docs/states/remote-part/RemotePart.tla, member.cfg):
-// each test runs one model path, one step per action, on the real code.
+/**
+ * Replays of the remote-part model (docs/states/remote-part/RemotePart.tla, member.cfg): each
+ * test runs one model path, one step per action, on the real code.
+ */
 import { memory } from "@tinkered/core/testing";
 import { afterEach, expect, test } from "vite-plus/test";
 import { z } from "zod";
@@ -92,15 +94,17 @@ async function boot() {
   };
 }
 
+/**
+ * Path 5. A reader reads the part, the stream opens, the server signals, and an answer comes. One
+ * run: the reader leaves the team and one member goes, so the pass names that member. The ask for
+ * that member is refused.
+ */
 test("MemberFaultReachesPart: a refused ask for one member puts the part in fault", async () => {
   const app = await boot();
-  // 1. A reader reads the part.  2. The stream opens.  3-4. The server signals; an answer comes.
   await expect.poll(() => app.status()?.status).toBe("ready");
   expect(app.ids()).toEqual(["a", "b", "c"]);
 
-  // 5. One run: the reader leaves the team, and one member goes. The pass names that member.
   app.change(true, ["a"]);
-  // 6. The ask for that member is refused.
   await expect.poll(() => app.keyFault()).toBeDefined();
 
   expect(app.keyFault()).toMatchObject({ fault: "refused", payload: { notMember: "T1" } });
@@ -146,4 +150,21 @@ test("control: a part's refused stream leaves an overlapping part with its own s
   await expect.poll(() => app.tab.resolve(board.status(theirs)).get()?.status).toBe("fault");
 
   expect(app.tab.resolve(board.status(mine)).get()).toMatchObject({ status: "ready" });
+});
+
+/** ADR 0139 d4: a fault of an ask is a fault of each part in use that holds a member of it. */
+test("MemberFaultReachesPart: a refused ask for a part puts an overlapping part in fault", async () => {
+  const app = await boot();
+  const mine = board.issues.where({ id: "a" });
+  closers.push(app.tab.resolve(mine).watch(() => undefined));
+  await expect.poll(() => app.tab.resolve(board.status(mine)).get()?.status).toBe("ready");
+  await expect.poll(() => app.status()?.status).toBe("ready");
+
+  app.change(true, ["b", "c"]);
+  await expect.poll(() => app.status()?.status).toBe("fault");
+
+  expect(app.tab.resolve(board.status(mine)).get()).toMatchObject({
+    status: "fault",
+    fault: { fault: "refused", payload: { notMember: "T1" } },
+  });
 });
