@@ -73,11 +73,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/member-ask-fault-hidden** — A reader holds `issues.where({ teamId })`. One run removes the reader's access and deletes one member. The pass names that member; its `of` ask is refused, so `board.faults` shows refused, but `board.status(part)` stays `ready` and the deleted member stays. With two members changed, the whole part is asked and the part goes to fault. ADR 0139 d4: a refused part goes to fault. Cause: `apply` in `remote-data.ts` calls `stand`, which sets a state only on parts the ask holds whole.
-  Owner: Opus lead; Opus writer in `../tinkered-member-fault`.
-  Next: the writer moves `docs/states/remote-part/paths/member-fault-paths.test.ts.txt` into `packages/core/tests/statechart/`, red, then fixes `apply`.
-  Verify: remote-part `member.cfg` 0 breaks (`member-before.cfg` breaks MemberFaultReachesPart); the 3 path tests pass; `vp check`, Core tests, `scripts/ticket.sh` exit 0; mutation 85 or more.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -116,6 +111,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/member-ask-fault-hidden** — done 2026-11-23 (bug 17). A member ask's fault (refused, failed, invalid, link) now puts each part in use that holds a member of the ask in fault, as ADR 0139 d4 wants; before, `board.faults` showed refused while `board.status(part)` stayed `ready`. `ready` still needs a whole hold; a stream's fault stays its own part's. Fix `e9b2f29b`, review round `9483e4a6`.
+  Proof: remote-part `member.cfg` 2,860 states, 0 breaks (`member-before.cfg` 2,998 states, MemberFaultReachesPart breaks); 3 path tests red on main, green (`tests/statechart/member-fault-paths.test.ts`), plus 2 overlap tests; Core 1483 tests, dist 1727; `vp check` 0 errors, 80 warnings (as main); `scripts/ticket.sh` exit 0; `pnpm validate` 22 of 22 PASS; size 23,445 B no-rpc (cap 23,447 B, was 23,447 B), 34,082 B with rpc (cap 35,232 B, was 34,071 B); Opus convention-review READY with 3 nits and 1 question, one fix round; Core mutation on `9483e4a6` 86.76 (kills alone 85.85), floor 85, exit 0.
 
 - **core/stream-call-session** — done 2026-11-23 (ADR 0169, project thread "Fix two remote stream bugs"; closes `core/local-stream-signal`). Any rpc stream call with a `signal` or `tags` broke: its child session (ADR 0090) ended when the call returned the reader, so a remote stream was cut at the answer and a stream run here never answered. Duke 2026-11-22 14:57 UTC picked A, the fetch rule: a stream key's call opens no child session (one check in `runHookCall`); the signal stops the stream as a break does; the tags bind the stream's own run and its lifecycle hooks; an aborted signal starts nothing. Duke 2026-11-22 22:57 UTC picked A for size: the no-rpc cap goes up 6 B to 23,447 B.
   Proof: rpc-stream spec 394 states, 0 breaks (before: 411 states, 3 breaks); kit cases on memory and ws and 4 path tests red on main, green; Core 1477 tests; `vp check` 0 errors; Opus convention-review NOT READY (tags missed the lifecycle hooks, tests), one fix round; on the box (Node 26.13.1) on `921b6ae3` (clean, same Core code as landed): fast-code bytecode and inlining PASS, same as main; `ticket.sh --check-only` exit 0; size 23,447 B (cap 23,447 B), 34,071 B with rpc; `check-slots` exit 0; Core mutation 87.20, kills alone 85.60, exit 0. Released as 0.34.6.
