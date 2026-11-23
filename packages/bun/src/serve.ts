@@ -15,9 +15,66 @@ export type Handler = {
   ) => Response | null | undefined | Promise<Response | null | undefined>;
   /** Bun's socket handler, typed by the handler that owns it. */
   websocket?: WebSocketHandler<never> | object;
-  /** The largest request body this handler takes. */
+  /**
+   * The largest request body this handler takes; 1 MiB when unset (Bun's default). `serve`
+   * counts the body as this handler reads it: a Content-Length or a count past it fails the read,
+   * and `serve` answers 413 whatever the handler answered. The largest of every handler's sets
+   * Bun's `maxRequestBodySize`, the server-wide backstop.
+   */
   maxBody?: number;
 };
+
+/** A handler's `maxBody` when it names none: Bun's own default. */
+const defaultMaxBody = 1_048_576;
+
+/**
+ * The 413 closes the connection (as Node does, RFC 9110 15.5.14): the client may still be sending
+ * the rest of a body nobody reads, and Bun's graceful `stop` would wait on it.
+ */
+const tooLarge = { status: 413, headers: { connection: "close" } };
+
+/**
+ * A request's body, counted against the cap of the handler that reads it (Hono's `bodyLimit`).
+ * `ask` sets `cap` before it asks each handler. A Content-Length or a count past the cap errors
+ * the read, and `over` tells `serve` to answer 413. It is its own stream's transformer.
+ */
+class CappedBody {
+  cap = defaultMaxBody;
+  seen = 0;
+  over = false;
+  /** The Content-Length; 0 when the body is chunked and has none. */
+  length: number;
+  /** The request each handler gets: the original's url, headers and signal, this body. */
+  request: Request;
+
+  constructor(request: Request, body: ReadableStream<Uint8Array>) {
+    this.length = Number(request.headers.get("content-length"));
+    this.request = new Request(request, {
+      body: body.pipeThrough(new TransformStream(this)),
+      duplex: "half",
+    } as RequestInit);
+  }
+
+  /**
+   * One handler's reply, its read held to its own cap. A throw from a read past the cap is not
+   * the handler's own: the caller answers 413 for it.
+   */
+  async ask(handler: Handler, scope: Scope.Handle, bun: Server<never>) {
+    this.cap = handler.maxBody ?? defaultMaxBody;
+    try {
+      return await handler.fetch(this.request, scope, bun);
+    } catch (error) {
+      if (!this.over) throw error;
+    }
+  }
+
+  transform(chunk: Uint8Array, out: TransformStreamDefaultController<Uint8Array>) {
+    this.seen += chunk.byteLength;
+    if (this.seen <= this.cap && !(this.length > this.cap)) return out.enqueue(chunk);
+    this.over = true;
+    out.error(new RangeError("The body is over its handler's maxBody."));
+  }
+}
 
 const port = tag<number>({ label: "serve.port" });
 
@@ -83,9 +140,14 @@ export const serve = capsule({
         raise("MissingConfig", { label: "serve", key: "websocket" });
       }
       const found = socket ? [socket, ...rest] : rest;
+      /** A body over the cap of the handler that read it is a 413, whatever that handler did. */
       const answer = async (request: Request, bun: Server<never>) => {
+        const body = request.body && new CappedBody(request, request.body);
         for (const handler of found) {
-          const reply = await handler.fetch(request, scope, bun);
+          const reply = await (body
+            ? body.ask(handler, scope, bun)
+            : handler.fetch(request, scope, bun));
+          if (body?.over) return new Response(null, tooLarge);
           if (reply !== undefined) return reply ?? undefined;
         }
         return new Response(null, { status: 404 });
@@ -95,7 +157,10 @@ export const serve = capsule({
         port: config.port,
         // Bun's 10 s default cuts a slow request; 60 s (max 255) matches the socket idle time.
         idleTimeout: 60,
-        maxRequestBodySize: Math.max(1_048_576, ...found.map((handler) => handler.maxBody ?? 0)),
+        maxRequestBodySize: Math.max(
+          defaultMaxBody,
+          ...found.map((handler) => handler.maxBody ?? 0),
+        ),
         // Bun's types want `fetch` beside `websocket`; unset, Bun reads `websocket` as absent.
         websocket: socket?.websocket as never,
         fetch: () => new Response(null, { status: 404 }),

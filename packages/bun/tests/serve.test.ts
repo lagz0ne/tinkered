@@ -304,6 +304,37 @@ test("the bytes key still takes a body past 1 MiB, up to its own max", async () 
   );
 });
 
+test("a handler's request.signal still aborts when the client leaves mid-body", async () => {
+  const asked = Promise.withResolvers<void>();
+  const left = Promise.withResolvers<string>();
+  const waits = handler({
+    answer: (r) => {
+      r.signal.addEventListener("abort", () => left.resolve("aborted"));
+      asked.resolve();
+      return r.arrayBuffer().then(() => new Response("read"));
+    },
+  });
+  const app = await createScope({ capsules: [serve({ port: 0, handlers: [waits] }), waits] }).ready;
+  closers.push(() => app.close());
+  const at = app.resolve(serve.url).get()!;
+  const client = new AbortController();
+  const open = new ReadableStream<Uint8Array>({
+    start: (out) => out.enqueue(new Uint8Array(1024)),
+  });
+
+  const sent = fetch(new URL("/api/up", at), {
+    method: "POST",
+    body: open,
+    duplex: "half",
+    signal: client.signal,
+  } as RequestInit).catch((e: unknown) => e);
+  await asked.promise;
+  client.abort();
+  await sent;
+
+  expect(await left.promise).toBe("aborted");
+});
+
 test("`development` turns on Bun's development mode", async () => {
   const mode = handler({ answer: (_r, _s, server) => new Response(String(server.development)) });
   const dev = await createScope({
