@@ -73,6 +73,9 @@ export default defineMain(
   `Response` wins.
 - `/api/*`, `/rpc` and `/rpc/*` go to the
   handlers; `paths` adds more.
+- Each handler reads a body up to its own
+  `maxBody`, 1 MiB when unset. Past it,
+  `serve` answers 413.
 
 A handler is a capsule whose start returns
 Bun's own shape, `{ fetch, websocket? }`.
