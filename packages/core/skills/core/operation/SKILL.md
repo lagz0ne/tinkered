@@ -270,6 +270,14 @@ top-level declaration that calls `useData` or
 runs{home.askAgain}` names each cell it reads and
 each op it runs, `?` for one it cannot name. It
 holds no writes, and no graph rule reads it.
+Only a named import of the hook counts:
+`R.useData` through `import * as R` gives no
+line. Nor does a hook call outside a top-level
+function, `const`, class or default export. The
+line names the declaration that holds the call:
+a custom hook that calls `useData` gets its own
+line, and a component that calls the custom hook
+gets none.
 
 Wrong: a move now writes a cell it did not, and
 nobody read that.

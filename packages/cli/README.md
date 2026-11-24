@@ -227,9 +227,19 @@ view src/home/home.tsx#SignIn
 - A first argument the graph cannot name gives
   `?`: a capsule's cell export, a variable, a
   keyed resource.
-- The hooks are found by their import. An alias,
-  `useData as read`, counts. A local function
-  named `useData` does not.
+- The hooks are found by their named import. An
+  alias, `useData as read`, counts. A local
+  function named `useData` does not. Nor does
+  `R.useData` through `import * as R`: it gives
+  no line.
+- A hook call outside a top-level function,
+  `const`, class or default export gives no line.
+- The line names the declaration that holds the
+  call. It is a fact, not a claim that the
+  declaration is a component. So a custom hook
+  that calls `useData` or `useRun` gets its own
+  view line. A component that calls the custom
+  hook gets none.
 - A view line holds no writes. `useController`,
   `useResource` and the `set` of
   `useData(…, { writable: true })` are not read.
