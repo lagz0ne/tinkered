@@ -73,20 +73,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **cli/graph-uses** — GitHub #56. Each graph line ends in `uses{…}` (the resources an op's `depends` names); a graph rule selects by `writes` or `uses` (ADR 0167 amended 2026-11-24). Then #58 views and #60 faults, stacked.
-  Owner: graph lead (Opus 5.5); writers Opus 5.5: 05b39399 (`../tinkered-graph-uses`), a684cf80 (`../tinkered-graph-views`, #58), b865a4f1 (`../tinkered-graph-faults`, #60).
-  Next: land graph-uses (review READY after one fix round), its cli mutation lane alone; then graph-views (reviewed, fixed), then graph-faults (writing).
-  Verify: per card, red tests green; cli tests, `vp check`, prose, skills exit 0; cli mutation floor 85.
-
-- **core/rpc-contracts-value** — GitHub #54. `rpc()`'s type says `readonly contracts: C`, but the value is `undefined`: `rpc()` returns `Object.assign(base, { fault, receive, addresses, uploads })` with no `contracts`. Fix (the issue's option 1, thread lead 2026-11-24): `api.contracts` is the object given to `rpc()`.
-  Owner: Opus lead; Opus writer in `../tinkered-rpc-contracts`.
-  Next: the writer adds the test red, then the fix.
-  Verify: a test red on main (`api.contracts` is the given object); `vp check`, Core tests, `scripts/ticket.sh` exit 0; `pnpm validate` with both sizes within their caps, or Blocked with the exact bytes; Core mutation 85 or more.
-
-- **core/validation-payload-type** — GitHub #55. `DataValidationFailed`'s registry type says `{ label, cause }`, but an rpc call's input check raises `{ address, issues }` (`rpc.ts` ~343). Fix (thread lead 2026-11-24, the issue's first idea): the registry type is the union of both shapes, 0 bytes.
-  Owner: Opus lead; Opus writer in `../tinkered-validation-payload`.
-  Next: the writer adds a type test red, then the type.
-  Verify: a type test that fails `vp check` on main; a run test that the rpc payload narrows to `{ address, issues }`; `vp check`, Core tests, `scripts/ticket.sh` exit 0; size unchanged; Core mutation 85 or more.
+- **cli/graph-views + cli/graph-faults** — GitHub #58 and #60, one stack. #58: a line per React view, `view <path>#<name> reads{…} runs{…}`, from `useData`/`useRun` calls (facts only, no per-`kind` map). #60: each op line gets `faults{…}` after `exits{…}`, the faults its contract member calls can end with, read from Core's own `Fault` type.
+  Owner: graph lead (Opus 5.5); writers Opus 5.5 a684cf80 (#58) and b865a4f1 (#60), branch `graph-faults` in `../tinkered-graph-faults` holds both.
+  Next: both reviewed READY after one fix round each; rebase on main, gates, one cli mutation lane on the tip (`graph.ts`, `main.ts`, `exits.ts`), land both.
+  Verify: red tests green; all tests, `vp check`, prose, skills exit 0; cli mutation floor 85.
 
 ## Review
 
@@ -126,6 +116,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **cli/graph-uses** — done 2026-11-24 (GitHub #56; ADR 0167 amended). Each graph line ends in `uses{…}`, the labels of the resources an op's `depends` names (a fact from `depends`); a graph rule selects ops by `writes` or `uses`, never both (`{ "uses": "drizzlePg.tx", "calls": "perm.canLead" }`). `writes` rules keep their meaning. Landed `b368ec79`.
+  Proof: 14 red tests, green; all package tests exit 0 (cli 175); `vp check` 0 errors, 80 warnings (as main); prose, skills exit 0; `pnpm validate` 22 of 22 PASS; strict census no new hit; Opus convention-review NOT READY (a false `uses{?}` on any type with `factory`, two untested `?` branches), one fix round; cli mutation on the changed files at `998ca749` (cli source byte-identical to the landed tip) 91.58, kills alone 847/926 = 91.5, floor 85, exit 0.
 
 - **cli/graph-names** — done 2026-11-24 (GitHub #59). The graph names a capsule's rpc contract member (`calls{access.user/users.me}`) and an `atScope`/`atNamespace` controller (`reads{access.logins.get}`) in place of `?`. A bare rpc const, a capsule whose label or exports object is not written in the call, and a computed key stay `?`. A contract member ends a graph rule's path. Landed `539c7adc`.
   Proof: 3 red tests on main, green; cli 166 tests; `vp check` 0 errors, 80 warnings (as main); prose, skills exit 0; `pnpm validate` 22 of 22 PASS; strict census no new hit; Opus convention-review NOT READY (2 S14 hits, a doc claim), one fix round; cli mutation on `graph.ts` at `539c7adc` 93.44 (kills alone 433/488 = 88.7), floor 85, exit 0. The whole-package lane ran at about 9 h on the loaded box (load 34), so the changed file ran alone, as for cli/graph-rule.
