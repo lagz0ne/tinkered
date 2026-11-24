@@ -78,6 +78,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: land graph-uses (review READY after one fix round), its cli mutation lane alone; then graph-views (reviewed, fixed), then graph-faults (writing).
   Verify: per card, red tests green; cli tests, `vp check`, prose, skills exit 0; cli mutation floor 85.
 
+- **core/rpc-contracts-value** — GitHub #54. `rpc()`'s type says `readonly contracts: C`, but the value is `undefined`: `rpc()` returns `Object.assign(base, { fault, receive, addresses, uploads })` with no `contracts`. Fix (the issue's option 1, thread lead 2026-11-24): `api.contracts` is the object given to `rpc()`.
+  Owner: Opus lead; Opus writer in `../tinkered-rpc-contracts`.
+  Next: the writer adds the test red, then the fix.
+  Verify: a test red on main (`api.contracts` is the given object); `vp check`, Core tests, `scripts/ticket.sh` exit 0; `pnpm validate` with both sizes within their caps, or Blocked with the exact bytes; Core mutation 85 or more.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
