@@ -73,11 +73,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **bun/early-answer-close** — Found by the #57 writer. A handler that answers before it reads the body (for example `ws.ts` `admit`'s 413 for a too-big Content-Length) leaves the client still sending, and Bun's graceful `stop()` waits on it, up to the 60 s idle time. Go and Node close the connection when a handler answers without reading the body. Fix: `serve` adds `connection: close` to any reply whose request body was not read to its end; `ws.ts`'s answers before the body is read do too, for a bare `Bun.serve` host.
-  Owner: Opus lead; Opus writer in `../tinkered-early-close`.
-  Next: the writer adds the tests red, then the fix.
-  Verify: real `Bun.serve` tests red on main: `admit`'s 413 to a big streamed upload carries `connection: close` and `scope.close()` ends at once; the same for a plain handler that answers without reading; a body read to its end keeps the connection open. `vp check`, bun tests, `pnpm validate` exit 0; bun mutation 85 or more.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -116,6 +111,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **bun/early-answer-close** — done 2026-11-24. A reply that leaves the request body unread now sends `connection: close`, as Go's net/http does: `serve` closes any handler's reply and its own 404 and 413 when the body was not read to its end; `ws.ts` closes its `admit` refusals, its 503s, its 413, and a bytes POST reply whose implementation left the body unread (for a bare `Bun.serve` host). A body read to its end keeps keep-alive. Under `serve` on main, `close()` did not hang (the body pipe stopped it); a bare host did. Fix `077361dc`, `4805e37d`; `e4684b9d` fixed a test that failed under `bun test` (`expect.poll`).
+  Proof: 6 tests red on main, then green (`serve.test.ts`, `upload.test.ts`); bun 140 tests (vitest and `bun test`); `vp check` 0 errors, 80 warnings (as main); `pnpm validate` 22 of 22 PASS; Opus convention-review READY with 1 question and 2 nits, one fix round (all four items), READY at `2677c592`; bun mutation on `e4684b9d` 86.95 (kills alone 86.83) and `run.ts` 91.53, floor 85, exit 0. The first lane run on `2677c592` stopped in its dry run on `expect.poll`.
 
 - **bun/body-limit-per-handler** — done 2026-11-24 (GitHub #57; Duke 2026-11-23 23:39 UTC: "Address the body limit issue then release"). `serve` holds each handler to its own `maxBody`, 1 MiB when unset: a read past it (Content-Length or count) fails, and `serve` answers 413 with `connection: close`. `maxRequestBodySize` stays the backstop; a `bytes()` key keeps its own max. A handler with a body gets a copy of the request and a server whose `requestIP`, `timeout` and `upgrade` map it back to Bun's own. Fix `5066a5fd`, `9c49a70c`. Released as 0.34.7.
   Proof: 3 tests red on main and the `requestIP` test red before its fix, then all green (`serve.test.ts`); bun 134 tests, all packages green; `vp check` 0 errors, 80 warnings (as main); `pnpm validate` 22 of 22 PASS; Opus convention-review NOT READY (`requestIP` on the copy gave null), one fix round, READY at `9c3456b3`; bun mutation on `9c3456b3` 86.74 (kills alone 86.62) and `run.ts` 91.53, floor 85, exit 0.
