@@ -110,7 +110,7 @@ type Job<C extends Contracts> =
 
 type Config<C extends Contracts> = Job<C> & Hooks;
 
-const reserved = ["answer", "stream", "fault"];
+const reserved = ["answer", "stream", "fault", "receive", "contracts", "addresses", "uploads"];
 
 /**
  * The call's own fault, thrown on the calling side and told apart by its definition's brand:
