@@ -1415,6 +1415,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 - `api.contracts` is the object given to `rpc()`:
   each address's `input` and `output` schemas.
+- An rpc definition's own names are reserved: an
+  address named `answer`, `stream`, `fault`,
+  `receive`, `contracts`, `addresses` or `uploads`
+  throws when `rpc()` is called.
 
 ### Faults
 
