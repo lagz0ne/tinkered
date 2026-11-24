@@ -476,10 +476,12 @@ function createRawStore<T>(controller: Readable<T>): DataStore<T, T> {
     equal: Object.is,
     /** React subscribes in a passive effect, after the commit, so the scope can close in between:
      * a layout effect or another owner closes it. Core's `watch` then raises `Disposed`, and React
-     * throws it from the effect, where no error boundary catches it. A closed scope never changes
-     * again, so take no subscription and return an unsubscribe that does nothing. Any other throw
-     * still throws. A render after the close still raises `Disposed` (ADR 0144 d3). A module
-     * helper would cost one more module slot (F9). */
+     * sends it to the nearest error boundary, whose fallback replaces the subtree, or reports it
+     * uncaught. That is an error for a scope that can never change again, so take no subscription
+     * and return an unsubscribe that does nothing. Any other throw still throws. A render after
+     * the close still raises `Disposed` (ADR 0144 d3). Two copies, not a module helper: the
+     * fast-code lane's slot ratchet (`F9 react`) counts React's module context slots, and a helper
+     * made 39, over its baseline 38. */
     subscribe: (notify) => {
       try {
         return controller.watch(notify);
