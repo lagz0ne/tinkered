@@ -20,6 +20,15 @@ const isTextRecord = (v: unknown): v is Record<string, string> =>
   !Array.isArray(v) &&
   Object.values(v).every((each) => typeof each === "string");
 
+/**
+ * An answer before the body is read closes the connection (RFC 9110 15.5.14): the client may
+ * still be sending the body, and Bun's graceful `stop` would wait on it.
+ */
+const refused = { connection: "close" };
+
+/** The 503 for `maxUploads`: it closes too, and says when to try again. */
+const refusedBusy = { connection: "close", "retry-after": "1" };
+
 // The WebSocket transport, server side: one socket per client, on Bun's own WebSocket.
 // Frames are JSON arrays of messages (see the client). Each call and each watch runs in its own
 // session of the scope, as an HTTP request does, with the upgrade request bound. The answers and
@@ -40,6 +49,7 @@ const isTextRecord = (v: unknown): v is Record<string, string> =>
 // - 431 for `x-input` or `x-meta` over 2 KiB; 415 for a type the key does not list;
 // - 413 when Content-Length says more than the key's max;
 // - 503 with Retry-After when `maxUploads` POSTs run already.
+// Each refusal closes the connection: the client may still be sending the body.
 // Then the implementation gets the body lazily: the stream is read only when it reads, counted
 // (413 once past the max, whatever Content-Length said), and cut at `uploadDeadline`. The onStart
 // hooks run first, so a refused call never reads the body; an unread body is cancelled.
@@ -184,10 +194,7 @@ export function createWs() {
         return { text: String(h["x-input"]), meta: meta as Record<string, string>, type };
       }
 
-      return new Response(null, {
-        status,
-        headers: status === 503 ? { "retry-after": "1" } : undefined,
-      });
+      return new Response(null, { status, headers: status === 503 ? refusedBusy : refused });
     },
   });
 
@@ -341,7 +348,7 @@ export function createWs() {
           const session = await Promise.resolve()
             .then(() => scope.createSession({ trace, tags }))
             .catch(() => null);
-          if (!session) return new Response(null, { status: 503 });
+          if (!session) return new Response(null, { status: 503, headers: refused });
 
           uploading += 1;
           const body = session.run(bodyOf, { input: { req, max: limit!.max, type, stop } });
@@ -353,7 +360,7 @@ export function createWs() {
               void req.body?.cancel().catch(() => undefined);
               return session.close();
             });
-          if (body.over) return new Response(null, { status: 413 });
+          if (body.over) return new Response(null, { status: 413, headers: refused });
           if (reply === null) return new Response(null, { status: 404 });
           return new Response(reply, {
             headers: { "content-type": "application/json", "cache-control": "no-store" },

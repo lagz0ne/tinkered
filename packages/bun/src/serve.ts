@@ -39,13 +39,16 @@ const byRequest = new Set<string | symbol>(["requestIP", "timeout", "upgrade"]);
 /**
  * A request's body, counted against the cap of the handler that reads it (Hono's `bodyLimit`).
  * `ask` sets `cap` before it asks each handler. A Content-Length or a count past the cap errors
- * the read, and `over` tells `serve` to answer 413. It is its own stream's transformer, and the
- * proxy handler of the `server` the handlers get: that maps the copy back to Bun's own request.
+ * the read, and `over` tells `serve` to answer 413. `ended` tells it the body was read to its
+ * end; else the reply closes the connection (Go's net/http). It is its own stream's transformer,
+ * and the proxy handler of the `server` the handlers get: that maps the copy back to Bun's own
+ * request.
  */
 class CappedBody {
   cap = defaultMaxBody;
   seen = 0;
   over = false;
+  ended = false;
   /** The Content-Length; 0 when the body is chunked and has none. */
   length: number;
   /** Bun's own request, which Bun's `requestIP`, `timeout` and `upgrade` know. */
@@ -78,6 +81,22 @@ class CappedBody {
     }
   }
 
+  /**
+   * The reply, with `connection: close` when the body was not read to its end: the client may
+   * still be sending it, and Bun's graceful `stop` would wait on it. A reply's headers can be
+   * immutable, so it is a copy. Undefined (an upgrade, Bun's own now) has no reply to close.
+   */
+  closeIfUnread(reply: Response | undefined) {
+    if (!reply || this.ended) return reply;
+    const headers = new Headers(reply.headers);
+    headers.set("connection", "close");
+    return new Response(reply.body, {
+      status: reply.status,
+      statusText: reply.statusText,
+      headers,
+    });
+  }
+
   /** A server member, bound to Bun's server; a call that takes a request gets Bun's own. */
   get(bun: Server<never>, key: string | symbol): unknown {
     const value: unknown = Object(bun)[key];
@@ -92,6 +111,11 @@ class CappedBody {
     if (this.seen <= this.cap && !(this.length > this.cap)) return out.enqueue(chunk);
     this.over = true;
     out.error(new RangeError("The body is over its handler's maxBody."));
+  }
+
+  /** The stream calls it once the handler has read the body to its end. */
+  flush() {
+    this.ended = true;
   }
 }
 
@@ -160,8 +184,7 @@ export const serve = capsule({
       }
       const found = socket ? [socket, ...rest] : rest;
       /** A body over the cap of the handler that read it is a 413, whatever that handler did. */
-      const answer = async (request: Request, bun: Server<never>) => {
-        const body = request.body && new CappedBody(request, request.body, bun);
+      const replyTo = async (request: Request, body: CappedBody | null, bun: Server<never>) => {
         for (const handler of found) {
           const reply = await (body
             ? body.ask(handler, scope)
@@ -170,6 +193,12 @@ export const serve = capsule({
           if (reply !== undefined) return reply ?? undefined;
         }
         return new Response(null, { status: 404 });
+      };
+      /** A request with no body takes no extra step; a reply that leaves a body unread closes. */
+      const answer = (request: Request, bun: Server<never>) => {
+        if (!request.body) return replyTo(request, null, bun);
+        const body = new CappedBody(request, request.body, bun);
+        return replyTo(request, body, bun).then((reply) => body.closeIfUnread(reply));
       };
 
       const server = Bun.serve({
