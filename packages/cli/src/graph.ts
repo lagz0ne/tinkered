@@ -605,7 +605,7 @@ function hookFact(checker: ts.TypeChecker, { made, kind }: Hook, call: ts.CallEx
   return fact ?? unseen;
 }
 
-/** The React hook a call names, by its symbol: `read(…)` is `useData` when `read` is its alias. */
+/** The React hook a call names, by its symbol: `read(…)` is `useData` when it is an alias. */
 function hookAt(checker: ts.TypeChecker, hooks: Map<ts.Symbol, Hook>, call: ts.CallExpression) {
   if (!ts.isIdentifier(call.expression)) return undefined;
   const symbol = checker.getSymbolAtLocation(call.expression);
@@ -677,7 +677,7 @@ export function graphOf(root: string): Graph.Of {
 }
 
 /** The graph as `tinker.graph` holds it: one line per row, and an end of line after each. */
-export function graphText(rows: readonly Graph.Row[]) {
+export function graphText(rows: Graph.Row[]) {
   return rows.map(({ label, parts }) => `${[label, ...parts].join(" ")}\n`).join("");
 }
 
@@ -688,8 +688,9 @@ export function graphText(rows: readonly Graph.Row[]) {
 function linesIn(text: string) {
   const lines = new Map<string, { line: number; parts: string[] }>();
   text.split("\n").forEach((row, index) => {
-    const words = row.trim().split(" ");
-    const label = words.splice(0, words[0] === "view" ? 2 : 1).join(" ");
+    const clean = row.trim();
+    const words = clean.split(" ");
+    const label = words.splice(0, clean.startsWith("view ") ? 2 : 1).join(" ");
     if (label) lines.set(label, { line: index + 1, parts: words });
   });
   return lines;
@@ -708,7 +709,7 @@ function changed(code: string[], file: string[]) {
  * `tinker.graph` differ (ADR 0161). A code line points at its operation or its view; a line
  * only the file has points at the file. An app with no line needs no file.
  */
-export function graphFindings(root: string, code: readonly Graph.Row[]): Tools.Found[] {
+export function graphFindings(root: string, code: Graph.Row[]): Tools.Found[] {
   const path = join(root, graphFile);
   const rule = "tinker/graph";
   if (!existsSync(path)) {
