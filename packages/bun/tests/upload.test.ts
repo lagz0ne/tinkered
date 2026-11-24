@@ -247,6 +247,12 @@ test("the guards answer before the body is read", async () => {
   expect(ran).toEqual([]); // no guard let the implementation run
 });
 
+test("a 413 by Content-Length closes the connection: the client is still sending", async () => {
+  const answer = await post("file.put", {}, new Uint8Array(1 << 20));
+
+  expect([answer.status, answer.headers.get("connection")]).toEqual([413, "close"]);
+});
+
 test("a body with no Content-Length is counted: past the max it is 413", async () => {
   const chunks = [new Uint8Array(600), new Uint8Array(600)];
   const stream = new ReadableStream<Uint8Array>({
@@ -257,7 +263,7 @@ test("a body with no Content-Length is counted: past the max it is 413", async (
     },
   });
   const answer = await post("file.put", { "content-type": "application/octet-stream" }, stream);
-  expect(answer.status).toBe(413);
+  expect([answer.status, answer.headers.get("connection")]).toEqual([413, "close"]);
 });
 
 test("an onStart refusal answers refused, and the implementation never runs", async () => {
@@ -273,11 +279,13 @@ test("past maxUploads at once, the next POST is 503 with Retry-After", async () 
   const first = [post("file.put", hold), post("file.put", hold)];
   await new Promise((r) => setTimeout(r, 50));
   const third = await post("file.put", {});
-
-  expect([third.status, third.headers.get("retry-after")]).toEqual([503, "1"]);
   held.resolve();
+  const firsts = await Promise.all(first);
 
-  expect((await Promise.all(first)).map((each) => each.status)).toEqual([200, 200]);
+  expect([third.status, third.headers.get("retry-after"), third.headers.get("connection")]).toEqual(
+    [503, "1", "close"],
+  );
+  expect(firsts.map((each) => each.status)).toEqual([200, 200]);
 });
 
 test("a body that stalls is cut at the deadline: the call fails, the POST ends", async () => {

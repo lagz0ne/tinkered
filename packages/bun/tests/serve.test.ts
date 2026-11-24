@@ -62,6 +62,36 @@ const fileSize = operation({
   run: async (_, { input }) => (await input.file.bytes()).length,
 });
 
+/** A 1 KiB bytes key beside the 16 MiB one: `ws.server`'s own 413 answers before serve's cap. */
+const notes = rpc({
+  "note.size": {
+    input: z.object({
+      file: bytes(z.custom<RpcBody>(), { max: 1024, types: ["application/octet-stream"] }),
+    }),
+    output: z.number(),
+  },
+});
+
+const noteSize = operation({
+  label: "note.size.here",
+  input: notes["note.size"].input,
+  run: async (_, { input }) => (await input.file.bytes()).length,
+});
+
+/** Answers at once and never reads the body; its 16 MiB cap keeps serve's own 413 out. */
+const early = capsule({
+  label: "early",
+  hooks: {
+    async start({ next }) {
+      await next();
+      return { fetch: () => new Response("early"), maxBody: 16 << 20 };
+    },
+  },
+});
+
+/** An 8 MiB body: the client is still sending it when the server answers. */
+const big = () => new Uint8Array(8 << 20);
+
 /** A server whose socket handler has a 16 MiB bytes key, beside a handler with no maxBody. */
 const besideBigKey = async () => {
   const socket = ws.server({ path: "/rpc", services: [files] });
@@ -362,4 +392,51 @@ test("`development` turns on Bun's development mode", async () => {
     await text(dev.resolve(serve.url).get()!, "/api/x"),
     await text(prod.resolve(serve.url).get()!, "/api/x"),
   ]).toEqual(["true", "false"]);
+});
+
+test("a bytes key's 413 before the body is read closes the connection", async () => {
+  const socket = ws.server({ path: "/rpc", services: [files, notes] });
+  const app = await createScope({
+    capsules: [
+      serve({ port: 0, websocket: socket }),
+      files({ implement: { "file.size": fileSize } }),
+      notes({ implement: { "note.size": noteSize } }),
+      socket,
+    ],
+  }).ready;
+  const at = app.resolve(serve.url).get()!;
+  const headers = { "x-input": "{}", "content-type": "application/octet-stream" };
+
+  const reply = await fetch(new URL("/rpc/note.size", at), {
+    method: "POST",
+    body: big(),
+    headers,
+  });
+  await app.close();
+
+  expect([reply.status, reply.headers.get("connection")]).toEqual([413, "close"]);
+});
+
+test("a handler that answers without reading its body closes the connection", async () => {
+  const app = await createScope({ capsules: [serve({ port: 0, handlers: [early] }), early] }).ready;
+  const at = app.resolve(serve.url).get()!;
+
+  const reply = await fetch(new URL("/api/early", at), { method: "POST", body: big() });
+  await app.close();
+
+  expect([reply.status, reply.headers.get("connection")]).toEqual([200, "close"]);
+});
+
+test("a handler that reads its body to the end keeps the connection open", async () => {
+  const whole = handler({ answer: size });
+  const app = await createScope({ capsules: [serve({ port: 0, handlers: [whole] }), whole] }).ready;
+  closers.push(() => app.close());
+  const at = app.resolve(serve.url).get()!;
+
+  const reply = await fetch(new URL("/api/whole", at), {
+    method: "POST",
+    body: new Uint8Array(64 << 10),
+  });
+
+  expect([await reply.text(), reply.headers.get("connection")]).toEqual([String(64 << 10), null]);
 });
