@@ -101,6 +101,13 @@ test("the definition's ops carry its label; keys keep their own", () => {
   expect(api.uploads).toEqual({});
 });
 
+test("api.contracts is the object given to rpc(), not undefined (#54)", () => {
+  const api = rpc(contracts);
+
+  expect(api.contracts).toBe(contracts);
+  expect(api.contracts.echo.output.parse({ n: 2 })).toEqual({ n: 2 });
+});
+
 test("a fault names its address and kind, and the trace when there is one", () => {
   const api = rpc(contracts);
   const other = rpc(contracts);
