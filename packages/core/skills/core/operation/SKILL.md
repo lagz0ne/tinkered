@@ -228,12 +228,22 @@ An empty set means "none". A `?` means the graph
 could not see: a dep handed on (passed to a
 function, put in an array, given another name),
 the deps handed on whole, a call it does not
-know, a dep it cannot name (a capsule or contract
-member, a label not written as a string, an
-`atScope` controller), a tag that holds a unit,
+know, a dep it cannot name (a member of a bare
+`rpc` with no label, a key not written in the
+code, any other capsule export, a label not
+written as a string), a tag that holds a unit,
 or a `run` passed by name. A tag that holds a
 union of unit kinds, or a held cell that `run`
 never uses, may show no `?`.
+
+A member of an rpc contract that a capsule
+exports is named `capsule.export/key`:
+`access.user["users.me"]` gives
+`calls{access.user/users.me}`. A bare `rpc` with
+a `label` written as a string gives
+`label/key`. An `atScope` or `atNamespace`
+controller reads and writes as the cell's
+`controller` does.
 
 The graph reads each op's own body. A resource's
 own code is not read: a write inside a

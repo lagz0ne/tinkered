@@ -117,6 +117,17 @@ issue.move.do exits{gone,moved,stale}
   taken apart in the parameters.
 - A bare cell dep, `all: issues`, gives `run` its
   value: that reads `issues.list.get` each run.
+- A member of an rpc contract that a capsule
+  exports is named: the capsule's label, `.`,
+  the export's key, `/`, the contract's key.
+  `access.user["users.me"]` gives
+  `calls{access.user/users.me}`. The key may be
+  a name too: `access.user.list`.
+- A member of a bare `rpc` whose `label` is
+  written as a string is `<label>/<key>`. The
+  `/` keeps it apart from an op's label.
+- An `atScope` or `atNamespace` controller reads
+  and writes as the cell's `controller` does.
 - The graph reads `src` and `cmds` only.
 
 The graph is facts only. It never judges them.
@@ -137,9 +148,11 @@ way the graph cannot follow:
 - a call on a dep the graph does not know, such
   as `list.watch(…)`;
 - a dep the graph cannot name: a member of a
-  capsule or a contract (`seaApi["clock.now"]`),
-  a cell whose label is not written as a string,
-  an `atScope` or `atNamespace` controller;
+  bare `rpc` with no label
+  (`seaApi["clock.now"]`), a member under a key
+  not written in the code, any other capsule
+  export, or a cell whose label is not written
+  as a string;
 - a tag dep that holds a unit (ADR 0151), through
   any edge: an operation gives `calls{?}`; a
   cell, a view or a read gives `reads{?}`, and a
