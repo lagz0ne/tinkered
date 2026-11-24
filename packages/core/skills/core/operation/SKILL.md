@@ -250,11 +250,14 @@ object is written in the `capsule` call. An
 `atScope` or `atNamespace` controller reads and
 writes as the cell's `controller` does.
 
-`uses{}` names each resource by its label: a
-`const`, a keyed read, or a capsule's export. A
-resource it cannot name (a label not written as
-a string, a key not written in the code, a tag
-that holds it) gives `uses{?}`.
+`uses{}` names a resource by its own label when
+the dep is the `const` that holds the
+`resource(…)` call, a keyed read of it, or a
+capsule's export of it. Any other resource dep
+gives `uses{?}`: a `const` that holds another
+`const`, a member of a namespace import, a label
+not written as a string, a key not written in
+the code, or a tag that holds it.
 
 The graph reads each op's own body. A resource's
 own code is not read: a write inside a

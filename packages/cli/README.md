@@ -134,9 +134,11 @@ members.invite exits{already,invited}
 - An `atScope` or `atNamespace` controller reads
   and writes as the cell's `controller` does.
 - `uses` comes from `depends` alone, never from
-  `run`. It names each resource by its label: a
-  `const` (`tx`), a keyed read (`row({ id })`),
-  or a capsule's export (`db.pool`).
+  `run`. It names a resource by its own label
+  when the dep is the `const` that holds the
+  `resource(…)` call (`tx`), a keyed read of it
+  (`row({ id })`), or a capsule's export of it
+  (`db.pool`).
 - The graph reads `src` and `cmds` only.
 
 The graph is facts only. It never judges them.
@@ -181,10 +183,17 @@ cannot name, its type in `run` says which.
 A tag that holds a union of unit kinds, or a held
 cell that `run` never uses, may show no `?`.
 
-A resource dep the graph cannot name gives
-`uses{?}`: its label is not written as a string,
-it is under a key not written in the code, or a
-tag holds it.
+Any other resource dep gives `uses{?}`. Some
+examples:
+
+- a `const` that holds another `const`;
+- a member of a namespace import;
+- a label not written as a string;
+- a key not written in the code;
+- a tag that holds the resource.
+
+A cell, an operation, or a capsule dep is no
+resource. It adds nothing to `uses{}`.
 
 The graph reads each op's own body. A resource's
 own code is not read: a write inside a
