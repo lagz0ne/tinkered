@@ -1,6 +1,6 @@
 /** Replays of the keyed-resource model (docs/states/keyed-resource/KeyedResource.tla, watch.cfg):
  * each test runs one model path, one step per action, on the real code. */
-import { expect, test } from "vite-plus/test";
+import { test } from "vite-plus/test";
 
 import { createScope, data, isError, resource } from "@/main";
 
@@ -30,7 +30,7 @@ test("WatchAfterCloseRefused: a watch after the close raises Disposed while anot
     thrown = error;
   }
 
-  expect(isError(thrown, "Disposed")).toBe(true);
+  if (!isError(thrown, "Disposed")) throw thrown;
 });
 
 test("control: a watch after the close raises Disposed when no reader watches the entry", async () => {
@@ -46,5 +46,5 @@ test("control: a watch after the close raises Disposed when no reader watches th
     thrown = error;
   }
 
-  expect(isError(thrown, "Disposed")).toBe(true);
+  if (!isError(thrown, "Disposed")) throw thrown;
 });
