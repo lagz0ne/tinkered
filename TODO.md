@@ -73,6 +73,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **cli/graph-names** — GitHub #59. The graph names a capsule's contract member (`calls{access.user/users.me}`) and an `atScope`/`atNamespace` controller (`reads{access.logins.get}`) in place of `?`. Facts only, no API change.
+  Owner: graph lead (Opus 5.5); writer Opus 5.5 agent 27f111eb in `../tinkered-graph-names`.
+  Next: the writer's red test, then the fix. Then #56, #58, #60 in that order.
+  Verify: red tests for both causes go green; a computed key keeps `?`; cli tests, `vp check`, prose, skills exit 0; cli mutation floor 85.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
