@@ -73,11 +73,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/keyed-resource-watch-closed** — found on `react/use-data-keyed-disposed`. A keyed resource read (`Data.Built`) whose entry another reader still holds takes a `watch` after the scope closed and raises nothing (its `get` raises `Disposed`). A watch on a closed scope must raise `Disposed`, as a plain cell's and, since `34c79014`, a keyed part's do. React works around it (it calls `readableOf` after `watch`); once Core raises, that call can go.
-  Owner: Opus lead; Opus writer in `../tinkered-kr-watch`.
-  Next: the writer adds the test red, then the fix.
-  Verify: a Core test at the public seam red on main (two readers of one keyed resource entry, close, a new `watch` raises `Disposed`); size within the cap or Blocked with the exact size.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -116,6 +111,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **core/keyed-resource-watch-closed** — done 2026-11-24 (bug 18). A keyed resource watch on a closed scope raises `Disposed` also when another reader still watches the entry: `ensureOpen` moved from `join()`'s first-watcher branch to the top of `BuiltEntry.watch()` (`861de530`). Before, that watch raised nothing and joined the entry. ADR 0157 gets an As built note for the promise `ff565316` shipped; the keyed-resource spec gets rule WatchAfterCloseRefused. Size stays 23,457 B (the cap): the check at the top of `join()` was 3 B over, the one in `watch()` fits.
+  Proof: keyed-resource `watch.cfg` 24,044 states, 0 breaks (`watch-before.cfg` 24,044 states, WatchAfterCloseRefused breaks); path test red on main, green; Core 1,487 tests, dist 1,731; `vp check` 0 errors, 80 warnings; `scripts/ticket.sh` exit 0; `pnpm validate` 22 of 22 PASS; Opus convention-review READY (one nit, fixed in `2255199d`); Core mutation on `2255199d` 88.34 (kills alone 85.38, 203 timeouts on a busy box), floor 85, exit 0.
 
 - **core/keyed-watch-closed-scope** — done 2026-11-24. A keyed watch on a closed scope raises `Disposed` and leaves no part: one open check at the top of `KeyedControl#join`. Before, a refused watch left its part (the next `where` gave back the same reader), and with another part watched a new part's watch raised nothing and called the root's listener (on a `remoteData` board, an ask to the server). Duke 2026-11-24 07:45 UTC (card): the no-rpc cap is 23,457 B, up 10 B. Fix `34c79014`, cap `18bfc92c`. Released as 0.34.8.
   Proof: 2 tests red on main, green (`keyed-data.test.ts`); Core 1,485 tests, dist 1,729; `vp check` 0 errors, 80 warnings; `scripts/ticket.sh` exit 0; `pnpm validate` 22 of 22 PASS; size 23,457 B no-rpc (cap 23,457 B), 34,094 B with rpc; Opus convention-review READY, no findings; Core mutation on `2258cbaf` 86.79 (kills alone 85.80), floor 85, exit 0.
