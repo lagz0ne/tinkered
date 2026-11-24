@@ -20,8 +20,13 @@ export declare namespace Exits {
     run: ts.ObjectLiteralElementLike;
     exits: string[];
   };
-  /** The app's operations, and the checker that read them: it resolves the names they use. */
-  type App = { checker: ts.TypeChecker; operations: Operation[] };
+  /** A file of the app's own code, and its path from the app's root. */
+  type File = { path: string; source: ts.SourceFile };
+  /**
+   * The app's own files, its operations, and the checker that read them: it resolves the names
+   * they use.
+   */
+  type App = { checker: ts.TypeChecker; files: File[]; operations: Operation[] };
 }
 
 /** The exit of a return with no `kind` of its own. */
@@ -65,17 +70,20 @@ function exitsOf(checker: ts.TypeChecker, returned: ts.Type) {
   return [...exits].sort();
 }
 
-/** The names a file imports from Core. */
-export function coreImports(source: ts.SourceFile) {
+/** The names a file imports from a package, by name: `import { a, b as c } from "…"`. */
+export function importsOf(source: ts.SourceFile, from: string) {
   return source.statements.flatMap((statement) => {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
       return [];
     }
     const names = statement.importClause?.namedBindings;
-    const core = statement.moduleSpecifier.text === "@tinkered/core";
-    return core && names && ts.isNamedImports(names) ? [...names.elements] : [];
+    const named = statement.moduleSpecifier.text === from;
+    return named && names && ts.isNamedImports(names) ? [...names.elements] : [];
   });
 }
+
+/** The names a file imports from Core. */
+export const coreImports = (source: ts.SourceFile) => importsOf(source, "@tinkered/core");
 
 /** The name `operation` has in this file, when it comes from Core. */
 function coreOperation(source: ts.SourceFile) {
@@ -136,8 +144,8 @@ function operationsIn(checker: ts.TypeChecker, source: ts.SourceFile, path: stri
 }
 
 /**
- * The app's operations, read with the types of the app's own `tsconfig.json`. An app with no
- * `tsconfig.json` has none.
+ * The app's own files and its operations, read with the types of the app's own `tsconfig.json`.
+ * An app with no `tsconfig.json` has none.
  */
 export function readOperations(root: string): Exits.App | undefined {
   const config = join(root, "tsconfig.json");
@@ -152,12 +160,13 @@ export function readOperations(root: string): Exits.App | undefined {
   const program = ts.createProgram(parsed.fileNames, parsed.options);
   const checker = program.getTypeChecker();
 
-  const operations = program.getSourceFiles().flatMap((source) => {
+  const files = program.getSourceFiles().flatMap((source): Exits.File[] => {
     const path = relative(root, source.fileName).replaceAll("\\", "/");
     if (source.isDeclarationFile || !appCode.test(path) || testFile.test(path)) return [];
-    return operationsIn(checker, source, path);
+    return [{ path, source }];
   });
-  return { checker, operations };
+  const operations = files.flatMap(({ path, source }) => operationsIn(checker, source, path));
+  return { checker, files, operations };
 }
 
 /** Where a page test leaves its store's text: one `.json` file a test file, under the app. */

@@ -3,27 +3,33 @@ import { join } from "node:path";
 
 import ts from "typescript-api";
 
-import { coreImports, labelOf, readOperations } from "./exits";
+import { coreImports, importsOf, labelOf, readOperations } from "./exits";
 import type { Exits } from "./exits";
 import type { Tools } from "./tools";
 
 export declare namespace Graph {
+  /**
+   * One line of the graph file, where it is in the code: its name, then its parts. A view's
+   * name is two words: `view src/home.tsx#SignIn`.
+   */
+  type Row = { path: string; line: number; label: string; parts: string[] };
   /**
    * One line of the graph: an operation, where it is, and its facts. `parts` are `exits{…}`,
    * `reads{…}`, `writes{…}`, `calls{…}` and `uses{…}`, in that order. A fact is never a
    * judgement: the reader of the line judges it (ADR 0161, amended). `writes`, `calls` and
    * `uses` are those facts, sorted, for the graph rules (ADR 0167, amended).
    */
-  type Line = {
-    path: string;
-    line: number;
-    label: string;
+  type Line = Row & {
     exits: string[];
-    parts: string[];
     writes: string[];
     calls: string[];
     uses: string[];
   };
+  /**
+   * The app's graph: a line per operation, then a line per view. A view line's `parts` are
+   * `reads{…}` and `runs{…}`. No graph rule reads a view line.
+   */
+  type Of = { ops: Line[]; views: Row[] };
 }
 
 /** The app's committed graph, at its root (ADR 0161). */
@@ -549,14 +555,108 @@ const sorted = (items: Iterable<string>) => [...items].sort();
 const listed = (name: string, items: readonly string[]) => `${name}{${items.join(",")}}`;
 
 /**
- * The app's graph, from its code: one line per operation, sorted by label in code-unit order,
- * the same on every machine. `exits` are the words of ADR 0159.
+ * A React hook a view line reads: the part it adds to, the Core function that makes the unit its
+ * first argument names, and the call on that unit whose fact it gives.
  */
-export function graphOf(root: string): Graph.Line[] {
-  const app = readOperations(root);
-  if (!app) return [];
+type Hook = { part: "reads" | "runs"; made: string; kind: string };
 
-  const lines = app.operations.map((operation): Graph.Line => {
+/** The hooks of `@tinkered/react` a view line reads, by their own names. */
+const viewHooks = new Map<string, Hook>([
+  ["useData", { part: "reads", made: "data", kind: "get" }],
+  ["useRun", { part: "runs", made: "operation", kind: "run" }],
+]);
+
+/** Each hook a file imports from `@tinkered/react`, by the symbol of its name in the file. */
+function hooksIn(checker: ts.TypeChecker, source: ts.SourceFile) {
+  const hooks = new Map<ts.Symbol, Hook>();
+  for (const { propertyName, name } of importsOf(source, "@tinkered/react")) {
+    const hook = viewHooks.get((propertyName ?? name).text);
+    const symbol = checker.getSymbolAtLocation(name);
+    if (hook && symbol) hooks.set(symbol, hook);
+  }
+  return hooks;
+}
+
+/**
+ * Each top-level declaration of a file, by its name: a function, a class, each `const`, or a
+ * default export. A default export with no name is `default`.
+ */
+function declarationsIn(source: ts.SourceFile) {
+  return source.statements.flatMap((statement): { name: string; node: ts.Node }[] => {
+    if (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) {
+      return [{ name: statement.name?.text ?? "default", node: statement }];
+    }
+    if (ts.isExportAssignment(statement)) return [{ name: "default", node: statement }];
+    if (!ts.isVariableStatement(statement)) return [];
+    return statement.declarationList.declarations.flatMap((node) =>
+      ts.isIdentifier(node.name) ? [{ name: node.name.text, node }] : [],
+    );
+  });
+}
+
+/**
+ * The fact one hook call gives: the read a `get` makes on the cell or part its first argument
+ * names, or the op it runs. An argument the graph cannot name gives `?`.
+ */
+function hookFact(checker: ts.TypeChecker, { made, kind }: Hook, call: ts.CallExpression) {
+  const [first] = call.arguments;
+  const unit = first && unitOf(checker, first);
+  const fact = unit?.made === made ? touchesOf(unit).get(kind)?.fact : undefined;
+  return fact ?? unseen;
+}
+
+/** The React hook a call names, by its symbol: `read(…)` is `useData` when `read` is its alias. */
+function hookAt(checker: ts.TypeChecker, hooks: Map<ts.Symbol, Hook>, call: ts.CallExpression) {
+  if (!ts.isIdentifier(call.expression)) return undefined;
+  const symbol = checker.getSymbolAtLocation(call.expression);
+  return symbol && hooks.get(symbol);
+}
+
+/** The facts of one view: what each call of a React hook in its code adds, a callback's too. */
+function viewFacts(checker: ts.TypeChecker, hooks: Map<ts.Symbol, Hook>, node: ts.Node) {
+  const facts = { reads: new Set<string>(), runs: new Set<string>() };
+  const see = (call: ts.CallExpression) => {
+    const hook = hookAt(checker, hooks, call);
+    if (hook) facts[hook.part].add(hookFact(checker, hook, call));
+  };
+  const visit = (child: ts.Node) => {
+    if (ts.isCallExpression(child)) see(child);
+    ts.forEachChild(child, visit);
+  };
+  visit(node);
+  return facts;
+}
+
+/**
+ * The view lines of one file: a line for each top-level declaration whose code calls `useData`
+ * or `useRun` from `@tinkered/react`. The hooks are found by their import, so an alias counts
+ * and a local function of the same name does not.
+ */
+function viewsIn(checker: ts.TypeChecker, { path, source }: Exits.File): Graph.Row[] {
+  const hooks = hooksIn(checker, source);
+  if (!hooks.size) return [];
+
+  return declarationsIn(source).flatMap(({ name, node }) => {
+    const { reads, runs } = viewFacts(checker, hooks, node);
+    if (!reads.size && !runs.size) return [];
+    const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+    const parts = [listed("reads", sorted(reads)), listed("runs", sorted(runs))];
+    return [{ path, line, label: `view ${path}#${name}`, parts }];
+  });
+}
+
+const byLabel = (a: Graph.Row, b: Graph.Row) => (a.label < b.label ? -1 : 1);
+
+/**
+ * The app's graph, from its code: one line per operation, sorted by label in code-unit order,
+ * the same on every machine, then one line per view, sorted by name. `exits` are the words of
+ * ADR 0159.
+ */
+export function graphOf(root: string): Graph.Of {
+  const app = readOperations(root);
+  if (!app) return { ops: [], views: [] };
+
+  const ops = app.operations.map((operation): Graph.Line => {
     const facts = factsOf(app.checker, operation);
     const { path, line, label, exits } = operation;
     const writes = sorted(facts.writes);
@@ -572,23 +672,25 @@ export function graphOf(root: string): Graph.Line[] {
     ];
     return { path, line, label, exits, parts, writes, calls, uses };
   });
-  return lines.sort((a, b) => (a.label < b.label ? -1 : 1));
+  const views = app.files.flatMap((file) => viewsIn(app.checker, file));
+  return { ops: ops.sort(byLabel), views: views.sort(byLabel) };
 }
 
-/** The graph as `tinker.graph` holds it: one line per operation, and an end of line after each. */
-export function graphText(lines: Graph.Line[]) {
-  return lines.map(({ label, parts }) => `${[label, ...parts].join(" ")}\n`).join("");
+/** The graph as `tinker.graph` holds it: one line per row, and an end of line after each. */
+export function graphText(rows: readonly Graph.Row[]) {
+  return rows.map(({ label, parts }) => `${[label, ...parts].join(" ")}\n`).join("");
 }
 
 /**
- * Each line of the committed file by its label, and its line number. A line may end in `\r`: a
- * checkout on Windows can give the file those ends.
+ * Each line of the committed file by its label, and its line number: a view's label is its
+ * first two words. A line may end in `\r`: a checkout on Windows can give the file those ends.
  */
 function linesIn(text: string) {
   const lines = new Map<string, { line: number; parts: string[] }>();
   text.split("\n").forEach((row, index) => {
-    const [label, ...parts] = row.trim().split(" ");
-    if (label) lines.set(label, { line: index + 1, parts });
+    const words = row.trim().split(" ");
+    const label = words.splice(0, words[0] === "view" ? 2 : 1).join(" ");
+    if (label) lines.set(label, { line: index + 1, parts: words });
   });
   return lines;
 }
@@ -603,10 +705,10 @@ function changed(code: string[], file: string[]) {
 
 /**
  * A `tinker/graph` finding for each line where `code`, the graph `graphOf` read, and
- * `tinker.graph` differ (ADR 0161). A code line points at its operation; a line only the file
- * has points at the file. An app with no operation needs no file.
+ * `tinker.graph` differ (ADR 0161). A code line points at its operation or its view; a line
+ * only the file has points at the file. An app with no line needs no file.
  */
-export function graphFindings(root: string, code: Graph.Line[]): Tools.Found[] {
+export function graphFindings(root: string, code: readonly Graph.Row[]): Tools.Found[] {
   const path = join(root, graphFile);
   const rule = "tinker/graph";
   if (!existsSync(path)) {

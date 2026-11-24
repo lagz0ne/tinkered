@@ -162,15 +162,15 @@ function afterRules(
     tests?: string;
   },
 ): Main.Report {
-  const graph = graphOf(root);
-  const changed = [...graphFindings(root, graph), ...ruleFindings(graph, graphRules)];
+  const { ops, views } = graphOf(root);
+  const changed = [...graphFindings(root, [...ops, ...views]), ...ruleFindings(ops, graphRules)];
   if (changed.length) return failed(root, "graph", changed, gaps);
 
-  if (graph.length) ran.push(graphRan(graph.length, graphRules.length));
+  if (ops.length) ran.push(graphRan(ops.length, graphRules.length));
   if (skipped.length) return { kind: "incomplete", ran, skipped, gaps };
   if (!tests) return { kind: "ok", ran, gaps };
 
-  const declared = graph.flatMap(({ path, line, label, exits }) =>
+  const declared = ops.flatMap(({ path, line, label, exits }) =>
     exits.map((exit) => ({ path, line, label, exit })),
   );
   const tested = runTests(root, tests, declared);
@@ -266,12 +266,12 @@ function checkCommand(root: string, json: boolean): Main.Result {
 /** Print the app's graph, or write it to `tinker.graph` with `--write`. */
 function graphCommand(root: string, write: boolean): Main.Result {
   if (!existsSync(root)) return { code: 2, out: "", err: `tinker graph: no folder at ${root}\n` };
-  const lines = graphOf(root);
-  const text = graphText(lines);
+  const { ops, views } = graphOf(root);
+  const text = graphText([...ops, ...views]);
   if (!write) return { code: 0, out: text, err: "" };
 
   writeFileSync(join(root, graphFile), text);
-  return { code: 0, out: `wrote ${graphFile}: ${lines.length} operations\n`, err: "" };
+  return { code: 0, out: `wrote ${graphFile}: ${ops.length} operations\n`, err: "" };
 }
 
 function skillCommand(root: string, args: readonly string[]): Main.Result {
