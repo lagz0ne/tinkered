@@ -13,7 +13,8 @@ const shown = resource({
   factory: ({ level }) => level,
 });
 
-/** WatchAfterCloseRefused (ADR 0157 As built): steps 1-6 of the path in watch-before.cfg. */
+/** WatchAfterCloseRefused (ADR 0157 As built): Path 5 of docs/states/keyed-resource/README.md
+ * (bug 18), a sibling of TLC's path in watch-before.cfg where the build works. */
 test("WatchAfterCloseRefused: a watch after the close raises Disposed while another reader watches the entry", async () => {
   const scope = createScope();
   const first = scope.resolve(shown);
