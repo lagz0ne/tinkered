@@ -761,10 +761,13 @@ export function rpc<const C extends Contracts>(
   });
 
   /** One capsule; its call takes a union (Core config is flat: this cast is the gap, F28). */
-  return Object.assign(base, { fault, receive, addresses: keys, uploads }) as unknown as Omit<
-    typeof base,
-    never
-  > &
+  return Object.assign(base, {
+    fault,
+    receive,
+    addresses: keys,
+    uploads,
+    contracts,
+  }) as unknown as Omit<typeof base, never> &
     Ops<C> & {
       readonly answer: Answer;
       readonly stream: Stream;
@@ -774,6 +777,7 @@ export function rpc<const C extends Contracts>(
       readonly addresses: readonly string[];
       /** The keys that take bytes, with their limits: the server's POST route reads them. */
       readonly uploads: Readonly<Record<string, BytesLimit>>;
+      /** The very object given to `rpc()`: each address's `input` and `output` schemas. */
       readonly contracts: C;
       (values: Config<C>): ReturnType<typeof base>;
     };
