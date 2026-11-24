@@ -81,7 +81,9 @@ const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // new consts moved below the hot helpers for their one-byte V8 slots (Duke 2026-11-21 23:19 UTC: A).
 // ADR 0169 (a stream call keeps its signal and tags for its stream) raised it by 6 B for the
 // stream-key marker (Duke 2026-11-22 22:57 UTC: option A).
-const coreCap = 23447;
+// The keyed watch's open check on a closed scope (core/keyed-watch-closed-scope) raised it by
+// 10 B (Duke 2026-11-24 card).
+const coreCap = 23457;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
 // derived (ADR 0150) raised this cap by 1 KiB too.
