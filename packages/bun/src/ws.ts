@@ -36,15 +36,15 @@ const answered = { "content-type": "application/json", "cache-control": "no-stor
 const answeredUnread = { ...answered, connection: "close" };
 
 /**
- * A bytes POST's answer once its implementation ran. A body not read to its end (`ended` unset)
+ * A bytes POST's answer once its implementation ran. A body not read to its end (`drained` unset)
  * closes the connection: the client may still be sending it.
  */
-function answerOf(reply: string | null, body: { over: boolean; ended: boolean }) {
+function answerOf(reply: string | null, body: { over: boolean; drained: boolean }) {
   if (body.over) return new Response(null, { status: 413, headers: refused });
   if (reply === null) {
-    return new Response(null, { status: 404, headers: body.ended ? undefined : refused });
+    return new Response(null, { status: 404, headers: body.drained ? undefined : refused });
   }
-  return new Response(reply, { headers: body.ended ? answered : answeredUnread });
+  return new Response(reply, { headers: body.drained ? answered : answeredUnread });
 }
 
 // The WebSocket transport, server side: one socket per client, on Bun's own WebSocket.
@@ -149,7 +149,7 @@ export function createWs() {
   /**
    * A bytes POST's body: the request's stream, read once and only when the implementation reads
    * it, counted (`over` once past `max`, whatever Content-Length said) and cut at `stop`.
-   * `ended` once it was read to its end.
+   * `drained` once it was read to its end.
    */
   const bodyOf = operation({
     label: "ws.body",
@@ -159,7 +159,7 @@ export function createWs() {
       read: false,
       seen: 0,
       over: false,
-      ended: false,
+      drained: false,
       stream(): ReadableStream<Uint8Array> {
         if (this.read) throw new TypeError("The body was read already.");
         this.read = true;
@@ -171,7 +171,7 @@ export function createWs() {
             out.error(new RangeError("The body is over its max."));
           },
           flush: () => {
-            this.ended = true;
+            this.drained = true;
           },
         });
         return (req.body ?? new Blob().stream()).pipeThrough(counted, { signal: stop });

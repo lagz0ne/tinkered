@@ -33,7 +33,7 @@ const byRequest = new Set<string | symbol>(["requestIP", "timeout", "upgrade"]);
 /**
  * A request's body, counted against the cap of the handler that reads it (Hono's `bodyLimit`).
  * `ask` sets `cap` before it asks each handler. A Content-Length or a count past the cap errors
- * the read, and `over` tells `serve` to answer 413. `ended` tells it the body was read to its
+ * the read, and `over` tells `serve` to answer 413. `drained` tells it the body was read to its
  * end; else the reply closes the connection (Go's net/http). It is its own stream's transformer,
  * and the proxy handler of the `server` the handlers get: that maps the copy back to Bun's own
  * request.
@@ -42,7 +42,7 @@ class CappedBody {
   cap = defaultMaxBody;
   seen = 0;
   over = false;
-  ended = false;
+  drained = false;
   /** The Content-Length; 0 when the body is chunked and has none. */
   length: number;
   /** Bun's own request, which Bun's `requestIP`, `timeout` and `upgrade` know. */
@@ -81,7 +81,7 @@ class CappedBody {
    * immutable, so it is a copy. Undefined (an upgrade, Bun's own now) has no reply to close.
    */
   closeIfUnread(reply: Response | undefined) {
-    if (!reply || this.ended) return reply;
+    if (!reply || this.drained) return reply;
     const headers = new Headers(reply.headers);
     headers.set("connection", "close");
     return new Response(reply.body, {
@@ -109,7 +109,7 @@ class CappedBody {
 
   /** The stream calls it once the handler has read the body to its end. */
   flush() {
-    this.ended = true;
+    this.drained = true;
   }
 }
 
