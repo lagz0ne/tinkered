@@ -49,7 +49,6 @@ const refusedBusy = { connection: "close", "retry-after": "1" };
 // - 431 for `x-input` or `x-meta` over 2 KiB; 415 for a type the key does not list;
 // - 413 when Content-Length says more than the key's max;
 // - 503 with Retry-After when `maxUploads` POSTs run already.
-// Each refusal closes the connection: the client may still be sending the body.
 // Then the implementation gets the body lazily: the stream is read only when it reads, counted
 // (413 once past the max, whatever Content-Length said), and cut at `uploadDeadline`. The onStart
 // hooks run first, so a refused call never reads the body; an unread body is cancelled.
