@@ -62,10 +62,16 @@ function coreName({ expression }: ts.CallExpression) {
   return item && (item.propertyName ?? item.name).text;
 }
 
+/** The call a name holds, when it is a `const` made by a call. */
+function callAt(checker: ts.TypeChecker, symbol: ts.Symbol | undefined) {
+  const call = declarationOf(checker, symbol)?.initializer;
+  return call && ts.isCallExpression(call) ? call : undefined;
+}
+
 /** The unit a name holds, when it is a `const` made by a Core call with a literal label. */
 function unitAt(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): Unit | undefined {
-  const call = declarationOf(checker, symbol)?.initializer;
-  if (!call || !ts.isCallExpression(call)) return undefined;
+  const call = callAt(checker, symbol);
+  if (!call) return undefined;
 
   const [options] = call.arguments;
   const label = options && ts.isObjectLiteralExpression(options) ? labelOf(options) : undefined;
@@ -89,15 +95,99 @@ function partOf(checker: ts.TypeChecker, value: ts.CallExpression) {
 
 const bareOf = (unit: Unit | undefined): Unit | undefined => unit && { ...unit, bare: true };
 
+/** A member read by a key written in the code: `user.list` or `user["users.me"]`. */
+function memberOf(value: ts.Expression) {
+  if (ts.isPropertyAccessExpression(value)) return { on: value.expression, key: value.name.text };
+  if (!ts.isElementAccessExpression(value)) return undefined;
+  const key = value.argumentExpression;
+  return ts.isStringLiteralLike(key) ? { on: value.expression, key: key.text } : undefined;
+}
+
+/** The property of an object literal under this key: a name or a string. */
+function propertyAt(object: ts.Expression | undefined, key: string) {
+  if (!object || !ts.isObjectLiteralExpression(object)) return undefined;
+  return object.properties.find(({ name }) => name && keyText(name) === key);
+}
+
+/** The call a capsule's export is: a `const` it names, or a call written in place. */
+function exportCall(checker: ts.TypeChecker, exported: ts.ObjectLiteralElementLike | undefined) {
+  if (exported && ts.isShorthandPropertyAssignment(exported)) {
+    return callAt(checker, checker.getShorthandAssignmentValueSymbol(exported));
+  }
+  if (!exported || !ts.isPropertyAssignment(exported)) return undefined;
+  const value = exported.initializer;
+  if (ts.isCallExpression(value)) return value;
+  return ts.isIdentifier(value) ? callAt(checker, checker.getSymbolAtLocation(value)) : undefined;
+}
+
+/** The label an options argument writes, when it is an object literal. */
+function labelIn(options: ts.Expression | undefined) {
+  return options && ts.isObjectLiteralExpression(options) ? labelOf(options) : undefined;
+}
+
+/** A bare `rpc` const: its members take its own label. With no label there is no name to read. */
+function bareContract(checker: ts.TypeChecker, name: ts.Identifier) {
+  const call = callAt(checker, checker.getSymbolAtLocation(name));
+  const label = labelIn(call?.arguments[1]);
+  return call && label ? { call, name: label } : undefined;
+}
+
+/** A capsule's export: its members take the capsule's label and the export's key. */
+function exportedContract(checker: ts.TypeChecker, on: ts.Identifier, key: string) {
+  const capsule = callAt(checker, checker.getSymbolAtLocation(on));
+  if (!capsule || coreName(capsule) !== "capsule") return undefined;
+
+  const [options] = capsule.arguments;
+  const label = labelIn(options);
+  const exports = propertyAt(options, "exports");
+  const value = exports && ts.isPropertyAssignment(exports) ? exports.initializer : undefined;
+  const call = exportCall(checker, propertyAt(value, key));
+  return label && call ? { call, name: `${label}.${key}` } : undefined;
+}
+
+/** An rpc contract and the name its members take: `access.user`, or a bare rpc's label. */
+function contractOf(checker: ts.TypeChecker, value: ts.Expression) {
+  if (ts.isIdentifier(value)) return bareContract(checker, value);
+  const member = memberOf(value);
+  return member && ts.isIdentifier(member.on)
+    ? exportedContract(checker, member.on, member.key)
+    : undefined;
+}
+
 /**
- * The unit a dep's value names: an operation, an edge of a unit (a cell's `controller`, a tag's
- * `required`), or a part of a cell. `record` keeps only the calls each kind of unit has.
+ * The operation an rpc contract's member is: `access.user["users.me"]` is `access.user/users.me`.
+ * The `/` keeps it apart from an operation's label. A key the contract does not write is not one.
+ */
+function contractMember(checker: ts.TypeChecker, value: ts.Expression): Unit | undefined {
+  const member = memberOf(value);
+  const contract = member && contractOf(checker, member.on);
+  if (!contract || coreName(contract.call) !== "rpc") return undefined;
+  if (!propertyAt(contract.call.arguments[0], member.key)) return undefined;
+  return { made: "operation", label: `${contract.name}/${member.key}`, call: contract.call };
+}
+
+/** Where an edge puts its reads and writes: `logins.atScope.controller` is the cell's own. */
+const placements = ["atScope", "atNamespace"];
+
+/** The unit an edge is on: a `const`, a cell through its placement, or an rpc contract's member. */
+function edgeOf(checker: ts.TypeChecker, on: ts.Expression) {
+  const placed = ts.isPropertyAccessExpression(on) && placements.includes(on.name.text);
+  const unit = placed ? on.expression : on;
+  if (ts.isIdentifier(unit)) return unitAt(checker, checker.getSymbolAtLocation(unit));
+  return contractMember(checker, on);
+}
+
+/**
+ * The unit a dep's value names: an operation, an rpc contract's member, an edge of a unit (a
+ * cell's `controller`, a tag's `required`), or a part of a cell. `record` keeps only the calls
+ * each kind of unit has.
  */
 function unitOf(checker: ts.TypeChecker, value: ts.Expression): Unit | undefined {
   if (ts.isIdentifier(value)) return bareOf(unitAt(checker, checker.getSymbolAtLocation(value)));
   if (ts.isCallExpression(value)) return partOf(checker, value);
-  if (!ts.isPropertyAccessExpression(value)) return undefined;
-  return unitAt(checker, checker.getSymbolAtLocation(value.expression));
+  const member = contractMember(checker, value);
+  if (member || !ts.isPropertyAccessExpression(value)) return member;
+  return edgeOf(checker, value.expression);
 }
 
 /** The unit a dep's declaration names: `list: issues.controller`, or `{ inTeam }`. */

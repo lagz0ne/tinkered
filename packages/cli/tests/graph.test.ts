@@ -392,7 +392,10 @@ const access = [
   `  list: { input: z.null(), output: z.array(z.string()) },`,
   `});`,
   ``,
-  `export const access = capsule({ label: "access", exports: { user } });`,
+  `export const access = capsule({`,
+  `  label: "access",`,
+  `  exports: { user, staff: rpc({ ban: { input: z.string(), output: z.null() } }) },`,
+  `});`,
   ``,
   `export const counted = rpc(`,
   `  { "users.count": { input: z.null(), output: z.number() } },`,
@@ -434,11 +437,18 @@ test(
       `  depends: { all: access.user.list.controller },`,
       `  run: ({ all }) => all.settle({ input: null }),`,
       `});`,
+      ``,
+      `export const ban = operation({`,
+      `  label: "home.ban",`,
+      `  depends: { ban: access.staff.ban },`,
+      `  run: ({ ban }) => ban.run({ input: "a" }),`,
+      `});`,
     ]);
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.names exits{error,panic,value} reads{} writes{} calls{access.user/list}\n" +
+      "home.ban exits{value} reads{} writes{} calls{access.staff/ban}\n" +
+        "home.names exits{error,panic,value} reads{} writes{} calls{access.user/list}\n" +
         "home.whoAmI exits{value} reads{} writes{} calls{access.user/users.me}\n",
     );
   },
@@ -470,20 +480,34 @@ test("a member of an rpc with no label keeps calls{?}", { timeout: 60_000 }, () 
   expect(out).toBe("home.all exits{value} reads{} writes{} calls{?}\n");
 });
 
-test("a member under a computed key keeps calls{?}", { timeout: 60_000 }, () => {
-  const { code, out } = graphWith([
-    `const key = "users.me" as const;`,
-    ``,
-    `export const whoAmI = operation({`,
-    `  label: "home.whoAmI",`,
-    `  depends: { me: access.user[key] },`,
-    `  run: ({ me }) => me.run({ input: null }),`,
-    `});`,
-  ]);
+test(
+  "a member under a computed key, or a contract's own operation, keeps calls{?}",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = graphWith([
+      `const key = "users.me" as const;`,
+      ``,
+      `export const whoAmI = operation({`,
+      `  label: "home.whoAmI",`,
+      `  depends: { me: access.user[key] },`,
+      `  run: ({ me }) => me.run({ input: null }),`,
+      `});`,
+      ``,
+      `export const answer = operation({`,
+      `  label: "home.answer",`,
+      `  depends: { answer: access.user.answer },`,
+      `  run: ({ answer }) =>`,
+      `    answer.settle({ input: { address: "list", value: null, meta: {} } }),`,
+      `});`,
+    ]);
 
-  expect(code).toBe(0);
-  expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?}\n");
-});
+    expect(code).toBe(0);
+    expect(out).toBe(
+      "home.answer exits{error,panic,value} reads{} writes{} calls{?}\n" +
+        "home.whoAmI exits{value} reads{} writes{} calls{?}\n",
+    );
+  },
+);
 
 test(
   "an atScope or atNamespace controller reads and writes as the cell's controller does",
