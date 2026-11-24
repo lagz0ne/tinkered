@@ -330,7 +330,9 @@ test(
     const { code, out } = main(["check", folder], "/");
 
     expect(code).toBe(0);
-    expect(out).toBe("ran: tsc, lint, rules (2 files), graph (23 operations)\ntinker check: OK\n");
+    expect(out).toBe(
+      "ran: tsc, lint, rules (2 files), graph (23 operations, 0 views)\ntinker check: OK\n",
+    );
   },
 );
 
@@ -405,7 +407,7 @@ test("`tinker graph --write` writes the file the check then passes", { timeout: 
   const wrote = main(["graph", folder, "--write"], "/");
   const { code } = main(["check", folder], "/");
 
-  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 23 operations\n", err: "" });
+  expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 23 operations, 0 views\n", err: "" });
   expect(readFileSync(join(folder, "tinker.graph"), "utf8")).toBe(golden);
   expect(code).toBe(0);
 });
@@ -894,7 +896,9 @@ test("a view that matches its tinker.graph line passes the check", { timeout: 60
 
   const { code, out } = main(["check", folder], "/");
 
-  expect(findings(out)).toEqual([]);
+  expect(out).toBe(
+    "ran: tsc, lint, rules (3 files), graph (2 operations, 1 view)\ntinker check: OK\n",
+  );
   expect(code).toBe(0);
 });
 

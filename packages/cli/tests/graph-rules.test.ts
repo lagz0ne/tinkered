@@ -161,7 +161,7 @@ test("an op that calls the rule's op itself keeps the rule", { timeout: 60_000 }
   const { code, out } = main(["check", folder], "/");
 
   expect(out).toBe(
-    "ran: tsc, lint, rules (2 files), graph (2 operations, 1 rule)\ntinker check: OK\n",
+    "ran: tsc, lint, rules (2 files), graph (2 operations, 0 views, 1 rule)\ntinker check: OK\n",
   );
   expect(code).toBe(0);
 });
@@ -178,7 +178,7 @@ test(
     const { code, out } = main(["check", folder], "/");
 
     expect(out).toBe(
-      "ran: tsc, lint, rules (2 files), graph (3 operations, 2 rules)\ntinker check: OK\n",
+      "ran: tsc, lint, rules (2 files), graph (3 operations, 0 views, 2 rules)\ntinker check: OK\n",
     );
     expect(code).toBe(0);
   },
@@ -225,7 +225,7 @@ test("the rule's own op writes a matching cell and is no finding", { timeout: 60
   const { code, out } = main(["check", folder], "/");
 
   expect(out).toBe(
-    "ran: tsc, lint, rules (2 files), graph (3 operations, 1 rule)\ntinker check: OK\n",
+    "ran: tsc, lint, rules (2 files), graph (3 operations, 0 views, 1 rule)\ntinker check: OK\n",
   );
   expect(code).toBe(0);
 });
@@ -327,7 +327,7 @@ test(
     const { code, out } = main(["check", folder], "/");
 
     expect(out).toBe(
-      "ran: tsc, lint, rules (2 files), graph (3 operations, 1 rule)\ntinker check: OK\n",
+      "ran: tsc, lint, rules (2 files), graph (3 operations, 0 views, 1 rule)\ntinker check: OK\n",
     );
     expect(code).toBe(0);
   },

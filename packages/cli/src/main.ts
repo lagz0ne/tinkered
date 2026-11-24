@@ -8,6 +8,7 @@ import type { Check } from "./check";
 import { isError } from "./errors";
 import { applyGaps } from "./gaps";
 import { graphFile, graphFindings, graphOf, graphText } from "./graph";
+import type { Graph } from "./graph";
 import { ruleFindings } from "./graph-rules";
 import { rules } from "./rules";
 import { fixOf, listSkills, loadSkill, sectionsOf } from "./skills";
@@ -134,10 +135,17 @@ function stages(root: string): Main.Report {
   });
 }
 
-/** The graph stage on the `ran:` line: its operations, and its rules when the app has any. */
-function graphRan(operations: number, graphRules: number) {
-  const tested = graphRules ? `, ${graphRules} ${graphRules > 1 ? "rules" : "rule"}` : "";
-  return `graph (${operations} operations${tested})`;
+/** A count and its noun: `1 rule`, `2 rules`, `0 views`. */
+const counted = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
+
+/** The lines of the graph, by kind: `2 operations, 3 views`. */
+const linesCount = ({ ops, views }: Graph.Of) =>
+  `${counted(ops.length, "operation")}, ${counted(views.length, "view")}`;
+
+/** The graph stage on the `ran:` line: its lines, and its rules when the app has any. */
+function graphRan(graph: Graph.Of, graphRules: number) {
+  const tested = graphRules ? `, ${counted(graphRules, "rule")}` : "";
+  return `graph (${linesCount(graph)}${tested})`;
 }
 
 /**
@@ -162,11 +170,12 @@ function afterRules(
     tests?: string;
   },
 ): Main.Report {
-  const { ops, views } = graphOf(root);
+  const graph = graphOf(root);
+  const { ops, views } = graph;
   const changed = [...graphFindings(root, [...ops, ...views]), ...ruleFindings(ops, graphRules)];
   if (changed.length) return failed(root, "graph", changed, gaps);
 
-  if (ops.length) ran.push(graphRan(ops.length, graphRules.length));
+  if (ops.length || views.length) ran.push(graphRan(graph, graphRules.length));
   if (skipped.length) return { kind: "incomplete", ran, skipped, gaps };
   if (!tests) return { kind: "ok", ran, gaps };
 
@@ -266,12 +275,12 @@ function checkCommand(root: string, json: boolean): Main.Result {
 /** Print the app's graph, or write it to `tinker.graph` with `--write`. */
 function graphCommand(root: string, write: boolean): Main.Result {
   if (!existsSync(root)) return { code: 2, out: "", err: `tinker graph: no folder at ${root}\n` };
-  const { ops, views } = graphOf(root);
-  const text = graphText([...ops, ...views]);
+  const graph = graphOf(root);
+  const text = graphText([...graph.ops, ...graph.views]);
   if (!write) return { code: 0, out: text, err: "" };
 
   writeFileSync(join(root, graphFile), text);
-  return { code: 0, out: `wrote ${graphFile}: ${ops.length} operations\n`, err: "" };
+  return { code: 0, out: `wrote ${graphFile}: ${linesCount(graph)}\n`, err: "" };
 }
 
 function skillCommand(root: string, args: readonly string[]): Main.Result {
