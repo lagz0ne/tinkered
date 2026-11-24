@@ -78,7 +78,8 @@ export default defineMain(
   `serve` answers 413.
 - A reply that leaves the body unread
   closes the connection: the client may
-  still be sending it.
+  still be sending it. A body read to its
+  end keeps the connection open.
 - A handler's `request.signal` aborts when
   the client leaves, body or not.
 - `server.requestIP(request)` and
