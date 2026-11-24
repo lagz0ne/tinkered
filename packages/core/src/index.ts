@@ -2195,9 +2195,7 @@ function dataController<T>(
         : addWatcherNs(layer, target, chain, listener as Watcher["fn"]),
   };
   const keyed = (target as Partial<KeyedField>).keyed;
-  return keyed === undefined
-    ? control
-    : (keyed.control(control, rootOf(layer)) as Scope.DataController<T>);
+  return keyed === undefined ? control : (keyed.control(control, layer) as Scope.DataController<T>);
 }
 
 function addWatcherNs(
@@ -8242,8 +8240,8 @@ class KeyedSpec {
   /** Each root's listener, by its root layer: a cell is shared by every scope that uses it. */
   readonly listeners = new WeakMap<object, KeyedListener>();
 
-  control(inner: Scope.DataController<unknown>, root: object): unknown {
-    return new KeyedControl(this, inner, root);
+  control(inner: Scope.DataController<unknown>, layer: Layer): unknown {
+    return new KeyedControl(this, inner, layer);
   }
 
   /** Members from the wire, each through `parse` and then `key` (ADR 0138), by key text. */
@@ -8318,10 +8316,14 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
   /** The id of the value the parts last saw. */
   private seen: number;
   private root: object;
-  constructor(spec: KeyedSpec, inner: Scope.DataController<unknown>, root: object) {
+  /** The controller's own layer, for the open check in {@link KeyedControl.join}. The plain
+   * controller's closure holds it already, so this pins nothing more after close. */
+  private layer: Layer;
+  constructor(spec: KeyedSpec, inner: Scope.DataController<unknown>, layer: Layer) {
     this.spec = spec;
     this.inner = inner;
-    this.root = root;
+    this.root = rootOf(layer);
+    this.layer = layer;
 
     this.parts = undefined;
     this.stop = undefined;
@@ -8493,7 +8495,9 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
   }
 
   /** A part's first watcher calls the root's listener last, once it is in: a write the listener
-   * makes, such as a part's first state (ADR 0164), reaches that watcher as a change. */
+   * makes, such as a part's first state (ADR 0164), reaches that watcher as a change. A closed
+   * scope refuses the watch first, with `Disposed`, so a refused watch leaves no part and asks
+   * no listener, even when another part still holds the plain watch. */
   private join(
     read: "of" | "where",
     part: Data.Key,
@@ -8503,6 +8507,8 @@ class KeyedControl implements Scope.KeyedController<unknown, Data.Key> {
     fn: (next: unknown, prev: unknown) => void,
     reader: Data.Reader<unknown>,
   ): () => void {
+    ensureOpen(this.layer);
+
     const parts = (this.parts ??= new Map());
     let entry = parts.get(text);
     const first = entry === undefined;
