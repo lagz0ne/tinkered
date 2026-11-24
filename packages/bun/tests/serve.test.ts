@@ -335,6 +335,20 @@ test("a handler's request.signal still aborts when the client leaves mid-body", 
   expect(await left.promise).toBe("aborted");
 });
 
+test("a handler with a body still gets the client's address from server.requestIP", async () => {
+  const ip = handler({
+    answer: (r, _s, server) => new Response(String(server.requestIP(r)?.address)),
+  });
+  const app = await createScope({ capsules: [serve({ port: 0, handlers: [ip] }), ip] }).ready;
+  closers.push(() => app.close());
+  const at = app.resolve(serve.url).get()!;
+
+  const [plain, withBody] = [await text(at, "/api/ip"), await post(at, "/api/ip", "hi")];
+
+  expect(plain).not.toBe("undefined");
+  expect(withBody).toBe(plain);
+});
+
 test("`development` turns on Bun's development mode", async () => {
   const mode = handler({ answer: (_r, _s, server) => new Response(String(server.development)) });
   const dev = await createScope({
