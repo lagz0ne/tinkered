@@ -218,10 +218,9 @@ function contractMember(checker: ts.TypeChecker, value: ts.Expression): Unit | u
 
   const [contracts] = contract.call.arguments;
   if (!propertyAt(contracts, member.key)) return undefined;
-  const label = `${contract.name}/${member.key}`;
   return {
     made: "operation",
-    label,
+    label: `${contract.name}/${member.key}`,
     call: contract.call,
     faults: faultsOf(checker, contract.call),
   };
