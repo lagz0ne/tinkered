@@ -286,10 +286,18 @@ test("a bytes POST whose body is read to its end keeps the connection open", asy
   expect([answer.status, answer.headers.get("connection")]).toEqual([200, null]);
 });
 
+/** Waits until `ok` holds: `bun test` has no `expect.poll`. */
+const until = async (ok: () => boolean) => {
+  for (let tries = 0; !ok(); tries++) {
+    if (tries > 300) throw new Error("timed out");
+    await new Promise((done) => setTimeout(done, 10));
+  }
+};
+
 test("past maxUploads at once, the next POST is 503 with Retry-After", async () => {
   const hold = { "x-input": '{"name":"hold"}' };
   const first = [post("file.put", hold), post("file.put", hold)];
-  await expect.poll(() => ran.filter((name) => name === "hold").length).toBe(2);
+  await until(() => ran.filter((name) => name === "hold").length === 2);
   const third = await post("file.put", {});
   held.resolve();
   const firsts = await Promise.all(first);
