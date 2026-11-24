@@ -129,7 +129,10 @@ Every `parse` slot (`data`, `tag`, an operation's `input`) takes one of two shap
 - a function `(raw: unknown) => T` that returns the value or throws;
 - a Standard Schema object (zod, valibot, arktype) passed as-is: `input: z.object({ ... })`.
 
+`DataValidationFailed` carries `{ label, cause }`: the unit's label and the parser's throw.
 A schema's refusal arrives as the `DataValidationFailed` cause: `SchemaRejected { issues }`.
+An rpc call's input check gives `{ address, issues }` instead: the key and the schema's issues.
+So narrow before a read: `if (!("label" in error.payload)) throw error;`.
 A schema that answers with a promise is refused with `SchemaAsync { vendor }`; every edge parses
 before it runs.
 
@@ -1626,6 +1629,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 ### Errors and panics
 
+- An rpc call whose input fails its contract raises `DataValidationFailed` with
+  `{ address, issues }` on the caller's side.
 - `settle` returns an async operation's success value.
 - `settle` classifies a registry-shaped `Error` as an error.
 - `settle` classifies a plain `Error` as a panic.
