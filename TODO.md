@@ -25,9 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **core/keyed-resource-watch-closed** — found on `react/use-data-keyed-disposed`. A keyed resource read (`Data.Built`) whose entry another reader still holds takes a `watch` after the scope closed and raises nothing (its `get` raises `Disposed`). A watch on a closed scope must raise `Disposed`, as a plain cell's and, since `34c79014`, a keyed part's do. React works around it (it calls `readableOf` after `watch`); once Core raises, that call can go.
-  Verify: a Core test at the public seam red on main (two readers of one keyed resource entry, close, a new `watch` raises `Disposed`); size within the cap or Blocked with the exact size.
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -75,6 +72,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
 ## Doing
+
+- **core/keyed-resource-watch-closed** — found on `react/use-data-keyed-disposed`. A keyed resource read (`Data.Built`) whose entry another reader still holds takes a `watch` after the scope closed and raises nothing (its `get` raises `Disposed`). A watch on a closed scope must raise `Disposed`, as a plain cell's and, since `34c79014`, a keyed part's do. React works around it (it calls `readableOf` after `watch`); once Core raises, that call can go.
+  Owner: Opus lead; Opus writer in `../tinkered-kr-watch`.
+  Next: the writer adds the test red, then the fix.
+  Verify: a Core test at the public seam red on main (two readers of one keyed resource entry, close, a new `watch` raises `Disposed`); size within the cap or Blocked with the exact size.
 
 ## Review
 
