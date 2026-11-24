@@ -37,7 +37,8 @@ const configs = {
     `});`,
   ].join("\n"),
   "src/units.ts": [
-    `import { data, operation, tag } from "@tinkered/core";`,
+    `import { capsule, data, operation, rpc, tag } from "@tinkered/core";`,
+    `import { z } from "zod";`,
     ``,
     `type Doc = { id: string; title: string };`,
     ``,
@@ -58,6 +59,10 @@ const configs = {
     `});`,
     ``,
     `export const box = tag<typeof canEdit>({ label: "box" });`,
+    ``,
+    `const api = rpc({ check: { input: z.null(), output: z.boolean() } });`,
+    ``,
+    `export const gate = capsule({ label: "gate", exports: { api } });`,
   ].join("\n"),
 };
 
@@ -101,12 +106,17 @@ const ops = {
     `deps.ok.run(); deps.also.run(); ${write}`,
   ),
   hand: op("doc.hand", "{ list: titles.controller }", "[deps.list].pop();"),
+  remote: op(
+    "doc.remote.do",
+    "{ ok: gate.api.check, list: titles.controller }",
+    `void deps.ok.run({ input: null }); ${write}`,
+  ),
 };
 
 const imports = [
   `import { operation } from "@tinkered/core";`,
   ``,
-  `import { box, canEdit, count, locked, titles } from "./units";`,
+  `import { box, canEdit, count, gate, locked, titles } from "./units";`,
 ].join("\n");
 
 /**
@@ -248,6 +258,21 @@ test("a write the graph cannot see matches no pattern", { timeout: 60_000 }, () 
   expect(findings(out)).toEqual([]);
   expect(code).toBe(0);
 });
+
+test(
+  "an op the graph has no line for, such as an rpc member, ends the way",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf(["remote"], [rule]);
+
+    const { out } = main(["check", folder], "/");
+
+    expect(findings(out)).toEqual([
+      "src/docs.ts:5 tinker/graph-rule doc.remote.do writes{docs.title.set}, " +
+        "calls has no docs.canEdit",
+    ]);
+  },
+);
 
 test(
   "a `?` in calls, its own or on the way, cannot prove the rule and is a finding",

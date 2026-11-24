@@ -123,9 +123,11 @@ issue.move.do exits{gone,moved,stale}
   `access.user["users.me"]` gives
   `calls{access.user/users.me}`. The key may be
   a name too: `access.user.list`.
-- A member of a bare `rpc` whose `label` is
-  written as a string is `<label>/<key>`. The
-  `/` keeps it apart from an op's label.
+- The `/` marks a contract member: the capsule
+  path, then the contract key.
+- A member is named only when the capsule's
+  `label` is a string and its `exports` object
+  is written in the `capsule` call.
 - An `atScope` or `atNamespace` controller reads
   and writes as the cell's `controller` does.
 - The graph reads `src` and `cmds` only.
@@ -148,11 +150,14 @@ way the graph cannot follow:
 - a call on a dep the graph does not know, such
   as `list.watch(…)`;
 - a dep the graph cannot name: a member of a
-  bare `rpc` with no label
-  (`seaApi["clock.now"]`), a member under a key
-  not written in the code or not in the
-  contract, any other capsule export, or a cell
-  whose label is not written as a string;
+  bare `rpc` const (`seaApi["clock.now"]`), a
+  member through a capsule whose `label` or
+  `exports` object is not written in the call,
+  a member under a key not written in the code,
+  a member under a key not in the contract,
+  such as the handle's own `answer` op, any
+  other capsule export, or a cell whose label
+  is not written as a string;
 - a tag dep that holds a unit (ADR 0151), through
   any edge: an operation gives `calls{?}`; a
   cell, a view or a read gives `reads{?}`, and a
@@ -225,6 +230,9 @@ cells must call this op (ADR 0167). Write it in
 - `calls`: the op each writer must reach in its
   `calls{}`, directly or through the ops it
   calls.
+- An op the graph has no line for, such as an
+  rpc member, ends the way: the graph does not
+  follow the call to the server.
 - The rule's own op is exempt.
 - `except`: an op, with its reason. That op is
   no finding.

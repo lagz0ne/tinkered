@@ -382,7 +382,10 @@ test("`tinker graph --write` writes the file the check then passes", { timeout: 
   expect(code).toBe(0);
 });
 
-/** A library's door: a capsule that exports an rpc contract, beside cells and two bare rpcs. */
+/**
+ * A library's door: a capsule that exports an rpc contract, one whose exports are not written
+ * in its call, two bare rpcs and two cells.
+ */
 const access = [
   `import { capsule, data, rpc } from "@tinkered/core";`,
   `import { z } from "zod";`,
@@ -394,8 +397,16 @@ const access = [
   ``,
   `export const access = capsule({`,
   `  label: "access",`,
-  `  exports: { user, staff: rpc({ ban: { input: z.string(), output: z.null() } }) },`,
+  `  exports: {`,
+  `    user,`,
+  `    admin: user,`,
+  `    staff: rpc({ ban: { input: z.string(), output: z.null() } }),`,
+  `  },`,
   `});`,
+  ``,
+  `const doorExports = { user };`,
+  ``,
+  `export const door = capsule({ label: "door", exports: doorExports });`,
   ``,
   `export const counted = rpc(`,
   `  { "users.count": { input: z.null(), output: z.number() } },`,
@@ -416,7 +427,7 @@ const access = [
 /** An app of `access`, in place of the other units, and these operations: its graph. */
 function graphWith(ops: string[]) {
   const head = `import { operation } from "@tinkered/core";\n\n`;
-  const imports = `import { access, codes, counted, logins, loose } from "./units";\n\n`;
+  const imports = `import { access, codes, counted, door, logins, loose } from "./units";\n\n`;
   const folder = appOf({ "src/units.ts": access, "src/ops.ts": head + imports + ops.join("\n") });
   return main(["graph", folder], "/");
 }
@@ -443,11 +454,18 @@ test(
       `  depends: { ban: access.staff.ban },`,
       `  run: ({ ban }) => ban.run({ input: "a" }),`,
       `});`,
+      ``,
+      `export const adminNames = operation({`,
+      `  label: "home.adminNames",`,
+      `  depends: { all: access.admin.list },`,
+      `  run: ({ all }) => all.run({ input: null }),`,
+      `});`,
     ]);
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.ban exits{value} reads{} writes{} calls{access.staff/ban}\n" +
+      "home.adminNames exits{value} reads{} writes{} calls{access.admin/list}\n" +
+        "home.ban exits{value} reads{} writes{} calls{access.staff/ban}\n" +
         "home.names exits{error,panic,value} reads{} writes{} calls{access.user/list}\n" +
         "home.whoAmI exits{value} reads{} writes{} calls{access.user/users.me}\n",
     );
@@ -455,7 +473,7 @@ test(
 );
 
 test(
-  "a member of a bare rpc whose label is written as a string is label/key",
+  "a member of a bare rpc const, with a label or not, keeps calls{?}",
   { timeout: 60_000 },
   () => {
     const { code, out } = graphWith([
@@ -464,18 +482,7 @@ test(
       `  depends: { count: counted["users.count"] },`,
       `  run: ({ count }) => count.run({ input: null }),`,
       `});`,
-    ]);
-
-    expect(code).toBe(0);
-    expect(out).toBe("home.count exits{value} reads{} writes{} calls{users/users.count}\n");
-  },
-);
-
-test(
-  "a member of a bare rpc with no label is a dep the graph cannot name",
-  { timeout: 60_000 },
-  () => {
-    const { code, out } = graphWith([
+      ``,
       `export const all = operation({`,
       `  label: "home.all",`,
       `  depends: { all: loose["users.all"] },`,
@@ -484,23 +491,50 @@ test(
     ]);
 
     expect(code).toBe(0);
-    expect(out).toBe("home.all exits{value} reads{} writes{} calls{?}\n");
+    expect(out).toBe(
+      "home.all exits{value} reads{} writes{} calls{?}\n" +
+        "home.count exits{value} reads{} writes{} calls{?}\n",
+    );
   },
 );
 
 test(
-  "a member under a key not written in the code, or not in the contract, cannot be named",
+  "a member through a capsule whose exports are not written in its call keeps calls{?}",
   { timeout: 60_000 },
   () => {
     const { code, out } = graphWith([
-      `const key = "users.me" as const;`,
-      ``,
       `export const whoAmI = operation({`,
       `  label: "home.whoAmI",`,
-      `  depends: { me: access.user[key] },`,
+      `  depends: { me: door.user["users.me"] },`,
       `  run: ({ me }) => me.run({ input: null }),`,
       `});`,
-      ``,
+    ]);
+
+    expect(code).toBe(0);
+    expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?}\n");
+  },
+);
+
+test("a member under a key not written in the code keeps calls{?}", { timeout: 60_000 }, () => {
+  const { code, out } = graphWith([
+    `const key = "users.me" as const;`,
+    ``,
+    `export const whoAmI = operation({`,
+    `  label: "home.whoAmI",`,
+    `  depends: { me: access.user[key] },`,
+    `  run: ({ me }) => me.run({ input: null }),`,
+    `});`,
+  ]);
+
+  expect(code).toBe(0);
+  expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?}\n");
+});
+
+test(
+  "a member under a key not in the contract, such as the handle's own answer op, is a dep the graph cannot name",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = graphWith([
       `export const answer = operation({`,
       `  label: "home.answer",`,
       `  depends: { answer: access.user.answer },`,
@@ -510,10 +544,7 @@ test(
     ]);
 
     expect(code).toBe(0);
-    expect(out).toBe(
-      "home.answer exits{error,panic,value} reads{} writes{} calls{?}\n" +
-        "home.whoAmI exits{value} reads{} writes{} calls{?}\n",
-    );
+    expect(out).toBe("home.answer exits{error,panic,value} reads{} writes{} calls{?}\n");
   },
 );
 

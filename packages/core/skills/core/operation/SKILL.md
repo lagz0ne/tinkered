@@ -229,21 +229,25 @@ could not see: a dep handed on (passed to a
 function, put in an array, given another name),
 the deps handed on whole, a call it does not
 know, a dep it cannot name (a member of a bare
-`rpc` with no label, a key not written in the
-code, any other capsule export, a label not
-written as a string), a tag that holds a unit,
-or a `run` passed by name. A tag that holds a
-union of unit kinds, or a held cell that `run`
-never uses, may show no `?`.
+`rpc` const, a member through a capsule whose
+`label` or `exports` object is not written in
+the call, a key not written in the code or not
+in the contract, any other capsule export, a
+label not written as a string), a tag that
+holds a unit, or a `run` passed by name. A tag
+that holds a union of unit kinds, or a held cell
+that `run` never uses, may show no `?`.
 
 A member of an rpc contract that a capsule
 exports is named `capsule.export/key`:
 `access.user["users.me"]` gives
-`calls{access.user/users.me}`. A bare `rpc` with
-a `label` written as a string gives
-`label/key`. An `atScope` or `atNamespace`
-controller reads and writes as the cell's
-`controller` does.
+`calls{access.user/users.me}`. The `/` marks a
+contract member: the capsule path, then the
+contract key. A member is named only when the
+capsule's `label` is a string and its `exports`
+object is written in the `capsule` call. An
+`atScope` or `atNamespace` controller reads and
+writes as the cell's `controller` does.
 
 The graph reads each op's own body. A resource's
 own code is not read: a write inside a
@@ -344,6 +348,10 @@ operation it calls. The rule's own operation is exempt.
 A `?` in `calls{}` on the way is a finding too:
 the check cannot see the call, so the rule
 cannot be proved.
+
+An op the graph has no line for, such as an rpc
+member, ends the way: the graph does not follow
+the call to the server.
 
 Wrong: a new change writes the doc, and skips
 the check.

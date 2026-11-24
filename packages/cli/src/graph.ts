@@ -68,13 +68,18 @@ function callAt(checker: ts.TypeChecker, symbol: ts.Symbol | undefined) {
   return call && ts.isCallExpression(call) ? call : undefined;
 }
 
+/** The label an options argument writes, when it is an object literal. */
+function labelIn(options: ts.Expression | undefined) {
+  return options && ts.isObjectLiteralExpression(options) ? labelOf(options) : undefined;
+}
+
 /** The unit a name holds, when it is a `const` made by a Core call with a literal label. */
 function unitAt(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): Unit | undefined {
   const call = callAt(checker, symbol);
   if (!call) return undefined;
 
   const [options] = call.arguments;
-  const label = options && ts.isObjectLiteralExpression(options) ? labelOf(options) : undefined;
+  const label = labelIn(options);
   const made = coreName(call);
   return label && made ? { made, label, call } : undefined;
 }
@@ -120,19 +125,10 @@ function exportCall(checker: ts.TypeChecker, exported: ts.ObjectLiteralElementLi
   return ts.isIdentifier(value) ? callAt(checker, checker.getSymbolAtLocation(value)) : undefined;
 }
 
-/** The label an options argument writes, when it is an object literal. */
-function labelIn(options: ts.Expression | undefined) {
-  return options && ts.isObjectLiteralExpression(options) ? labelOf(options) : undefined;
-}
-
-/** A bare `rpc` const: its members take its own label. With no label there is no name to read. */
-function bareContract(checker: ts.TypeChecker, name: ts.Identifier) {
-  const call = callAt(checker, checker.getSymbolAtLocation(name));
-  const label = labelIn(call?.arguments[1]);
-  return call && label ? { call, name: label } : undefined;
-}
-
-/** A capsule's export: its members take the capsule's label and the export's key. */
+/**
+ * A capsule's export: its members take the capsule's label and the export's key. Both are
+ * read from the capsule's call: its `label` written as a string, its `exports` as an object.
+ */
 function exportedContract(checker: ts.TypeChecker, on: ts.Identifier, key: string) {
   const capsule = callAt(checker, checker.getSymbolAtLocation(on));
   if (!capsule || coreName(capsule) !== "capsule") return undefined;
@@ -145,9 +141,11 @@ function exportedContract(checker: ts.TypeChecker, on: ts.Identifier, key: strin
   return label && call ? { call, name: `${label}.${key}` } : undefined;
 }
 
-/** An rpc contract and the name its members take: `access.user`, or a bare rpc's label. */
+/**
+ * An rpc contract a capsule exports, and the name its members take: `access.user`. A bare
+ * `rpc` const has no name to read: one handle could have two.
+ */
 function contractOf(checker: ts.TypeChecker, value: ts.Expression) {
-  if (ts.isIdentifier(value)) return bareContract(checker, value);
   const member = memberOf(value);
   return member && ts.isIdentifier(member.on)
     ? exportedContract(checker, member.on, member.key)
@@ -155,14 +153,16 @@ function contractOf(checker: ts.TypeChecker, value: ts.Expression) {
 }
 
 /**
- * The operation an rpc contract's member is: `access.user["users.me"]` is `access.user/users.me`.
- * The `/` keeps it apart from an operation's label. A key the contract does not write is not one.
+ * The operation an rpc contract's member is: `access.user["users.me"]` is `access.user/users.me`,
+ * the capsule path, `/`, then the contract key. A key the contract does not write is not one.
  */
 function contractMember(checker: ts.TypeChecker, value: ts.Expression): Unit | undefined {
   const member = memberOf(value);
   const contract = member && contractOf(checker, member.on);
   if (!contract || coreName(contract.call) !== "rpc") return undefined;
-  if (!propertyAt(contract.call.arguments[0], member.key)) return undefined;
+
+  const [contracts] = contract.call.arguments;
+  if (!propertyAt(contracts, member.key)) return undefined;
   return { made: "operation", label: `${contract.name}/${member.key}`, call: contract.call };
 }
 
