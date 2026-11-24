@@ -206,6 +206,19 @@ sea.api({ implement: seaOps, onStart: [signedIn] }),
 - On a read, `board.part(input)` gives the key of
   the part the client asks for. Do not read
   `input.input` by hand.
+- A part can be one member, by its whole key.
+  After a set, Core asks again for each changed
+  member by its whole key (ADR 0138 d11).
+- So a guard for `where({ userId })` also gets
+  `{ teamId, userId }`. Check each field the
+  part has, not only the field the page asked:
+
+```ts no-check
+const part = teamBoard.part(input) ?? {};
+if ("teamId" in part && !teams.includes(part.teamId)) {
+  return input.refuse({ notMember: part.teamId });
+}
+```
 
 ### Handle a fault
 

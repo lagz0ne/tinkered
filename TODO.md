@@ -117,6 +117,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **skill/part-whole-key** — done 2026-11-24 (thread lead, from CUJ run 16: 3+ writer steps failed on it). The core/rpc skill now says a part can be one member by its whole key: after a set, Core asks again for each changed member by its whole key (ADR 0138 d11), so a read guard for `where({ userId })` also gets `{ teamId, userId }`. A 4-line guard shows the check.
+  Proof: `vp run prose` exit 0, `vp run skills` exit 0. Rides 0.34.8.
+
 - **bun/early-answer-close** — done 2026-11-24. A reply that leaves the request body unread now sends `connection: close`, as Go's net/http does: `serve` closes any handler's reply and its own 404 and 413 when the body was not read to its end; `ws.ts` closes its `admit` refusals, its 503s, its 413, and a bytes POST reply whose implementation left the body unread (for a bare `Bun.serve` host). A body read to its end keeps keep-alive. Under `serve` on main, `close()` did not hang (the body pipe stopped it); a bare host did. Fix `077361dc`, `4805e37d`; `e4684b9d` fixed a test that failed under `bun test` (`expect.poll`).
   Proof: 6 tests red on main, then green (`serve.test.ts`, `upload.test.ts`); bun 140 tests (vitest and `bun test`); `vp check` 0 errors, 80 warnings (as main); `pnpm validate` 22 of 22 PASS; Opus convention-review READY with 1 question and 2 nits, one fix round (all four items), READY at `2677c592`; bun mutation on `e4684b9d` 86.95 (kills alone 86.83) and `run.ts` 91.53, floor 85, exit 0. The first lane run on `2677c592` stopped in its dry run on `expect.poll`.
 
