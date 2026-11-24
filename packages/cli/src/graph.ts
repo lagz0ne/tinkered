@@ -15,10 +15,10 @@ export declare namespace Graph {
   type Row = { path: string; line: number; label: string; parts: string[] };
   /**
    * One line of the graph: an operation, where it is, and its facts. `parts` are `exits{…}`,
-   * `faults{…}`, `reads{…}`, `writes{…}`, `calls{…}` and `uses{…}`, in that order. A fact is
-   * never a judgement: the reader of the line judges it (ADR 0161, amended). `writes`, `calls`
-   * and `uses` are those facts, sorted, for the graph rules (ADR 0167, amended). `faults` are
-   * the faults its calls of a contract member can end with, sorted.
+   * `faults{…}`, `reads{…}`, `writes{…}`, `calls{…}` and `uses{…}`, in that order. A
+   * fact is never a judgement: the reader of the line judges it (ADR 0161, amended). `writes`,
+   * `calls` and `uses` are those facts, sorted, for the graph rules (ADR 0167, amended).
+   * `faults` are the faults its calls of a contract member can end with, sorted.
    */
   type Line = Row & {
     exits: string[];
@@ -343,7 +343,7 @@ function usesOf(checker: ts.TypeChecker, { options }: Exits.Operation) {
  * What one call on a dep adds: `list.set(…)` adds `issues.list.set` to `writes`. A call of a
  * contract member adds its `faults` too.
  */
-type Touch = { set: Hide; fact: string; faults: readonly string[] };
+type Touch = { set: Hide; fact: string; faults: string[] };
 
 /**
  * A dep as `run` sees it: what each call the graph knows on it adds, and the sets a use the
