@@ -21,8 +21,8 @@ function Shown(): ReactNode {
 }
 
 /** Trap: `useData` mounts here in a Suspense-retry commit, and React subscribes after that commit
- * shows the text. A subscribe on a closed scope raises `Disposed` (Core's watch; the same rule as
- * ADR 0144 d3 for a render). So unmount before closing the scope this test passed in. */
+ * shows the text. That subscribe takes nothing from a closed scope, but a render after the close
+ * raises `Disposed` (ADR 0144 d3). So unmount before closing the scope this test passed in. */
 test("the provider shows the Suspense fallback until start ends", async () => {
   const gate = deferred<void>();
   const store = capsule({
@@ -141,8 +141,8 @@ test("a provider that owns a root whose start fails throws to the error boundary
 });
 
 /** Trap: `useData` mounts here in a Suspense-retry commit, and React subscribes after that commit
- * shows the text. A subscribe on a closed scope raises `Disposed` (Core's watch; the same rule as
- * ADR 0144 d3 for a render). So unmount before closing the scope this test passed in. */
+ * shows the text. That subscribe takes nothing from a closed scope, but a render after the close
+ * raises `Disposed` (ADR 0144 d3). So unmount before closing the scope this test passed in. */
 test("a new starting root on the provider shows that root's values", async () => {
   const store = capsule({
     label: "swap store",

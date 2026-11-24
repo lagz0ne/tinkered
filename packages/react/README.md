@@ -222,6 +222,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - Reading through a new scope shows the new scope's value.
 - Reads a cell and re-renders when it is set externally.
 - A render after the scope closed raises Disposed.
+- A scope that closes before useData subscribes reports no error.
 - useData with no provider raises NoProvider.
 - An unchanged object value keeps its identity across a parent re-render.
 - A write after unmount neither updates the removed subtree nor breaks the still-open scope.

@@ -1,4 +1,4 @@
-import { isStarting } from "@tinkered/core";
+import { isError, isStarting } from "@tinkered/core";
 import type {
   Data,
   Namespace,
@@ -474,7 +474,20 @@ function createRawStore<T>(controller: Readable<T>): DataStore<T, T> {
     controller,
     select: identity,
     equal: Object.is,
-    subscribe: (notify) => controller.watch(notify),
+    /** React subscribes in a passive effect, after the commit, so the scope can close in between:
+     * a layout effect or another owner closes it. Core's `watch` then raises `Disposed`, and React
+     * throws it from the effect, where no error boundary catches it. A closed scope never changes
+     * again, so take no subscription and return an unsubscribe that does nothing. Any other throw
+     * still throws. A render after the close still raises `Disposed` (ADR 0144 d3). A module
+     * helper would cost one more module slot (F9). */
+    subscribe: (notify) => {
+      try {
+        return controller.watch(notify);
+      } catch (error) {
+        if (!isError(error, "Disposed")) throw error;
+        return noop;
+      }
+    },
     read: () => controller.get(),
     set: (value) => controller.set?.(value),
   };
@@ -490,7 +503,15 @@ function createDataStore<T, S>(controller: Readable<T>): SelectingStore<T, S> {
     controller,
     select: identity as (value: T) => S,
     equal: Object.is,
-    subscribe: (notify: () => void) => controller.watch(notify),
+    /** The same closed-scope rule as {@link createRawStore}'s `subscribe`. */
+    subscribe: (notify: () => void) => {
+      try {
+        return controller.watch(notify);
+      } catch (error) {
+        if (!isError(error, "Disposed")) throw error;
+        return noop;
+      }
+    },
     read: (): S => {
       const raw = controller.get();
       const prev = memo;
