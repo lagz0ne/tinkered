@@ -381,3 +381,130 @@ test("`tinker graph --write` writes the file the check then passes", { timeout: 
   expect(readFileSync(join(folder, "tinker.graph"), "utf8")).toBe(golden);
   expect(code).toBe(0);
 });
+
+/** A library's door: a capsule that exports an rpc contract, beside cells and two bare rpcs. */
+const access = [
+  `import { capsule, data, rpc } from "@tinkered/core";`,
+  `import { z } from "zod";`,
+  ``,
+  `const user = rpc({`,
+  `  "users.me": { input: z.null(), output: z.string() },`,
+  `  list: { input: z.null(), output: z.array(z.string()) },`,
+  `});`,
+  ``,
+  `export const access = capsule({ label: "access", exports: { user } });`,
+  ``,
+  `export const counted = rpc(`,
+  `  { "users.count": { input: z.null(), output: z.number() } },`,
+  `  { label: "users" },`,
+  `);`,
+  ``,
+  `export const loose = rpc({ "users.all": { input: z.null(), output: z.number() } });`,
+  ``,
+  `export const logins = data({ label: "access.logins", initial: [] as string[] });`,
+  ``,
+  `export const codes = data({`,
+  `  label: "access.codes",`,
+  `  mode: "keyed",`,
+  `  key: (code: { id: string }) => ({ id: code.id }),`,
+  `});`,
+].join("\n");
+
+/** An app of `access`, in place of the other units, and these operations: its graph. */
+function graphWith(ops: string[]) {
+  const head = `import { operation } from "@tinkered/core";\n\n`;
+  const imports = `import { access, codes, counted, logins, loose } from "./units";\n\n`;
+  const folder = appOf({ "src/units.ts": access, "src/ops.ts": head + imports + ops.join("\n") });
+  return main(["graph", folder], "/");
+}
+
+test(
+  "a run of an rpc contract's member through a capsule calls capsule.export/key",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = graphWith([
+      `export const whoAmI = operation({`,
+      `  label: "home.whoAmI",`,
+      `  depends: { me: access.user["users.me"] },`,
+      `  run: ({ me }) => me.run({ input: null }),`,
+      `});`,
+      ``,
+      `export const names = operation({`,
+      `  label: "home.names",`,
+      `  depends: { all: access.user.list.controller },`,
+      `  run: ({ all }) => all.settle({ input: null }),`,
+      `});`,
+    ]);
+
+    expect(code).toBe(0);
+    expect(out).toBe(
+      "home.names exits{error,panic,value} reads{} writes{} calls{access.user/list}\n" +
+        "home.whoAmI exits{value} reads{} writes{} calls{access.user/users.me}\n",
+    );
+  },
+);
+
+test("a run of a labelled rpc's member calls label/key", { timeout: 60_000 }, () => {
+  const { code, out } = graphWith([
+    `export const count = operation({`,
+    `  label: "home.count",`,
+    `  depends: { count: counted["users.count"] },`,
+    `  run: ({ count }) => count.run({ input: null }),`,
+    `});`,
+  ]);
+
+  expect(code).toBe(0);
+  expect(out).toBe("home.count exits{value} reads{} writes{} calls{users/users.count}\n");
+});
+
+test("a member of an rpc with no label keeps calls{?}", { timeout: 60_000 }, () => {
+  const { code, out } = graphWith([
+    `export const all = operation({`,
+    `  label: "home.all",`,
+    `  depends: { all: loose["users.all"] },`,
+    `  run: ({ all }) => all.run({ input: null }),`,
+    `});`,
+  ]);
+
+  expect(code).toBe(0);
+  expect(out).toBe("home.all exits{value} reads{} writes{} calls{?}\n");
+});
+
+test("a member under a computed key keeps calls{?}", { timeout: 60_000 }, () => {
+  const { code, out } = graphWith([
+    `const key = "users.me" as const;`,
+    ``,
+    `export const whoAmI = operation({`,
+    `  label: "home.whoAmI",`,
+    `  depends: { me: access.user[key] },`,
+    `  run: ({ me }) => me.run({ input: null }),`,
+    `});`,
+  ]);
+
+  expect(code).toBe(0);
+  expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?}\n");
+});
+
+test(
+  "an atScope or atNamespace controller reads and writes as the cell's controller does",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = graphWith([
+      `export const codesNow = operation({`,
+      `  label: "home.codesNow",`,
+      `  depends: { seen: logins.atScope.controller, all: codes.atNamespace.controller },`,
+      `  run: ({ seen, all }) => {`,
+      `    if (seen.get().length === 0) all.delete({ id: "a" });`,
+      `    seen.set([]);`,
+      `    return all.where({}).get().length;`,
+      `  },`,
+      `});`,
+    ]);
+
+    expect(code).toBe(0);
+    expect(out).toBe(
+      "home.codesNow exits{value} reads{access.codes.where,access.logins.get} " +
+        "writes{access.codes.delete,access.logins.set} calls{}\n",
+    );
+  },
+);
