@@ -263,6 +263,14 @@ The graph reads each op's own body. A resource's
 own code is not read: a write inside a
 resource's value does not show.
 
+A view line follows the op lines: one per
+top-level declaration that calls `useData` or
+`useRun` from `@tinkered/react`.
+`view src/home.tsx#SignIn reads{home.step.get}
+runs{home.askAgain}` names each cell it reads and
+each op it runs, `?` for one it cannot name. It
+holds no writes, and no graph rule reads it.
+
 Wrong: a move now writes a cell it did not, and
 nobody read that.
 

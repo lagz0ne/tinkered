@@ -92,8 +92,8 @@ run of every stage can say OK.
 ## The graph
 
 `tinker graph` prints the app's graph. It has one
-line per operation (ADR 0161). The line holds
-facts:
+line per operation (ADR 0161), then one per view
+(see View lines). An op line holds facts:
 
 - `exits`: each way out, as the exit stage names
   them;
@@ -199,10 +199,49 @@ The graph reads each op's own body. A resource's
 own code is not read: a write inside a
 resource's value does not show.
 
+### View lines
+
+After the op lines comes one line per view: a
+top-level declaration whose code calls
+`useData` or `useRun` from `@tinkered/react`.
+The lines are sorted by name.
+
+```text
+view src/home/home.tsx#SignIn
+  reads{home.signInStep.get}
+  runs{home.askAgain,home.askForCode}
+```
+
+- The name is the file from the app root, `#`,
+  and the declaration's name. A `const` keeps
+  its name through `memo(…)`. A default export
+  with no name is `default`.
+- A function nested in another counts for the
+  top-level one. So do callbacks.
+- `reads`: each `useData` first argument, in
+  the words of an op line: a cell `label.get`,
+  a part `label.where` or `label.of`.
+- `runs`: each `useRun` first argument: an op
+  label, or a contract member
+  (`access.user/users.me`).
+- A first argument the graph cannot name gives
+  `?`: a capsule's cell export, a variable, a
+  keyed resource.
+- The hooks are found by their import. An alias,
+  `useData as read`, counts. A local function
+  named `useData` does not.
+- A view line holds no writes. `useController`,
+  `useResource` and the `set` of
+  `useData(…, { writable: true })` are not read.
+- It does not say which case of a cell's `kind`
+  runs which op.
+- No graph rule reads a view line.
+
 `tinker graph --write` writes the graph to
 `tinker.graph`. Commit that file. Then the check
 builds the graph again and compares. Each line
-that differs is a finding at the operation:
+that differs is a finding at the operation or
+the view:
 
 ```text
 src/issues/ops.server.ts:80 tinker/graph
@@ -214,7 +253,7 @@ tinker.graph says writes{}
   reviewer reads the diff of the file.
 - Did not mean it? Fix the code.
 - No `tinker.graph` is one finding, when the app
-  has an operation.
+  has an operation or a view.
 - A `tinker.graph` written before `uses{}` gives
   a finding on each line. Run `--write` once.
 
