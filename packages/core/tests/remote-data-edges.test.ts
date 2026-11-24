@@ -29,8 +29,21 @@ const startOf = (capsules: unknown[]) =>
     (e: unknown) => e,
   );
 
-test("answer, stream, drop, fault, faults, part, status and states are the definition's names, not keys", () => {
-  for (const key of ["answer", "stream", "drop", "fault", "faults", "part", "status", "states"]) {
+test("a board's own names are not keys: answer, stream, drop, fault, faults, part, status, states, contracts, receive, addresses, uploads", () => {
+  for (const key of [
+    "answer",
+    "stream",
+    "drop",
+    "fault",
+    "faults",
+    "part",
+    "status",
+    "states",
+    "contracts",
+    "receive",
+    "addresses",
+    "uploads",
+  ]) {
     expect(() => remoteData({ [key]: data({ initial: 0 }) }), key).toThrow(
       `remoteData: ${key} is a reserved key`,
     );
