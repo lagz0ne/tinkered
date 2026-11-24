@@ -25,9 +25,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **bun/early-answer-close** — Found by the #57 writer. A handler that answers before it reads the body (for example `ws.ts` `admit`'s 413 for a too-big Content-Length) leaves the client still sending. Bun's graceful `stop()` then waits on it, up to the 60 s idle time. `serve`'s own 413 now sends `connection: close` (RFC 9110 15.5.14); the early answers in `ws.ts` do not.
-  Verify: a real `Bun.serve` test where `admit` answers 413 to a big upload, then `scope.close()` ends at once; red on main.
-
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -75,6 +72,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
 ## Doing
+
+- **bun/early-answer-close** — Found by the #57 writer. A handler that answers before it reads the body (for example `ws.ts` `admit`'s 413 for a too-big Content-Length) leaves the client still sending, and Bun's graceful `stop()` waits on it, up to the 60 s idle time. Go and Node close the connection when a handler answers without reading the body. Fix: `serve` adds `connection: close` to any reply whose request body was not read to its end; `ws.ts`'s answers before the body is read do too, for a bare `Bun.serve` host.
+  Owner: Opus lead; Opus writer in `../tinkered-early-close`.
+  Next: the writer adds the tests red, then the fix.
+  Verify: real `Bun.serve` tests red on main: `admit`'s 413 to a big streamed upload carries `connection: close` and `scope.close()` ends at once; the same for a plain handler that answers without reading; a body read to its end keeps the connection open. `vp check`, bun tests, `pnpm validate` exit 0; bun mutation 85 or more.
 
 ## Review
 
