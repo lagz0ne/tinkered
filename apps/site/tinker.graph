@@ -1,67 +1,67 @@
-bench.batch.mount exits{value} reads{} writes{} calls{bench.mount} uses{}
-bench.batch.write exits{value} reads{} writes{} calls{} uses{}
-bench.column exits{value} reads{} writes{} calls{bench.faster,bench.shown} uses{}
-bench.faster exits{value} reads{} writes{} calls{} uses{}
-bench.gap exits{value} reads{} writes{} calls{bench.faster,bench.shown} uses{}
-bench.mount exits{value} reads{} writes{} calls{} uses{}
-bench.prepare exits{value} reads{} writes{} calls{bench.mount} uses{}
-bench.quartiles exits{value} reads{} writes{} calls{} uses{}
-bench.release exits{value} reads{} writes{} calls{} uses{}
-bench.report exits{value} reads{} writes{} calls{bench.column,bench.gap,bench.quartiles,bench.shown} uses{}
-bench.rounds exits{value} reads{} writes{bench.run.set} calls{bench.sample} uses{}
-bench.run.do exits{value} reads{} writes{bench.run.set} calls{bench.prepare,bench.release,bench.report,bench.rounds} uses{bench.subjects}
-bench.sample exits{value} reads{} writes{} calls{bench.batch.mount,bench.batch.write} uses{}
-bench.shown exits{value} reads{} writes{} calls{} uses{}
-guide.list.do exits{value} reads{} writes{} calls{} uses{guide.book}
-guide.llms exits{value} reads{} writes{} calls{} uses{guide.book}
-guide.llms.full exits{value} reads{} writes{} calls{} uses{guide.book}
-guide.markdown exits{value} reads{} writes{} calls{} uses{guide.book}
-guide.page.do exits{found,gone} reads{} writes{} calls{} uses{guide.book}
-ocean.blow exits{value} reads{ocean.physics.get,ocean.storm.get} writes{ocean.storm.set} calls{ocean.press} uses{}
-ocean.clear exits{value} reads{} writes{ocean.storm.update,ocean.waves.set} calls{} uses{}
-ocean.column exits{value} reads{} writes{} calls{} uses{}
-ocean.draw exits{value} reads{ocean.board.get,ocean.cursor.get,ocean.heading.get,ocean.screen.get} writes{ocean.stale.set} calls{ocean.column,ocean.facing,ocean.fit,ocean.view} uses{}
-ocean.expire exits{value} reads{ocean.physics.get,ocean.waves.get} writes{ocean.waves.set} calls{} uses{}
-ocean.facing exits{value} reads{} writes{} calls{} uses{}
-ocean.fit exits{value} reads{ocean.screen.get,ocean.stale.get} writes{} calls{} uses{}
-ocean.key exits{value} reads{ocean.cursor.get} writes{ocean.cursor.set,ocean.stale.set} calls{ocean.press} uses{}
-ocean.land exits{value} reads{ocean.physics.get} writes{ocean.waves.update} calls{} uses{}
-ocean.light exits{value} reads{} writes{} calls{} uses{}
-ocean.look exits{value} reads{} writes{ocean.cursor.update,ocean.stale.set} calls{} uses{}
-ocean.paint exits{value} reads{ocean.board.get,ocean.physics.get,ocean.waves.get} writes{ocean.board.set,ocean.stale.set} calls{ocean.light,ocean.sources,ocean.swell} uses{}
-ocean.poke exits{value} reads{ocean.hand.get,ocean.heading.get,ocean.screen.get} writes{ocean.hand.set} calls{ocean.press,ocean.view} uses{}
-ocean.press exits{value} reads{} writes{} calls{ocean.land} uses{}
-ocean.rotate exits{value} reads{ocean.heading.get} writes{ocean.heading.set,ocean.stale.set,ocean.walls.set} calls{ocean.facing} uses{}
-ocean.show exits{value} reads{} writes{ocean.screen.set,ocean.stale.set} calls{} uses{}
-ocean.sources exits{value} reads{} writes{} calls{} uses{}
-ocean.step exits{value} reads{} writes{} calls{ocean.blow,ocean.draw,ocean.expire,ocean.paint,ocean.rotate} uses{}
-ocean.storm.set exits{value} reads{} writes{ocean.storm.update} calls{} uses{}
-ocean.swell exits{value} reads{} writes{} calls{} uses{}
-ocean.tune exits{value} reads{} writes{ocean.physics.update} calls{} uses{}
-ocean.turn exits{value} reads{ocean.heading.get} writes{ocean.heading.set} calls{} uses{}
-ocean.view exits{value} reads{} writes{} calls{} uses{}
-play.add exits{value} reads{play.files.get} writes{play.dirty.set,play.files.update} calls{play.open} uses{}
-play.back exits{value} reads{play.nav.get} writes{play.nav.set} calls{} uses{}
-play.close exits{value} reads{play.files.get,play.nav.get} writes{play.dirty.set,play.files.update,play.nav.set} calls{} uses{}
-play.compile exits{value} reads{} writes{} calls{play.tabs} uses{play.esbuild,play.esbuild.started}
-play.definition exits{value} reads{} writes{} calls{} uses{play.language}
-play.edit exits{value} reads{} writes{play.dirty.set,play.files.update} calls{} uses{}
-play.follow exits{value} reads{} writes{} calls{play.definition,play.open} uses{}
-play.forward exits{value} reads{play.nav.get} writes{play.nav.set} calls{} uses{}
-play.open exits{value} reads{play.files.get,play.nav.get} writes{play.nav.set} calls{} uses{}
-play.rebuild exits{value} reads{play.bundle.get,play.files.get} writes{play.bundle.set,play.status.set} calls{play.compile} uses{}
-play.rename exits{value} reads{play.files.get} writes{play.dirty.set,play.files.update,play.nav.update} calls{} uses{}
-play.renaming.set exits{value} reads{} writes{play.renaming.set} calls{} uses{}
-play.reset exits{value} reads{} writes{play.dirty.set,play.files.set,play.nav.set} calls{} uses{}
-play.tabs exits{value} reads{} writes{} calls{} uses{}
-play.theme.set exits{value} reads{} writes{play.theme.set} calls{} uses{}
-play.track exits{value} reads{} writes{play.nav.update} calls{} uses{}
-play.view.set exits{value} reads{} writes{play.view.set} calls{} uses{}
-sea.clock.now.do exits{value} reads{} writes{} calls{} uses{}
-sea.press.do exits{value} reads{sea.waves.get,sea.waves.where} writes{sea.waves.delete,sea.waves.set} calls{} uses{}
-tide.arrive exits{value} reads{?,tide.ahead.get,tide.seen.get,tide.sent.get} writes{?,tide.seen.set} calls{?,tide.sync} uses{}
-tide.send exits{value} reads{} writes{tide.sent.update} calls{?} uses{}
-tide.sync exits{value} reads{} writes{tide.ahead.set} calls{?} uses{}
+bench.batch.mount exits{value} faults{} reads{} writes{} calls{bench.mount} uses{}
+bench.batch.write exits{value} faults{} reads{} writes{} calls{} uses{}
+bench.column exits{value} faults{} reads{} writes{} calls{bench.faster,bench.shown} uses{}
+bench.faster exits{value} faults{} reads{} writes{} calls{} uses{}
+bench.gap exits{value} faults{} reads{} writes{} calls{bench.faster,bench.shown} uses{}
+bench.mount exits{value} faults{} reads{} writes{} calls{} uses{}
+bench.prepare exits{value} faults{} reads{} writes{} calls{bench.mount} uses{}
+bench.quartiles exits{value} faults{} reads{} writes{} calls{} uses{}
+bench.release exits{value} faults{} reads{} writes{} calls{} uses{}
+bench.report exits{value} faults{} reads{} writes{} calls{bench.column,bench.gap,bench.quartiles,bench.shown} uses{}
+bench.rounds exits{value} faults{} reads{} writes{bench.run.set} calls{bench.sample} uses{}
+bench.run.do exits{value} faults{} reads{} writes{bench.run.set} calls{bench.prepare,bench.release,bench.report,bench.rounds} uses{bench.subjects}
+bench.sample exits{value} faults{} reads{} writes{} calls{bench.batch.mount,bench.batch.write} uses{}
+bench.shown exits{value} faults{} reads{} writes{} calls{} uses{}
+guide.list.do exits{value} faults{} reads{} writes{} calls{} uses{guide.book}
+guide.llms exits{value} faults{} reads{} writes{} calls{} uses{guide.book}
+guide.llms.full exits{value} faults{} reads{} writes{} calls{} uses{guide.book}
+guide.markdown exits{value} faults{} reads{} writes{} calls{} uses{guide.book}
+guide.page.do exits{found,gone} faults{} reads{} writes{} calls{} uses{guide.book}
+ocean.blow exits{value} faults{} reads{ocean.physics.get,ocean.storm.get} writes{ocean.storm.set} calls{ocean.press} uses{}
+ocean.clear exits{value} faults{} reads{} writes{ocean.storm.update,ocean.waves.set} calls{} uses{}
+ocean.column exits{value} faults{} reads{} writes{} calls{} uses{}
+ocean.draw exits{value} faults{} reads{ocean.board.get,ocean.cursor.get,ocean.heading.get,ocean.screen.get} writes{ocean.stale.set} calls{ocean.column,ocean.facing,ocean.fit,ocean.view} uses{}
+ocean.expire exits{value} faults{} reads{ocean.physics.get,ocean.waves.get} writes{ocean.waves.set} calls{} uses{}
+ocean.facing exits{value} faults{} reads{} writes{} calls{} uses{}
+ocean.fit exits{value} faults{} reads{ocean.screen.get,ocean.stale.get} writes{} calls{} uses{}
+ocean.key exits{value} faults{} reads{ocean.cursor.get} writes{ocean.cursor.set,ocean.stale.set} calls{ocean.press} uses{}
+ocean.land exits{value} faults{} reads{ocean.physics.get} writes{ocean.waves.update} calls{} uses{}
+ocean.light exits{value} faults{} reads{} writes{} calls{} uses{}
+ocean.look exits{value} faults{} reads{} writes{ocean.cursor.update,ocean.stale.set} calls{} uses{}
+ocean.paint exits{value} faults{} reads{ocean.board.get,ocean.physics.get,ocean.waves.get} writes{ocean.board.set,ocean.stale.set} calls{ocean.light,ocean.sources,ocean.swell} uses{}
+ocean.poke exits{value} faults{} reads{ocean.hand.get,ocean.heading.get,ocean.screen.get} writes{ocean.hand.set} calls{ocean.press,ocean.view} uses{}
+ocean.press exits{value} faults{} reads{} writes{} calls{ocean.land} uses{}
+ocean.rotate exits{value} faults{} reads{ocean.heading.get} writes{ocean.heading.set,ocean.stale.set,ocean.walls.set} calls{ocean.facing} uses{}
+ocean.show exits{value} faults{} reads{} writes{ocean.screen.set,ocean.stale.set} calls{} uses{}
+ocean.sources exits{value} faults{} reads{} writes{} calls{} uses{}
+ocean.step exits{value} faults{} reads{} writes{} calls{ocean.blow,ocean.draw,ocean.expire,ocean.paint,ocean.rotate} uses{}
+ocean.storm.set exits{value} faults{} reads{} writes{ocean.storm.update} calls{} uses{}
+ocean.swell exits{value} faults{} reads{} writes{} calls{} uses{}
+ocean.tune exits{value} faults{} reads{} writes{ocean.physics.update} calls{} uses{}
+ocean.turn exits{value} faults{} reads{ocean.heading.get} writes{ocean.heading.set} calls{} uses{}
+ocean.view exits{value} faults{} reads{} writes{} calls{} uses{}
+play.add exits{value} faults{} reads{play.files.get} writes{play.dirty.set,play.files.update} calls{play.open} uses{}
+play.back exits{value} faults{} reads{play.nav.get} writes{play.nav.set} calls{} uses{}
+play.close exits{value} faults{} reads{play.files.get,play.nav.get} writes{play.dirty.set,play.files.update,play.nav.set} calls{} uses{}
+play.compile exits{value} faults{} reads{} writes{} calls{play.tabs} uses{play.esbuild,play.esbuild.started}
+play.definition exits{value} faults{} reads{} writes{} calls{} uses{play.language}
+play.edit exits{value} faults{} reads{} writes{play.dirty.set,play.files.update} calls{} uses{}
+play.follow exits{value} faults{} reads{} writes{} calls{play.definition,play.open} uses{}
+play.forward exits{value} faults{} reads{play.nav.get} writes{play.nav.set} calls{} uses{}
+play.open exits{value} faults{} reads{play.files.get,play.nav.get} writes{play.nav.set} calls{} uses{}
+play.rebuild exits{value} faults{} reads{play.bundle.get,play.files.get} writes{play.bundle.set,play.status.set} calls{play.compile} uses{}
+play.rename exits{value} faults{} reads{play.files.get} writes{play.dirty.set,play.files.update,play.nav.update} calls{} uses{}
+play.renaming.set exits{value} faults{} reads{} writes{play.renaming.set} calls{} uses{}
+play.reset exits{value} faults{} reads{} writes{play.dirty.set,play.files.set,play.nav.set} calls{} uses{}
+play.tabs exits{value} faults{} reads{} writes{} calls{} uses{}
+play.theme.set exits{value} faults{} reads{} writes{play.theme.set} calls{} uses{}
+play.track exits{value} faults{} reads{} writes{play.nav.update} calls{} uses{}
+play.view.set exits{value} faults{} reads{} writes{play.view.set} calls{} uses{}
+sea.clock.now.do exits{value} faults{} reads{} writes{} calls{} uses{}
+sea.press.do exits{value} faults{} reads{sea.waves.get,sea.waves.where} writes{sea.waves.delete,sea.waves.set} calls{} uses{}
+tide.arrive exits{value} faults{?} reads{?,tide.ahead.get,tide.seen.get,tide.sent.get} writes{?,tide.seen.set} calls{?,tide.sync} uses{}
+tide.send exits{value} faults{?} reads{} writes{tide.sent.update} calls{?} uses{}
+tide.sync exits{value} faults{?} reads{} writes{tide.ahead.set} calls{?} uses{}
 view src/bench/page.tsx#BenchPage reads{bench.run.get} runs{bench.run.do}
 view src/bench/subjects.ts#tinker reads{?,shared.get} runs{}
 view src/play/page.tsx#PlayPage reads{play.view.get} runs{play.view.set}
