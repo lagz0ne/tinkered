@@ -589,42 +589,57 @@ test(
 );
 
 test(
-  "faults{} lists each fault a call of a contract member can end with, as Core's type says; " +
-    "two member calls give one set; a call of a plain op gives none",
+  "a call of a contract member gives each fault Core's type says it can end with",
   { timeout: 60_000 },
   () => {
     const { code, out } = graphWith([
-      `const local = operation({ label: "home.local", run: () => 1 });`,
-      ``,
       `export const whoAmI = operation({`,
       `  label: "home.whoAmI",`,
       `  depends: { me: access.user["users.me"] },`,
       `  run: ({ me }) => me.run({ input: null }),`,
       `});`,
-      ``,
-      `export const both = operation({`,
-      `  label: "home.both",`,
-      `  depends: { me: access.user["users.me"], all: access.user.list },`,
-      `  run: ({ me, all }) => [me.run({ input: null }), all.run({ input: null })],`,
-      `});`,
-      ``,
-      `export const near = operation({`,
-      `  label: "home.near",`,
-      `  depends: { local },`,
-      `  run: ({ local }) => local.run(),`,
-      `});`,
     ]);
 
     expect(code).toBe(0);
     expect(out).toBe(
-      `home.both exits{value} ${wire} reads{} writes{} ` +
-        `calls{access.user/list,access.user/users.me} uses{}\n` +
-        "home.local exits{value} faults{} reads{} writes{} calls{} uses{}\n" +
-        "home.near exits{value} faults{} reads{} writes{} calls{home.local} uses{}\n" +
-        `home.whoAmI exits{value} ${wire} reads{} writes{} calls{access.user/users.me} uses{}\n`,
+      `home.whoAmI exits{value} ${wire} reads{} writes{} calls{access.user/users.me} uses{}\n`,
     );
   },
 );
+
+test("two member calls give one set of faults", { timeout: 60_000 }, () => {
+  const { code, out } = graphWith([
+    `export const both = operation({`,
+    `  label: "home.both",`,
+    `  depends: { me: access.user["users.me"], all: access.user.list },`,
+    `  run: ({ me, all }) => [me.run({ input: null }), all.run({ input: null })],`,
+    `});`,
+  ]);
+
+  expect(code).toBe(0);
+  expect(out).toBe(
+    `home.both exits{value} ${wire} reads{} writes{} ` +
+      `calls{access.user/list,access.user/users.me} uses{}\n`,
+  );
+});
+
+test("a call of a plain op gives faults{}", { timeout: 60_000 }, () => {
+  const { code, out } = graphWith([
+    `const local = operation({ label: "home.local", run: () => 1 });`,
+    ``,
+    `export const near = operation({`,
+    `  label: "home.near",`,
+    `  depends: { local },`,
+    `  run: ({ local }) => local.run(),`,
+    `});`,
+  ]);
+
+  expect(code).toBe(0);
+  expect(out).toBe(
+    "home.local exits{value} faults{} reads{} writes{} calls{} uses{}\n" +
+      "home.near exits{value} faults{} reads{} writes{} calls{home.local} uses{}\n",
+  );
+});
 
 test(
   "a call the graph cannot name adds ? to faults{}, beside the faults of the member it names",
@@ -642,6 +657,63 @@ test(
     expect(out).toBe(
       `home.mixed exits{value} faults{?,${faultSet}} reads{} writes{} ` +
         "calls{?,access.user/users.me} uses{}\n",
+    );
+  },
+);
+
+/**
+ * Core as the app sees it, but its `rpc` handle's `fault.is` guards no type: the graph cannot
+ * read the faults from it.
+ */
+const unguarded = [
+  `import type { rpc as real } from "../node_modules/@tinkered/core/dist/index.mjs";`,
+  ``,
+  `export * from "../node_modules/@tinkered/core/dist/index.mjs";`,
+  ``,
+  `type Contracts = Parameters<typeof real>[0];`,
+  ``,
+  `export declare function rpc<C extends Contracts>(`,
+  `  contracts: C,`,
+  `): Omit<ReturnType<typeof real<C>>, "fault"> & { fault: { is(error: unknown): boolean } };`,
+].join("\n");
+
+test(
+  "a member call whose contract type names no fault set gives faults{?}",
+  { timeout: 60_000 },
+  () => {
+    const tsconfig = JSON.stringify({
+      extends: at("base/tsconfig.json"),
+      compilerOptions: {
+        target: "esnext",
+        module: "esnext",
+        moduleResolution: "bundler",
+        paths: { "@tinkered/core": ["./core/index.d.ts"] },
+      },
+      include: ["src"],
+    });
+    const ops = [
+      `import { operation } from "@tinkered/core";`,
+      ``,
+      `import { access } from "./units";`,
+      ``,
+      `export const whoAmI = operation({`,
+      `  label: "home.whoAmI",`,
+      `  depends: { me: access.user["users.me"] },`,
+      `  run: ({ me }) => me.run({ input: null }),`,
+      `});`,
+    ].join("\n");
+    const folder = appOf({
+      "tsconfig.json": tsconfig,
+      "core/index.d.ts": unguarded,
+      "src/units.ts": access,
+      "src/ops.ts": ops,
+    });
+
+    const { code, out } = main(["graph", folder], "/");
+
+    expect(code).toBe(0);
+    expect(out).toBe(
+      "home.whoAmI exits{value} faults{?} reads{} writes{} calls{access.user/users.me} uses{}\n",
     );
   },
 );
