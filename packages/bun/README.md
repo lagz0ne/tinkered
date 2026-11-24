@@ -76,10 +76,11 @@ export default defineMain(
 - Each handler reads a body up to its own
   `maxBody`, 1 MiB when unset. Past it,
   `serve` answers 413.
-- A reply that leaves the body unread
-  closes the connection: the client may
-  still be sending it. A body read to its
-  end keeps the connection open.
+- A handler's reply that leaves the body
+  unread closes the connection: the client
+  may still be sending it. So do `serve`'s
+  own 404 and 413. A body read to its end
+  keeps the connection open.
 - A handler's `request.signal` aborts when
   the client leaves, body or not.
 - `server.requestIP(request)` and
