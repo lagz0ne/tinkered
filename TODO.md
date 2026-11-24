@@ -25,6 +25,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **core/keyed-resource-watch-closed** — found on `react/use-data-keyed-disposed`. A keyed resource read (`Data.Built`) whose entry another reader still holds takes a `watch` after the scope closed and raises nothing (its `get` raises `Disposed`). A watch on a closed scope must raise `Disposed`, as a plain cell's and, since `34c79014`, a keyed part's do. React works around it (it calls `readableOf` after `watch`); once Core raises, that call can go.
+  Verify: a Core test at the public seam red on main (two readers of one keyed resource entry, close, a new `watch` raises `Disposed`); size within the cap or Blocked with the exact size.
+
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -73,16 +76,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **core/keyed-watch-closed-scope** — found on `react/use-data-keyed-disposed`. Two bugs in `KeyedControl#join` on a closed scope: a refused watch leaves its part entry (the next `where` gives back the same reader); and with another part already watched, a new part's watch raises nothing and calls the root's listener, which on a `remoteData` board asks the server. Fix: one open check at the top of `join`: 23,457 B gzip without rpc. Duke 2026-11-24 07:45 UTC (card): raise the no-rpc cap by 10 B to 23,457 B, then release 0.34.8.
-  Owner: Opus lead; Opus writer in `../tinkered-keyed-close`.
-  Next: the writer lands the fix and the cap (red tests `a44c99d1`).
-  Verify: the 2 red tests green; `vp check`, Core tests, `scripts/ticket.sh` exit 0; `pnpm validate` with size within 23,457 B; Core mutation 85 or more.
-
-- **react/use-data-keyed-disposed** — `packages/react/tests/use-data-keyed.test.tsx` threw an unhandled `Error: Disposed` (1 in 147 runs, 2026-11-24). Cause 1, fixed in `56d29395`: React's subscribe ran after the scope closed. Cause 2: after close, Core's held controller reads the initial value (ADR 0069), so a cell written before the close gives a new value; React's snapshot check sees a change and renders again, and that render raises `Disposed` (ADR 0144 d3). Fix in React (option A): after its scope closes, `useData` keeps the last value it saw. Option B (a held controller keeps its last write) changes ADR 0069: not taken.
-  Owner: Opus lead; Opus writer in `../tinkered-react-snapshot`.
-  Next: the writer adds a red test (a written cell, closed between commit and subscribe), then the fix.
-  Verify: the red test; `use-data-keyed.test.tsx` 200 runs, 0 failures; `vp check`, React tests, `pnpm validate` exit 0; React mutation 85 or more.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -122,11 +115,17 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **core/keyed-watch-closed-scope** — done 2026-11-24. A keyed watch on a closed scope raises `Disposed` and leaves no part: one open check at the top of `KeyedControl#join`. Before, a refused watch left its part (the next `where` gave back the same reader), and with another part watched a new part's watch raised nothing and called the root's listener (on a `remoteData` board, an ask to the server). Duke 2026-11-24 07:45 UTC (card): the no-rpc cap is 23,457 B, up 10 B. Fix `34c79014`, cap `18bfc92c`. Released as 0.34.8.
+  Proof: 2 tests red on main, green (`keyed-data.test.ts`); Core 1,485 tests, dist 1,729; `vp check` 0 errors, 80 warnings; `scripts/ticket.sh` exit 0; `pnpm validate` 22 of 22 PASS; size 23,457 B no-rpc (cap 23,457 B), 34,094 B with rpc; Opus convention-review READY, no findings; Core mutation on `2258cbaf` 86.79 (kills alone 85.80), floor 85, exit 0.
+
+- **react/use-data-keyed-disposed** — done 2026-11-24. `use-data-keyed.test.tsx` threw `Disposed` 1 in 147 runs. Cause 1: React's subscribe ran after the scope closed; now it takes no subscription (`56d29395`). Cause 2: after close a written cell reads its initial value (ADR 0069), so React saw a change and rendered again, and the render raised (ADR 0144 d3); now `useData` keeps the last value it read while open (`e78fc435`). Option B (change ADR 0069) was not taken. Released as 0.34.8.
+  Proof: red tests on main for both causes (5 of 5 runs each), a StrictMode build-once test (red with the calls swapped); after the fix `use-data-keyed.test.tsx` 200 runs, 0 failures; React 145 tests; `vp check` 0 errors, 80 warnings; `pnpm validate` 22 of 22 PASS; Opus convention-review NOT READY once (a false TSDoc claim), then READY twice, one fix round each part; React mutation on `e3e323ee` 90.38 (kills alone 88.18) and on `2aec7c9e` 90.34 (kills alone 88.36), floor 85.
+
 - **skill/part-whole-key** — done 2026-11-24 (thread lead, from CUJ run 16: 3+ writer steps failed on it). The core/rpc skill now says a part can be one member by its whole key: after a set, Core asks again for each changed member by its whole key (ADR 0138 d11), so a read guard for `where({ userId })` also gets `{ teamId, userId }`. A 4-line guard shows the check.
-  Proof: `vp run prose` exit 0, `vp run skills` exit 0. Rides 0.34.8.
+  Proof: `vp run prose` exit 0, `vp run skills` exit 0. Released as 0.34.8.
 
 - **bun/early-answer-close** — done 2026-11-24. A reply that leaves the request body unread now sends `connection: close`, as Go's net/http does: `serve` closes any handler's reply and its own 404 and 413 when the body was not read to its end; `ws.ts` closes its `admit` refusals, its 503s, its 413, and a bytes POST reply whose implementation left the body unread (for a bare `Bun.serve` host). A body read to its end keeps keep-alive. Under `serve` on main, `close()` did not hang (the body pipe stopped it); a bare host did. Fix `077361dc`, `4805e37d`; `e4684b9d` fixed a test that failed under `bun test` (`expect.poll`).
-  Proof: 6 tests red on main, then green (`serve.test.ts`, `upload.test.ts`); bun 140 tests (vitest and `bun test`); `vp check` 0 errors, 80 warnings (as main); `pnpm validate` 22 of 22 PASS; Opus convention-review READY with 1 question and 2 nits, one fix round (all four items), READY at `2677c592`; bun mutation on `e4684b9d` 86.95 (kills alone 86.83) and `run.ts` 91.53, floor 85, exit 0. The first lane run on `2677c592` stopped in its dry run on `expect.poll`.
+  Proof: 6 tests red on main, then green (`serve.test.ts`, `upload.test.ts`); bun 140 tests (vitest and `bun test`); `vp check` 0 errors, 80 warnings (as main); `pnpm validate` 22 of 22 PASS; Opus convention-review READY with 1 question and 2 nits, one fix round (all four items), READY at `2677c592`; bun mutation on `e4684b9d` 86.95 (kills alone 86.83) and `run.ts` 91.53, floor 85, exit 0. The first lane run on `2677c592` stopped in its dry run on `expect.poll`. Released as 0.34.8.
 
 - **bun/body-limit-per-handler** — done 2026-11-24 (GitHub #57; Duke 2026-11-23 23:39 UTC: "Address the body limit issue then release"). `serve` holds each handler to its own `maxBody`, 1 MiB when unset: a read past it (Content-Length or count) fails, and `serve` answers 413 with `connection: close`. `maxRequestBodySize` stays the backstop; a `bytes()` key keeps its own max. A handler with a body gets a copy of the request and a server whose `requestIP`, `timeout` and `upgrade` map it back to Bun's own. Fix `5066a5fd`, `9c49a70c`. Released as 0.34.7.
   Proof: 3 tests red on main and the `requestIP` test red before its fix, then all green (`serve.test.ts`); bun 134 tests, all packages green; `vp check` 0 errors, 80 warnings (as main); `pnpm validate` 22 of 22 PASS; Opus convention-review NOT READY (`requestIP` on the copy gave null), one fix round, READY at `9c3456b3`; bun mutation on `9c3456b3` 86.74 (kills alone 86.62) and `run.ts` 91.53, floor 85, exit 0.

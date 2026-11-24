@@ -9,6 +9,53 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.8
+
+`@tinkered/bun`: a reply that leaves the
+request body unread closes the connection.
+
+- Before, a handler that answered before it read
+  the body kept the connection open. The client
+  went on sending, and a graceful `stop()` could
+  wait on it.
+- Now `serve` adds `connection: close` to a
+  handler's reply, and to its own 404 and 413,
+  when the body was not read to its end.
+- `ws.server`'s bytes POST does the same, also
+  on a bare `Bun.serve` host.
+- A body read to its end keeps the connection
+  open.
+
+`@tinkered/react`: `useData` stays quiet when
+its scope closes.
+
+- Before, a scope that closed between React's
+  commit and its subscribe threw `Disposed`
+  from the subscribe.
+- After a close, a written cell reads its
+  initial value again (ADR 0069). React saw
+  that as a change and rendered again, and the
+  render threw `Disposed`.
+- Now a subscribe on a closed scope takes no
+  subscription, and `useData` keeps the last
+  value it read while the scope was open.
+- A render after the close still throws
+  `Disposed` (ADR 0144 d3).
+
+`@tinkered/core`: a keyed watch on a closed
+scope throws `Disposed` and leaves no part.
+
+- Before, a refused watch left its part, and
+  the next `where` gave back the same reader.
+- Before, a new part's watch on a closed scope
+  threw nothing when another part was watched.
+  On a `remoteData` board it asked the server.
+- The no-rpc size cap is 23,457 B, up 10 B for
+  this check (Duke 2026-11-24).
+- The core/rpc skill says a read guard also
+  gets one member by its whole key
+  (ADR 0138 d11).
+
 ## 0.34.7
 
 `@tinkered/bun`: each handler reads a body
