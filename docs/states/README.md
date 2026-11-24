@@ -86,6 +86,9 @@ so main stays green.
   Cards: `core/keyed-entry-dropped`,
   `core/keyed-watch-after-close`,
   `core/keyed-wake-after-close`.
+  WatchAfterCloseRefused:
+  `watch-before.cfg` breaks it on main;
+  card `core/keyed-resource-watch-closed`.
 - **scope-life** — 0 rules break now
   (fixes `aa79955b`, `5ac894d3`, ADR 0165);
   the spec models the fixes.
@@ -214,6 +217,9 @@ The cards on `TODO.md` use these numbers.
     `board.faults` shows refused,
     the part still shows `ready`.
     [remote-part](remote-part/README.md).
+18. A watch after the close joins an entry
+    another reader still watches.
+    [keyed-resource](keyed-resource/README.md).
 
 The session loop under StrictMode is
 [session-provider](session-provider/README.md).

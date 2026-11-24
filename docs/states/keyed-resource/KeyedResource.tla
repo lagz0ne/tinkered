@@ -19,7 +19,10 @@
 (***************************************************************************)
 EXTENDS Integers, FiniteSets
 
-CONSTANTS Readers, Keys, Entries, MaxSrc, None
+CONSTANTS Readers, Keys, Entries, MaxSrc, None,
+  LateWatchRefused  \* FALSE: main d3734e2e, where a watch after the close
+                    \* joins an entry another reader watches. TRUE: the fix
+                    \* (card core/keyed-resource-watch-closed).
 
 VARIABLES
   src,       \* the source cell's value (a version number)
@@ -131,7 +134,9 @@ ReaderRenders(r, k) ==
 (* builds when the source moved. A reader that left and subscribes again *)
 (* (React StrictMode remount) uses the same object, even when the map    *)
 (* dropped it. On a closed scope the build runs, then the source's watch *)
-(* throws Disposed and the reader is not added.                          *)
+(* throws Disposed and the reader is not added. When another reader      *)
+(* still watches the entry, main d3734e2e adds the reader anyway; with   *)
+(* LateWatchRefused the watch raises Disposed and adds no one.           *)
 ReaderSubscribes(r) ==
   /\ ~Busy
   /\ rs[r] \in {"rendered", "left"}
@@ -139,7 +144,7 @@ ReaderSubscribes(r) ==
      IF watchers[e] = {} /\ inputs[e] # Read
      THEN /\ StartBuild(e, "reader", r)
           /\ UNCHANGED <<watchers, rs>>
-     ELSE /\ ~closed \/ watchers[e] # {}
+     ELSE /\ ~closed \/ (~LateWatchRefused /\ watchers[e] # {})
           /\ watchers' = [watchers EXCEPT ![e] = @ \cup {r}]
           /\ rs' = [rs EXCEPT ![r] = "live"]
           /\ UNCHANGED <<bld, inputs, drain>>
@@ -318,4 +323,12 @@ TypeOK ==
   /\ src \in 0..MaxSrc
   /\ ends \in [Entries -> 0..2]
   /\ inputs \in [Entries -> -1..MaxSrc]
+
+(* ADR 0157 As built (core/keyed-watch-after-close, ff565316; the Core     *)
+(* README): a held reader's watch after the scope closed raises Disposed.  *)
+(* So after the close no entry gains a watcher, also when another reader   *)
+(* still watches it.                                                       *)
+WatchAfterCloseRefused ==
+  [][closed => \A f \in Entries : watchers'[f] \subseteq watchers[f]]_vars
+
 =============================================================================

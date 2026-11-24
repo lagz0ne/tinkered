@@ -1,0 +1,50 @@
+/** Replays of the keyed-resource model (docs/states/keyed-resource/KeyedResource.tla, watch.cfg):
+ * each test runs one model path, one step per action, on the real code. */
+import { expect, test } from "vite-plus/test";
+
+import { createScope, data, isError, resource } from "@/main";
+
+const level = data({ label: "closed-watch.level", initial: 0 });
+
+const shown = resource({
+  label: "closed-watch.shown",
+  config: {},
+  depends: { level },
+  factory: ({ level }) => level,
+});
+
+/** WatchAfterCloseRefused (ADR 0157 As built): steps 1-6 of the path in watch-before.cfg. */
+test("WatchAfterCloseRefused: a watch after the close raises Disposed while another reader watches the entry", async () => {
+  const scope = createScope();
+  const first = scope.resolve(shown);
+  first.get();
+  const second = scope.resolve(shown);
+  second.get();
+  first.watch(() => undefined);
+  await scope.close();
+
+  let thrown: unknown;
+  try {
+    second.watch(() => undefined);
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(isError(thrown, "Disposed")).toBe(true);
+});
+
+test("control: a watch after the close raises Disposed when no reader watches the entry", async () => {
+  const scope = createScope();
+  const reader = scope.resolve(shown);
+  reader.get();
+  await scope.close();
+
+  let thrown: unknown;
+  try {
+    reader.watch(() => undefined);
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(isError(thrown, "Disposed")).toBe(true);
+});

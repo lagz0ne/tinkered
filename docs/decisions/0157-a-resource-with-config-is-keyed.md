@@ -116,3 +116,14 @@ changes" breaks no app code.
   128 bytes.
 - `tinker/plain` no longer knows the name
   `derived`.
+
+## As built
+
+- core/keyed-watch-after-close (`ff565316`): a
+  held reader's read or watch after the scope
+  closed raises `Disposed` and builds nothing.
+  The Core README says so.
+- core/keyed-resource-watch-closed: that holds
+  also when another reader still watches the
+  key's entry. Before, that watch raised
+  nothing and joined the entry after the close.

@@ -91,6 +91,14 @@ So they still show 5 rules break.
 - **NoReaderNoEntry** — holds.
   ADR 0150 d5.
   The last reader leaves, the entry goes.
+- **WatchAfterCloseRefused** — holds with the fix
+  (card `core/keyed-resource-watch-closed`).
+  `watch-before.cfg` breaks it.
+  ADR 0157 As built (`ff565316`, the Core README):
+  a held reader's watch after the scope closed
+  raises `Disposed`.
+  So after the close no entry gains a watcher,
+  also when another reader still watches it.
 - **NoDeadlock** — holds. From the tool.
 
 ADR 0150 d5 counts here:
@@ -355,6 +363,65 @@ vp test --project browser \
   tests/statechart/keyed-resource-react.test.tsx
 ```
 
+## Bug 18: a watch after the close joins a watched entry
+
+Card `core/keyed-resource-watch-closed`.
+Rule: WatchAfterCloseRefused.
+
+`ReaderSubscribes` lets a watch through
+on a closed scope when another reader
+still watches the entry
+(`~closed \/ watchers[e] # {}`).
+The code on main `d3734e2e` does the same:
+that watch raises nothing and joins the entry.
+With no other watcher, it raises `Disposed`.
+`LateWatchRefused` picks the code:
+`FALSE` is main, `TRUE` is the fix.
+
+TLC: 24,044 states, 1 break (`watch-before.cfg`).
+With the fix: 24,044 states, 0 breaks (`watch.cfg`).
+Both configs check only the rules
+that hold in this old spec, and the new one.
+
+```mermaid
+---
+title: "A watch after the close (watch-before.cfg)"
+---
+stateDiagram-v2
+  s0: No reader
+  s1: A reader rendered, a build runs
+  s2: A reader rendered, not subscribed
+  s3: A reader watches
+  s4: Scope closed, a reader watches
+  [*] --> s0
+  s0 --> s1: a reader renders the key
+  s1 --> s2: the build throws
+  s2 --> s2: a reader renders the key
+  s2 --> s3: the reader subscribes
+  s3 --> s4: the scope closes
+  s4 --> s4: the other reader subscribes
+```
+
+The full chart is `chart-watch.mmd`.
+The step from s4 to s4 breaks the rule.
+It is a step rule,
+so the chart marks the path, not the state.
+
+### Path 5: the other reader subscribes after the close
+
+1. Reader 1 renders the key: a new entry.
+2. Reader 2 renders the key: the same entry.
+3. Reader 1 subscribes.
+4. The scope closes.
+5. Reader 2 subscribes.
+   It raises nothing and joins the entry.
+   The Core README wants `Disposed`.
+
+Test: `paths/keyed-resource-watch-closed-paths.test.ts.txt`.
+It has the path and a control
+(no other watcher: `Disposed`, as today).
+On main the path fails; the control passes.
+
 ## What the spec leaves out
 
 - Async sources (`park`, `wait`, `failed`).
@@ -405,3 +472,16 @@ The spec still describes `3ff6778`,
 so it does not see fixes
 `ff565316`, `ecc3be31` and `f2125284`.
 In the code, no rule breaks.
+
+```sh
+statechart KeyedResource.tla \
+  --config watch-before.cfg \
+  --view view.ts --out "$(mktemp -d)"
+statechart KeyedResource.tla \
+  --config watch.cfg \
+  --view view.ts --out "$(mktemp -d)"
+```
+
+- `watch-before.cfg`: exit 1,
+  WatchAfterCloseRefused breaks.
+- `watch.cfg`: exit 0, every rule holds.
