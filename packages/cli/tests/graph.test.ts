@@ -205,40 +205,40 @@ const ops = [
 
 /** What `look` touches: its bare `all` reads the cell's value. */
 const looked =
-  "issue.look exits{value} reads{issues.list.get,issues.list.of} " +
+  "issue.look exits{value} faults{} reads{issues.list.get,issues.list.of} " +
   "writes{issues.list.delete} calls{} uses{}";
 
 /** What each move touches, however its deps are written. */
 const moved =
-  "exits{gone,moved,stale} reads{issues.list.of,issues.list.where} writes{issues.list.set} " +
+  "exits{gone,moved,stale} faults{} reads{issues.list.of,issues.list.where} writes{issues.list.set} " +
   "calls{issues.inTeam} uses{}";
 
 /** The graph of `ops`: each name is a label, never the local name. */
 const golden = [
-  "count.tick exits{value} reads{count.get,issues.list.where} writes{count.update} calls{} uses{}",
-  "guard exits{refused,value} reads{issues.list.get} writes{} calls{issues.inTeam} uses{}",
-  "issue.boxed exits{value} reads{} writes{} calls{?} uses{}",
-  "issue.boxes exits{value} reads{} writes{} calls{?} uses{}",
-  "issue.clear.do exits{cleared,kept} reads{} writes{issues.list.delete} " +
+  "count.tick exits{value} faults{} reads{count.get,issues.list.where} writes{count.update} calls{} uses{}",
+  "guard exits{refused,value} faults{} reads{issues.list.get} writes{} calls{issues.inTeam} uses{}",
+  "issue.boxed exits{value} faults{?} reads{} writes{} calls{?} uses{}",
+  "issue.boxes exits{value} faults{?} reads{} writes{} calls{?} uses{}",
+  "issue.clear.do exits{cleared,kept} faults{} reads{} writes{issues.list.delete} " +
     "calls{issues.inTeam} uses{}",
-  "issue.hand exits{value} reads{?} writes{?} calls{issues.inTeam} uses{}",
-  "issue.late exits{value} reads{issues.list.get} writes{} calls{} uses{}",
+  "issue.hand exits{value} faults{} reads{?} writes{?} calls{issues.inTeam} uses{}",
+  "issue.late exits{value} faults{} reads{issues.list.get} writes{} calls{} uses{}",
   looked,
-  "issue.maybe exits{value} reads{} writes{} calls{?} uses{}",
-  "issue.move.again exits{gone,moved,stale} reads{?} writes{?} calls{?} uses{}",
+  "issue.maybe exits{value} faults{?} reads{} writes{} calls{?} uses{}",
+  "issue.move.again exits{gone,moved,stale} faults{?} reads{?} writes{?} calls{?} uses{}",
   `issue.move.do ${moved}`,
   `issue.move.shared ${moved}`,
   `issue.move.spread ${moved}`,
-  "issue.pass exits{value} reads{?} writes{?} calls{?} uses{}",
-  "issue.peek exits{value} reads{?} writes{} calls{} uses{}",
-  "issue.ping exits{value} reads{} writes{} calls{?} uses{}",
-  "issue.ping.again exits{value} reads{?} writes{?} calls{?} uses{}",
-  "issue.quoted exits{value} reads{issues.list.get} writes{} calls{} uses{}",
-  "issue.raw exits{value} reads{?} writes{?} calls{} uses{}",
-  "issue.rename exits{value} reads{?} writes{?} calls{?} uses{}",
-  "issue.shelved exits{value} reads{?} writes{?} calls{} uses{}",
-  "issues.inTeam exits{value} reads{} writes{} calls{} uses{}",
-  "issues.inTeam.again exits{value} reads{} writes{} calls{} uses{}",
+  "issue.pass exits{value} faults{?} reads{?} writes{?} calls{?} uses{}",
+  "issue.peek exits{value} faults{} reads{?} writes{} calls{} uses{}",
+  "issue.ping exits{value} faults{?} reads{} writes{} calls{?} uses{}",
+  "issue.ping.again exits{value} faults{?} reads{?} writes{?} calls{?} uses{}",
+  "issue.quoted exits{value} faults{} reads{issues.list.get} writes{} calls{} uses{}",
+  "issue.raw exits{value} faults{} reads{?} writes{?} calls{} uses{}",
+  "issue.rename exits{value} faults{?} reads{?} writes{?} calls{?} uses{}",
+  "issue.shelved exits{value} faults{} reads{?} writes{?} calls{} uses{}",
+  "issues.inTeam exits{value} faults{} reads{} writes{} calls{} uses{}",
+  "issues.inTeam.again exits{value} faults{} reads{} writes{} calls{} uses{}",
   "",
 ].join("\n");
 
@@ -357,7 +357,7 @@ test(
   { timeout: 60_000 },
   () => {
     const look = `${looked}\n`;
-    const file = `${golden.replace(look, "")}issue.old.do exits{gone} reads{} writes{} calls{}\n`;
+    const file = `${golden.replace(look, "")}issue.old.do exits{gone} faults{} reads{} writes{} calls{}\n`;
     const folder = appOf({ "src/ops.ts": ops, "tinker.graph": file });
 
     const { code, out } = main(["check", folder], "/");
@@ -454,6 +454,12 @@ const access = [
   `});`,
 ].join("\n");
 
+/** Each fault a call of a contract member can end with: Core's `Fault`, in code-unit order. */
+const faultSet = "decode,encode,failed,invalid,link,missing,refused";
+
+/** The `faults{}` part of a line whose run calls a contract member. */
+const wire = `faults{${faultSet}}`;
+
 /** An app of `access`, in place of the other units, and these operations: its graph. */
 function graphWith(ops: string[]) {
   const head = `import { operation } from "@tinkered/core";\n\n`;
@@ -494,10 +500,11 @@ test(
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.adminNames exits{value} reads{} writes{} calls{access.admin/list} uses{}\n" +
-        "home.ban exits{value} reads{} writes{} calls{access.staff/ban} uses{}\n" +
-        "home.names exits{error,panic,value} reads{} writes{} calls{access.user/list} uses{}\n" +
-        "home.whoAmI exits{value} reads{} writes{} calls{access.user/users.me} uses{}\n",
+      `home.adminNames exits{value} ${wire} reads{} writes{} calls{access.admin/list} uses{}\n` +
+        `home.ban exits{value} ${wire} reads{} writes{} calls{access.staff/ban} uses{}\n` +
+        `home.names exits{error,panic,value} ${wire} reads{} writes{} ` +
+        `calls{access.user/list} uses{}\n` +
+        `home.whoAmI exits{value} ${wire} reads{} writes{} calls{access.user/users.me} uses{}\n`,
     );
   },
 );
@@ -522,8 +529,8 @@ test(
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.all exits{value} reads{} writes{} calls{?} uses{}\n" +
-        "home.count exits{value} reads{} writes{} calls{?} uses{}\n",
+      "home.all exits{value} faults{?} reads{} writes{} calls{?} uses{}\n" +
+        "home.count exits{value} faults{?} reads{} writes{} calls{?} uses{}\n",
     );
   },
 );
@@ -541,7 +548,7 @@ test(
     ]);
 
     expect(code).toBe(0);
-    expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?} uses{}\n");
+    expect(out).toBe("home.whoAmI exits{value} faults{?} reads{} writes{} calls{?} uses{}\n");
   },
 );
 
@@ -557,7 +564,7 @@ test("a member under a key not written in the code keeps calls{?}", { timeout: 6
   ]);
 
   expect(code).toBe(0);
-  expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?} uses{}\n");
+  expect(out).toBe("home.whoAmI exits{value} faults{?} reads{} writes{} calls{?} uses{}\n");
 });
 
 test(
@@ -575,7 +582,67 @@ test(
     ]);
 
     expect(code).toBe(0);
-    expect(out).toBe("home.answer exits{error,panic,value} reads{} writes{} calls{?} uses{}\n");
+    expect(out).toBe(
+      "home.answer exits{error,panic,value} faults{?} reads{} writes{} calls{?} uses{}\n",
+    );
+  },
+);
+
+test(
+  "faults{} lists each fault a call of a contract member can end with, as Core's type says; " +
+    "two member calls give one set; a call of a plain op gives none",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = graphWith([
+      `const local = operation({ label: "home.local", run: () => 1 });`,
+      ``,
+      `export const whoAmI = operation({`,
+      `  label: "home.whoAmI",`,
+      `  depends: { me: access.user["users.me"] },`,
+      `  run: ({ me }) => me.run({ input: null }),`,
+      `});`,
+      ``,
+      `export const both = operation({`,
+      `  label: "home.both",`,
+      `  depends: { me: access.user["users.me"], all: access.user.list },`,
+      `  run: ({ me, all }) => [me.run({ input: null }), all.run({ input: null })],`,
+      `});`,
+      ``,
+      `export const near = operation({`,
+      `  label: "home.near",`,
+      `  depends: { local },`,
+      `  run: ({ local }) => local.run(),`,
+      `});`,
+    ]);
+
+    expect(code).toBe(0);
+    expect(out).toBe(
+      `home.both exits{value} ${wire} reads{} writes{} ` +
+        `calls{access.user/list,access.user/users.me} uses{}\n` +
+        "home.local exits{value} faults{} reads{} writes{} calls{} uses{}\n" +
+        "home.near exits{value} faults{} reads{} writes{} calls{home.local} uses{}\n" +
+        `home.whoAmI exits{value} ${wire} reads{} writes{} calls{access.user/users.me} uses{}\n`,
+    );
+  },
+);
+
+test(
+  "a call the graph cannot name adds ? to faults{}, beside the faults of the member it names",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = graphWith([
+      `export const mixed = operation({`,
+      `  label: "home.mixed",`,
+      `  depends: { me: access.user["users.me"], all: loose["users.all"] },`,
+      `  run: ({ me, all }) => [me.run({ input: null }), all.run({ input: null })],`,
+      `});`,
+    ]);
+
+    expect(code).toBe(0);
+    expect(out).toBe(
+      `home.mixed exits{value} faults{?,${faultSet}} reads{} writes{} ` +
+        "calls{?,access.user/users.me} uses{}\n",
+    );
   },
 );
 
@@ -597,7 +664,7 @@ test(
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.codesNow exits{value} reads{access.codes.where,access.logins.get} " +
+      "home.codesNow exits{value} faults{} reads{access.codes.where,access.logins.get} " +
         "writes{access.codes.delete,access.logins.set} calls{} uses{}\n",
     );
   },
@@ -675,8 +742,8 @@ test(
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.save exits{value} reads{} writes{} calls{} uses{db.tx}\n" +
-        "home.sync exits{value} reads{} writes{} calls{} uses{db.mail,db.row,db.tx,pg.pool}\n",
+      "home.save exits{value} faults{} reads{} writes{} calls{} uses{db.tx}\n" +
+        "home.sync exits{value} faults{} reads{} writes{} calls{} uses{db.mail,db.row,db.tx,pg.pool}\n",
     );
   },
 );
@@ -728,12 +795,12 @@ test(
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.any exits{value} reads{} writes{} calls{} uses{?,db.tx}\n" +
-        "home.boxed exits{value} reads{} writes{} calls{} uses{?}\n" +
-        "home.keyed exits{value} reads{} writes{} calls{} uses{?}\n" +
-        "home.one exits{value} reads{} writes{} calls{} uses{?}\n" +
-        "home.plain exits{value} reads{} writes{} calls{} uses{}\n" +
-        "home.shelf exits{value} reads{} writes{} calls{} uses{?}\n",
+      "home.any exits{value} faults{} reads{} writes{} calls{} uses{?,db.tx}\n" +
+        "home.boxed exits{value} faults{} reads{} writes{} calls{} uses{?}\n" +
+        "home.keyed exits{value} faults{} reads{} writes{} calls{} uses{?}\n" +
+        "home.one exits{value} faults{} reads{} writes{} calls{} uses{?}\n" +
+        "home.plain exits{value} faults{} reads{} writes{} calls{} uses{}\n" +
+        "home.shelf exits{value} faults{} reads{} writes{} calls{} uses{?}\n",
     );
   },
 );
@@ -821,8 +888,8 @@ const views = [
 
 /** The graph of `views`: the op lines, then the view lines, sorted by name. */
 const viewLines = [
-  "home.again exits{value} reads{access.logins.get} writes{} calls{} uses{}",
-  "home.forget exits{value} reads{} writes{access.logins.set} calls{} uses{}",
+  "home.again exits{value} faults{} reads{access.logins.get} writes{} calls{} uses{}",
+  "home.forget exits{value} faults{} reads{} writes{access.logins.set} calls{} uses{}",
   "view src/home/home.tsx#Count reads{?,access.logins.get} runs{?}",
   "view src/home/home.tsx#SignIn reads{access.codes.where,access.logins.get} " +
     "runs{access.user/users.me,home.again,home.forget}",
@@ -846,8 +913,8 @@ const signIn = [
 
 /** The graph of `signIn`. */
 const signInLines = [
-  "home.again exits{value} reads{access.logins.get} writes{} calls{} uses{}",
-  "home.forget exits{value} reads{} writes{access.logins.set} calls{} uses{}",
+  "home.again exits{value} faults{} reads{access.logins.get} writes{} calls{} uses{}",
+  "home.forget exits{value} faults{} reads{} writes{access.logins.set} calls{} uses{}",
   "view src/home/home.tsx#SignIn reads{access.logins.get} runs{home.forget}",
   "",
 ].join("\n");
