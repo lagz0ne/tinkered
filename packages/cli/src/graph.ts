@@ -227,7 +227,9 @@ function resourceLabel(checker: ts.TypeChecker, declaration: ts.Declaration | un
   } else if (declaration && ts.isPropertyAssignment(declaration)) {
     call = resourceCall(checker, declaration.initializer);
   }
-  return call && coreName(call) === "resource" ? labelIn(call.arguments[0]) : undefined;
+  if (!call || coreName(call) !== "resource") return undefined;
+  const [options] = call.arguments;
+  return labelIn(options);
 }
 
 /** A keyed resource read: what a keyed resource's call makes (ADR 0150). */
@@ -237,14 +239,14 @@ function isBuilt(checker: ts.TypeChecker, type: ts.Type) {
   return value?.isStringLiteral() === true && value.value === "built";
 }
 
-/** A resource, by its type: a handle builds with `factory`; a keyed one is read, or makes a read. */
+/** A resource, by its type: a handle has `factory`; a keyed one is a read, or makes one. */
 function isResource(checker: ts.TypeChecker, type: ts.Type | undefined) {
   if (!type) return false;
   if (type.getProperty("factory") || isBuilt(checker, type)) return true;
   return type.getCallSignatures().some((call) => isBuilt(checker, call.getReturnType()));
 }
 
-/** The type of each dep an operation's `depends` names, by key: a dep in place, in a `const`, or spread. */
+/** Each dep an operation's `depends` names, by key: written in place, in a `const`, or spread. */
 function dependsOf(checker: ts.TypeChecker, options: ts.ObjectLiteralExpression) {
   const depends = checker.getTypeAtLocation(options).getProperty("depends");
   return depends ? checker.getTypeOfSymbolAtLocation(depends, options).getProperties() : [];

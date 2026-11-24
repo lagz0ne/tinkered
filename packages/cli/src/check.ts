@@ -122,7 +122,7 @@ const parts: readonly [keys: readonly string[], ok: (value: unknown) => boolean,
   [
     ["graph", "rules"],
     (value) => Array.isArray(value) && value.every(isRule),
-    "`graph.rules` is a list of { writes or uses, calls, except }; a `*` in a pattern is a whole part",
+    "`graph.rules` is a list of { writes or uses, calls, except }; a `*` is a whole part",
   ],
 ];
 
