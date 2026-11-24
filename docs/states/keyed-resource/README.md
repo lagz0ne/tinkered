@@ -91,7 +91,8 @@ So they still show 5 rules break.
 - **NoReaderNoEntry** — holds.
   ADR 0150 d5.
   The last reader leaves, the entry goes.
-- **WatchAfterCloseRefused** — holds with the fix
+- **WatchAfterCloseRefused** — holds since
+  fix `861de530`
   (card `core/keyed-resource-watch-closed`).
   `watch-before.cfg` breaks it.
   ADR 0157 As built (`ff565316`, the Core README):
@@ -343,6 +344,10 @@ so each test lives in one place.
   and leaves.
   The leave runs the live entry's end,
   so the watch joined it.
+- `keyed-resource-watch-closed-paths.test.ts` —
+  path 5 (bug 18) and its control, in
+  `packages/core/tests/statechart/`.
+  Path 5 passes after fix `861de530`.
 - `keyed-resource-react.test.tsx` —
   cause A in React, in
   `packages/react/tests/statechart/`.
@@ -367,6 +372,11 @@ vp test --project browser \
 
 Card `core/keyed-resource-watch-closed`.
 Rule: WatchAfterCloseRefused.
+
+Holds since fix `861de530`:
+a watch checks that the scope is open
+before it joins an entry.
+So a live watch pays one open check.
 
 `ReaderSubscribes` lets a watch through
 on a closed scope when another reader
@@ -417,10 +427,13 @@ so the chart marks the path, not the state.
    It raises nothing and joins the entry.
    The Core README wants `Disposed`.
 
-Test: `paths/keyed-resource-watch-closed-paths.test.ts.txt`.
+Test: `keyed-resource-watch-closed-paths.test.ts`,
+in `packages/core/tests/statechart/`.
 It has the path and a control
-(no other watcher: `Disposed`, as today).
-On main the path fails; the control passes.
+(no other watcher: `Disposed`).
+Before fix `861de530`, the path failed
+and the control passed.
+Now both pass.
 
 ## What the spec leaves out
 

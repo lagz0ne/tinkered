@@ -81,14 +81,16 @@ so main stays green.
 
 - **keyed-resource** — 0 rules break now
   (fixes `ff565316`, `ecc3be31`, `f2125284`,
-  `be11dbcc`);
+  `be11dbcc`, `861de530`);
   the spec still shows 5.
   Cards: `core/keyed-entry-dropped`,
   `core/keyed-watch-after-close`,
   `core/keyed-wake-after-close`.
-  WatchAfterCloseRefused:
-  `watch-before.cfg` breaks it on main;
-  card `core/keyed-resource-watch-closed`.
+  WatchAfterCloseRefused holds
+  since fix `861de530`;
+  `watch-before.cfg` still breaks it.
+  Card `core/keyed-resource-watch-closed`;
+  its path test moved into Core's tests.
 - **scope-life** — 0 rules break now
   (fixes `aa79955b`, `5ac894d3`, ADR 0165);
   the spec models the fixes.
