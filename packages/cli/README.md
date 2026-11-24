@@ -97,16 +97,18 @@ line per operation (ADR 0161), then one per view
 
 - `exits`: each way out, as the exit stage names
   them;
+- `faults`: each fault its calls of a contract
+  member can end with;
 - `reads`: each cell read, and how;
 - `writes`: each cell write, and how;
 - `calls`: each operation it runs;
 - `uses`: each resource its `depends` names.
 
 ```text
-issue.move.do exits{gone,moved,stale}
+issue.move.do exits{gone,moved,stale} faults{}
   reads{issues.list.of} writes{issues.list.set}
   calls{issues.inTeam} uses{}
-members.invite exits{already,invited}
+members.invite exits{already,invited} faults{}
   reads{} writes{} calls{} uses{drizzlePg.tx}
 ```
 
@@ -131,6 +133,24 @@ members.invite exits{already,invited}
 - A member is named only when the capsule's
   `label` is a string and its `exports` object
   is written in the `capsule` call.
+- A call of a named member adds each fault of
+  Core's `Fault` set to `faults`. The set comes
+  from the contract's own type: its `fault.is`
+  guards an `RpcFault`, and its `fault` is the
+  set. A change in Core changes the line. A type
+  the graph cannot read gives `?`.
+- A call of `access.user["users.me"]` gives:
+
+  ```text
+  faults{decode,encode,failed,invalid,link,missing,refused}
+  ```
+
+- Two member calls give one set. An op with no
+  member call gives `faults{}`. A `?` in `calls`
+  adds `?` to `faults`: a call the graph cannot
+  see may go over the wire.
+- The set is what a call can end with. The line
+  does not say which side runs the member.
 - An `atScope` or `atNamespace` controller reads
   and writes as the cell's `controller` does.
 - `uses` comes from `depends` alone, never from
@@ -240,6 +260,8 @@ view src/home/home.tsx#SignIn
   that calls `useData` or `useRun` gets its own
   view line. A component that calls the custom
   hook gets none.
+- A view line holds no `faults`: the op lines
+  hold them.
 - A view line holds no writes. `useController`,
   `useResource` and the `set` of
   `useData(…, { writable: true })` are not read.
@@ -264,8 +286,9 @@ tinker.graph says writes{}
 - Did not mean it? Fix the code.
 - No `tinker.graph` is one finding, when the app
   has an operation or a view.
-- A `tinker.graph` written before `uses{}` gives
-  a finding on each line. Run `--write` once.
+- A `tinker.graph` written before `uses{}` or
+  `faults{}` gives a finding on each line. Run
+  `--write` once.
 
 ### Graph rules
 

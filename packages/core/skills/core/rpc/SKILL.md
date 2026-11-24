@@ -243,6 +243,10 @@ try {
 }
 ```
 
+`tinker graph` lists them: an op line's
+`faults{}` names each fault its member calls can
+end with.
+
 A remote data read never throws. Its last fault
 is data: `sea.board.faults`.
 

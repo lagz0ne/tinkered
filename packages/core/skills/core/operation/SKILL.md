@@ -216,9 +216,11 @@ promise and await it later.
 ### HIGH: the code graph differs from tinker.graph [tinker/graph]
 
 `tinker.graph` holds one line per operation: its
-exits, the cells and operations its `run` reads,
-writes and calls, and the resources its
-`depends` names (`uses{}`). The lines are facts.
+exits, the faults its calls of a contract member
+can end with (`faults{}`), the cells and
+operations its `run` reads, writes and calls,
+and the resources its `depends` names
+(`uses{}`). The lines are facts.
 `tinker check` builds them from the code. Each
 line that differs from the file is a finding.
 
@@ -250,6 +252,20 @@ object is written in the `capsule` call. An
 `atScope` or `atNamespace` controller reads and
 writes as the cell's `controller` does.
 
+`faults{}` holds each fault of Core's `Fault`
+set that a named member call can end with, read
+from the contract's own type. A call of
+`access.user["users.me"]` gives:
+
+```text
+faults{decode,encode,failed,invalid,link,missing,refused}
+```
+
+No member call gives `faults{}`. A `?` in
+`calls{}` adds `?` to `faults{}`: a hidden call
+may go over the wire. The line does not say
+which side runs the member.
+
 `uses{}` names a resource by its own label when
 the dep is the `const` that holds the
 `resource(…)` call, a keyed read of it, or a
@@ -269,7 +285,8 @@ top-level declaration that calls `useData` or
 `view src/home.tsx#SignIn reads{home.step.get}
 runs{home.askAgain}` names each cell it reads and
 each op it runs, `?` for one it cannot name. It
-holds no writes, and no graph rule reads it.
+holds no faults and no writes, and no graph rule
+reads it.
 Only a named import of the hook counts:
 `R.useData` through `import * as R` gives no
 line. Nor does a hook call outside a top-level
