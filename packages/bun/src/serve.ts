@@ -17,9 +17,9 @@ export type Handler = {
   websocket?: WebSocketHandler<never> | object;
   /**
    * The largest request body this handler takes; 1 MiB when unset (Bun's default). `serve`
-   * counts the body as this handler reads it: a Content-Length or a count past it fails the read,
-   * and `serve` answers 413 whatever the handler answered. The largest of every handler's sets
-   * Bun's `maxRequestBodySize`, the server-wide backstop.
+   * counts the body as this handler reads it: a read past it (by Content-Length or by count)
+   * rejects with a RangeError, and `serve` answers 413 whatever the handler answered. The
+   * largest of every handler's sets Bun's `maxRequestBodySize`, the server-wide backstop.
    */
   maxBody?: number;
 };
@@ -28,15 +28,19 @@ export type Handler = {
 const defaultMaxBody = 1_048_576;
 
 /**
- * The 413 closes the connection (as Node does, RFC 9110 15.5.14): the client may still be sending
- * the rest of a body nobody reads, and Bun's graceful `stop` would wait on it.
+ * The 413 closes the connection (RFC 9110 15.5.14): the client may still be sending the rest of
+ * a body nobody reads, and Bun's graceful `stop` would wait on it.
  */
 const tooLarge = { status: 413, headers: { connection: "close" } };
+
+/** Bun's calls that take a request: they know only Bun's own, not a copy. */
+const byRequest = new Set<string | symbol>(["requestIP", "timeout", "upgrade"]);
 
 /**
  * A request's body, counted against the cap of the handler that reads it (Hono's `bodyLimit`).
  * `ask` sets `cap` before it asks each handler. A Content-Length or a count past the cap errors
- * the read, and `over` tells `serve` to answer 413. It is its own stream's transformer.
+ * the read, and `over` tells `serve` to answer 413. It is its own stream's transformer, and the
+ * proxy handler of the `server` the handlers get: that maps the copy back to Bun's own request.
  */
 class CappedBody {
   cap = defaultMaxBody;
@@ -44,28 +48,43 @@ class CappedBody {
   over = false;
   /** The Content-Length; 0 when the body is chunked and has none. */
   length: number;
+  /** Bun's own request, which Bun's `requestIP`, `timeout` and `upgrade` know. */
+  original: Request;
   /** The request each handler gets: the original's url, headers and signal, this body. */
   request: Request;
+  /** The server each handler gets: Bun's, with `request` mapped back to `original`. */
+  server: Server<never>;
 
-  constructor(request: Request, body: ReadableStream<Uint8Array>) {
+  constructor(request: Request, body: ReadableStream<Uint8Array>, bun: Server<never>) {
     this.length = Number(request.headers.get("content-length"));
+    this.original = request;
     this.request = new Request(request, {
       body: body.pipeThrough(new TransformStream(this)),
       duplex: "half",
     } as RequestInit);
+    this.server = new Proxy(bun, this);
   }
 
   /**
    * One handler's reply, its read held to its own cap. A throw from a read past the cap is not
    * the handler's own: the caller answers 413 for it.
    */
-  async ask(handler: Handler, scope: Scope.Handle, bun: Server<never>) {
+  async ask(handler: Handler, scope: Scope.Handle) {
     this.cap = handler.maxBody ?? defaultMaxBody;
     try {
-      return await handler.fetch(this.request, scope, bun);
+      return await handler.fetch(this.request, scope, this.server);
     } catch (error) {
       if (!this.over) throw error;
     }
+  }
+
+  /** A server member, bound to Bun's server; a call that takes a request gets Bun's own. */
+  get(bun: Server<never>, key: string | symbol): unknown {
+    const value: unknown = Object(bun)[key];
+    if (typeof value !== "function") return value;
+    if (!byRequest.has(key)) return value.bind(bun);
+    return (request: Request, ...rest: unknown[]) =>
+      value.call(bun, request === this.request ? this.original : request, ...rest);
   }
 
   transform(chunk: Uint8Array, out: TransformStreamDefaultController<Uint8Array>) {
@@ -142,10 +161,10 @@ export const serve = capsule({
       const found = socket ? [socket, ...rest] : rest;
       /** A body over the cap of the handler that read it is a 413, whatever that handler did. */
       const answer = async (request: Request, bun: Server<never>) => {
-        const body = request.body && new CappedBody(request, request.body);
+        const body = request.body && new CappedBody(request, request.body, bun);
         for (const handler of found) {
           const reply = await (body
-            ? body.ask(handler, scope, bun)
+            ? body.ask(handler, scope)
             : handler.fetch(request, scope, bun));
           if (body?.over) return new Response(null, tooLarge);
           if (reply !== undefined) return reply ?? undefined;
