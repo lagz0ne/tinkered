@@ -368,6 +368,25 @@ test(
   },
 );
 
+test("an op labelled view keeps its one-word key in the file", { timeout: 60_000 }, () => {
+  const op = [
+    `import { operation } from "@tinkered/core";`,
+    ``,
+    `export const view = operation({ label: "view", run: () => 1 });`,
+  ].join("\n");
+  const graph = [
+    "issues.inTeam exits{value} reads{} writes{} calls{} uses{}",
+    "view exits{value} reads{} writes{} calls{} uses{}",
+    "",
+  ].join("\n");
+  const folder = appOf({ "src/ops.ts": op, "tinker.graph": graph });
+
+  const { code, out } = main(["check", folder], "/");
+
+  expect(findings(out)).toEqual([]);
+  expect(code).toBe(0);
+});
+
 test("no tinker.graph is one finding that says to write it", { timeout: 60_000 }, () => {
   const folder = appOf({ "src/ops.ts": ops });
 
