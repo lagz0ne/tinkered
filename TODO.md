@@ -73,10 +73,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **react/use-data-keyed-disposed** — `packages/react/tests/use-data-keyed.test.tsx` threw an unhandled `Error: Disposed` once (the #57 writer's first gate run, 2026-11-23); 5 runs after that passed. Duke's rule: find the cause and fix it there, not with a retry.
-  Owner: Opus lead.
-  Next: run that file in a loop (200 or more), catch the failing run's stack, then a red test and the fix (writer).
-  Verify: the loop count with 0 failures after the fix; the red test; `vp check`, React tests exit 0; React mutation 85 or more. If 200+ runs never fail: the count, and the card goes to Parked with what would restart it.
+- **react/use-data-keyed-disposed** — `packages/react/tests/use-data-keyed.test.tsx` threw an unhandled `Error: Disposed` (1 in 147 runs, 2026-11-24). Cause 1, fixed in `56d29395`: React's subscribe ran after the scope closed. Cause 2: after close, Core's held controller reads the initial value (ADR 0069), so a cell written before the close gives a new value; React's snapshot check sees a change and renders again, and that render raises `Disposed` (ADR 0144 d3). Fix in React (option A): after its scope closes, `useData` keeps the last value it saw. Option B (a held controller keeps its last write) changes ADR 0069: not taken.
+  Owner: Opus lead; Opus writer in `../tinkered-react-snapshot`.
+  Next: the writer adds a red test (a written cell, closed between commit and subscribe), then the fix.
+  Verify: the red test; `use-data-keyed.test.tsx` 200 runs, 0 failures; `vp check`, React tests, `pnpm validate` exit 0; React mutation 85 or more.
 
 ## Review
 
@@ -93,6 +93,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Proof: [Core progress](docs/roadmap/core-v1/PROGRESS.md#final-startup-fixes).
 
 ## Blocked
+
+- **core/keyed-watch-closed-scope** — found on `react/use-data-keyed-disposed`. Two bugs in `KeyedControl#join` on a closed scope: a refused watch leaves its part entry (the next `where` gives back the same reader); and with another part already watched, a new part's watch raises nothing and calls the root's listener, which on a `remoteData` board asks the server. The fix (one open check at the top of `join`) makes Core 23,457 B gzip without rpc: 10 B over the 23,447 B cap. A reorder that fixes only the first bug is 23,449 B, still over.
+  Missing: Duke's pick on cap room. A: raise the no-rpc cap to 23,457 B and land the open check. B: leave both bugs.
+  Then: apply `/home/paseo/plans/keyed-close/fix-open-check.diff` on branch `keyed-close` (red tests `cd57c9e1`, in `keyed-data.test.ts`).
 
 ## Parked
 
