@@ -1,11 +1,10 @@
+/** A call whose input fails its contract: what its `DataValidationFailed` carries (#55). */
 import { memory } from "@tinkered/core/testing";
 import { afterEach, expect, expectTypeOf, test } from "vite-plus/test";
 import { z } from "zod";
 
 import { createScope, isError, operation, rpc } from "@/main";
 import type { Data, Errors } from "@/main";
-
-/** A call whose input fails its contract: what its `DataValidationFailed` carries (#55). */
 
 const closers: Array<() => unknown> = [];
 
