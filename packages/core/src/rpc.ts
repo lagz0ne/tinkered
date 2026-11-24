@@ -764,9 +764,9 @@ export function rpc<const C extends Contracts>(
   return Object.assign(base, {
     fault,
     receive,
+    contracts,
     addresses: keys,
     uploads,
-    contracts,
   }) as unknown as Omit<typeof base, never> &
     Ops<C> & {
       readonly answer: Answer;
