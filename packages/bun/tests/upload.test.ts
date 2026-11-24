@@ -289,7 +289,7 @@ test("a bytes POST whose body is read to its end keeps the connection open", asy
 test("past maxUploads at once, the next POST is 503 with Retry-After", async () => {
   const hold = { "x-input": '{"name":"hold"}' };
   const first = [post("file.put", hold), post("file.put", hold)];
-  await new Promise((r) => setTimeout(r, 50));
+  await expect.poll(() => ran.filter((name) => name === "hold").length).toBe(2);
   const third = await post("file.put", {});
   held.resolve();
   const firsts = await Promise.all(first);
