@@ -1343,6 +1343,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `set` replaces one member by its key, and `delete` removes one.
 - A write wakes the watchers of its member and of its parts, and no other.
 - Two keys with the same fields in another order name one member.
+- A watch of a part on a closed scope raises `Disposed`, and the part
+  stays not in use.
 - A served keyed cell is read by part: a client asks for a part, and the
   last reader leaving drops it.
 - A part whose last reader leaves while its stream opens ends that
