@@ -62,3 +62,13 @@ sea.press.do exits{value} reads{sea.waves.get,sea.waves.where} writes{sea.waves.
 tide.arrive exits{value} reads{?,tide.ahead.get,tide.seen.get,tide.sent.get} writes{?,tide.seen.set} calls{?,tide.sync} uses{}
 tide.send exits{value} reads{} writes{tide.sent.update} calls{?} uses{}
 tide.sync exits{value} reads{} writes{tide.ahead.set} calls{?} uses{}
+view src/bench/page.tsx#BenchPage reads{bench.run.get} runs{bench.run.do}
+view src/bench/subjects.ts#tinker reads{?,shared.get} runs{}
+view src/play/page.tsx#PlayPage reads{play.view.get} runs{play.view.set}
+view src/play/page.tsx#Preview reads{play.bundle.get} runs{}
+view src/play/page.tsx#Status reads{play.dirty.get,play.status.get} runs{play.reset}
+view src/play/page.tsx#Tabs reads{play.files.get,play.nav.get,play.renaming.get} runs{play.add,play.close,play.open,play.rename,play.renaming.set}
+view src/play/page.tsx#Tools reads{play.nav.get,play.theme.get} runs{play.back,play.forward,play.open,play.theme.set}
+view src/play/starter/App.tsx#Controls reads{ocean.physics.get,ocean.storm.get} runs{ocean.clear,ocean.storm.set,ocean.tune,ocean.turn}
+view src/play/starter/App.tsx#Live reads{ocean.storm.get,ocean.waves.get} runs{}
+view src/play/starter/Scene.tsx#Scene reads{} runs{ocean.key,ocean.look,ocean.poke}
