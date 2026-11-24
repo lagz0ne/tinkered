@@ -9,6 +9,33 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.7
+
+`@tinkered/bun`: each handler reads a body
+up to its own `maxBody`, 1 MiB when unset
+(#57).
+
+- Before, `serve` set one limit for the server:
+  the largest `maxBody`. So one 16 MiB
+  `bytes()` key let every route read 16 MiB.
+- Now a read past the handler's own `maxBody`
+  fails, by Content-Length or by count.
+  `serve` answers 413 and closes the connection.
+- A `bytes()` key still takes its own max.
+- The largest `maxBody` is still Bun's
+  `maxRequestBodySize`, the server backstop.
+- A handler with a body gets a copy of the
+  request. Its `server.requestIP`, `timeout`
+  and `upgrade` still take that copy.
+
+`@tinkered/core`: no API change.
+
+- A member ask's fault now puts its part in
+  fault (bug 17, ADR 0139 d4).
+- Before, one member refused showed the fault
+  in `board.faults`, but the part stayed
+  `ready`.
+
 ## 0.34.6
 
 `@tinkered/core`: no API change. A stream

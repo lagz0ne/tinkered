@@ -25,6 +25,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **bun/early-answer-close** — Found by the #57 writer. A handler that answers before it reads the body (for example `ws.ts` `admit`'s 413 for a too-big Content-Length) leaves the client still sending. Bun's graceful `stop()` then waits on it, up to the 60 s idle time. `serve`'s own 413 now sends `connection: close` (RFC 9110 15.5.14); the early answers in `ws.ts` do not.
+  Verify: a real `Bun.serve` test where `admit` answers 413 to a big upload, then `scope.close()` ends at once; red on main.
+
 - **cli/apps** — The template first: the cast-free board and todo pages with a `switch` per answer (project files `sure-right/union-cast-gate.diff`), the base config on `src/**`, scripts on `tinker`. Then Hedl (cast gate, 62 findings as gap rows) and acountee. Last, the site's `src/play/starter/**` (31 casts) leaves its gate exception. Needs 0.26.0 on npm.
   Verify: `tinker check: OK` in the template; its browser and server tests pass; Hedl's gap counts only go down.
 
@@ -73,11 +76,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **bun/body-limit-per-handler** — GitHub issue #57 (Duke 2026-11-23 23:39 UTC: "Address the body limit issue then release"). `serve` sets Bun's `maxRequestBodySize` to the largest handler `maxBody`; `ws.server`'s is its largest `bytes()` max. So one 16 MiB bytes key lets every handler route read 16 MiB. `Handler.maxBody` already says "The largest request body this handler takes": `serve` will enforce it per handler (default 1 MiB, Bun's), as Hono's and Fastify's `bodyLimit` do: Content-Length first, then a count of the stream, 413. `maxRequestBodySize` stays the server backstop. No state machine here, so no chart.
-  Owner: Opus lead; Opus writer in `../tinkered-body-limit`.
-  Next: the writer adds the tests red, then the fix in `packages/bun/src/serve.ts`.
-  Verify: real `Bun.serve` tests red on main, green after: a handler route with no `maxBody` answers 413 past 1 MiB (by Content-Length, and chunked) beside a 16 MiB bytes key; the bytes key still takes 16 MiB; a handler's own `maxBody` holds; `vp check`, bun tests, `pnpm validate` exit 0; bun mutation 85 or more.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -117,8 +115,11 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **bun/body-limit-per-handler** — done 2026-11-24 (GitHub #57; Duke 2026-11-23 23:39 UTC: "Address the body limit issue then release"). `serve` holds each handler to its own `maxBody`, 1 MiB when unset: a read past it (Content-Length or count) fails, and `serve` answers 413 with `connection: close`. `maxRequestBodySize` stays the backstop; a `bytes()` key keeps its own max. A handler with a body gets a copy of the request and a server whose `requestIP`, `timeout` and `upgrade` map it back to Bun's own. Fix `5066a5fd`, `9c49a70c`. Released as 0.34.7.
+  Proof: 3 tests red on main and the `requestIP` test red before its fix, then all green (`serve.test.ts`); bun 134 tests, all packages green; `vp check` 0 errors, 80 warnings (as main); `pnpm validate` 22 of 22 PASS; Opus convention-review NOT READY (`requestIP` on the copy gave null), one fix round, READY at `9c3456b3`; bun mutation on `9c3456b3` 86.74 (kills alone 86.62) and `run.ts` 91.53, floor 85, exit 0.
+
 - **core/member-ask-fault-hidden** — done 2026-11-23 (bug 17). A member ask's fault (refused, failed, invalid, link) now puts each part in use that holds a member of the ask in fault, as ADR 0139 d4 wants; before, `board.faults` showed refused while `board.status(part)` stayed `ready`. `ready` still needs a whole hold; a stream's fault stays its own part's. Fix `e9b2f29b`, review round `9483e4a6`.
-  Proof: remote-part `member.cfg` 2,860 states, 0 breaks (`member-before.cfg` 2,998 states, MemberFaultReachesPart breaks); 3 path tests red on main, green (`tests/statechart/member-fault-paths.test.ts`), plus 2 overlap tests; Core 1483 tests, dist 1727; `vp check` 0 errors, 80 warnings (as main); `scripts/ticket.sh` exit 0; `pnpm validate` 22 of 22 PASS; size 23,445 B no-rpc (cap 23,447 B, was 23,447 B), 34,082 B with rpc (cap 35,232 B, was 34,071 B); Opus convention-review READY with 3 nits and 1 question, one fix round; Core mutation on `9483e4a6` 86.76 (kills alone 85.85), floor 85, exit 0.
+  Proof: remote-part `member.cfg` 2,860 states, 0 breaks (`member-before.cfg` 2,998 states, MemberFaultReachesPart breaks); 3 path tests red on main, green (`tests/statechart/member-fault-paths.test.ts`), plus 2 overlap tests; Core 1483 tests, dist 1727; `vp check` 0 errors, 80 warnings (as main); `scripts/ticket.sh` exit 0; `pnpm validate` 22 of 22 PASS; size 23,445 B no-rpc (cap 23,447 B, was 23,447 B), 34,082 B with rpc (cap 35,232 B, was 34,071 B); Opus convention-review READY with 3 nits and 1 question, one fix round; Core mutation on `9483e4a6` 86.76 (kills alone 85.85), floor 85, exit 0. Released as 0.34.7.
 
 - **core/stream-call-session** — done 2026-11-23 (ADR 0169, project thread "Fix two remote stream bugs"; closes `core/local-stream-signal`). Any rpc stream call with a `signal` or `tags` broke: its child session (ADR 0090) ended when the call returned the reader, so a remote stream was cut at the answer and a stream run here never answered. Duke 2026-11-22 14:57 UTC picked A, the fetch rule: a stream key's call opens no child session (one check in `runHookCall`); the signal stops the stream as a break does; the tags bind the stream's own run and its lifecycle hooks; an aborted signal starts nothing. Duke 2026-11-22 22:57 UTC picked A for size: the no-rpc cap goes up 6 B to 23,447 B.
   Proof: rpc-stream spec 394 states, 0 breaks (before: 411 states, 3 breaks); kit cases on memory and ws and 4 path tests red on main, green; Core 1477 tests; `vp check` 0 errors; Opus convention-review NOT READY (tags missed the lifecycle hooks, tests), one fix round; on the box (Node 26.13.1) on `921b6ae3` (clean, same Core code as landed): fast-code bytecode and inlining PASS, same as main; `ticket.sh --check-only` exit 0; size 23,447 B (cap 23,447 B), 34,071 B with rpc; `check-slots` exit 0; Core mutation 87.20, kills alone 85.60, exit 0. Released as 0.34.6.

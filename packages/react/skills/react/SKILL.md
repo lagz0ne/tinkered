@@ -15,7 +15,7 @@ metadata:
   type: framework
   framework: react
   library: '@tinkered/react'
-  library_version: '0.34.6'
+  library_version: '0.34.7'
 requires:
   - '@tinkered/core#core'
 sources:
