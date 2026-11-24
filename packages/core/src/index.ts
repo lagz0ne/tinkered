@@ -8865,8 +8865,8 @@ class BuiltEntry implements Data.Reader<unknown> {
     return { key, read: () => value, watch: undefined, gives: undefined };
   }
 
-  /** A read, or a first watch, on a closed scope is refused before it builds: that build's end
-   * could never run (ADR 0157 d5). A read of a dropped entry goes to its key's live entry, as a
+  /** A read or a watch on a closed scope is refused before it builds: that build's end could never
+   * run (ADR 0157 d5). A read of a dropped entry goes to its key's live entry, as a
    * watch does: the dropped one would build again with no change (ADR 0157 d4). */
   get(): unknown {
     ensureOpen(this.layer);
@@ -8883,8 +8883,10 @@ class BuiltEntry implements Data.Reader<unknown> {
   /** A watch of a dropped entry goes to its key's live entry, or puts it back when the key has none.
    * So watchers share one entry per key (ADR 0150 d5), and that entry's end runs before its next
    * build (ADR 0157 d5). An entry with a watcher is always its key's entry, so its last leave
-   * drops it from the map unchecked. */
+   * drops it from the map unchecked. A watch on a closed scope raises `Disposed`, also when the
+   * entry has other watchers; so a live watch pays one open check (ADR 0157 As built). */
   watch(fn: (next: unknown, prev: unknown) => void): () => void {
+    ensureOpen(this.layer);
     return (this.own.get(this.text) ?? this).join(fn);
   }
 
@@ -8892,7 +8894,6 @@ class BuiltEntry implements Data.Reader<unknown> {
    * first watcher watches the sources. */
   private join(fn: (next: unknown, prev: unknown) => void): () => void {
     if (this.watchers.size === 0) {
-      ensureOpen(this.layer);
       this.own.set(this.text, this);
 
       if (this.wait === undefined && this.failed === undefined) this.fresh();
