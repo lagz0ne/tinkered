@@ -37,7 +37,7 @@ const configs = {
     `});`,
   ].join("\n"),
   "src/units.ts": [
-    `import { capsule, data, operation, rpc, tag } from "@tinkered/core";`,
+    `import { capsule, data, operation, resource, rpc, tag } from "@tinkered/core";`,
     `import { z } from "zod";`,
     ``,
     `type Doc = { id: string; title: string };`,
@@ -63,6 +63,10 @@ const configs = {
     `const api = rpc({ check: { input: z.null(), output: z.boolean() } });`,
     ``,
     `export const gate = capsule({ label: "gate", exports: { api } });`,
+    ``,
+    `export const tx = resource({ label: "docs.tx", factory: () => ({ rows: 0 }) });`,
+    ``,
+    `export const shelf = tag<typeof tx>({ label: "shelf" });`,
   ].join("\n"),
 };
 
@@ -111,12 +115,18 @@ const ops = {
     "{ ok: gate.api.check, list: titles.controller }",
     `void deps.ok.run({ input: null }); ${write}`,
   ),
+  store: op("doc.store.do", "{ db: tx }", "return deps.db;"),
+  stash: op("doc.stash.do", "{ db: tx }", "return deps.db;"),
+  keep: op("doc.keep.do", "{ ok: canEdit, db: tx }", "deps.ok.run(); return deps.db;"),
+  relay: op("doc.relay.do", "{ ok: doc_guard, db: tx }", "deps.ok.run(); return deps.db;"),
+  shelved: op("doc.shelved", "{ db: shelf.required }", "return deps.db;"),
+  hidden: op("doc.hidden.do", "{ ok: box.required, db: tx }", "deps.ok.run(); return deps.db;"),
 };
 
 const imports = [
   `import { operation } from "@tinkered/core";`,
   ``,
-  `import { box, canEdit, count, gate, locked, titles } from "./units";`,
+  `import { box, canEdit, count, gate, locked, shelf, titles, tx } from "./units";`,
 ].join("\n");
 
 /**
@@ -291,6 +301,66 @@ test(
   },
 );
 
+const uses = { uses: "docs.tx", calls: "docs.canEdit" };
+
+test(
+  "an op that uses a matching resource and never calls the rule's op is a finding",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf(["store", "keep"], [uses]);
+
+    const { code, out } = main(["check", folder], "/");
+
+    expect(code).toBe(1);
+    expect(findings(out)).toEqual([
+      "src/docs.ts:5 tinker/graph-rule doc.store.do uses{docs.tx}, calls has no docs.canEdit",
+    ]);
+  },
+);
+
+test(
+  "an op that uses a matching resource and reaches the rule's op through an op it calls keeps it",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf(["guard", "relay"], [uses]);
+
+    const { code, out } = main(["check", folder], "/");
+
+    expect(out).toBe(
+      "ran: tsc, lint, rules (2 files), graph (3 operations, 1 rule)\ntinker check: OK\n",
+    );
+    expect(code).toBe(0);
+  },
+);
+
+test("a uses rule takes `*` and `except` as a writes rule does", { timeout: 60_000 }, () => {
+  const folder = appOf(
+    ["store", "stash"],
+    [{ uses: "docs.*", calls: "docs.canEdit", except: { "doc.store.do": "No doc yet." } }],
+  );
+
+  const { out } = main(["check", folder], "/");
+
+  expect(findings(out)).toEqual([
+    "src/docs.ts:13 tinker/graph-rule doc.stash.do uses{docs.tx}, calls has no docs.canEdit",
+  ]);
+});
+
+test(
+  "a resource the graph cannot name matches no uses pattern; a `?` in calls cannot prove it",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf(["shelved", "hidden"], [{ uses: "*", calls: "docs.canEdit" }]);
+
+    const { out } = main(["check", folder], "/");
+
+    expect(findings(out)).toEqual([
+      "src/docs.ts:13 tinker/graph-rule doc.hidden.do uses{docs.tx}, " +
+        "calls{?} in doc.hidden.do cannot prove docs.canEdit",
+    ]);
+  },
+);
+
 test.each([
   [{ graph: [] }, "`graph` is an object"],
   [{ graph: { rules: {} } }, "`graph.rules` is a list"],
@@ -305,6 +375,9 @@ test.each([
     "`graph.rules` is a list",
   ],
   [{ graph: { rules: [{ writes: "docs.*" }] } }, "`graph.rules` is a list"],
+  [{ graph: { rules: [{ ...rule, uses: "docs.tx" }] } }, "`graph.rules` is a list"],
+  [{ graph: { rules: [{ uses: "docs*", calls: "docs.canEdit" }] } }, "`graph.rules` is a list"],
+  [{ graph: { rules: [{ uses: "docs.tx" }] } }, "`graph.rules` is a list"],
   [{ graph: { rules: [{ ...rule, except: ["doc.create.do"] }] } }, "`graph.rules` is a list"],
   [{ graph: { rules: [{ ...rule, except: { "doc.create.do": 1 } }] } }, "`graph.rules` is a list"],
 ])("a graph rule of the wrong shape stops the check: %j", (config, reason) => {

@@ -198,38 +198,38 @@ const ops = [
 /** What `look` touches: its bare `all` reads the cell's value. */
 const looked =
   "issue.look exits{value} reads{issues.list.get,issues.list.of} " +
-  "writes{issues.list.delete} calls{}";
+  "writes{issues.list.delete} calls{} uses{}";
 
 /** What each move touches, however its deps are written. */
 const moved =
   "exits{gone,moved,stale} reads{issues.list.of,issues.list.where} writes{issues.list.set} " +
-  "calls{issues.inTeam}";
+  "calls{issues.inTeam} uses{}";
 
 /** The graph of `ops`: each name is a label, never the local name. */
 const golden = [
-  "count.tick exits{value} reads{count.get,issues.list.where} writes{count.update} calls{}",
-  "guard exits{refused,value} reads{issues.list.get} writes{} calls{issues.inTeam}",
-  "issue.boxed exits{value} reads{} writes{} calls{?}",
-  "issue.boxes exits{value} reads{} writes{} calls{?}",
-  "issue.clear.do exits{cleared,kept} reads{} writes{issues.list.delete} calls{issues.inTeam}",
-  "issue.hand exits{value} reads{?} writes{?} calls{issues.inTeam}",
-  "issue.late exits{value} reads{issues.list.get} writes{} calls{}",
+  "count.tick exits{value} reads{count.get,issues.list.where} writes{count.update} calls{} uses{}",
+  "guard exits{refused,value} reads{issues.list.get} writes{} calls{issues.inTeam} uses{}",
+  "issue.boxed exits{value} reads{} writes{} calls{?} uses{}",
+  "issue.boxes exits{value} reads{} writes{} calls{?} uses{}",
+  "issue.clear.do exits{cleared,kept} reads{} writes{issues.list.delete} calls{issues.inTeam} uses{}",
+  "issue.hand exits{value} reads{?} writes{?} calls{issues.inTeam} uses{}",
+  "issue.late exits{value} reads{issues.list.get} writes{} calls{} uses{}",
   looked,
-  "issue.maybe exits{value} reads{} writes{} calls{?}",
-  "issue.move.again exits{gone,moved,stale} reads{?} writes{?} calls{?}",
+  "issue.maybe exits{value} reads{} writes{} calls{?} uses{}",
+  "issue.move.again exits{gone,moved,stale} reads{?} writes{?} calls{?} uses{}",
   `issue.move.do ${moved}`,
   `issue.move.shared ${moved}`,
   `issue.move.spread ${moved}`,
-  "issue.pass exits{value} reads{?} writes{?} calls{?}",
-  "issue.peek exits{value} reads{?} writes{} calls{}",
-  "issue.ping exits{value} reads{} writes{} calls{?}",
-  "issue.ping.again exits{value} reads{?} writes{?} calls{?}",
-  "issue.quoted exits{value} reads{issues.list.get} writes{} calls{}",
-  "issue.raw exits{value} reads{?} writes{?} calls{}",
-  "issue.rename exits{value} reads{?} writes{?} calls{?}",
-  "issue.shelved exits{value} reads{?} writes{?} calls{}",
-  "issues.inTeam exits{value} reads{} writes{} calls{}",
-  "issues.inTeam.again exits{value} reads{} writes{} calls{}",
+  "issue.pass exits{value} reads{?} writes{?} calls{?} uses{}",
+  "issue.peek exits{value} reads{?} writes{} calls{} uses{}",
+  "issue.ping exits{value} reads{} writes{} calls{?} uses{}",
+  "issue.ping.again exits{value} reads{?} writes{?} calls{?} uses{}",
+  "issue.quoted exits{value} reads{issues.list.get} writes{} calls{} uses{}",
+  "issue.raw exits{value} reads{?} writes{?} calls{} uses{}",
+  "issue.rename exits{value} reads{?} writes{?} calls{?} uses{}",
+  "issue.shelved exits{value} reads{?} writes{?} calls{} uses{}",
+  "issues.inTeam exits{value} reads{} writes{} calls{} uses{}",
+  "issues.inTeam.again exits{value} reads{} writes{} calls{} uses{}",
   "",
 ].join("\n");
 
@@ -464,10 +464,10 @@ test(
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.adminNames exits{value} reads{} writes{} calls{access.admin/list}\n" +
-        "home.ban exits{value} reads{} writes{} calls{access.staff/ban}\n" +
-        "home.names exits{error,panic,value} reads{} writes{} calls{access.user/list}\n" +
-        "home.whoAmI exits{value} reads{} writes{} calls{access.user/users.me}\n",
+      "home.adminNames exits{value} reads{} writes{} calls{access.admin/list} uses{}\n" +
+        "home.ban exits{value} reads{} writes{} calls{access.staff/ban} uses{}\n" +
+        "home.names exits{error,panic,value} reads{} writes{} calls{access.user/list} uses{}\n" +
+        "home.whoAmI exits{value} reads{} writes{} calls{access.user/users.me} uses{}\n",
     );
   },
 );
@@ -492,8 +492,8 @@ test(
 
     expect(code).toBe(0);
     expect(out).toBe(
-      "home.all exits{value} reads{} writes{} calls{?}\n" +
-        "home.count exits{value} reads{} writes{} calls{?}\n",
+      "home.all exits{value} reads{} writes{} calls{?} uses{}\n" +
+        "home.count exits{value} reads{} writes{} calls{?} uses{}\n",
     );
   },
 );
@@ -511,7 +511,7 @@ test(
     ]);
 
     expect(code).toBe(0);
-    expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?}\n");
+    expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?} uses{}\n");
   },
 );
 
@@ -527,7 +527,7 @@ test("a member under a key not written in the code keeps calls{?}", { timeout: 6
   ]);
 
   expect(code).toBe(0);
-  expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?}\n");
+  expect(out).toBe("home.whoAmI exits{value} reads{} writes{} calls{?} uses{}\n");
 });
 
 test(
@@ -544,7 +544,7 @@ test(
     ]);
 
     expect(code).toBe(0);
-    expect(out).toBe("home.answer exits{error,panic,value} reads{} writes{} calls{?}\n");
+    expect(out).toBe("home.answer exits{error,panic,value} reads{} writes{} calls{?} uses{}\n");
   },
 );
 
@@ -567,7 +567,104 @@ test(
     expect(code).toBe(0);
     expect(out).toBe(
       "home.codesNow exits{value} reads{access.codes.where,access.logins.get} " +
-        "writes{access.codes.delete,access.logins.set} calls{}\n",
+        "writes{access.codes.delete,access.logins.set} calls{} uses{}\n",
+    );
+  },
+);
+
+/** Resources an op may use: a plain one, a keyed one, two a capsule exports, and a tag's. */
+const stores = [
+  `import { capsule, resource, tag } from "@tinkered/core";`,
+  ``,
+  `export const tx = resource({ label: "db.tx", factory: () => ({ rows: 0 }) });`,
+  ``,
+  `const id = tag<string>({ label: "db.id" });`,
+  ``,
+  `export const row = resource({`,
+  `  label: "db.row",`,
+  `  config: { id: id.required },`,
+  `  factory: (_, { config }) => config.id,`,
+  `});`,
+  ``,
+  `const pool = resource({ label: "db.pool", factory: () => 2 });`,
+  ``,
+  `export const db = capsule({`,
+  `  label: "db",`,
+  `  exports: { pool, mail: resource({ label: "db.mail", factory: () => "sent" }) },`,
+  `});`,
+  ``,
+  `const name = ["db", "loose"].join(".");`,
+  ``,
+  `export const loose = resource({ label: name, factory: () => 1 });`,
+  ``,
+  `export const held = tag<typeof tx>({ label: "db.held" });`,
+].join("\n");
+
+/** An app of `stores`, in place of the other units, and these operations: its graph. */
+function usesGraph(ops: string[]) {
+  const head = `import { operation } from "@tinkered/core";\n\n`;
+  const imports = `import { db, held, loose, row, tx } from "./units";\n\n`;
+  const folder = appOf({ "src/units.ts": stores, "src/ops.ts": head + imports + ops.join("\n") });
+  return main(["graph", folder], "/");
+}
+
+test(
+  "uses{} names each resource depends names: a const, a keyed read, a capsule export",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = usesGraph([
+      `export const save = operation({`,
+      `  label: "home.save",`,
+      `  depends: { tx },`,
+      `  run: ({ tx }) => tx.rows,`,
+      `});`,
+      ``,
+      `export const sync = operation({`,
+      `  label: "home.sync",`,
+      `  depends: { one: row({ id: "a" }), pool: db.pool, mail: db["mail"], again: tx },`,
+      `  run: ({ pool }) => pool,`,
+      `});`,
+    ]);
+
+    expect(code).toBe(0);
+    expect(out).toBe(
+      "home.save exits{value} reads{} writes{} calls{} uses{db.tx}\n" +
+        "home.sync exits{value} reads{} writes{} calls{} uses{db.mail,db.pool,db.row,db.tx}\n",
+    );
+  },
+);
+
+test(
+  "a resource with no written label, under a key not written, or in a tag is uses{?}",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = usesGraph([
+      `const key = "pool" as const;`,
+      ``,
+      `export const any = operation({`,
+      `  label: "home.any",`,
+      `  depends: { any: loose, tx },`,
+      `  run: ({ any }) => any,`,
+      `});`,
+      ``,
+      `export const keyed = operation({`,
+      `  label: "home.keyed",`,
+      `  depends: { pool: db[key] },`,
+      `  run: ({ pool }) => pool,`,
+      `});`,
+      ``,
+      `export const boxed = operation({`,
+      `  label: "home.boxed",`,
+      `  depends: { inBox: held.required },`,
+      `  run: ({ inBox }) => inBox,`,
+      `});`,
+    ]);
+
+    expect(code).toBe(0);
+    expect(out).toBe(
+      "home.any exits{value} reads{} writes{} calls{} uses{?,db.tx}\n" +
+        "home.boxed exits{value} reads{} writes{} calls{} uses{?}\n" +
+        "home.keyed exits{value} reads{} writes{} calls{} uses{?}\n",
     );
   },
 );
