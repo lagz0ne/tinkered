@@ -190,4 +190,6 @@ capsules: [
 - A frame over `maxPayload`, or of more than 32
   messages, closes the socket.
 - More than `maxWatches` live watches answers 429.
+- More than `maxUploads` bytes POSTs at once
+  answers 503 with Retry-After.
 - A socket quiet for 60 s closes.
