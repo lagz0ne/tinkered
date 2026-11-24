@@ -239,11 +239,20 @@ function isBuilt(checker: ts.TypeChecker, type: ts.Type) {
   return value?.isStringLiteral() === true && value.value === "built";
 }
 
-/** A resource, by its type: a handle has `factory`; a keyed one is a read, or makes one. */
+/** The keys a resource handle has, beside its label (`Resource.Handle`). */
+const handleKeys = ["factory", "target", "depends"];
+
+/** A resource, by its type: a handle has all its keys; a keyed one is a read, or makes one. */
 function isResource(checker: ts.TypeChecker, type: ts.Type | undefined) {
   if (!type) return false;
-  if (type.getProperty("factory") || isBuilt(checker, type)) return true;
+  if (handleKeys.every((key) => type.getProperty(key)) || isBuilt(checker, type)) return true;
   return type.getCallSignatures().some((call) => isBuilt(checker, call.getReturnType()));
+}
+
+/** A dep on a cell, an operation, or a whole capsule: no resource, whatever keys its type has. */
+function isOtherUnit(unit: Unit | undefined) {
+  if (unit?.made === "capsule") return unit.bare === true;
+  return unit?.made === "data" || unit?.made === "operation";
 }
 
 /** Each dep an operation's `depends` names, by key: written in place, in a `const`, or spread. */
@@ -254,12 +263,15 @@ function dependsOf(checker: ts.TypeChecker, options: ts.ObjectLiteralExpression)
 
 /**
  * What one dep adds to `uses{}`: the label of the resource it names, or `?` for a resource the
- * graph cannot name (by its type, or by what its tag holds). Any other dep adds nothing.
+ * graph cannot name (by its type, or by what its tag holds). A cell, an operation, a whole
+ * capsule, or any other dep adds nothing.
  */
 function useOf(checker: ts.TypeChecker, key: ts.Symbol, options: ts.ObjectLiteralExpression) {
   const label = resourceLabel(checker, key.valueDeclaration);
   if (label) return [label];
+
   const unit = depUnit(checker, key.valueDeclaration);
+  if (isOtherUnit(unit)) return [];
   const type =
     unit?.made === "tag"
       ? heldOf(checker, unit.call)

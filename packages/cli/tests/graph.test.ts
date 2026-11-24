@@ -211,7 +211,8 @@ const golden = [
   "guard exits{refused,value} reads{issues.list.get} writes{} calls{issues.inTeam} uses{}",
   "issue.boxed exits{value} reads{} writes{} calls{?} uses{}",
   "issue.boxes exits{value} reads{} writes{} calls{?} uses{}",
-  "issue.clear.do exits{cleared,kept} reads{} writes{issues.list.delete} calls{issues.inTeam} uses{}",
+  "issue.clear.do exits{cleared,kept} reads{} writes{issues.list.delete} " +
+    "calls{issues.inTeam} uses{}",
   "issue.hand exits{value} reads{?} writes{?} calls{issues.inTeam} uses{}",
   "issue.late exits{value} reads{issues.list.get} writes{} calls{} uses{}",
   looked,
@@ -531,7 +532,8 @@ test("a member under a key not written in the code keeps calls{?}", { timeout: 6
 });
 
 test(
-  "a member under a key not in the contract, such as the handle's own answer op, is a dep the graph cannot name",
+  "a member under a key not in the contract, such as the handle's own answer op, " +
+    "is a dep the graph cannot name",
   { timeout: 60_000 },
   () => {
     const { code, out } = graphWith([
@@ -572,7 +574,10 @@ test(
   },
 );
 
-/** Resources an op may use: a plain one, a keyed one, two a capsule exports, and a tag's. */
+/**
+ * Resources an op may use: a plain one, a keyed one, two a capsule exports, and tags that hold
+ * them. `odd` and `maker` have a `factory` key but are no resource.
+ */
 const stores = [
   `import { capsule, resource, tag } from "@tinkered/core";`,
   ``,
@@ -586,7 +591,7 @@ const stores = [
   `  factory: (_, { config }) => config.id,`,
   `});`,
   ``,
-  `const pool = resource({ label: "db.pool", factory: () => 2 });`,
+  `const pool = resource({ label: "pg.pool", factory: () => 2 });`,
   ``,
   `export const db = capsule({`,
   `  label: "db",`,
@@ -598,12 +603,25 @@ const stores = [
   `export const loose = resource({ label: name, factory: () => 1 });`,
   ``,
   `export const held = tag<typeof tx>({ label: "db.held" });`,
+  ``,
+  `export const rowAt = resource({`,
+  `  label: name,`,
+  `  config: { id: id.required },`,
+  `  factory: (_, { config }) => config.id,`,
+  `});`,
+  ``,
+  `export const rows = tag<typeof row>({ label: "db.rows" });`,
+  ``,
+  `export const odd = capsule({ label: "odd", exports: { factory: pool } });`,
+  ``,
+  `export const maker = tag<{ factory: () => number }>({ label: "db.maker" });`,
 ].join("\n");
 
 /** An app of `stores`, in place of the other units, and these operations: its graph. */
 function usesGraph(ops: string[]) {
   const head = `import { operation } from "@tinkered/core";\n\n`;
-  const imports = `import { db, held, loose, row, tx } from "./units";\n\n`;
+  const names = "db, held, loose, maker, odd, row, rowAt, rows, tx";
+  const imports = `import { ${names} } from "./units";\n\n`;
   const folder = appOf({ "src/units.ts": stores, "src/ops.ts": head + imports + ops.join("\n") });
   return main(["graph", folder], "/");
 }
@@ -629,13 +647,14 @@ test(
     expect(code).toBe(0);
     expect(out).toBe(
       "home.save exits{value} reads{} writes{} calls{} uses{db.tx}\n" +
-        "home.sync exits{value} reads{} writes{} calls{} uses{db.mail,db.pool,db.row,db.tx}\n",
+        "home.sync exits{value} reads{} writes{} calls{} uses{db.mail,db.row,db.tx,pg.pool}\n",
     );
   },
 );
 
 test(
-  "a resource with no written label, under a key not written, or in a tag is uses{?}",
+  "a resource with no written label, under a key not written, or in a tag is uses{?}; a " +
+    "capsule or a tag's value with a factory key is no resource",
   { timeout: 60_000 },
   () => {
     const { code, out } = usesGraph([
@@ -658,13 +677,34 @@ test(
       `  depends: { inBox: held.required },`,
       `  run: ({ inBox }) => inBox,`,
       `});`,
+      ``,
+      `export const one = operation({`,
+      `  label: "home.one",`,
+      `  depends: { r: rowAt({ id: "a" }) },`,
+      `  run: () => 1,`,
+      `});`,
+      ``,
+      `export const shelf = operation({`,
+      `  label: "home.shelf",`,
+      `  depends: { all: rows.required },`,
+      `  run: ({ all }) => all,`,
+      `});`,
+      ``,
+      `export const plain = operation({`,
+      `  label: "home.plain",`,
+      `  depends: { odd, make: maker.required },`,
+      `  run: ({ make }) => make.factory(),`,
+      `});`,
     ]);
 
     expect(code).toBe(0);
     expect(out).toBe(
       "home.any exits{value} reads{} writes{} calls{} uses{?,db.tx}\n" +
         "home.boxed exits{value} reads{} writes{} calls{} uses{?}\n" +
-        "home.keyed exits{value} reads{} writes{} calls{} uses{?}\n",
+        "home.keyed exits{value} reads{} writes{} calls{} uses{?}\n" +
+        "home.one exits{value} reads{} writes{} calls{} uses{?}\n" +
+        "home.plain exits{value} reads{} writes{} calls{} uses{}\n" +
+        "home.shelf exits{value} reads{} writes{} calls{} uses{?}\n",
     );
   },
 );
