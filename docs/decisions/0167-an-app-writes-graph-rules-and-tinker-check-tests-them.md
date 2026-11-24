@@ -3,6 +3,7 @@
 Date: 2026-11-22. Status: accepted (Duke, 02:57
 UTC, option A).
 Adds to: ADR 0161 (the committed graph).
+Amended: 2026-11-24 (select by `uses`, GitHub #56).
 
 ## What the user said
 
@@ -93,3 +94,77 @@ writes the rule. The tool tests facts against it.
   share). Duke: the CLI does not judge.
 - The check as an rpc start hook. It would turn
   `forbidden` from an answer into a refusal.
+
+## Amended 2026-11-24: select by what an op uses
+
+Asked in GitHub #56. Thread lead's pick (option
+1), reversible before the release.
+
+### Context
+
+A server app keeps most state in a database. An
+op writes its rows through a resource, such as a
+drizzle transaction. Its line shows `writes{}`.
+So a `writes` rule never selects it, and proves
+nothing.
+
+The precedents select code by what it depends
+on, then require a path:
+
+- ArchUnit: `classes().that().dependOnClassesThat()`
+  picks classes by a dependency.
+- dependency-cruiser: a rule's `from` and `to`
+  select modules by the modules they import.
+
+Ours is simpler: one dependency pattern, one
+required call. No path filter, no "only".
+
+### Decision
+
+8. Each graph line gets a last part, `uses{…}`:
+   the label of each resource the op's
+   `depends` names. It is a fact from `depends`.
+   It does not read `run`.
+
+   ```text
+   members.invite exits{already,invited,noWorkspace}
+     reads{} writes{} calls{} uses{drizzlePg.tx}
+   ```
+
+   - A resource dep the graph cannot name gives
+     `?`, as in the other parts.
+
+9. A rule selects ops by `writes` or by `uses`,
+   never both:
+
+   ```json
+   { "uses": "drizzlePg.tx",
+     "calls": "perm.canLead",
+     "except": {
+       "workspace.create.do": "No lead yet."
+     } }
+   ```
+
+   - `uses` is a label pattern. `*` is one label
+     part or more, as in `writes`.
+   - A rule with both keys, or with neither, is a
+     `BadConfig`.
+   - A `?` in `uses{}` is not tested, as a `?` in
+     `writes{}` is not.
+
+10. `writes` rules keep their meaning. Decision
+    5 now reads: two selectors, one requirement.
+11. The new part changes every line. A committed
+    `tinker.graph` gives a `tinker/graph`
+    finding on each line until
+    `tinker graph --write` runs once.
+
+### Not chosen
+
+- Select by label (`"ops": "project.*"`). A
+  label says what an op is named, not what it
+  touches. A new op under another name would
+  slip past.
+- Read each resource's own code for its writes.
+  The graph reads each op's own body only (ADR
+  0161).
