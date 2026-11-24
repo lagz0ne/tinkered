@@ -57,8 +57,8 @@ const configs = {
     `});`,
   ].join("\n"),
   "tinker.graph": [
-    "guard exits{refused,value} reads{} writes{} calls{}",
-    "move.do exits{gone,moved} reads{} writes{} calls{}",
+    "guard exits{refused,value} reads{} writes{} calls{} uses{}",
+    "move.do exits{gone,moved} reads{} writes{} calls{} uses{}",
     "",
   ].join("\n"),
 };
