@@ -76,6 +76,9 @@ export default defineMain(
 - Each handler reads a body up to its own
   `maxBody`, 1 MiB when unset. Past it,
   `serve` answers 413.
+- A reply that leaves the body unread
+  closes the connection: the client may
+  still be sending it.
 - A handler's `request.signal` aborts when
   the client leaves, body or not.
 - `server.requestIP(request)` and
@@ -125,7 +128,9 @@ takes a bytes POST. Each answer:
   gives 403), or the POST's reply.
 
 A bytes POST is for a key with a
-bytes field.
+bytes field. A POST it refuses before it
+reads the body closes the connection, on
+`serve` or a bare `Bun.serve`.
 
 Two services with one address fail the start
 with `DuplicateAddress`. The fault names both:
