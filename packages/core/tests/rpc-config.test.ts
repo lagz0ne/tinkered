@@ -73,8 +73,8 @@ test("a remote with no watch fails the start as remote.watch (ADR 0140)", async 
   });
 });
 
-test("answer, stream and fault are the definition's own names, not keys", () => {
-  for (const key of ["answer", "stream", "fault"]) {
+test("the definition's own names are not keys: answer, stream, fault, contracts, receive, addresses, uploads", () => {
+  for (const key of ["answer", "stream", "fault", "contracts", "receive", "addresses", "uploads"]) {
     expect(() => rpc({ [key]: contracts.echo }), key).toThrow(`rpc: "${key}" is a reserved key`);
   }
   expect(() => rpc({ fault: contracts.echo }, { label: "todo" })).toThrow(
@@ -105,7 +105,6 @@ test("api.contracts is the object given to rpc(), not undefined (#54)", () => {
   const api = rpc(contracts);
 
   expect(api.contracts).toBe(contracts);
-  expect(api.contracts.echo.output.parse({ n: 2 })).toEqual({ n: 2 });
 });
 
 test("a fault names its address and kind, and the trace when there is one", () => {
