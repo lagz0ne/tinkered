@@ -100,6 +100,7 @@ test("an invalid write throws DataValidationFailed with a typed payload", () => 
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     expect(error.payload.label).toBe("count");
   }
 });
@@ -113,6 +114,7 @@ test("a zod schema is a parser as-is: the cell's type is inferred and a bad writ
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     expect(error.payload.label).toBe("count");
     if (!isError(error.payload.cause, "SchemaRejected")) throw error;
     expect(error.payload.cause.payload.issues.length).toBe(1);
@@ -141,6 +143,7 @@ test("an async schema is refused at the edge with SchemaAsync naming the vendor"
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     if (!isError(error.payload.cause, "SchemaAsync")) throw error;
     expect(error.payload.cause.payload.vendor).toBe("zod");
   }
@@ -456,6 +459,7 @@ test("a tag binding is validated by parse", () => {
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     expect(error.payload.label).toBe("port");
   }
 });
@@ -2527,6 +2531,7 @@ test("a span for an operation whose setup throws is still closed and exported as
     throw new Error("expected the parser to throw");
   } catch (error) {
     if (!isError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     expect(error.payload.label).toBe("op");
     expect(error.payload.cause).toBe(parseError);
   }
@@ -2640,6 +2645,7 @@ test("a data preset value runs through parse and can be rejected", () => {
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     expect(error.payload.label).toBe("count");
   }
 });
@@ -2873,6 +2879,7 @@ test("an operation preset still parses the call's input and rejects a bad one", 
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     expect(error.payload.label).toBe("greet");
   }
 });

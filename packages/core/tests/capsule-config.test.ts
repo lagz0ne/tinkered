@@ -263,6 +263,7 @@ test("a config tag's parse refuses a bad value at createScope", () => {
   const error = caught(() => createScope({ capsules: [mail({ port: "eighty" })] }));
 
   if (!isError(error, "DataValidationFailed")) throw error;
+  if (!("label" in error.payload)) throw error;
   expect(error.payload.label).toBe("mail.port");
 });
 

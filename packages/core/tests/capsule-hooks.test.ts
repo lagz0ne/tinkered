@@ -300,6 +300,7 @@ test("a run event's input refuses a bad raw input as the op does", async () => {
   );
 
   if (!isError(failed, "DataValidationFailed")) throw failed;
+  if (!("label" in failed.payload)) throw failed;
   expect(failed.payload.label).toBe("press");
   await scope.close();
 });

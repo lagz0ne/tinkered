@@ -196,6 +196,7 @@ test("empty words raise NoWords, mapped to exit 2 through the cli", async () => 
     expect.unreachable("the parse must fail");
   } catch (error: unknown) {
     if (!isCoreError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     if (!isError(error.payload.cause, "NoWords")) throw error;
   } finally {
     await scope.close({ graceful: true });

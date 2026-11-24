@@ -2,7 +2,12 @@ import type { Data, Resource } from "./index";
 
 /** The registry: core makes no error of its own outside it. */
 type Payloads = {
-  DataValidationFailed: { label: string; cause: unknown };
+  /** A unit's parse or schema refused a value: `{ label, cause }` names the data, tag, or
+   * operation, and its `cause` is the parser's throw. An rpc call's input check, on the caller's
+   * side, gives `{ address, issues }` instead: the contract's key and its schema issues. */
+  DataValidationFailed:
+    | { label: string; cause: unknown }
+    | { address: string; issues: readonly Data.SchemaIssue[] };
   SchemaRejected: { issues: readonly Data.SchemaIssue[] };
   SchemaAsync: { vendor: string };
   InvalidDependency: { label: string; reason: string };

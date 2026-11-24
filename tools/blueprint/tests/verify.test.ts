@@ -355,6 +355,7 @@ test("a dir with no *.ts file answers exit 2, NoSource", async () => {
       expect.unreachable("must reject empty source");
     } catch (error: unknown) {
       if (!isCoreError(error, "DataValidationFailed")) throw error;
+      if (!("label" in error.payload)) throw error;
       if (!isError(error.payload.cause, "NoSource")) throw error;
       expect(error.payload.cause.payload.dir).toBe(dir);
     } finally {

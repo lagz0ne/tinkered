@@ -42,6 +42,7 @@ test.each(badRequests)(
         expect.fail("invalid HTTP input must fail");
       } catch (error) {
         if (!isError(error, "DataValidationFailed")) throw error;
+        if (!("label" in error.payload)) throw error;
         if (!isError(error.payload.cause, "SchemaRejected")) throw error.payload.cause;
         expect(error.payload.cause.payload.issues).not.toHaveLength(0);
       }

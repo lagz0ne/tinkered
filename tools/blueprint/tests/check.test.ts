@@ -463,6 +463,7 @@ test("check rejects a call without the file text as its parse failure", async ()
     expect.unreachable("the parse must fail");
   } catch (error: unknown) {
     if (!isCoreError(error, "DataValidationFailed")) throw error;
+    if (!("label" in error.payload)) throw error;
     if (!isError(error.payload.cause, "InvalidBlueprint")) throw error;
     expect(error.payload.cause.payload.issues).toHaveLength(1);
   } finally {
