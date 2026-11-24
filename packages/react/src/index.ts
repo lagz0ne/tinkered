@@ -390,14 +390,14 @@ function useDataStore<T, S>(
   const controller = readableOf(held.bound.scope, cell);
 
   if (selector === undefined && isEqual === undefined) {
-    return (controller as RawHolder<T>)[RAW] ?? createRawStore(controller);
+    return (controller as RawHolder<T>)[RAW] ?? createRawStore(held.bound.scope, cell, controller);
   }
 
   const kept = held.store;
   const store =
     kept !== undefined && kept.controller === controller
       ? kept
-      : (held.store = createDataStore<T, S>(controller));
+      : (held.store = createDataStore<T, S>(held.bound.scope, cell, controller));
 
   store.select = selector ?? (identity as (value: T) => S);
   store.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
@@ -460,6 +460,12 @@ type SelectingStore<T, S> = DataStore<T, S> & {
   controller: Readable<T>;
   select: (value: T) => S;
   equal: (a: S, b: S) => boolean;
+  /** Set once `subscribe` meets the closed scope. From then on `read` gives {@link last}: Core's
+   * held controller reads the initial value after a close (ADR 0069), and that change would make
+   * React render again and raise `Disposed` (ADR 0144 d3). */
+  closed: boolean;
+  /** The raw value of the last read while the scope was open. */
+  last: T;
 };
 
 /** The raw store rides on its controller: a property read, not a hash lookup. */
@@ -469,35 +475,54 @@ type RawHolder<T> = { [RAW]?: DataStore<T, T> };
 
 /** Only a cache miss creates these closures. Core keeps each controller stable, and the
  * store goes with its controller when the scope no longer retains it. */
-function createRawStore<T>(controller: Readable<T>): DataStore<T, T> {
+function createRawStore<T>(
+  scope: Scope.Handle,
+  cell: Source<T>,
+  controller: Readable<T>,
+): DataStore<T, T> {
   const store: SelectingStore<T, T> = {
     controller,
     select: identity,
     equal: Object.is,
+    closed: false,
+    last: controller.get(),
     /** React subscribes in a passive effect, after the commit, so the scope can close in between:
      * a layout effect or another owner closes it. Core's `watch` then raises `Disposed`, and React
      * sends it to the nearest error boundary, whose fallback replaces the subtree, or reports it
-     * uncaught. That is an error for a scope that can never change again, so take no subscription
-     * and return an unsubscribe that does nothing. Any other throw still throws. A render after
-     * the close still raises `Disposed` (ADR 0144 d3). Two copies, not a module helper: the
-     * fast-code lane's slot ratchet (`F9 react`) counts React's module context slots, and a helper
-     * made 39, over its baseline 38. */
+     * uncaught. Core sends no notice after the close, and the value it gives changes once, to the
+     * initial value (ADR 0069); React would see that change and render again. So take no
+     * subscription, keep the last value React saw, and return an unsubscribe that does nothing.
+     * Any other throw still throws. After the watch, the scope is asked with the call the render
+     * makes: a keyed read's or a keyed resource read's `watch` does not raise once another watcher
+     * holds it. Asking before the watch would make a second keyed resource entry, as StrictMode
+     * subscribes twice. A render after the close still raises `Disposed` (ADR 0144 d3). Two copies,
+     * not a module helper: the fast-code lane's slot ratchet (`F9 react`) counts React's module
+     * context slots, and a helper made 39, over its baseline 38. */
     subscribe: (notify) => {
+      let stop: () => void = noop;
       try {
-        return controller.watch(notify);
+        stop = controller.watch(notify);
+        readableOf(scope, cell);
+        return stop;
       } catch (error) {
+        stop();
         if (!isError(error, "Disposed")) throw error;
+        store.closed = true;
         return noop;
       }
     },
-    read: () => controller.get(),
+    read: () => (store.closed ? store.last : (store.last = controller.get())),
     set: (value) => controller.set?.(value),
   };
   (controller as RawHolder<T>)[RAW] = store;
   return store;
 }
 
-function createDataStore<T, S>(controller: Readable<T>): SelectingStore<T, S> {
+function createDataStore<T, S>(
+  scope: Scope.Handle,
+  cell: Source<T>,
+  controller: Readable<T>,
+): SelectingStore<T, S> {
   let memo:
     | { raw: T; slice: S; select: (value: T) => S; equal: (a: S, b: S) => boolean }
     | undefined = undefined;
@@ -505,17 +530,24 @@ function createDataStore<T, S>(controller: Readable<T>): SelectingStore<T, S> {
     controller,
     select: identity as (value: T) => S,
     equal: Object.is,
+    closed: false,
+    last: controller.get(),
     /** The same closed-scope rule as {@link createRawStore}'s `subscribe`. */
     subscribe: (notify: () => void) => {
+      let stop: () => void = noop;
       try {
-        return controller.watch(notify);
+        stop = controller.watch(notify);
+        readableOf(scope, cell);
+        return stop;
       } catch (error) {
+        stop();
         if (!isError(error, "Disposed")) throw error;
+        store.closed = true;
         return noop;
       }
     },
     read: (): S => {
-      const raw = controller.get();
+      const raw = store.closed ? store.last : (store.last = controller.get());
       const prev = memo;
       if (prev !== undefined && prev.select === store.select && prev.equal === store.equal) {
         if (Object.is(prev.raw, raw)) return prev.slice;

@@ -223,6 +223,9 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - Reads a cell and re-renders when it is set externally.
 - A render after the scope closed raises Disposed.
 - A scope that closes before useData subscribes reports no error.
+- useData keeps each written value when the scope closes before it subscribes.
+- A where read keeps its value when its keyed cell already has a watcher at the close.
+- A keyed resource read keeps its value when another reader holds its entry at the close.
 - useData with no provider raises NoProvider.
 - An unchanged object value keeps its identity across a parent re-render.
 - A write after unmount neither updates the removed subtree nor breaks the still-open scope.
