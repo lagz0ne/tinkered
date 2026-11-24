@@ -76,6 +76,8 @@ export default defineMain(
 - Each handler reads a body up to its own
   `maxBody`, 1 MiB when unset. Past it,
   `serve` answers 413.
+- A handler's `request.signal` aborts when
+  the client leaves, body or not.
 
 A handler is a capsule whose start returns
 Bun's own shape, `{ fetch, websocket? }`.
