@@ -210,7 +210,10 @@ const sending = { role: "handler", explain: "Sends one write to its watchers" } 
 const reading = { role: "handler", explain: "Reads one key's stream" } as const;
 const name = "remoteData"; // labels only: the wire address is the key
 
-const reserved = "answer stream drop invalidate fault faults part status states".split(" ");
+const reserved =
+  "answer stream drop invalidate fault faults part status states receive addresses uploads contracts".split(
+    " ",
+  );
 
 /** A cell of the same shape with a new identity. A keyed cell keeps its key, parse and eq. */
 const remake = (shape: Data.Cell<unknown>): Data.Cell<unknown> => {

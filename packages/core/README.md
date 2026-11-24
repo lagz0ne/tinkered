@@ -1355,8 +1355,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `board.part(call)` gives a guard the part of a keyed join or ask, typed;
   any other call gives `undefined`.
 - A board's own names are reserved: a cell named `answer`, `stream`,
-  `drop`, `invalidate`, `fault`, `faults`, `part`, `status` or `states`
-  throws when the board is made.
+  `drop`, `invalidate`, `fault`, `faults`, `part`, `status`, `states`,
+  `receive`, `addresses`, `uploads` or `contracts` throws when the
+  board is made.
 - A window read is one more read of its part: the store's order and
   limit, in its own list. Two windows of one part keep two lists.
 - A member that leaves a window stays for a reader of its key.
