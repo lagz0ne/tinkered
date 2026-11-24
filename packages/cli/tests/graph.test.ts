@@ -377,8 +377,8 @@ test("an op labelled view keeps its one-word key in the file", { timeout: 60_000
     `export const view = operation({ label: "view", run: () => 1 });`,
   ].join("\n");
   const graph = [
-    "issues.inTeam exits{value} reads{} writes{} calls{} uses{}",
-    "view exits{value} reads{} writes{} calls{} uses{}",
+    "issues.inTeam exits{value} faults{} reads{} writes{} calls{} uses{}",
+    "view exits{value} faults{} reads{} writes{} calls{} uses{}",
     "",
   ].join("\n");
   const folder = appOf({ "src/ops.ts": op, "tinker.graph": graph });
