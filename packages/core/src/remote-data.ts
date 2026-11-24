@@ -208,7 +208,8 @@ export type RemoteFault = RpcFault;
 const meta = { role: "state", explain: "Remote data of this root" } as const;
 const sending = { role: "handler", explain: "Sends one write to its watchers" } as const;
 const reading = { role: "handler", explain: "Reads one key's stream" } as const;
-const name = "remoteData"; // labels only: the wire address is the key
+/** For labels only: the wire address is the key. */
+const name = "remoteData";
 
 const reserved =
   "answer stream drop invalidate fault faults part status states receive addresses uploads contracts".split(
