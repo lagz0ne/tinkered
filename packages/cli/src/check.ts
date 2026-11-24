@@ -23,11 +23,15 @@ export declare namespace Check {
    */
   type Entries = Readonly<Record<string, Readonly<Record<string, string>>>>;
   /**
-   * A graph rule (ADR 0167): each operation that writes a cell `writes` matches must reach
-   * `calls` through its calls, directly or through the ops it calls. In `writes`, a `*` part
-   * stands for one label part or more. `except` maps an operation to its reason.
+   * A graph rule (ADR 0167, amended): each operation that writes a cell `writes` matches, or
+   * uses a resource `uses` matches, must reach `calls` through its calls, directly or through
+   * the ops it calls. A rule has one of the two. In a pattern, a `*` part stands for one label
+   * part or more. `except` maps an operation to its reason.
    */
-  type GraphRule = { writes: string; calls: string; except?: Readonly<Record<string, string>> };
+  type GraphRule = ({ writes: string } | { uses: string }) & {
+    calls: string;
+    except?: Readonly<Record<string, string>>;
+  };
   /** The app's `tinker.json`. Every key may be absent. */
   type Config = {
     plain?: { entries?: Entries };
@@ -96,11 +100,12 @@ function isPattern(value: unknown) {
   );
 }
 
+/** A rule selects by `writes` or by `uses`: one of the two, never both. */
 function isRule(value: unknown) {
-  if (!isRecord(value) || !isPattern(value.writes) || typeof value.calls !== "string") {
-    return false;
-  }
-  return value.except === undefined || isReasons(value.except);
+  if (!isRecord(value) || typeof value.calls !== "string") return false;
+  const { writes, uses } = value;
+  if ((writes === undefined) === (uses === undefined)) return false;
+  return isPattern(writes ?? uses) && (value.except === undefined || isReasons(value.except));
 }
 
 /** Each part of the config: where it is, the test it passes, and what to say when it fails. */
@@ -117,7 +122,7 @@ const parts: readonly [keys: readonly string[], ok: (value: unknown) => boolean,
   [
     ["graph", "rules"],
     (value) => Array.isArray(value) && value.every(isRule),
-    "`graph.rules` is a list of { writes, calls, except }; a `*` in `writes` is a whole part",
+    "`graph.rules` is a list of { writes or uses, calls, except }; a `*` in a pattern is a whole part",
   ],
 ];
 

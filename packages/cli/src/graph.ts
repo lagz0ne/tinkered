@@ -10,9 +10,9 @@ import type { Tools } from "./tools";
 export declare namespace Graph {
   /**
    * One line of the graph: an operation, where it is, and its facts. `parts` are `exits{…}`,
-   * `reads{…}`, `writes{…}` and `calls{…}`, in that order. A fact is never a judgement: the
-   * reader of the line judges it (ADR 0161, amended). `writes` and `calls` are those facts,
-   * sorted, for the graph rules (ADR 0167).
+   * `reads{…}`, `writes{…}`, `calls{…}` and `uses{…}`, in that order. A fact is never a
+   * judgement: the reader of the line judges it (ADR 0161, amended). `writes`, `calls` and
+   * `uses` are those facts, sorted, for the graph rules (ADR 0167, amended).
    */
   type Line = {
     path: string;
@@ -22,6 +22,7 @@ export declare namespace Graph {
     parts: string[];
     writes: string[];
     calls: string[];
+    uses: string[];
   };
 }
 
@@ -125,20 +126,25 @@ function exportCall(checker: ts.TypeChecker, exported: ts.ObjectLiteralElementLi
   return ts.isIdentifier(value) ? callAt(checker, checker.getSymbolAtLocation(value)) : undefined;
 }
 
+/** A capsule's export under `key`: the call it is, and the capsule's label when it is written. */
+function exportOf(checker: ts.TypeChecker, on: ts.Identifier, key: string) {
+  const capsule = callAt(checker, checker.getSymbolAtLocation(on));
+  if (!capsule || coreName(capsule) !== "capsule") return undefined;
+
+  const [options] = capsule.arguments;
+  const exports = propertyAt(options, "exports");
+  const value = exports && ts.isPropertyAssignment(exports) ? exports.initializer : undefined;
+  const call = exportCall(checker, propertyAt(value, key));
+  return call && { call, capsule: labelIn(options) };
+}
+
 /**
  * A capsule's export: its members take the capsule's label and the export's key. Both are
  * read from the capsule's call: its `label` written as a string, its `exports` as an object.
  */
 function exportedContract(checker: ts.TypeChecker, on: ts.Identifier, key: string) {
-  const capsule = callAt(checker, checker.getSymbolAtLocation(on));
-  if (!capsule || coreName(capsule) !== "capsule") return undefined;
-
-  const [options] = capsule.arguments;
-  const label = labelIn(options);
-  const exports = propertyAt(options, "exports");
-  const value = exports && ts.isPropertyAssignment(exports) ? exports.initializer : undefined;
-  const call = exportCall(checker, propertyAt(value, key));
-  return label && call ? { call, name: `${label}.${key}` } : undefined;
+  const found = exportOf(checker, on, key);
+  return found?.capsule ? { call: found.call, name: `${found.capsule}.${key}` } : undefined;
 }
 
 /**
@@ -198,6 +204,70 @@ function depUnit(checker: ts.TypeChecker, declaration: ts.Declaration | undefine
   return declaration && ts.isPropertyAssignment(declaration)
     ? unitOf(checker, declaration.initializer)
     : undefined;
+}
+
+/**
+ * The call a resource dep's value is made by: a `const` it names, the keyed resource a call reads
+ * (`row({ id })`), or a capsule's export (`db.pool`).
+ */
+function resourceCall(checker: ts.TypeChecker, value: ts.Expression) {
+  const unit = ts.isCallExpression(value) ? value.expression : value;
+  if (ts.isIdentifier(unit)) return callAt(checker, checker.getSymbolAtLocation(unit));
+  const member = memberOf(unit);
+  return member && ts.isIdentifier(member.on)
+    ? exportOf(checker, member.on, member.key)?.call
+    : undefined;
+}
+
+/** The label of the resource a dep's declaration names, when the label is written. */
+function resourceLabel(checker: ts.TypeChecker, declaration: ts.Declaration | undefined) {
+  let call: ts.CallExpression | undefined;
+  if (declaration && ts.isShorthandPropertyAssignment(declaration)) {
+    call = callAt(checker, checker.getShorthandAssignmentValueSymbol(declaration));
+  } else if (declaration && ts.isPropertyAssignment(declaration)) {
+    call = resourceCall(checker, declaration.initializer);
+  }
+  return call && coreName(call) === "resource" ? labelIn(call.arguments[0]) : undefined;
+}
+
+/** A keyed resource read: what a keyed resource's call makes (ADR 0150). */
+function isBuilt(checker: ts.TypeChecker, type: ts.Type) {
+  const kind = type.getProperty("kind");
+  const value = kind && checker.getTypeOfSymbol(kind);
+  return value?.isStringLiteral() === true && value.value === "built";
+}
+
+/** A resource, by its type: a handle builds with `factory`; a keyed one is read, or makes a read. */
+function isResource(checker: ts.TypeChecker, type: ts.Type | undefined) {
+  if (!type) return false;
+  if (type.getProperty("factory") || isBuilt(checker, type)) return true;
+  return type.getCallSignatures().some((call) => isBuilt(checker, call.getReturnType()));
+}
+
+/** The type of each dep an operation's `depends` names, by key: a dep in place, in a `const`, or spread. */
+function dependsOf(checker: ts.TypeChecker, options: ts.ObjectLiteralExpression) {
+  const depends = checker.getTypeAtLocation(options).getProperty("depends");
+  return depends ? checker.getTypeOfSymbolAtLocation(depends, options).getProperties() : [];
+}
+
+/**
+ * What one dep adds to `uses{}`: the label of the resource it names, or `?` for a resource the
+ * graph cannot name (by its type, or by what its tag holds). Any other dep adds nothing.
+ */
+function useOf(checker: ts.TypeChecker, key: ts.Symbol, options: ts.ObjectLiteralExpression) {
+  const label = resourceLabel(checker, key.valueDeclaration);
+  if (label) return [label];
+  const unit = depUnit(checker, key.valueDeclaration);
+  const type =
+    unit?.made === "tag"
+      ? heldOf(checker, unit.call)
+      : checker.getTypeOfSymbolAtLocation(key, options);
+  return isResource(checker, type) ? [unseen] : [];
+}
+
+/** The resources an operation's `depends` names: a fact from `depends` alone, not from `run`. */
+function usesOf(checker: ts.TypeChecker, { options }: Exits.Operation) {
+  return new Set(dependsOf(checker, options).flatMap((key) => useOf(checker, key, options)));
 }
 
 /** A set of facts: where a call adds its fact, or where a use the graph cannot follow hides. */
@@ -296,10 +366,8 @@ function depsOf(
   options: ts.ObjectLiteralExpression,
   param: ts.ParameterDeclaration | undefined,
 ) {
-  const depends = checker.getTypeAtLocation(options).getProperty("depends");
-  const keys = depends ? checker.getTypeOfSymbolAtLocation(depends, options).getProperties() : [];
   const deps = new Map<string, Dep>();
-  for (const key of keys) deps.set(key.name, depOf(checker, key, param));
+  for (const key of dependsOf(checker, options)) deps.set(key.name, depOf(checker, key, param));
   return deps;
 }
 
@@ -479,14 +547,16 @@ export function graphOf(root: string): Graph.Line[] {
     const { path, line, label, exits } = operation;
     const writes = sorted(facts.writes);
     const calls = sorted(facts.calls);
+    const uses = sorted(usesOf(app.checker, operation));
 
     const parts = [
       listed("exits", sorted(exits)),
       listed("reads", sorted(facts.reads)),
       listed("writes", writes),
       listed("calls", calls),
+      listed("uses", uses),
     ];
-    return { path, line, label, exits, parts, writes, calls };
+    return { path, line, label, exits, parts, writes, calls, uses };
   });
   return lines.sort((a, b) => (a.label < b.label ? -1 : 1));
 }

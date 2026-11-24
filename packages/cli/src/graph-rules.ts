@@ -19,6 +19,23 @@ function matches([head, ...rest]: readonly string[], parts: readonly string[]): 
  */
 const cellOf = (write: string) => write.slice(0, write.lastIndexOf(".")).split(".");
 
+/** A resource by its parts: a pattern matches the whole label. */
+const resourceOf = (use: string) => use.split(".");
+
+/**
+ * The part of `line` a rule selects by, and each of its facts the rule's pattern matches: the
+ * writes of `writes`, or the resources of `uses`. A `?` matches no pattern.
+ */
+function selected(rule: Check.GraphRule, line: Graph.Line) {
+  const [part, pattern, facts, partsOf] =
+    "uses" in rule
+      ? ["uses", rule.uses, line.uses, resourceOf]
+      : ["writes", rule.writes, line.writes, cellOf];
+  const parts = pattern.split(".");
+  const matched = facts.filter((fact) => fact !== unseen && matches(parts, partsOf(fact)));
+  return { part, matched };
+}
+
 /**
  * Each op `start` reaches through its calls, and theirs in turn: not `start` itself, unless a
  * call leads back to it. `blind` is each op on the way whose calls have a `?`: an op there may
@@ -40,22 +57,16 @@ function reach(start: Graph.Line, byLabel: ReadonlyMap<string, Graph.Line>) {
 }
 
 /** What `line` breaks of `rule`, if it breaks it: the rule's op and its `except` ops are exempt. */
-function broken(
-  { writes, calls, except = {} }: Check.GraphRule,
-  line: Graph.Line,
-  byLabel: ReadonlyMap<string, Graph.Line>,
-) {
+function broken(rule: Check.GraphRule, line: Graph.Line, byLabel: ReadonlyMap<string, Graph.Line>) {
+  const { calls, except = {} } = rule;
   if (line.label === calls || Object.hasOwn(except, line.label)) return undefined;
-  const pattern = writes.split(".");
-  const matched = line.writes.filter(
-    (write) => write !== unseen && matches(pattern, cellOf(write)),
-  );
+  const { part, matched } = selected(rule, line);
   if (!matched.length) return undefined;
 
   const { reached, blind } = reach(line, byLabel);
   if (reached.has(calls)) return undefined;
 
-  const head = `${line.label} writes{${matched.join(",")}}`;
+  const head = `${line.label} ${part}{${matched.join(",")}}`;
   return blind.length
     ? `${head}, calls{?} in ${blind.join(", ")} cannot prove ${calls}`
     : `${head}, calls has no ${calls}`;
