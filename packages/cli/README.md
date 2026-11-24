@@ -99,12 +99,15 @@ facts:
   them;
 - `reads`: each cell read, and how;
 - `writes`: each cell write, and how;
-- `calls`: each operation it runs.
+- `calls`: each operation it runs;
+- `uses`: each resource its `depends` names.
 
 ```text
 issue.move.do exits{gone,moved,stale}
   reads{issues.list.of} writes{issues.list.set}
-  calls{issues.inTeam}
+  calls{issues.inTeam} uses{}
+members.invite exits{already,invited}
+  reads{} writes{} calls{} uses{drizzlePg.tx}
 ```
 
 - A name is the label, never a local name.
@@ -130,6 +133,10 @@ issue.move.do exits{gone,moved,stale}
   is written in the `capsule` call.
 - An `atScope` or `atNamespace` controller reads
   and writes as the cell's `controller` does.
+- `uses` comes from `depends` alone, never from
+  `run`. It names each resource by its label: a
+  `const` (`tx`), a keyed read (`row({ id })`),
+  or a capsule's export (`db.pool`).
 - The graph reads `src` and `cmds` only.
 
 The graph is facts only. It never judges them.
@@ -174,6 +181,11 @@ cannot name, its type in `run` says which.
 A tag that holds a union of unit kinds, or a held
 cell that `run` never uses, may show no `?`.
 
+A resource dep the graph cannot name gives
+`uses{?}`: its label is not written as a string,
+it is under a key not written in the code, or a
+tag holds it.
+
 The graph reads each op's own body. A resource's
 own code is not read: a write inside a
 resource's value does not show.
@@ -194,12 +206,14 @@ tinker.graph says writes{}
 - Did not mean it? Fix the code.
 - No `tinker.graph` is one finding, when the app
   has an operation.
+- A `tinker.graph` written before `uses{}` gives
+  a finding on each line. Run `--write` once.
 
 ### Graph rules
 
 A graph rule says: each op that writes these
-cells must call this op (ADR 0167). Write it in
-`tinker.json`:
+cells, or uses these resources, must call this
+op (ADR 0167). Write it in `tinker.json`:
 
 ```json
 { "graph": { "rules": [
@@ -211,13 +225,23 @@ cells must call this op (ADR 0167). Write it in
       "team.create.do": "No team yet."
     } },
   { "writes": "issues.archived",
-    "calls": "issues.canWrite" }
+    "calls": "issues.canWrite" },
+  { "uses": "drizzlePg.tx",
+    "calls": "perm.canLead",
+    "except": {
+      "workspace.create.do": "No lead yet."
+    } }
 ] } }
 ```
 
 - `writes`: a cell pattern. A pattern names a
   cell, never a method: `issues.list` holds
   `issues.list.set` and `issues.list.delete`.
+- `uses`: a resource pattern, in place of
+  `writes`. It matches the whole label. A server
+  op that keeps its rows in a database writes
+  through a resource, so its `writes{}` is empty.
+- A rule has `writes` or `uses`, never both.
 - `*` stands for one label part or more:
   `issues.*` holds `issues.archived`, not
   `issues`.
@@ -246,6 +270,14 @@ team.archive.do writes{issues.archived.set},
 calls has no issues.canWrite
 ```
 
+A `uses` rule says the same with its part:
+
+```text
+src/members/ops.server.ts:12 tinker/graph-rule
+members.invite uses{drizzlePg.tx},
+calls has no perm.canLead
+```
+
 A `?` in `calls{}` of the op, or of an op on the
 way, is a finding too. The rule cannot be
 proved:
@@ -257,8 +289,8 @@ calls{?} in team.archive.do cannot prove
 issues.canWrite
 ```
 
-A write the graph marks `?` is not tested: its
-cell is not known. No rule, no finding: the
+A write or a resource the graph marks `?` is not
+tested: it is not known. No rule, no finding: the
 check finds no copy by itself.
 
 ## The tests and the exits

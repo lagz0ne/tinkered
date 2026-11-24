@@ -216,8 +216,9 @@ promise and await it later.
 ### HIGH: the code graph differs from tinker.graph [tinker/graph]
 
 `tinker.graph` holds one line per operation: its
-exits, and the cells and operations its `run`
-reads, writes and calls. The lines are facts.
+exits, the cells and operations its `run` reads,
+writes and calls, and the resources its
+`depends` names (`uses{}`). The lines are facts.
 `tinker check` builds them from the code. Each
 line that differs from the file is a finding.
 
@@ -248,6 +249,12 @@ capsule's `label` is a string and its `exports`
 object is written in the `capsule` call. An
 `atScope` or `atNamespace` controller reads and
 writes as the cell's `controller` does.
+
+`uses{}` names each resource by its label: a
+`const`, a keyed read, or a capsule's export. A
+resource it cannot name (a label not written as
+a string, a key not written in the code, a tag
+that holds it) gives `uses{?}`.
 
 The graph reads each op's own body. A resource's
 own code is not read: a write inside a
@@ -321,7 +328,12 @@ holds it from then on (ADR 0167):
       "doc.create.do": "No doc yet."
     } },
   { "writes": "docs.body",
-    "calls": "docs.canEdit" }
+    "calls": "docs.canEdit" },
+  { "uses": "drizzlePg.tx",
+    "calls": "perm.canLead",
+    "except": {
+      "workspace.create.do": "No lead yet."
+    } }
 ] } }
 ```
 
@@ -334,16 +346,23 @@ holds it from then on (ADR 0167):
   page: a finding. Name the server cells, as
   above, or put the page op in `except` with its
   reason.
+- `uses`: a resource pattern, in place of
+  `writes`. A server op that keeps its rows in a
+  database writes through a resource: its
+  `writes{}` is empty, its `uses{}` is not.
+- A rule has `writes` or `uses`, never both.
 - `calls`: the operation that makes the check.
 - `except`: an operation, with its reason.
 
-### HIGH: an operation writes a cell but skips its check [tinker/graph-rule]
+### HIGH: an operation writes a cell or uses a resource but skips its check [tinker/graph-rule]
 
 A graph rule in `tinker.json` names a cell
-pattern and an operation. Each operation that
-writes a cell that matches must reach that
-operation in `calls{}`, directly or through an
-operation it calls. The rule's own operation is exempt.
+pattern (`writes`) or a resource pattern
+(`uses`), and an operation. Each operation that
+writes a cell or uses a resource that matches
+must reach that operation in `calls{}`, directly
+or through an operation it calls. The rule's own
+operation is exempt.
 
 A `?` in `calls{}` on the way is a finding too:
 the check cannot see the call, so the rule
@@ -360,6 +379,9 @@ the check.
 src/docs/ops.server.ts:40 tinker/graph-rule
   doc.rename.do writes{docs.title.set},
   calls has no docs.canEdit
+src/members/ops.server.ts:12 tinker/graph-rule
+  members.invite uses{drizzlePg.tx},
+  calls has no perm.canLead
 ```
 
 Right: call the check from the operation, as a
