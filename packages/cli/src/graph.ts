@@ -15,12 +15,14 @@ export declare namespace Graph {
   type Row = { path: string; line: number; label: string; parts: string[] };
   /**
    * One line of the graph: an operation, where it is, and its facts. `parts` are `exits{…}`,
-   * `reads{…}`, `writes{…}`, `calls{…}` and `uses{…}`, in that order. A fact is never a
-   * judgement: the reader of the line judges it (ADR 0161, amended). `writes`, `calls` and
-   * `uses` are those facts, sorted, for the graph rules (ADR 0167, amended).
+   * `faults{…}`, `reads{…}`, `writes{…}`, `calls{…}` and `uses{…}`, in that order. A fact is
+   * never a judgement: the reader of the line judges it (ADR 0161, amended). `writes`, `calls`
+   * and `uses` are those facts, sorted, for the graph rules (ADR 0167, amended). `faults` are
+   * the faults its calls of a contract member can end with, sorted.
    */
   type Line = Row & {
     exits: string[];
+    faults: string[];
     writes: string[];
     calls: string[];
     uses: string[];
@@ -38,11 +40,25 @@ export const graphFile = "tinker.graph";
 /**
  * A unit a dep names: the Core function that made it, its label, and the part it reads. `bare`
  * is a dep named by itself, with no edge: a bare cell gives `run` its value, not a controller.
+ * `faults` are those a call of an rpc contract's member can end with.
  */
-type Unit = { made: string; label: string; call: ts.CallExpression; read?: string; bare?: true };
+type Unit = {
+  made: string;
+  label: string;
+  call: ts.CallExpression;
+  read?: string;
+  bare?: true;
+  faults?: string[];
+};
 
-/** What a `run` touches: each fact is a label, then a kind (`issues.list.set`). */
-type Facts = { reads: Set<string>; writes: Set<string>; calls: Set<string> };
+/** A set of facts: where a call adds its fact, or where a use the graph cannot follow hides. */
+type Hide = "reads" | "writes" | "calls";
+
+/**
+ * What a `run` touches: each fact is a label, then a kind (`issues.list.set`). `faults` are
+ * those its calls of a contract member can end with.
+ */
+type Facts = Record<Hide, Set<string>> & { faults: Set<string> };
 
 const writeKinds = ["set", "update", "delete"];
 
@@ -164,6 +180,33 @@ function contractOf(checker: ts.TypeChecker, value: ts.Expression) {
     : undefined;
 }
 
+/** The type of a property of `type`, at `at`. */
+function propertyType(
+  checker: ts.TypeChecker,
+  type: ts.Type | undefined,
+  key: string,
+  at: ts.Node,
+) {
+  const property = type?.getProperty(key);
+  return property && checker.getTypeOfSymbolAtLocation(property, at);
+}
+
+/**
+ * The faults a call of an rpc contract's member can end with, from the contract's own type: its
+ * `fault.is` guards an `RpcFault`, whose `fault` is Core's `Fault`, a union of words. A type the
+ * graph cannot read is `?`.
+ */
+function faultsOf(checker: ts.TypeChecker, rpc: ts.CallExpression) {
+  const handle = checker.getTypeAtLocation(rpc);
+  const is = propertyType(checker, propertyType(checker, handle, "fault", rpc), "is", rpc);
+  const [signature] = is ? is.getCallSignatures() : [];
+  const guarded = signature && checker.getTypePredicateOfSignature(signature)?.type;
+
+  const fault = propertyType(checker, guarded, "fault", rpc);
+  const words = fault?.isUnion() ? fault.types : [fault];
+  return words.map((word) => (word?.isStringLiteral() ? word.value : unseen));
+}
+
 /**
  * The operation an rpc contract's member is: `access.user["users.me"]` is `access.user/users.me`,
  * the capsule path, `/`, then the contract key. A key the contract does not write is not one.
@@ -175,7 +218,13 @@ function contractMember(checker: ts.TypeChecker, value: ts.Expression): Unit | u
 
   const [contracts] = contract.call.arguments;
   if (!propertyAt(contracts, member.key)) return undefined;
-  return { made: "operation", label: `${contract.name}/${member.key}`, call: contract.call };
+  const label = `${contract.name}/${member.key}`;
+  return {
+    made: "operation",
+    label,
+    call: contract.call,
+    faults: faultsOf(checker, contract.call),
+  };
 }
 
 /** Where an edge puts its reads and writes: `logins.atScope.controller` is the cell's own. */
@@ -290,11 +339,11 @@ function usesOf(checker: ts.TypeChecker, { options }: Exits.Operation) {
   return new Set(dependsOf(checker, options).flatMap((key) => useOf(checker, key, options)));
 }
 
-/** A set of facts: where a call adds its fact, or where a use the graph cannot follow hides. */
-type Hide = keyof Facts;
-
-/** What one call on a dep adds: `list.set(…)` adds `issues.list.set` to `writes`. */
-type Touch = { set: Hide; fact: string };
+/**
+ * What one call on a dep adds: `list.set(…)` adds `issues.list.set` to `writes`. A call of a
+ * contract member adds its `faults` too.
+ */
+type Touch = { set: Hide; fact: string; faults: readonly string[] };
 
 /**
  * A dep as `run` sees it: what each call the graph knows on it adds, and the sets a use the
@@ -309,10 +358,10 @@ const allSets: Hide[] = ["reads", "writes", "calls"];
 export const unseen = "?";
 
 /** What each call the graph knows on an operation or a cell adds. */
-function touchesOf({ made, label, read }: Unit) {
+function touchesOf({ made, label, read, faults = [] }: Unit) {
   const touches = new Map<string, Touch>();
   const add = (kinds: string[], set: Hide, fact: (kind: string) => string) => {
-    for (const kind of kinds) touches.set(kind, { set, fact: fact(kind) });
+    for (const kind of kinds) touches.set(kind, { set, fact: fact(kind), faults });
   };
   if (made === "operation") add(runKinds, "calls", () => label);
   else if (read) add(["get"], "reads", () => `${label}.${read}`);
@@ -429,7 +478,7 @@ function calledOn(node: ts.Expression) {
  * the dep may hide facts in.
  */
 class Reader {
-  facts: Facts = { reads: new Set(), writes: new Set(), calls: new Set() };
+  facts: Facts = { reads: new Set(), writes: new Set(), calls: new Set(), faults: new Set() };
 
   private checker: ts.TypeChecker;
   private deps: Map<string, Dep>;
@@ -490,8 +539,10 @@ class Reader {
     if (!dep) return;
     const kind = calledOn(node);
     const touch = kind === undefined ? undefined : dep.touches.get(kind);
-    if (touch) this.facts[touch.set].add(touch.fact);
-    else this.hide(dep);
+    if (!touch) return this.hide(dep);
+
+    this.facts[touch.set].add(touch.fact);
+    for (const fault of touch.faults) this.facts.faults.add(fault);
   }
 
   /** A use of the deps param: a member, a destructure (bound first), or a hand-off. */
@@ -550,6 +601,11 @@ function factsOf(checker: ts.TypeChecker, { options, run }: Exits.Operation): Fa
 }
 
 const sorted = (items: Iterable<string>) => [...items].sort();
+
+/** The faults of a line: a call the graph cannot see may be a call of a contract member. */
+function faultsIn({ calls, faults }: Facts) {
+  return sorted(calls.has(unseen) ? [...faults, unseen] : faults);
+}
 
 /** A part of a line: its name, then its items, already sorted. */
 const listed = (name: string, items: readonly string[]) => `${name}{${items.join(",")}}`;
@@ -659,18 +715,20 @@ export function graphOf(root: string): Graph.Of {
   const ops = app.operations.map((operation): Graph.Line => {
     const facts = factsOf(app.checker, operation);
     const { path, line, label, exits } = operation;
+    const faults = faultsIn(facts);
     const writes = sorted(facts.writes);
     const calls = sorted(facts.calls);
     const uses = sorted(usesOf(app.checker, operation));
 
     const parts = [
       listed("exits", sorted(exits)),
+      listed("faults", faults),
       listed("reads", sorted(facts.reads)),
       listed("writes", writes),
       listed("calls", calls),
       listed("uses", uses),
     ];
-    return { path, line, label, exits, parts, writes, calls, uses };
+    return { path, line, label, exits, faults, parts, writes, calls, uses };
   });
   const views = app.files.flatMap((file) => viewsIn(app.checker, file));
   return { ops: ops.sort(byLabel), views: views.sort(byLabel) };
