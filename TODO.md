@@ -73,6 +73,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **react/use-data-keyed-disposed** — `packages/react/tests/use-data-keyed.test.tsx` threw an unhandled `Error: Disposed` once (the #57 writer's first gate run, 2026-11-23); 5 runs after that passed. Duke's rule: find the cause and fix it there, not with a retry.
+  Owner: Opus lead.
+  Next: run that file in a loop (200 or more), catch the failing run's stack, then a red test and the fix (writer).
+  Verify: the loop count with 0 failures after the fix; the red test; `vp check`, React tests exit 0; React mutation 85 or more. If 200+ runs never fail: the count, and the card goes to Parked with what would restart it.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
