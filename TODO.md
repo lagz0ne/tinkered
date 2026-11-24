@@ -73,10 +73,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **cli/graph-names** — GitHub #59. The graph names a capsule's contract member (`calls{access.user/users.me}`) and an `atScope`/`atNamespace` controller (`reads{access.logins.get}`) in place of `?`. Facts only, no API change.
-  Owner: graph lead (Opus 5.5); writer Opus 5.5 agent 27f111eb in `../tinkered-graph-names`.
-  Next: the writer's red test, then the fix. Then #56, #58, #60 in that order.
-  Verify: red tests for both causes go green; a computed key keeps `?`; cli tests, `vp check`, prose, skills exit 0; cli mutation floor 85.
+- **cli/graph-uses** — GitHub #56. Each graph line ends in `uses{…}` (the resources an op's `depends` names); a graph rule selects by `writes` or `uses` (ADR 0167 amended 2026-11-24). Then #58 views and #60 faults, stacked.
+  Owner: graph lead (Opus 5.5); writers Opus 5.5: 05b39399 (`../tinkered-graph-uses`), a684cf80 (`../tinkered-graph-views`, #58), b865a4f1 (`../tinkered-graph-faults`, #60).
+  Next: land graph-uses (review READY after one fix round), its cli mutation lane alone; then graph-views (reviewed, fixed), then graph-faults (writing).
+  Verify: per card, red tests green; cli tests, `vp check`, prose, skills exit 0; cli mutation floor 85.
 
 ## Review
 
@@ -116,6 +116,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **cli/graph-names** — done 2026-11-24 (GitHub #59). The graph names a capsule's rpc contract member (`calls{access.user/users.me}`) and an `atScope`/`atNamespace` controller (`reads{access.logins.get}`) in place of `?`. A bare rpc const, a capsule whose label or exports object is not written in the call, and a computed key stay `?`. A contract member ends a graph rule's path. Landed `539c7adc`.
+  Proof: 3 red tests on main, green; cli 166 tests; `vp check` 0 errors, 80 warnings (as main); prose, skills exit 0; `pnpm validate` 22 of 22 PASS; strict census no new hit; Opus convention-review NOT READY (2 S14 hits, a doc claim), one fix round; cli mutation on `graph.ts` at `539c7adc` 93.44 (kills alone 433/488 = 88.7), floor 85, exit 0. The whole-package lane ran at about 9 h on the loaded box (load 34), so the changed file ran alone, as for cli/graph-rule.
 
 - **core/keyed-resource-watch-closed** — done 2026-11-24 (bug 18). A keyed resource watch on a closed scope raises `Disposed` also when another reader still watches the entry: `ensureOpen` moved from `join()`'s first-watcher branch to the top of `BuiltEntry.watch()` (`861de530`). Before, that watch raised nothing and joined the entry. ADR 0157 gets an As built note for the promise `ff565316` shipped; the keyed-resource spec gets rule WatchAfterCloseRefused. Size stays 23,457 B (the cap): the check at the top of `join()` was 3 B over, the one in `watch()` fits.
   Proof: keyed-resource `watch.cfg` 24,044 states, 0 breaks (`watch-before.cfg` 24,044 states, WatchAfterCloseRefused breaks); path test red on main, green; Core 1,487 tests, dist 1,731; `vp check` 0 errors, 80 warnings; `scripts/ticket.sh` exit 0; `pnpm validate` 22 of 22 PASS; Opus convention-review READY (one nit, fixed in `2255199d`); Core mutation on `2255199d` 88.34 (kills alone 85.38, 203 timeouts on a busy box), floor 85, exit 0.
