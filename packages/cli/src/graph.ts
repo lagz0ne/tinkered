@@ -681,6 +681,9 @@ export function graphText(rows: Graph.Row[]) {
   return rows.map(({ label, parts }) => `${[label, ...parts].join(" ")}\n`).join("");
 }
 
+/** A view's name: `view`, then a `<file>#<name>` word. An op may be labelled `view`. */
+const viewLabel = /^view [^ ]*#/;
+
 /**
  * Each line of the committed file by its label, and its line number: a view's label is its
  * first two words. A line may end in `\r`: a checkout on Windows can give the file those ends.
@@ -690,7 +693,7 @@ function linesIn(text: string) {
   text.split("\n").forEach((row, index) => {
     const clean = row.trim();
     const words = clean.split(" ");
-    const label = words.splice(0, clean.startsWith("view ") ? 2 : 1).join(" ");
+    const label = words.splice(0, viewLabel.test(clean) ? 2 : 1).join(" ");
     if (label) lines.set(label, { line: index + 1, parts: words });
   });
   return lines;
