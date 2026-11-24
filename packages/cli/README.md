@@ -150,9 +150,9 @@ way the graph cannot follow:
 - a dep the graph cannot name: a member of a
   bare `rpc` with no label
   (`seaApi["clock.now"]`), a member under a key
-  not written in the code, any other capsule
-  export, or a cell whose label is not written
-  as a string;
+  not written in the code or not in the
+  contract, any other capsule export, or a cell
+  whose label is not written as a string;
 - a tag dep that holds a unit (ADR 0151), through
   any edge: an operation gives `calls{?}`; a
   cell, a view or a read gives `reads{?}`, and a

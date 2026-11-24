@@ -422,7 +422,7 @@ function graphWith(ops: string[]) {
 }
 
 test(
-  "a run of an rpc contract's member through a capsule calls capsule.export/key",
+  "a member of an rpc contract that a capsule exports is named capsule.export/key",
   { timeout: 60_000 },
   () => {
     const { code, out } = graphWith([
@@ -454,34 +454,42 @@ test(
   },
 );
 
-test("a run of a labelled rpc's member calls label/key", { timeout: 60_000 }, () => {
-  const { code, out } = graphWith([
-    `export const count = operation({`,
-    `  label: "home.count",`,
-    `  depends: { count: counted["users.count"] },`,
-    `  run: ({ count }) => count.run({ input: null }),`,
-    `});`,
-  ]);
+test(
+  "a member of a bare rpc whose label is written as a string is label/key",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = graphWith([
+      `export const count = operation({`,
+      `  label: "home.count",`,
+      `  depends: { count: counted["users.count"] },`,
+      `  run: ({ count }) => count.run({ input: null }),`,
+      `});`,
+    ]);
 
-  expect(code).toBe(0);
-  expect(out).toBe("home.count exits{value} reads{} writes{} calls{users/users.count}\n");
-});
-
-test("a member of an rpc with no label keeps calls{?}", { timeout: 60_000 }, () => {
-  const { code, out } = graphWith([
-    `export const all = operation({`,
-    `  label: "home.all",`,
-    `  depends: { all: loose["users.all"] },`,
-    `  run: ({ all }) => all.run({ input: null }),`,
-    `});`,
-  ]);
-
-  expect(code).toBe(0);
-  expect(out).toBe("home.all exits{value} reads{} writes{} calls{?}\n");
-});
+    expect(code).toBe(0);
+    expect(out).toBe("home.count exits{value} reads{} writes{} calls{users/users.count}\n");
+  },
+);
 
 test(
-  "a member under a computed key, or a contract's own operation, keeps calls{?}",
+  "a member of a bare rpc with no label is a dep the graph cannot name",
+  { timeout: 60_000 },
+  () => {
+    const { code, out } = graphWith([
+      `export const all = operation({`,
+      `  label: "home.all",`,
+      `  depends: { all: loose["users.all"] },`,
+      `  run: ({ all }) => all.run({ input: null }),`,
+      `});`,
+    ]);
+
+    expect(code).toBe(0);
+    expect(out).toBe("home.all exits{value} reads{} writes{} calls{?}\n");
+  },
+);
+
+test(
+  "a member under a key not written in the code, or not in the contract, cannot be named",
   { timeout: 60_000 },
   () => {
     const { code, out } = graphWith([
