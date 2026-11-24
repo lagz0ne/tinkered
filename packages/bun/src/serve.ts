@@ -27,12 +27,6 @@ export type Handler = {
 /** A handler's `maxBody` when it names none: Bun's own default. */
 const defaultMaxBody = 1_048_576;
 
-/**
- * The 413 closes the connection (RFC 9110 15.5.14): the client may still be sending the rest of
- * a body nobody reads, and Bun's graceful `stop` would wait on it.
- */
-const tooLarge = { status: 413, headers: { connection: "close" } };
-
 /** Bun's calls that take a request: they know only Bun's own, not a copy. */
 const byRequest = new Set<string | symbol>(["requestIP", "timeout", "upgrade"]);
 
@@ -189,7 +183,7 @@ export const serve = capsule({
           const reply = await (body
             ? body.ask(handler, scope)
             : handler.fetch(request, scope, bun));
-          if (body?.over) return new Response(null, tooLarge);
+          if (body?.over) return new Response(null, { status: 413 });
           if (reply !== undefined) return reply ?? undefined;
         }
         return new Response(null, { status: 404 });

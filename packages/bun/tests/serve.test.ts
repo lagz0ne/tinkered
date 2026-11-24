@@ -319,10 +319,16 @@ test("a handler with no maxBody takes 1 MiB; past it, 413, even beside a 16 MiB 
   ]).toEqual([String(1 << 20), "413"]);
 });
 
-test("a chunked body with no Content-Length gets 413 once its count passes the cap", async () => {
+test("a chunked body with no Content-Length gets 413 once its count passes the cap, and closes", async () => {
   const at = await besideBigKey();
 
-  expect(await post(at, "/api/plain", chunked(2 << 20))).toBe("413");
+  const reply = await fetch(new URL("/api/plain", at), {
+    method: "POST",
+    body: chunked(2 << 20),
+    duplex: "half",
+  } as RequestInit);
+
+  expect([reply.status, reply.headers.get("connection")]).toEqual([413, "close"]);
 });
 
 test("the bytes key still takes a body past 1 MiB, up to its own max", async () => {
