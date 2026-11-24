@@ -1411,6 +1411,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A reaction writes a cell; one that writes its own source stops at
   the round limit.
 
+### rpc
+
+- `api.contracts` is the object given to `rpc()`:
+  each address's `input` and `output` schemas.
+
 ### Faults
 
 - Each fault of `rpc` and `remoteData` says who
