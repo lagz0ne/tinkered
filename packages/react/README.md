@@ -230,6 +230,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - An unchanged object value keeps its identity across a parent re-render.
 - A write after unmount neither updates the removed subtree nor breaks the still-open scope.
 - A component reads a keyed resource, keeps its reference across renders, and follows a write.
+- Under StrictMode, a keyed resource read builds its entry once.
 - A new config leaves the old entry.
 - A new cell with an inline selector shows and follows that cell.
 - A server render gives a pair for writable options alone.

@@ -1,5 +1,5 @@
 import { createScope, data, resource, tag } from "@tinkered/core";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 
@@ -90,5 +90,23 @@ test("a new config leaves the old entry", async () => {
   await expect.element(screen.getByText("b:9")).toBeVisible();
 
   await expect.poll(() => scope.resolve(total({ viewer: "a" }))).not.toBe(first);
+  await scope.close();
+});
+
+test("under StrictMode, a keyed resource read builds its entry once", async () => {
+  const scope = createScope();
+  scope.controller(prs).set({ viewer: "c", id: "4", amount: 3 });
+  runs.count = 0;
+
+  const screen = await render(
+    <StrictMode>
+      <ScopeProvider scope={scope}>
+        <Total viewer="c" />
+      </ScopeProvider>
+    </StrictMode>,
+  );
+  await expect.element(screen.getByText("c:3")).toBeVisible();
+
+  expect(runs.count).toBe(1);
   await scope.close();
 });
