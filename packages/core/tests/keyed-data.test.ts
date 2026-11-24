@@ -326,3 +326,37 @@ test("an of and a where of one full key are two readers", () => {
   expect(part.get()).toEqual([task("p1", "a")]);
   expect(items.of(key).get()).toEqual(task("p1", "a"));
 });
+
+test("a keyed watch refused on a closed scope leaves its part not in use", async () => {
+  const scope = createScope();
+  const items = scope.controller(tasks);
+  await scope.close();
+  const refused = items.where({ project: "p1" });
+
+  let thrown: unknown;
+  try {
+    refused.watch(() => undefined);
+  } catch (error) {
+    thrown = error;
+  }
+  const again = items.where({ project: "p1" });
+
+  if (!isError(thrown, "Disposed")) throw thrown;
+  expect(again).not.toBe(refused);
+});
+
+test("a keyed watch on a closed scope raises Disposed while another part is in use", async () => {
+  const scope = createScope();
+  const items = scope.controller(tasks);
+  items.where({ project: "p1" }).watch(() => undefined);
+  await scope.close();
+
+  let thrown: unknown;
+  try {
+    items.of({ project: "p2", id: "c" }).watch(() => undefined);
+  } catch (error) {
+    thrown = error;
+  }
+
+  if (!isError(thrown, "Disposed")) throw thrown;
+});
