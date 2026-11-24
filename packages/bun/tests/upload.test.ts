@@ -274,6 +274,18 @@ test("an onStart refusal answers refused, and the implementation never runs", as
   expect(ran).toEqual([]);
 });
 
+test("a bytes POST that leaves its body unread closes the connection", async () => {
+  const answer = await post("file.put", { "x-input": '{"name":"no"}' });
+
+  expect([answer.status, answer.headers.get("connection")]).toEqual([200, "close"]);
+});
+
+test("a bytes POST whose body is read to its end keeps the connection open", async () => {
+  const answer = await post("file.put", {});
+
+  expect([answer.status, answer.headers.get("connection")]).toEqual([200, null]);
+});
+
 test("past maxUploads at once, the next POST is 503 with Retry-After", async () => {
   const hold = { "x-input": '{"name":"hold"}' };
   const first = [post("file.put", hold), post("file.put", hold)];
