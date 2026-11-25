@@ -66,6 +66,24 @@ main `721be1a0`, cli `src/graph-rules.ts`:
 The dry run (every test, once) runs each time.
 It is the floor of a run on the change.
 
+Full lanes on hosted `ubuntu-24.04`,
+branch `claude/project-thread-p5j11r`,
+2026-11-25, no base (every mutant):
+
+- core: 6,868 mutants, 103 min, 86.77
+  (60 timeouts; the box run gave 328).
+- react: 507 mutants, 50 min, 90.14.
+- flight-trial: 1,775 mutants, 26 min, 88.62.
+- bun: 843 mutants, 12.5 min, 86.95.
+- bun run: 59 mutants, 8 min, 91.53.
+- entry: 457 mutants, 1.7 min, 86.18.
+- entry run: 8 mutants, 15 s, 87.50.
+- devtools: 153 mutants, 12 s, 98.04.
+- cli: 3,638 mutants, the longest lane.
+- blueprint: its dry run finds no test,
+  on main too. Out of the matrix until
+  card `tools/blueprint-mutation-lane`.
+
 ## Decision
 
 1. Each mutation lane runs on a

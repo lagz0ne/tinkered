@@ -35,6 +35,8 @@ jobs:
     timeout-minutes: 300
     strategy:
       fail-fast: false
+      # tools/blueprint is out until card tools/blueprint-mutation-lane:
+      # its dry run finds no test (vitest related), on main too.
       matrix:
         include:
           - { lane: core, dir: packages/core, config: stryker.config.json }
@@ -45,7 +47,6 @@ jobs:
           - { lane: bun-run, dir: packages/bun, config: stryker.run.config.mjs }
           - { lane: entry, dir: packages/entry, config: stryker.config.mjs }
           - { lane: entry-run, dir: packages/entry, config: stryker.run.config.mjs }
-          - { lane: blueprint, dir: tools/blueprint, config: stryker.config.json }
           - { lane: flight-trial, dir: tools/flight-trial, config: stryker.config.json }
     env:
       CI: "true"
