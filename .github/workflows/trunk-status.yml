@@ -32,6 +32,8 @@ jobs:
       CONCLUSION: ${{ github.event.workflow_run.conclusion }}
       SHA: ${{ github.event.workflow_run.head_sha }}
       URL: ${{ github.event.workflow_run.html_url }}
+      WORKFLOW: ${{ github.event.workflow_run.workflow_id }}
+      CREATED: ${{ github.event.workflow_run.created_at }}
       SUBJECT: ${{ github.event.workflow_run.display_title }}
     steps:
       # The box runner is not the hosted image: add the CLI this job needs when it lacks it.
@@ -45,6 +47,15 @@ jobs:
 
           if [ "$CONCLUSION" = success ]; then
             [ -z "$open" ] || gh issue close "$open" --comment "Green again at $SHA: $URL"
+            exit 0
+          fi
+
+          # A late red end of an old run says nothing about main now, when a
+          # newer run of the same workflow on main is green already.
+          newer=$(gh api "repos/$GH_REPO/actions/workflows/$WORKFLOW/runs?branch=main&event=push&status=success&created=>$CREATED&per_page=1" \
+            --jq .total_count)
+          if [ "$newer" != 0 ]; then
+            echo "$NAME on $SHA ended $CONCLUSION, but a newer run on main is green."
             exit 0
           fi
 
