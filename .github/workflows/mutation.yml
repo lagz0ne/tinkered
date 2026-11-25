@@ -24,9 +24,9 @@ permissions:
   contents: read
 
 # Never cut a run short: a cancelled lane saves nothing. Pushes queue,
-# and GitHub keeps only the newest one waiting.
+# one queue per branch, and GitHub keeps only the newest one waiting.
 concurrency:
-  group: mutation-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  group: mutation-${{ github.event_name == 'push' && github.ref || github.run_id }}
   cancel-in-progress: false
 
 jobs:
