@@ -226,7 +226,10 @@ A failed call is a fault from a fixed set:
 
 - `refused`: a guard said no.
 - `failed`: the server threw. The cause stays in
-  the server log; the client gets a trace id.
+  the server log.
+  `error.traceId` is the call's trace (unset with
+  tracing off): one id finds every log line on
+  both sides.
   `error.execution` is the call's id: the server
   log line has the same id, with tracing off too.
 - `invalid`, `encode`, `decode`: a bad shape.
