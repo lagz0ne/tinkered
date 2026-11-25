@@ -1,6 +1,7 @@
 # Trial only (thread "Speed up Tinker build and release"): time a full
 # Stryker lane per package on a GitHub-hosted runner, with --incremental,
 # and keep the incremental file as the base. Runs on this branch only.
+# ubuntu-24.04: ubuntu-latest is 26.04, which Playwright 1.55 does not support.
 name: mutation-hosted-trial
 
 on:
@@ -12,12 +13,12 @@ permissions:
 
 jobs:
   lane:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
-        pkg: [core, cli, react]
+        pkg: [react]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
