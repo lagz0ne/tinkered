@@ -79,7 +79,8 @@ branch `claude/project-thread-p5j11r`,
 - entry: 457 mutants, 1.7 min, 86.18.
 - entry run: 8 mutants, 15 s, 87.50.
 - devtools: 153 mutants, 12 s, 98.04.
-- cli: 3,638 mutants, the longest lane.
+- cli: 3,638 mutants; one job stopped at
+  the 5-hour limit, unfinished.
 - blueprint: its dry run finds no test,
   on main too. Out of the matrix until
   card `tools/blueprint-mutation-lane`.
@@ -93,6 +94,13 @@ branch `claude/project-thread-p5j11r`,
 2. A lane is one Stryker config.
    `bun` and `entry` have two lanes each:
    the main config and `stryker.run.config.mjs`.
+   A lane too long for one hosted job runs
+   as shards, by whole files (`--mutate`),
+   with no break of their own.
+   `scripts/mutation-score.mjs` adds the
+   shards up and breaks at 85 for the package.
+   cli has 7 shards: its one job ran past
+   the 5-hour limit (3,638 mutants).
 3. Each lane runs `stryker run --incremental`.
    It restores the newest base from the
    Actions cache and saves its own result.

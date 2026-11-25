@@ -26,7 +26,7 @@ permissions:
 # Never cut a run short: a cancelled lane saves nothing. Pushes queue,
 # one queue per branch, and GitHub keeps only the newest one waiting.
 concurrency:
-  group: mutation-${{ github.event_name == 'push' && github.ref || github.run_id }}
+  group: lanes-${{ github.event_name == 'push' && github.ref || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -41,7 +41,58 @@ jobs:
         include:
           - { lane: core, dir: packages/core, config: stryker.config.json }
           - { lane: react, dir: packages/react, config: stryker.config.json }
-          - { lane: cli, dir: packages/cli, config: stryker.config.json }
+          # cli runs as shards: one job ran past 5 hours. Whole files only, so
+          # no mutant falls between two shards. cli-7 takes every other file,
+          # so a new file is always in one. The cli-score job checks the floor.
+          - {
+              lane: cli-1,
+              dir: packages/cli,
+              config: stryker.config.json,
+              shard: cli,
+              mutate: "src/plain.ts",
+            }
+          - {
+              lane: cli-2,
+              dir: packages/cli,
+              config: stryker.config.json,
+              shard: cli,
+              mutate: "src/graph.ts",
+            }
+          - {
+              lane: cli-3,
+              dir: packages/cli,
+              config: stryker.config.json,
+              shard: cli,
+              mutate: "src/tools.ts",
+            }
+          - {
+              lane: cli-4,
+              dir: packages/cli,
+              config: stryker.config.json,
+              shard: cli,
+              mutate: "src/main.ts,src/test.ts,src/closure.ts",
+            }
+          - {
+              lane: cli-5,
+              dir: packages/cli,
+              config: stryker.config.json,
+              shard: cli,
+              mutate: "src/check.ts,src/exits.ts",
+            }
+          - {
+              lane: cli-6,
+              dir: packages/cli,
+              config: stryker.config.json,
+              shard: cli,
+              mutate: "src/page.ts,src/skills.ts,src/link.ts,src/gaps.ts",
+            }
+          - {
+              lane: cli-7,
+              dir: packages/cli,
+              config: stryker.config.json,
+              shard: cli,
+              mutate: "src/**/*.ts,!src/cli.ts,!src/plain.ts,!src/graph.ts,!src/tools.ts,!src/main.ts,!src/test.ts,!src/closure.ts,!src/check.ts,!src/exits.ts,!src/page.ts,!src/skills.ts,!src/link.ts,!src/gaps.ts",
+            }
           - { lane: devtools, dir: packages/devtools, config: stryker.config.json }
           - { lane: bun, dir: packages/bun, config: stryker.config.mjs }
           - { lane: bun-run, dir: packages/bun, config: stryker.run.config.mjs }
@@ -86,10 +137,31 @@ jobs:
 
       - name: Mutation
         working-directory: ${{ matrix.dir }}
+        env:
+          CONFIG: ${{ matrix.config }}
+          MUTATE: ${{ matrix.mutate }}
         run: |
           flags="--incremental --incrementalFile $BASE"
           if [ "$FORCE" = true ]; then flags="$flags --force"; fi
-          npx stryker run ${{ matrix.config }} $flags
+          if [ -n "$MUTATE" ]; then
+            # A shard has no break of its own: the package floor is checked
+            # on all its shards together (scripts/mutation-score.mjs).
+            node -e 'const fs = require("node:fs");
+              const c = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+              c.thresholds.break = null;
+              fs.writeFileSync("stryker.shard.json", JSON.stringify(c));' "$CONFIG"
+            npx stryker run stryker.shard.json $flags --mutate "$MUTATE"
+          else
+            npx stryker run "$CONFIG" $flags
+          fi
+
+      - name: Keep the shard's report
+        if: matrix.shard && (success() || failure())
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mutation-${{ matrix.lane }}
+          path: ${{ matrix.dir }}/reports/mutation/mutation.json
+          retention-days: 7
 
       # A failed lane saves too: its results are still true (ADR 0170 d3).
       - name: Save the base
@@ -98,3 +170,19 @@ jobs:
         with:
           path: ${{ matrix.dir }}/${{ env.BASE }}
           key: mutation/${{ matrix.lane }}/${{ github.sha }}-${{ github.run_id }}
+
+  # The cli floor, on all its shards together (ADR 0170 d4).
+  cli-score:
+    needs: lane
+    if: success() || failure()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: mutation-cli-*
+          path: shards
+      - name: Every shard gave a report
+        run: test "$(ls shards/*/mutation.json | wc -l)" -eq 7
+      - name: Score
+        run: node scripts/mutation-score.mjs 85 shards/*/mutation.json
