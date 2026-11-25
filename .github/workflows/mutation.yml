@@ -1,0 +1,100 @@
+# Mutation on the change (ADR 0170). Each lane is one Stryker config, on
+# its own GitHub-hosted runner, side by side. A push runs --incremental
+# from the newest base in the Actions cache: only mutants whose code or
+# tests changed run again; the score is still the whole package's.
+# Each night (and on demand) every lane runs --force: the new base, and
+# the check for what incremental cannot see (deps, config, env).
+# Step 1 (ADR 0170 d6): this gates nothing yet.
+# ubuntu-24.04: ubuntu-latest is 26.04, which Playwright 1.55 lacks.
+name: mutation
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 19 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Test every mutant (a new base)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# Never cut a run short: a cancelled lane saves nothing. Pushes queue,
+# and GitHub keeps only the newest one waiting.
+concurrency:
+  group: mutation-${{ github.event_name == 'push' && 'push' || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  lane:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      # tools/blueprint is out until card tools/blueprint-mutation-lane:
+      # its dry run finds no test (vitest related), on main too.
+      matrix:
+        include:
+          - { lane: core, dir: packages/core, config: stryker.config.json }
+          - { lane: react, dir: packages/react, config: stryker.config.json }
+          - { lane: cli, dir: packages/cli, config: stryker.config.json }
+          - { lane: devtools, dir: packages/devtools, config: stryker.config.json }
+          - { lane: bun, dir: packages/bun, config: stryker.config.mjs }
+          - { lane: bun-run, dir: packages/bun, config: stryker.run.config.mjs }
+          - { lane: entry, dir: packages/entry, config: stryker.config.mjs }
+          - { lane: entry-run, dir: packages/entry, config: stryker.run.config.mjs }
+          - { lane: flight-trial, dir: tools/flight-trial, config: stryker.config.json }
+    env:
+      CI: "true"
+      BASE: reports/${{ matrix.lane }}.incremental.json
+      FORCE: ${{ github.event_name == 'schedule' || inputs.force == true }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.x
+
+      - name: Install
+        run: |
+          npm install --global pnpm@12.4.1
+          pnpm install --frozen-lockfile
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Browser for the React tests
+        if: matrix.lane == 'react'
+        run: pnpm --dir packages/react exec playwright install --with-deps chromium
+
+      - name: Build
+        run: vp run -r build
+
+      - name: Restore the newest base
+        if: env.FORCE != 'true'
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ matrix.dir }}/${{ env.BASE }}
+          key: mutation/${{ matrix.lane }}/${{ github.sha }}
+          restore-keys: mutation/${{ matrix.lane }}/
+
+      - name: Mutation
+        working-directory: ${{ matrix.dir }}
+        run: |
+          flags="--incremental --incrementalFile $BASE"
+          if [ "$FORCE" = true ]; then flags="$flags --force"; fi
+          npx stryker run ${{ matrix.config }} $flags
+
+      # A failed lane saves too: its results are still true (ADR 0170 d3).
+      - name: Save the base
+        if: success() || failure()
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ matrix.dir }}/${{ env.BASE }}
+          key: mutation/${{ matrix.lane }}/${{ github.sha }}-${{ github.run_id }}

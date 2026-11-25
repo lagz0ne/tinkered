@@ -25,6 +25,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **tools/blueprint-mutation-lane** — found on `repo/mutation-in-ci`. `stryker run` in `tools/blueprint` stops in its dry run: "No tests were executed" (Vitest `related` finds no test for the mutated files). With `vitest.related: false`, one test fails under Stryker: "verify on the golden pair with no key prints zero findings" (`expected 1 to be +0`). Seen on main `721be1a0`. The lane is out of `mutation.yml` until this card is done.
+  Verify: the lane's dry run passes; the lane clears 85; it is back in the `mutation.yml` matrix.
+
 - **core/g110-wall-clock** — found on `core/rpc-contracts-value`. `build/private-fields.test.ts` G110 asserts a guard flags within 2,000 ms of wall clock. On this shared box (load 20-30) it took 2,027-6,567 ms and failed `ticket.sh` and `pnpm validate` with no code change (seen in two trees, one without the card's change). A test must not depend on the box's speed.
   Verify: G110 checks what the guard does, not how fast; it passes under load (for example 20 runs while a mutation lane runs).
 
@@ -75,6 +78,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: plants for yield, yield* and Array.from fail the build; typed controls stay clean.
 
 ## Doing
+
+- **repo/mutation-in-ci** — ADR 0170 and ADR 0171 (Duke 2026-11-25, A, A, A). Mutation runs on the change, in CI, on hosted runners; `ci` jobs move to hosted runners, side by side.
+  Owner: thread "Speed up Tinker build and release".
+  Step 1 (this push): `ci.yml` on `ubuntu-24.04`; `mutation.yml` runs each push, `--incremental` from the Actions cache, nightly `--force`; it gates nothing yet.
+  Next: step 2 when `mutation` is green on main: the release waits for it, and the lead stops running lanes by hand (CLAUDE.md, contributor brief).
+  Verify: `ci` and `mutation` green on main; a push's lanes reuse the base (Stryker prints "reused").
+  Proof so far: on the branch, `ci` took 4 min on hosted runners (17 min on the box); full lanes on hosted: core 103 min (86.77, 60 timeouts), react 50 min, flight-trial 26 min, bun 12.5 min.
 
 - **cli/graph-views + cli/graph-faults** — GitHub #58 and #60, one stack. #58: a line per React view, `view <path>#<name> reads{…} runs{…}`, from `useData`/`useRun` calls (facts only, no per-`kind` map). #60: each op line gets `faults{…}` after `exits{…}`, the faults its contract member calls can end with, read from Core's own `Fault` type.
   Owner: graph lead (Opus 5.5); writers Opus 5.5 a684cf80 (#58) and b865a4f1 (#60), branch `graph-faults` in `../tinkered-graph-faults` holds both.
