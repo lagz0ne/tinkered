@@ -1,6 +1,6 @@
 # 0170 The mutation gate runs on the change, in CI
 
-Date: 2026-11-25. Status: accepted; step 1 built.
+Date: 2026-11-25. Status: accepted; steps 1 and 2 built.
 Accepted: Duke, 2026-11-25 04:20 UTC, option A
 (mutation on the change, before release;
 B: a canary on `next`, then `latest`;
@@ -84,6 +84,17 @@ branch `claude/project-thread-p5j11r`,
 - blueprint: its dry run finds no test,
   on main too. Out of the matrix until
   card `tools/blueprint-mutation-lane`.
+
+First run on main, `2a2e65b8`,
+run 45587569363, all green:
+
+- core: 6,868 of 6,868 results reused,
+  1 min, 86.78.
+- react: 507 of 507 reused, 1 min, 90.14.
+- cli, 7 shards, no base yet:
+  69 min to 3 h 38 min a shard.
+- cli score job: 3,776 mutants,
+  94.44, floor 85.
 
 ## Decision
 

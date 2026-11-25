@@ -42,8 +42,9 @@ Read [the fast-code rules](../fast-code.md) before writing hot paths.
 - `vp run -r build` before every check: a stale `dist` shows fake errors.
 - A red check is "already on main" only after you run it on `main`
   (`git worktree add /tmp/main-check main`).
-- Run a full mutation lane only when your ticket says so, and then always under
-  `flock /tmp/mutation.lock` (one mutation or timing run at a time on this machine).
+- Mutation runs in CI on each push to main (ADR 0170). Run a full lane only when your
+  ticket says so, and then always under `flock /tmp/mutation.lock` (one mutation or
+  timing run at a time on this machine). For quick feedback, `--incremental` is enough.
 - Run every long job (a mutation lane, a timing run, the gate) in the foreground and wait for it
   in the same turn. Never end a turn while a job runs in the background: it can die with the
   turn, and nobody wakes you when it ends.

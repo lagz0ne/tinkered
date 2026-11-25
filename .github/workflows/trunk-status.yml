@@ -7,7 +7,7 @@ name: Trunk status
 
 on:
   workflow_run:
-    workflows: [ci, release, playground]
+    workflows: [ci, mutation, release, playground]
     types: [completed]
     branches: [main]
 

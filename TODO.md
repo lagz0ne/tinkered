@@ -79,13 +79,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **repo/mutation-in-ci** — ADR 0170 and ADR 0171 (Duke 2026-11-25, A, A, A). Mutation runs on the change, in CI, on hosted runners; `ci` jobs move to hosted runners, side by side.
-  Owner: thread "Speed up Tinker build and release".
-  Step 1 (this push): `ci.yml` on `ubuntu-24.04`; `mutation.yml` runs each push, `--incremental` from the Actions cache, nightly `--force`; it gates nothing yet.
-  Next: step 2 when `mutation` is green on main: the release waits for it, and the lead stops running lanes by hand (CLAUDE.md, contributor brief).
-  Verify: `ci` and `mutation` green on main; a push's lanes reuse the base (Stryker prints "reused").
-  Proof so far: on the branch, `ci` took 4 min on hosted runners (17 min on the box); full lanes on hosted: core 103 min (86.77, 60 timeouts), react 50 min, flight-trial 26 min, bun 12.5 min.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -124,6 +117,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **repo/mutation-in-ci** — done 2026-11-25 (ADR 0170, ADR 0171; Duke A, A, A). `ci` jobs on hosted `ubuntu-24.04`, side by side. `mutation` runs each push to main, one hosted job per lane, `--incremental` from the Actions cache, nightly `--force`; cli runs as 7 file shards, `scripts/mutation-score.mjs` checks its floor. The release waits for `ci` and `mutation` on one commit; leads stop running lanes by hand.
+  Proof: `ci` on main 3.4 min (17 min on the box); `mutation` run 45587569363 on `2a2e65b8` green: core 6,868 of 6,868 reused, 1 min, 86.78; react 507 of 507 reused, 90.14; cli score 94.44 on 3,776 mutants (shards 69 min to 3 h 38 min, no base yet).
 
 - **cli/graph-views** — done 2026-11-25 (GitHub #58). `tinker graph` adds `view <path>#<name> reads{…} runs{…}` for each top-level declaration that calls `useData`/`useRun` from `@tinkered/react`; facts in the op line's words, `?` where it cannot name. No per-`kind` case map (a guess about intent; offered in the issue as a follow-up). An op labelled `view` keeps its one-word key. Landed `8e7a3f4d` with #60. Released as 0.34.10.
   Proof: red tests, green; all package tests exit 0 (cli 184); `vp check` 0 errors, 80 warnings (as main); prose, skills exit 0; `pnpm validate` 21 of 22 (G110 wall clock, also red on main under load: card `core/g110-wall-clock`); strict census no new hit; Opus convention-review NOT READY (an op labelled `view` misparsed), one fix round; then a landing fix: the view tests linked `../react` and failed in the Stryker sandbox, now cli devDependencies. cli mutation with #60 below.

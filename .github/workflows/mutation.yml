@@ -4,7 +4,7 @@
 # tests changed run again; the score is still the whole package's.
 # Each night (and on demand) every lane runs --force: the new base, and
 # the check for what incremental cannot see (deps, config, env).
-# Step 1 (ADR 0170 d6): this gates nothing yet.
+# Step 2 (ADR 0170 d7): the release waits for this workflow, as for ci.
 # ubuntu-24.04: ubuntu-latest is 26.04, which Playwright 1.55 lacks.
 name: mutation
 

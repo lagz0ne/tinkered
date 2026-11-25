@@ -223,13 +223,15 @@ The lead, per ticket:
 2. Review: the reviewer agent reads the diff first;
    `node tools/jev/review.mjs main..HEAD` shows where to read.
    Send the writer one fix round.
-3. Land: re-run every gate by exit code. Fast-forward `main`. Run the
-   package's mutation lane alone (floor 85, every package). Push.
+3. Land: re-run every gate by exit code. Fast-forward `main`. Push.
    Run `node tools/jev/calibrate.mjs` when labels changed.
    Remove the worktree and branch.
-   - Skip the mutation re-run when the writer's run counts.
-     It counts when the log names the commit you land, on a clean tree,
-     and clears 85 on kills alone (user 2026-10-06).
+   - Mutation runs in CI, on the change (ADR 0170): the `mutation`
+     workflow, one hosted job per lane, `--incremental`.
+     The release waits for it. Do not run a lane by hand to land.
+   - The card's proof names the green `mutation` run.
+   - A red lane on main is a red trunk: fix forward or revert.
+   - A writer may run `npx stryker run --incremental` at home.
    - The floor is per package. Do not add a per-file target.
    - Every package breaks at 85 (user 2026-10-06).
 4. Record Core feedback in `docs/roadmap/core-feedback.md`. A row becomes a

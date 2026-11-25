@@ -1,5 +1,7 @@
-# When CI passes on main and main's version has no release yet,
-# publish the packages as one GitHub release, tag vX.Y.Z, then to npm.
+# When CI and mutation (ADR 0170) both pass on one main commit and main's
+# version has no release yet, publish the packages as one GitHub release,
+# tag vX.Y.Z, then to npm. Each workflow's end wakes this one; the first
+# wake finds the other workflow not done (or red) and publishes nothing.
 # Landing the bump commit is the release. The GitHub release uses only the
 # job's own GITHUB_TOKEN; npm uses trusted publishing (OIDC), no token
 # (ADR 0146). Start is sunset (ADR 0122): no Start tarball;
@@ -8,7 +10,7 @@ name: release
 
 on:
   workflow_run:
-    workflows: [ci]
+    workflows: [ci, mutation]
     types: [completed]
     branches: [main]
 
@@ -37,9 +39,19 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
+      # Release waits for both gates on this commit (ADR 0170 d7).
       - name: Is this version released yet?
         id: version
         run: |
+          for wf in ci.yml mutation.yml; do
+            end=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$wf/runs?head_sha=$SHA&event=push" \
+              --jq '[.workflow_runs[] | select(.status == "completed")][0].conclusion')
+            if [ "$end" != success ]; then
+              echo "$wf on $SHA: ${end:-not done}; nothing to publish yet."
+              echo "new=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
           VERSION=$(node -p "require('./packages/core/package.json').version")
           TAG="v$VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
