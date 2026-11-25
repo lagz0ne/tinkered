@@ -46,7 +46,10 @@
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@tinkered/core": "workspace:*",
+    "@tinkered/react": "workspace:*",
     "@types/node": "^26.1.1",
+    "@types/react": "^19",
+    "react": "catalog:",
     "vite-plus": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:"

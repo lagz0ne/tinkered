@@ -1,12 +1,4 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,7 +7,7 @@ import { afterAll, expect, test } from "vite-plus/test";
 
 import { main } from "@/index";
 
-/** This package's folder: an app links its `node_modules`, so it has `tsc`, `vp` and Core. */
+/** This package's folder: an app links its `node_modules`, with `tsc`, `vp`, Core and React. */
 const at = (path: string) => fileURLToPath(new URL(`../${path}`, import.meta.url));
 
 const folders: string[] = [];
@@ -877,26 +869,6 @@ test(
   },
 );
 
-/**
- * An app's `node_modules` with React too: each folder this package links, Core and React's
- * package, and the `react` and `@types` React links. A view imports `@tinkered/react`.
- */
-function reactModules(folder: string) {
-  const modules = join(folder, "node_modules");
-  mkdirSync(join(modules, "@tinkered"), { recursive: true });
-
-  for (const name of readdirSync(at("node_modules"))) {
-    if (name !== "@tinkered" && name !== "@types") {
-      symlinkSync(at(`node_modules/${name}`), join(modules, name));
-    }
-  }
-
-  symlinkSync(at("node_modules/@tinkered/core"), join(modules, "@tinkered/core"));
-  symlinkSync(at("../react"), join(modules, "@tinkered/react"));
-  symlinkSync(at("../react/node_modules/react"), join(modules, "react"));
-  symlinkSync(at("../react/node_modules/@types"), join(modules, "@types"));
-}
-
 /** Two ops a view runs: one sets a cell, one asks the door. */
 const viewOps = [
   `import { operation } from "@tinkered/core";`,
@@ -1003,11 +975,11 @@ const jsxConfig = JSON.stringify({
   include: ["src"],
 });
 
-/** An app of `access`, `viewOps` and these views, with JSX on and React to resolve them. */
+/** An app of `access`, `viewOps` and these views, with JSX on. */
 function viewApp(files: Record<string, string>) {
   const folder = mkdtempSync(join(tmpdir(), "tinker-graph-views-"));
   folders.push(folder);
-  reactModules(folder);
+  symlinkSync(at("node_modules"), join(folder, "node_modules"));
 
   const own = { "tsconfig.json": jsxConfig, "src/units.ts": access, "src/ops.ts": viewOps };
   for (const [path, text] of Object.entries({ ...configs, ...own, ...files })) {
