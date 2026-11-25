@@ -9,6 +9,43 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.9
+
+`@tinkered/core`: `api.contracts` is the
+object given to `rpc()` (#54).
+
+- Before, the type said `contracts`, but the
+  value was `undefined`.
+- Now each address's `input` and `output`
+  schemas are on `api.contracts[address]`.
+- `rpc()` refuses an address named `contracts`,
+  `receive`, `addresses` or `uploads`: the
+  handle's own members. `remoteData` refuses
+  them as cell names, with its own message.
+
+`@tinkered/core`: `DataValidationFailed`'s type
+names both payloads (#55).
+
+- A parse gives `{ label, cause }`. An rpc
+  call's input check gives `{ address, issues }`.
+- Narrow with `"label" in error.payload`.
+- Types only: no byte changed.
+
+`@tinkered/core`: a keyed resource watch on a
+closed scope raises `Disposed`, also while
+another reader watches the entry (bug 18).
+
+`@tinkered/cli`: the graph names more, and a
+rule can select by resource (#56, #59).
+
+- Each graph line ends in `uses{…}`: the
+  resources an op's `depends` names.
+- A graph rule selects ops by `writes` or by
+  `uses` (ADR 0167, amended).
+- The graph names a capsule's rpc contract
+  member and an `atScope` controller, in place
+  of `?`.
+
 ## 0.34.8
 
 `@tinkered/bun`: a reply that leaves the
