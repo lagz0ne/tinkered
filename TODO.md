@@ -86,11 +86,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Verify: `ci` and `mutation` green on main; a push's lanes reuse the base (Stryker prints "reused").
   Proof so far: on the branch, `ci` took 4 min on hosted runners (17 min on the box); full lanes on hosted: core 103 min (86.77, 60 timeouts), react 50 min, flight-trial 26 min, bun 12.5 min.
 
-- **cli/graph-views + cli/graph-faults** — GitHub #58 and #60, one stack. #58: a line per React view, `view <path>#<name> reads{…} runs{…}`, from `useData`/`useRun` calls (facts only, no per-`kind` map). #60: each op line gets `faults{…}` after `exits{…}`, the faults its contract member calls can end with, read from Core's own `Fault` type.
-  Owner: graph lead (Opus 5.5); writers Opus 5.5 a684cf80 (#58) and b865a4f1 (#60), branch `graph-faults` in `../tinkered-graph-faults` holds both.
-  Next: both reviewed READY after one fix round each; rebase on main, gates, one cli mutation lane on the tip (`graph.ts`, `main.ts`, `exits.ts`), land both.
-  Verify: red tests green; all tests, `vp check`, prose, skills exit 0; cli mutation floor 85.
-
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
@@ -129,6 +124,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 None. All Parked cards were removed on 2026-10-02 (user); they are kept in the archive linked above.
 
 ## Done
+
+- **cli/graph-views** — done 2026-11-25 (GitHub #58). `tinker graph` adds `view <path>#<name> reads{…} runs{…}` for each top-level declaration that calls `useData`/`useRun` from `@tinkered/react`; facts in the op line's words, `?` where it cannot name. No per-`kind` case map (a guess about intent; offered in the issue as a follow-up). An op labelled `view` keeps its one-word key. Landed `8e7a3f4d` with #60. Released as 0.34.10.
+  Proof: red tests, green; all package tests exit 0 (cli 184); `vp check` 0 errors, 80 warnings (as main); prose, skills exit 0; `pnpm validate` 21 of 22 (G110 wall clock, also red on main under load: card `core/g110-wall-clock`); strict census no new hit; Opus convention-review NOT READY (an op labelled `view` misparsed), one fix round; then a landing fix: the view tests linked `../react` and failed in the Stryker sandbox, now cli devDependencies. cli mutation with #60 below.
+
+- **cli/graph-faults** — done 2026-11-25 (GitHub #60). Each op line gets `faults{…}` after `exits{…}`: the faults its calls of a named contract member can end with, read from Core's own `Fault` type (no list in the CLI); `calls{?}` gives `faults{?}`. No test helper (issue option 2): no new API. Landed `8e7a3f4d`. Released as 0.34.10.
+  Proof: 24 red tests, green; cli 184 tests; gates as #58; Opus convention-review NOT READY (two test gaps), one fix round; cli mutation on the changed files (`graph.ts`, `main.ts`, `exits.ts`) at `5a6d03fb` (cli source byte-identical to the landed tip) 88.92, kills alone 1088/1236 = 88.0, floor 85, exit 0.
 
 - **core/rpc-contracts-value** — done 2026-11-25 (GitHub #54, closed). `api.contracts` is the object given to `rpc()` (`3bd47f38`). `rpc()` refuses `contracts`, `receive`, `addresses` and `uploads` as addresses, its handle's own members (`68e411e0`; before, such a name threw a raw `TypeError`); `remoteData` refuses them as cells with its own message (`e29533a1`). Sizes 23,456 B no-rpc (cap 23,457 B; key orders picked so the rpc chunk's hashed name fits), 34,125 B with rpc. Released as 0.34.9.
   Proof: tests red on main, green (`rpc-config.test.ts`, `remote-data-edges.test.ts`); Core 1,488 tests, dist 1,732; `vp check` 0 errors, 80 warnings; `ticket.sh` exit 0 (a first run failed only on G110's wall clock under load 29); `pnpm validate` 22 of 22; Opus convention-review READY, then NOT READY twice (a shadowed `contracts` address, then a board cell named `contracts`), two fix rounds (the second by the lead's call), READY at `e80de9c7`; Core mutation on `021b98f2` (holds #54 and #55): 88.94 but 84.17 on kills (328 timeouts at load 20); rerun with `--timeoutMS 30000`: 86.96, kills alone 85.96 (69 timeouts), floor 85.

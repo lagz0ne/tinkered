@@ -9,6 +9,34 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.10
+
+`@tinkered/cli`: a view line for each React
+view (#58).
+
+- `tinker graph` adds a line for each top-level
+  declaration that calls `useData` or `useRun`
+  from `@tinkered/react`:
+  `view src/home/home.tsx#SignIn reads{…} runs{…}`.
+- `reads` and `runs` use the op line's words.
+  A first argument the graph cannot name is `?`.
+- Only a named import counts. A custom hook gets
+  its own line; a component that calls it gets
+  none.
+
+`@tinkered/cli`: each op line lists the faults
+its rpc calls can end with (#60).
+
+- `faults{…}` follows `exits{…}`: each fault of
+  Core's `Fault` set, for a call of a named
+  contract member. The set is read from Core's
+  own type.
+- A `?` in `calls{}` gives `faults{?}`.
+
+Each op line gets a new part, so a committed
+`tinker.graph` needs `tinker graph --write`
+once after the upgrade.
+
 ## 0.34.9
 
 `@tinkered/core`: `api.contracts` is the
