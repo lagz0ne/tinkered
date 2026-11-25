@@ -1,12 +1,14 @@
 # The gates a contributor runs, on every push to main (trunk-based, no PRs).
-# Mutation and timing stay on the bench box: they need its quiet core.
-# The jobs run on the self-hosted runner on the Dokploy box (`tinkered-box`):
-# hosted minutes stopped on 2026-11-06. Only main's pushes trigger it.
+# Timing stays on the bench box: it needs its quiet core. Mutation runs in
+# mutation.yml (ADR 0170). The three jobs run side by side on GitHub-hosted
+# runners (ADR 0171): tinkered is public, so they cost nothing, and the box
+# keeps its cores for model runs. ubuntu-24.04: ubuntu-latest is 26.04,
+# which Playwright 1.55 lacks. Only main's pushes trigger it.
 name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/project-thread-p5j11r]
 
 permissions:
   contents: read
@@ -17,7 +19,7 @@ concurrency:
 
 jobs:
   gates:
-    runs-on: [self-hosted, tinkered-box]
+    runs-on: ubuntu-24.04
     env:
       CI: "true"
     steps:
@@ -80,7 +82,7 @@ jobs:
   # Every deterministic budget lane (`pnpm validate`), so a red lane shows on the push
   # that made it. The fast-code lane pins the engine, so Node comes from its baseline.
   validate:
-    runs-on: [self-hosted, tinkered-box]
+    runs-on: ubuntu-24.04
     env:
       CI: "true"
     steps:
@@ -117,7 +119,7 @@ jobs:
   # pnpm installs (bun install cannot read this pnpm workspace) and the build runs
   # on Node (Core's build plugin uses the TypeScript API, which needs Node).
   bun:
-    runs-on: [self-hosted, tinkered-box]
+    runs-on: ubuntu-24.04
     env:
       CI: "true"
     steps:
