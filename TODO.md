@@ -118,6 +118,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **bun/linger-before-close** — done 2026-11-26 (GitHub #61, #62; Duke 2026-11-26 02:25 UTC, daily issue run). #61: a reply that leaves the body unread now waits while `serve` reads the rest and drops it, for up to 30 s (nginx `lingering_close`, RFC 9112 9.6); the connection then stays open; past 30 s it closes as before. Bun's own 413 reset the socket too, so `maxRequestBodySize` is now out of the way and every cap is `serve`'s. #62: the socket offers permessage-deflate (RFC 7692, shared compressor); a frame of 1024 UTF-16 units or more goes compressed (the `ws` package's threshold). Released as 0.34.11.
+  Proof: #61 test (node:http proxy, 16 posts of 30 MB to a 1 MiB handler) red on main (3 of 8 were 502), green after; curl through a proxy: 0.34.10 gave 502 in 20 of 20 (30 MB) and 10 of 20 (2 MB), the fix gives 413 in 80 of 80. #62 test red on main (no extension in the handshake), green after. `vp check` 0 errors; all packages' tests green; style census no new hits; `pnpm validate` 2 lanes fail on this box only (fast-code engine v22.23.5 rebaseline, kept-heap), both Core-only, no Core change.
+
 - **repo/mutation-in-ci** — done 2026-11-25 (ADR 0170, ADR 0171; Duke A, A, A). `ci` jobs on hosted `ubuntu-24.04`, side by side. `mutation` runs each push to main, one hosted job per lane, `--incremental` from the Actions cache, nightly `--force`; cli runs as 7 file shards, `scripts/mutation-score.mjs` checks its floor. The release waits for `ci` and `mutation` on one commit; leads stop running lanes by hand.
   Proof: `ci` on main 3.4 min (17 min on the box); `mutation` run 45587569363 on `2a2e65b8` green: core 6,868 of 6,868 reused, 1 min, 86.78; react 507 of 507 reused, 90.14; cli score 94.44 on 3,776 mutants (shards 69 min to 3 h 38 min, no base yet).
 

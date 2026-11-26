@@ -1,3 +1,5 @@
+import { createServer, request } from "node:http";
+
 import { bytes, capsule, createScope, operation, rpc } from "@tinkered/core";
 import type { RpcBody } from "@tinkered/core";
 import { afterEach, expect, test } from "vite-plus/test";
@@ -319,7 +321,7 @@ test("a handler with no maxBody takes 1 MiB; past it, 413, even beside a 16 MiB 
   ]).toEqual([String(1 << 20), "413"]);
 });
 
-test("a chunked body with no Content-Length gets 413 once its count passes the cap, and closes", async () => {
+test("a chunked body with no Content-Length gets 413 once its count passes the cap; the rest is read, so the connection stays open", async () => {
   const at = await besideBigKey();
 
   const reply = await fetch(new URL("/api/plain", at), {
@@ -328,7 +330,7 @@ test("a chunked body with no Content-Length gets 413 once its count passes the c
     duplex: "half",
   } as RequestInit);
 
-  expect([reply.status, reply.headers.get("connection")]).toEqual([413, "close"]);
+  expect([reply.status, reply.headers.get("connection")]).toEqual([413, null]);
 });
 
 test("the bytes key still takes a body past 1 MiB, up to its own max", async () => {
@@ -423,14 +425,14 @@ test("a bytes key's 413 before the body is read closes the connection", async ()
   expect([reply.status, reply.headers.get("connection")]).toEqual([413, "close"]);
 });
 
-test("a handler that answers without reading its body closes the connection", async () => {
+test("a handler that answers without reading its body: serve reads the rest first, so the connection stays open", async () => {
   const app = await createScope({ capsules: [serve({ port: 0, handlers: [early] }), early] }).ready;
   const at = app.resolve(serve.url).get()!;
 
   const reply = await fetch(new URL("/api/early", at), { method: "POST", body: big() });
   await app.close();
 
-  expect([reply.status, reply.headers.get("connection")]).toEqual([200, "close"]);
+  expect([reply.status, reply.headers.get("connection")]).toEqual([200, null]);
 });
 
 test("a handler that reads its body to the end keeps the connection open", async () => {
@@ -445,4 +447,34 @@ test("a handler that reads its body to the end keeps the connection open", async
   });
 
   expect([await reply.text(), reply.headers.get("connection")]).toEqual([String(64 << 10), null]);
+});
+
+/** A reverse proxy (as Traefik): it streams each body on, and answers 502 when the app's socket fails. */
+const proxyTo = async (at: URL) => {
+  const proxy = createServer((req, res) => {
+    const out = request(
+      new URL(req.url ?? "/", at),
+      { method: req.method, headers: req.headers },
+      (r) => r.pipe(res.writeHead(r.statusCode ?? 502, r.headers)),
+    );
+    out.on("error", () => res.writeHead(502).end());
+    req.pipe(out);
+  });
+  await new Promise<void>((done) => proxy.listen(0, "127.0.0.1", done));
+  closers.push(() => proxy.close());
+  return new URL(`http://127.0.0.1:${Object(proxy.address()).port}`);
+};
+
+test("a 413 behind a proxy reaches the client as 413, not 502 (#61)", async () => {
+  const echo = handler({ answer: size });
+  const app = await createScope({ capsules: [serve({ port: 0, handlers: [echo] }), echo] }).ready;
+  closers.push(() => app.close());
+  const front = await proxyTo(app.resolve(serve.url).get()!);
+
+  const replies = [];
+  for (let i = 0; i < 16; i += 1) {
+    replies.push(await post(front, "/api/echo", new Uint8Array(30e6)));
+  }
+
+  expect(replies).toEqual(Array(16).fill("413"));
 });

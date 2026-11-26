@@ -1,3 +1,5 @@
+import { connect } from "node:net";
+
 import {
   capsule,
   channel,
@@ -520,4 +522,43 @@ test("a watch whose text the codec cannot read pushes decode, side server, then 
     { i: 1, t: '{"ok":false,"kind":"decode","payload":{"side":"server"}}' },
     { i: 1, end: 1 },
   ]);
+});
+
+/** A client frame with one call to greet, masked with a zero key, so its bytes are the text. */
+const greetFrame = (name: string) => {
+  const text = Buffer.from(JSON.stringify([{ i: 1, a: "greet", t: JSON.stringify({ name }) }]));
+  const size =
+    text.length < 126 ? [0x80 | text.length] : [0x80 | 126, text.length >> 8, text.length & 255];
+  return Buffer.concat([Buffer.from([0x81, ...size, 0, 0, 0, 0]), text]);
+};
+
+test("a client that offers permessage-deflate gets it; a frame of 1 KiB or more goes compressed (#62)", async () => {
+  const { http } = await boot();
+  const raw = connect(Number(new URL(http).port), "127.0.0.1");
+  let got = Buffer.alloc(0);
+  raw.on("data", (d: Buffer) => (got = Buffer.concat([got, d])));
+  closers.push(() => raw.destroy());
+  const answer = async (name: string) => {
+    got = Buffer.alloc(0);
+    raw.write(greetFrame(name));
+    for (let n = 0; got.length === 0; n++) {
+      if (n > 200) throw new Error("timed out");
+      await tick(10);
+    }
+    return (got[0] & 0x40) === 0x40;
+  };
+
+  raw.write(
+    "GET /rpc HTTP/1.1\r\nhost: a\r\nupgrade: websocket\r\nconnection: upgrade\r\n" +
+      "sec-websocket-key: dGhlIHNhbXBsZSBub25jZQ==\r\nsec-websocket-version: 13\r\n" +
+      "sec-websocket-extensions: permessage-deflate\r\n\r\n",
+  );
+  for (let n = 0; !String(got).includes("\r\n\r\n"); n++) {
+    if (n > 200) throw new Error("timed out");
+    await tick(10);
+  }
+  const handshake = String(got);
+
+  expect(handshake).toMatch(/sec-websocket-extensions: permessage-deflate/i);
+  expect([await answer("x".repeat(2000)), await answer("x")]).toEqual([true, false]);
 });

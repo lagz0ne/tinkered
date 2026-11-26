@@ -76,11 +76,15 @@ export default defineMain(
 - Each handler reads a body up to its own
   `maxBody`, 1 MiB when unset. Past it,
   `serve` answers 413.
-- A handler's reply that leaves the body
-  unread closes the connection: the client
-  may still be sending it. So do `serve`'s
-  own 404 and 413. A body read to its end
-  keeps the connection open.
+- Before a reply that leaves the body
+  unread goes out, `serve` reads the rest
+  and drops it (nginx's lingering close).
+  So a proxy that is still sending the body
+  gets the 413, not a reset and a 502.
+- This holds for a handler's reply, and
+  for `serve`'s own 404 and 413.
+- It reads for up to 30 s. Past that, the
+  reply closes the connection.
 - A handler's `request.signal` aborts when
   the client leaves, body or not.
 - `server.requestIP(request)` and
@@ -131,8 +135,14 @@ takes a bytes POST. Each answer:
 
 A bytes POST is for a key with a
 bytes field. A POST it refuses before it
-reads the body closes the connection, on
-`serve` or a bare `Bun.serve`.
+reads the body closes the connection. On
+`serve`, the rest of the body is read
+first.
+
+A client that offers permessage-deflate
+gets it (RFC 7692). A frame of 1 KiB or
+more goes compressed; a smaller one goes
+as is. Browsers and Bun offer it.
 
 Two services with one address fail the start
 with `DuplicateAddress`. The fault names both:

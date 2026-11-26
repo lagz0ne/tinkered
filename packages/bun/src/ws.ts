@@ -71,6 +71,13 @@ function answerOf(reply: string | null, body: { over: boolean; drained: boolean 
 // (413 once past the max, whatever Content-Length said), and cut at `uploadDeadline`. The onStart
 // hooks run first, so a refused call never reads the body; an unread body is cancelled.
 
+/**
+ * A client that offers permessage-deflate gets it (RFC 7692): one shared compressor, no context
+ * kept between frames. A frame under this many UTF-16 units goes as is: deflate does not pay
+ * below it (the `ws` package's threshold).
+ */
+const compressFrom = 1024;
+
 type ServerConfig = {
   path: string;
   services: readonly Service[];
@@ -284,7 +291,9 @@ export function createWs() {
               // setImmediate, not setTimeout(0): Bun waits at least 1 ms for a timer (measured: +1.1 ms
               // and +11% CPU on a lone call). The answers of one tick still go as one frame.
               setImmediate(() => {
-                if (!own.gone.signal.aborted) ws.send(JSON.stringify(own.out.splice(0)));
+                if (own.gone.signal.aborted) return;
+                const frame = JSON.stringify(own.out.splice(0));
+                ws.send(frame, frame.length >= compressFrom);
               });
             },
             pusher(ws, i) {
@@ -391,6 +400,7 @@ export function createWs() {
           closeOnBackpressureLimit: true,
           idleTimeout: 60,
           sendPings: true,
+          perMessageDeflate: true,
           message(ws, frame) {
             const all = Promise.resolve(typeof frame === "string" ? frame : "")
               .then((text) => JSON.parse(text) as Msg[])
@@ -412,7 +422,7 @@ export function createWs() {
             ws.data.gone.abort(new Error("socket closed"));
           },
         };
-        /** The largest body any key takes: the host sets Bun's `maxRequestBodySize` from it. */
+        /** The largest body any key takes: `serve` caps the socket handler's body at it. */
         const maxBody = Math.max(
           0,
           ...[...routesOf.values()]

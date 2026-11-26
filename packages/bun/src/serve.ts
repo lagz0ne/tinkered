@@ -18,14 +18,19 @@ export type Handler = {
   /**
    * The largest request body this handler takes; 1 MiB when unset (Bun's default). `serve`
    * counts the body as this handler reads it: a read past it (by Content-Length or by count)
-   * rejects with a RangeError, and `serve` answers 413 whatever the handler answered. The
-   * largest of every handler's sets Bun's `maxRequestBodySize`, the server-wide backstop.
+   * rejects with a RangeError, and `serve` answers 413 whatever the handler answered.
    */
   maxBody?: number;
 };
 
 /** A handler's `maxBody` when it names none: Bun's own default. */
 const defaultMaxBody = 1_048_576;
+
+/**
+ * How long `serve` reads the rest of a body a reply left unread, in ms (nginx `lingering_time`).
+ * Past it, the reply closes the connection with the rest still unread.
+ */
+const linger = 30_000;
 
 /** Bun's calls that take a request: they know only Bun's own, not a copy. */
 const byRequest = new Set<string | symbol>(["requestIP", "timeout", "upgrade"]);
@@ -34,9 +39,9 @@ const byRequest = new Set<string | symbol>(["requestIP", "timeout", "upgrade"]);
  * A request's body, counted against the cap of the handler that reads it (Hono's `bodyLimit`).
  * `ask` sets `cap` before it asks each handler. A Content-Length or a count past the cap errors
  * the read, and `over` tells `serve` to answer 413. `drained` tells it the body was read to its
- * end; else the reply closes the connection (Go's net/http). It is its own stream's transformer,
- * and the proxy handler of the `server` the handlers get: that maps the copy back to Bun's own
- * request.
+ * end; else `finish` reads the rest before the reply goes out. It is its own stream's
+ * transformer, and the proxy handler of the `server` the handlers get: that maps the copy back
+ * to Bun's own request.
  */
 class CappedBody {
   cap = defaultMaxBody;
@@ -51,14 +56,24 @@ class CappedBody {
   request: Request;
   /** The server each handler gets: Bun's, with `request` mapped back to `original`. */
   server: Server<never>;
+  /** Bun's own body. The copy's cancel or error leaves it open, so `finish` can read the rest. */
+  source: ReadableStream<Uint8Array>;
+  /** Stops the copy's pipe, which gives `source` back. */
+  stop = new AbortController();
+  /** The copy's pipe; it settles once `source` is free. */
+  piped: Promise<boolean>;
 
   constructor(request: Request, body: ReadableStream<Uint8Array>, bun: Server<never>) {
+    const copy = new TransformStream(this);
     this.length = Number(request.headers.get("content-length"));
     this.original = request;
-    this.request = new Request(request, {
-      body: body.pipeThrough(new TransformStream(this)),
-      duplex: "half",
-    } as RequestInit);
+    this.source = body;
+
+    this.piped = body.pipeTo(copy.writable, { preventCancel: true, signal: this.stop.signal }).then(
+      () => true,
+      () => false,
+    );
+    this.request = new Request(request, { body: copy.readable, duplex: "half" } as RequestInit);
     this.server = new Proxy(bun, this);
   }
 
@@ -76,12 +91,14 @@ class CappedBody {
   }
 
   /**
-   * The reply, with `connection: close` when the body was not read to its end: the client may
-   * still be sending it, and Bun's graceful `stop` would wait on it. A reply's headers can be
-   * immutable, so it is a copy. Undefined (an upgrade, Bun's own now) has no reply to close.
+   * The reply, once the body is read to its end. A close with unread bytes resets the socket, and
+   * a proxy still sending the body then answers 502 in place of the reply (RFC 9112 9.6). So the
+   * rest is read and dropped first, for up to `linger` (nginx `lingering_close`). Past it, the
+   * reply closes the connection: Bun's graceful `stop` would wait on the sender. A reply's headers
+   * can be immutable, so that one is a copy. Undefined (an upgrade, Bun's own now) has no body.
    */
-  closeIfUnread(reply: Response | undefined) {
-    if (!reply || this.drained) return reply;
+  async finish(reply: Response | undefined) {
+    if (!reply || this.drained || (await this.discard())) return reply;
     const headers = new Headers(reply.headers);
     headers.set("connection", "close");
     return new Response(reply.body, {
@@ -89,6 +106,27 @@ class CappedBody {
       statusText: reply.statusText,
       headers,
     });
+  }
+
+  /** Reads the rest of `source` and drops it: true when it ended within `linger`. */
+  private async discard() {
+    this.stop.abort();
+    await this.piped;
+
+    const reader = this.source.getReader();
+    let late = false;
+    const timer = setTimeout(() => {
+      late = true;
+      return reader.cancel();
+    }, linger);
+    try {
+      while (!(await reader.read()).done);
+      return !late;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /** A server member, bound to Bun's server; a call that takes a request gets Bun's own. */
@@ -188,21 +226,19 @@ export const serve = capsule({
         }
         return new Response(null, { status: 404 });
       };
-      /** A request with no body takes no extra step; a reply that leaves a body unread closes. */
+      /** A request with no body takes no extra step; a reply waits for an unread body's end. */
       const answer = (request: Request, bun: Server<never>) => {
         if (!request.body) return replyTo(request, null, bun);
         const body = new CappedBody(request, request.body, bun);
-        return replyTo(request, body, bun).then((reply) => body.closeIfUnread(reply));
+        return replyTo(request, body, bun).then((reply) => body.finish(reply));
       };
 
       const server = Bun.serve({
         port: config.port,
         // Bun's 10 s default cuts a slow request; 60 s (max 255) matches the socket idle time.
         idleTimeout: 60,
-        maxRequestBodySize: Math.max(
-          defaultMaxBody,
-          ...found.map((handler) => handler.maxBody ?? 0),
-        ),
+        /** Bun's own 413 closes with the body unread (a reset: 502 behind a proxy); serve caps. */
+        maxRequestBodySize: Number.MAX_SAFE_INTEGER,
         // Bun's types want `fetch` beside `websocket`; unset, Bun reads `websocket` as absent.
         websocket: socket?.websocket as never,
         fetch: () => new Response(null, { status: 404 }),

@@ -9,6 +9,36 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.11
+
+`@tinkered/bun`: a 413 behind a proxy
+reaches the client as 413, not 502 (#61).
+
+- Before, `serve` closed the connection
+  with the body still unread. The socket
+  then reset, and a proxy that was still
+  sending the body answered 502.
+- Bun's own 413 (past `maxRequestBodySize`)
+  did the same. Now each cap is `serve`'s:
+  Bun's limit is out of the way.
+- Now a reply that leaves the body unread
+  waits: `serve` reads the rest and drops
+  it, then sends the reply (nginx's
+  lingering close, RFC 9112 9.6).
+- The connection then stays open.
+- `serve` reads for up to 30 s. Past that,
+  the reply closes the connection, as
+  before.
+
+`@tinkered/bun`: the socket compresses
+large frames (#62).
+
+- A client that offers permessage-deflate
+  gets it: one shared compressor, no
+  context kept between frames.
+- A frame of 1 KiB or more goes compressed.
+  A smaller one goes as is.
+
 ## 0.34.10
 
 `@tinkered/cli`: a view line for each React
