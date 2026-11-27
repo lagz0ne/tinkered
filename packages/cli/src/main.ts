@@ -7,7 +7,7 @@ import { readApp } from "./check";
 import type { Check } from "./check";
 import { isError } from "./errors";
 import { applyGaps } from "./gaps";
-import { graphFile, graphFindings, graphOf, graphText } from "./graph";
+import { graphFile, graphFileText, graphFindings, graphOf, graphText } from "./graph";
 import type { Graph } from "./graph";
 import { ruleFindings } from "./graph-rules";
 import { rules } from "./rules";
@@ -276,10 +276,10 @@ function checkCommand(root: string, json: boolean): Main.Result {
 function graphCommand(root: string, write: boolean): Main.Result {
   if (!existsSync(root)) return { code: 2, out: "", err: `tinker graph: no folder at ${root}\n` };
   const graph = graphOf(root);
-  const text = graphText([...graph.ops, ...graph.views]);
-  if (!write) return { code: 0, out: text, err: "" };
+  const rows = [...graph.ops, ...graph.views];
+  if (!write) return { code: 0, out: graphText(rows), err: "" };
 
-  writeFileSync(join(root, graphFile), text);
+  writeFileSync(join(root, graphFile), graphFileText(rows));
   return { code: 0, out: `wrote ${graphFile}: ${linesCount(graph)}\n`, err: "" };
 }
 

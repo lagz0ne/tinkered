@@ -38,6 +38,15 @@ export declare namespace Graph {
 export const graphFile = "tinker.graph";
 
 /**
+ * The line shape `graphText` writes. A change to the shape raises it (as npm's
+ * `lockfileVersion`), so a file an older CLI wrote is one finding, not one per line (#68).
+ */
+export const graphFormat = 2;
+
+/** The first line of `tinker.graph`. A file with none is format 1: before the line, 0.34.12. */
+const formatLine = `# ${graphFile} ${graphFormat}`;
+
+/**
  * A unit a dep names: the Core function that made it, its label, and the part it reads. `bare`
  * is a dep named by itself, with no edge: a bare cell gives `run` its value, not a controller.
  * `faults` are those a call of an rpc contract's member can end with.
@@ -733,9 +742,19 @@ export function graphOf(root: string): Graph.Of {
   return { ops: ops.sort(byLabel), views: views.sort(byLabel) };
 }
 
-/** The graph as `tinker.graph` holds it: one line per row, and an end of line after each. */
+/** The graph as `tinker graph` prints it: one line per row, and an end of line after each. */
 export function graphText(rows: Graph.Row[]) {
   return rows.map(({ label, parts }) => `${[label, ...parts].join(" ")}\n`).join("");
+}
+
+/** The graph as `tinker.graph` holds it: the format line, then the graph. */
+export function graphFileText(rows: Graph.Row[]) {
+  return `${formatLine}\n${graphText(rows)}`;
+}
+
+/** The format a file says on its first line; 1 when it says none. */
+function formatOf(text: string) {
+  return Number(/^# tinker\.graph (\d+)/.exec(text)?.[1] ?? 1);
 }
 
 /** A view's name: `view`, then a `<file>#<name>` word. An op may be labelled `view`. */
@@ -751,7 +770,7 @@ function linesIn(text: string) {
     const clean = row.trim();
     const words = clean.split(" ");
     const label = words.splice(0, viewLabel.test(clean) ? 2 : 1).join(" ");
-    if (label) lines.set(label, { line: index + 1, parts: words });
+    if (label && !label.startsWith("#")) lines.set(label, { line: index + 1, parts: words });
   });
   return lines;
 }
@@ -777,7 +796,15 @@ export function graphFindings(root: string, code: Graph.Row[]): Tools.Found[] {
     return code.length ? [{ path: graphFile, line: 1, rule, what }] : [];
   }
 
-  const file = linesIn(readFileSync(path, "utf8"));
+  const text = readFileSync(path, "utf8");
+  const format = formatOf(text);
+  if (format !== graphFormat) {
+    const has = `${graphFile} has format ${format}; this CLI writes format ${graphFormat}`;
+    const what = `${has}: run \`tinker graph --write\`, read the diff, and commit it`;
+    return [{ path: graphFile, line: 1, rule, what }];
+  }
+
+  const file = linesIn(text);
   const found = code.flatMap(({ path, line, label, parts }): Tools.Found[] => {
     const said = file.get(label);
     file.delete(label);

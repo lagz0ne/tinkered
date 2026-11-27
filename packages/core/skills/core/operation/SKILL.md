@@ -14,7 +14,7 @@ metadata:
     allowed in app code.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.12'
+  library_version: '0.34.13'
 requires:
   - core
 sources:
@@ -223,6 +223,9 @@ and the resources its `depends` names
 (`uses{}`). The lines are facts.
 `tinker check` builds them from the code. Each
 line that differs from the file is a finding.
+The first line names the format
+(`# tinker.graph 2`). A file of an older format
+is one finding: run `tinker graph --write` once.
 
 The finding never judges the change. You judge
 it.

@@ -286,9 +286,14 @@ tinker.graph says writes{}
 - Did not mean it? Fix the code.
 - No `tinker.graph` is one finding, when the app
   has an operation or a view.
-- A `tinker.graph` written before `uses{}` or
-  `faults{}` gives a finding on each line. Run
-  `--write` once.
+- The file's first line names its format:
+  `# tinker.graph 2`.
+- A file of an older format is one finding:
+  run `--write` once, read the diff, and commit
+  it. A file with no format line is format 1.
+- A change to the line shape raises the format,
+  with a CHANGELOG line that names the shape.
+  An app that reads the file skips `#` lines.
 
 ### Graph rules
 

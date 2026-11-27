@@ -9,6 +9,24 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.13
+
+`@tinkered/cli`: `tinker.graph` names its format;
+an old file is one finding (#68).
+
+- `tinker graph --write` writes
+  `# tinker.graph 2` as the first line.
+  `tinker graph` prints no format line.
+- A file of another format, or with no format
+  line (format 1, up to 0.34.12), is one
+  finding: run `tinker graph --write`, read the
+  diff, and commit it. Before, each line was a
+  finding (1374 in one app).
+- A change to the line shape raises the format,
+  with a line here that names the shape.
+- An app that reads `tinker.graph` skips the
+  lines that start with `#`.
+
 ## 0.34.12
 
 `@tinkered/bun`: `serve` takes a `hostname`

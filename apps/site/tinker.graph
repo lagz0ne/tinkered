@@ -1,3 +1,4 @@
+# tinker.graph 2
 bench.batch.mount exits{value} faults{} reads{} writes{} calls{bench.mount} uses{}
 bench.batch.write exits{value} faults{} reads{} writes{} calls{} uses{}
 bench.column exits{value} faults{} reads{} writes{} calls{bench.faster,bench.shown} uses{}

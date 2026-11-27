@@ -98,6 +98,12 @@ The known models:
     app's `tinker.graph`. The scorer builds the
     writer's graph from code and compares it to
     the kit's file, not to the writer's file.
+12. Amended 2026-11-27 (#68): the file's first
+    line names its format, `# tinker.graph 2`, as
+    npm's `lockfileVersion` does. A change to the
+    line shape raises it. A file of another format
+    (none is 1) is one finding that says to run
+    `tinker graph --write`, not one per line.
 
 ## Amended 2026-11-17: facts only, one line per op
 

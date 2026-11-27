@@ -205,6 +205,9 @@ const moved =
   "exits{gone,moved,stale} faults{} reads{issues.list.of,issues.list.where} writes{issues.list.set} " +
   "calls{issues.inTeam} uses{}";
 
+/** A graph as `tinker.graph` holds it: the format line first. */
+const filed = (lines: string) => `# tinker.graph 2\n${lines}`;
+
 /** The graph of `ops`: each name is a label, never the local name. */
 const golden = [
   "count.tick exits{value} faults{} reads{count.get,issues.list.where} writes{count.update} calls{} uses{}",
@@ -317,7 +320,10 @@ test(
   "code that matches its tinker.graph passes, with Windows line ends too",
   { timeout: 60_000 },
   () => {
-    const folder = appOf({ "src/ops.ts": ops, "tinker.graph": golden.replaceAll("\n", "\r\n") });
+    const folder = appOf({
+      "src/ops.ts": ops,
+      "tinker.graph": filed(golden).replaceAll("\n", "\r\n"),
+    });
 
     const { code, out } = main(["check", folder], "/");
 
@@ -333,7 +339,7 @@ test("a write the file does not list is one finding at the operation", { timeout
     `issue.move.do ${moved}`,
     `issue.move.do ${moved.replace("writes{issues.list.set}", "writes{}")}`,
   );
-  const folder = appOf({ "src/ops.ts": ops, "tinker.graph": file });
+  const folder = appOf({ "src/ops.ts": ops, "tinker.graph": filed(file) });
 
   const { code, out } = main(["check", folder], "/");
 
@@ -350,14 +356,14 @@ test(
   () => {
     const look = `${looked}\n`;
     const file = `${golden.replace(look, "")}issue.old.do exits{gone} faults{} reads{} writes{} calls{}\n`;
-    const folder = appOf({ "src/ops.ts": ops, "tinker.graph": file });
+    const folder = appOf({ "src/ops.ts": ops, "tinker.graph": filed(file) });
 
     const { code, out } = main(["check", folder], "/");
 
     expect(code).toBe(1);
     expect(findings(out)).toEqual([
       "src/ops.ts:65 tinker/graph issue.look: not in tinker.graph",
-      "tinker.graph:23 tinker/graph issue.old.do: in tinker.graph, not in the code",
+      "tinker.graph:24 tinker/graph issue.old.do: in tinker.graph, not in the code",
     ]);
   },
 );
@@ -369,6 +375,7 @@ test("an op labelled view keeps its one-word key in the file", { timeout: 60_000
     `export const view = operation({ label: "view", run: () => 1 });`,
   ].join("\n");
   const graph = [
+    "# tinker.graph 2",
     "issues.inTeam exits{value} faults{} reads{} writes{} calls{} uses{}",
     "view exits{value} faults{} reads{} writes{} calls{} uses{}",
     "",
@@ -393,6 +400,23 @@ test("no tinker.graph is one finding that says to write it", { timeout: 60_000 }
   ]);
 });
 
+test(
+  "a tinker.graph an older CLI wrote is one finding that says to write it again (#68)",
+  { timeout: 60_000 },
+  () => {
+    const old = golden.replaceAll(" uses{}", "");
+    const folder = appOf({ "src/ops.ts": ops, "tinker.graph": old });
+
+    const { code, out } = main(["check", folder], "/");
+
+    expect(code).toBe(1);
+    expect(findings(out)).toEqual([
+      "tinker.graph:1 tinker/graph tinker.graph has format 1; this CLI writes format 2: " +
+        "run `tinker graph --write`, read the diff, and commit it",
+    ]);
+  },
+);
+
 test("`tinker graph --write` writes the file the check then passes", { timeout: 60_000 }, () => {
   const folder = appOf({ "src/ops.ts": ops });
 
@@ -400,7 +424,7 @@ test("`tinker graph --write` writes the file the check then passes", { timeout: 
   const { code } = main(["check", folder], "/");
 
   expect(wrote).toEqual({ code: 0, out: "wrote tinker.graph: 23 operations, 0 views\n", err: "" });
-  expect(readFileSync(join(folder, "tinker.graph"), "utf8")).toBe(golden);
+  expect(readFileSync(join(folder, "tinker.graph"), "utf8")).toBe(filed(golden));
   expect(code).toBe(0);
 });
 
@@ -957,6 +981,7 @@ const signIn = [
 
 /** The graph of `signIn`. */
 const signInLines = [
+  "# tinker.graph 2",
   "home.again exits{value} faults{} reads{access.logins.get} writes{} calls{} uses{}",
   "home.forget exits{value} faults{} reads{} writes{access.logins.set} calls{} uses{}",
   "view src/home/home.tsx#SignIn reads{access.logins.get} runs{home.forget}",
@@ -1025,6 +1050,6 @@ test("a changed view line and a view line the code lacks are findings", { timeou
   expect(findings(out)).toEqual([
     "src/home/home.tsx:6 tinker/graph view src/home/home.tsx#SignIn: " +
       "runs{home.forget}, tinker.graph says runs{}",
-    "tinker.graph:4 tinker/graph view src/home/home.tsx#Gone: in tinker.graph, not in the code",
+    "tinker.graph:5 tinker/graph view src/home/home.tsx#Gone: in tinker.graph, not in the code",
   ]);
 });

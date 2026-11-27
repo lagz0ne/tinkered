@@ -57,6 +57,7 @@ const configs = {
     `});`,
   ].join("\n"),
   "tinker.graph": [
+    "# tinker.graph 2",
     "guard exits{refused,value} faults{} reads{} writes{} calls{} uses{}",
     "move.do exits{gone,moved} faults{} reads{} writes{} calls{} uses{}",
     "",

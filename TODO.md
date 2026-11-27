@@ -118,6 +118,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **cli/graph-format-line** — done 2026-11-27 (GitHub #68, from the easel read; no decision needed, option A of the issue). `tinker graph --write` writes `# tinker.graph 2` first; a file of another format (none is 1) is one `tinker/graph` finding that says to run `--write`, not one per line. ADR 0161 point 12. Released as 0.34.13.
+  Proof: `graph.test.ts` "a tinker.graph an older CLI wrote is one finding" red on main (5 shown of many), green after; cli graph + exits tests 33 green; apps/site graph rewritten, its check OK.
+
 - **bun/serve-hostname** — done 2026-11-27 (GitHub #63, daily issue run). `serve` takes a `hostname` tag (default null: Bun's own, every interface), passed to `Bun.serve`; the `url` cell names it. Released as 0.34.12.
   Proof: `serve.test.ts` "`hostname` is the address it listens on" red on main (url host `localhost`), green after; bun 143 tests; all packages green; `vp check` 0 errors.
 
