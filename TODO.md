@@ -118,6 +118,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **bun/serve-hostname** — done 2026-11-27 (GitHub #63, daily issue run). `serve` takes a `hostname` tag (default null: Bun's own, every interface), passed to `Bun.serve`; the `url` cell names it. Released as 0.34.12.
+  Proof: `serve.test.ts` "`hostname` is the address it listens on" red on main (url host `localhost`), green after; bun 143 tests; all packages green; `vp check` 0 errors.
+
 - **bun/linger-before-close** — done 2026-11-26 (GitHub #61, #62; Duke 2026-11-26 02:25 UTC, daily issue run). #61: a reply that leaves the body unread now waits while `serve` reads the rest and drops it, for up to 30 s (nginx `lingering_close`, RFC 9112 9.6); the connection then stays open; past 30 s it closes as before. Bun's own 413 reset the socket too, so `maxRequestBodySize` is now out of the way and every cap is `serve`'s. #62: the socket offers permessage-deflate (RFC 7692, shared compressor); a frame of 1024 UTF-16 units or more goes compressed (the `ws` package's threshold). Released as 0.34.11.
   Proof: #61 test (node:http proxy, 16 posts of 30 MB to a 1 MiB handler) red on main (3 of 8 were 502), green after; curl through a proxy: 0.34.10 gave 502 in 20 of 20 (30 MB) and 10 of 20 (2 MB), the fix gives 413 in 80 of 80. #62 test red on main (no extension in the handshake), green after. `vp check` 0 errors; all packages' tests green; style census no new hits; `pnpm validate` 2 lanes fail on this box only (fast-code engine v22.23.5 rebaseline, kept-heap), both Core-only, no Core change.
 

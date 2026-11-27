@@ -9,6 +9,20 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.12
+
+`@tinkered/bun`: `serve` takes a `hostname`
+(#63).
+
+- `serve({ port, hostname: "127.0.0.1" })`
+  listens only on that address (Node's
+  `listen(port, host)`, Bun's `hostname`).
+- Unset, it listens on every interface, as
+  before.
+- The `url` cell and the
+  `tinker: listening on <url>` line name the
+  address.
+
 ## 0.34.11
 
 `@tinkered/bun`: a 413 behind a proxy

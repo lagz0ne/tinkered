@@ -35,36 +35,38 @@ const socket = ws.server({
   services: [api],
 });
 
-export default defineMain(
-  ({ env, signal, stdout }) => {
-    // `routes` is the template's request table.
-    const table = routes({
-      stop: signal,
-      table: { "GET /api/health": health },
-    });
+export default defineMain(({ env, signal, stdout }) => {
+  // `routes` is the template's request table.
+  const table = routes({
+    stop: signal,
+    table: { "GET /api/health": health },
+  });
 
-    return createScope({
-      signal,
-      capsules: [
-        serve({
-          port: Number(env.PORT ?? 4318),
-          pages: { "/*": page },
-          websocket: socket,
-          handlers: [table],
-          stdout,
-        }),
-        api({ implement }),
-        socket,
-        table,
-      ],
-    });
-  },
-);
+  return createScope({
+    signal,
+    capsules: [
+      serve({
+        port: Number(env.PORT ?? 4318),
+        pages: { "/*": page },
+        websocket: socket,
+        handlers: [table],
+        stdout,
+      }),
+      api({ implement }),
+      socket,
+      table,
+    ],
+  });
+});
 ```
 
 - `serve` goes first: its start wraps the
   rest, so it listens once all started.
 - On close it stops the port first.
+- `hostname`: the address it listens on,
+  such as `127.0.0.1`. Unset, it listens on
+  every interface (Bun's `0.0.0.0`). The
+  `url` cell names the address.
 - `pages`: static files, Bun's own routes.
   Every path no handler takes gets them.
 - `websocket`: the one handler with Bun's
@@ -165,10 +167,7 @@ The client:
 import { ws } from "@tinkered/bun/client";
 
 const tab = await createScope({
-  capsules: [
-    ws.client({ url: "wss://host/rpc" }),
-    api({ remote: ws.client }),
-  ],
+  capsules: [ws.client({ url: "wss://host/rpc" }), api({ remote: ws.client })],
 }).ready;
 ```
 
@@ -181,10 +180,7 @@ Each gives a Drizzle connection.
 import { bunSql } from "@tinkered/bun/sql";
 import { bunSqlite } from "@tinkered/bun/sqlite";
 
-capsules: [
-  bunSql({ url: new URL(env.DATABASE_URL) }),
-  drizzlePg({ driver: bunSql.connection }),
-];
+capsules: [bunSql({ url: new URL(env.DATABASE_URL) }), drizzlePg({ driver: bunSql.connection })];
 ```
 
 - `bunSql`: `url` (secret), `max` (10).

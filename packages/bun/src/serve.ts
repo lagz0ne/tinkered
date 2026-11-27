@@ -153,6 +153,9 @@ class CappedBody {
 
 const port = tag<number>({ label: "serve.port" });
 
+/** The address it listens on; null leaves Bun's default, every interface (`0.0.0.0`). */
+const hostname = tag<string | null>({ label: "serve.hostname", default: null });
+
 const pages = tag<Readonly<Record<string, HTMLBundle | Response>>>({
   label: "serve.pages",
   default: {},
@@ -196,12 +199,22 @@ const handlerPaths = ["/api/*", "/rpc", "/rpc/*"];
  * - `websocket`: the one handler that brings Bun's `websocket` (ws.server); asked first;
  * - `handlers`: capsules whose start returns a {@link Handler}, asked in order;
  * - `pages`: the client's routes, for every path no handler takes;
+ * - `hostname`: the address it listens on (Node's `listen(port, host)`); unset, every interface;
  * - `paths`: more Bun route patterns for the handlers;
  * - `stdout`: where it prints `tinker: listening on <url>`.
  */
 export const serve = capsule({
   label: "serve",
-  config: { port: port.required, pages, websocket, handlers, paths, development, stdout },
+  config: {
+    port: port.required,
+    hostname,
+    pages,
+    websocket,
+    handlers,
+    paths,
+    development,
+    stdout,
+  },
   exports: { url },
   hooks: {
     async start({ config, next, session, load, raise }) {
@@ -235,6 +248,7 @@ export const serve = capsule({
 
       const server = Bun.serve({
         port: config.port,
+        hostname: config.hostname ?? undefined,
         // Bun's 10 s default cuts a slow request; 60 s (max 255) matches the socket idle time.
         idleTimeout: 60,
         /** Bun's own 413 closes with the body unread (a reset: 502 behind a proxy); serve caps. */

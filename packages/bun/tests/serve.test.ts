@@ -478,3 +478,15 @@ test("a 413 behind a proxy reaches the client as 413, not 502 (#61)", async () =
 
   expect(replies).toEqual(Array(16).fill("413"));
 });
+
+test("`hostname` is the address it listens on, and its url names it (#63)", async () => {
+  const health = handler({ answer: () => new Response("ok") });
+  const app = await createScope({
+    capsules: [serve({ port: 0, hostname: "127.0.0.1", handlers: [health] }), health],
+  }).ready;
+  closers.push(() => app.close());
+
+  const at = app.resolve(serve.url).get()!;
+
+  expect([at.hostname, await text(at, "/api/health")]).toEqual(["127.0.0.1", "ok"]);
+});

@@ -1,6 +1,6 @@
 {
   "name": "@tinkered/cli",
-  "version": "0.34.11",
+  "version": "0.34.12",
   "description": "The tinker command: one check that corrects the writer (types, then rules, each finding with its fix from the skill), and the skills.",
   "license": "MIT",
   "repository": {
