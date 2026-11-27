@@ -14,7 +14,7 @@ metadata:
     allowed in app code.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.18'
+  library_version: '0.34.19'
 requires:
   - core
 sources:

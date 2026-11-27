@@ -13,7 +13,7 @@ metadata:
     slot of listeners, a run hook.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.17'
+  library_version: '0.34.19'
 requires:
   - core
   - capsule
@@ -332,7 +332,10 @@ void run(pump, { signal: closing }, meta);
 ```
 
 Right: `void run(pump, {}, meta)`. The pump's own
-`ctx.signal` aborts at the scope's close.
+`ctx.signal` aborts at the scope's close. A run
+that must keep its signal depends on
+`cell.atScope.controller` to write the root
+(ADR 0126).
 
 ## Completion
 

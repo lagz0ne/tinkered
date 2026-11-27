@@ -9,6 +9,23 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.19
+
+`@tinkered/core`: three skills of known
+patterns as capsules (Duke, pattern recipes).
+
+- `core/resilience`: a `throttler` capsule fills
+  the backend's `throttle` op slot
+  (`smtpMail({ throttle: throttler.runner })`);
+  retry with backoff, circuit breaker, bulkhead.
+- `core/messaging`: a queue with a start-hook
+  pump and a dead letter, listeners in a list
+  slot, a wire tap in a `run` hook.
+- `core/server`: `serve`, a `routes` capsule with
+  feature tables and guards in list slots.
+- `tinker skill load @tinkered/core#core/<name>`
+  serves each one.
+
 ## 0.34.18
 
 `@tinkered/cli`: a loop over a list slot names
