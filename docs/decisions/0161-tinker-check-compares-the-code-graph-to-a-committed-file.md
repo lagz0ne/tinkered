@@ -104,6 +104,17 @@ The known models:
     line shape raises it. A file of another format
     (none is 1) is one finding that says to run
     `tinker graph --write`, not one per line.
+    The check compares the parts of a line by
+    name, so a lost part is one difference.
+13. Amended 2026-11-27 (#69): an op or a cell a
+    capsule exports is named as its import is
+    (`calls{mail.send}`). A call of the op in an
+    op slot names the slot's tag,
+    `calls{slot:mail.backend}`: a fact of the
+    code. The graph does not follow the fill in
+    a cmd, since a test scope fills it with
+    another op. A graph rule cannot prove a
+    `slot:` call, as with `?`.
 
 ## Amended 2026-11-17: facts only, one line per op
 

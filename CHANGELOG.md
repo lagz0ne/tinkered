@@ -9,6 +9,22 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.15
+
+`@tinkered/cli`: the graph names a call through
+a capsule export or an op slot (#69).
+
+- An op or a cell a capsule exports is named
+  as its import is: `depends: { send: mail.send }`
+  gives `calls{mail.send}`, not `calls{?}`.
+- A call of the op a tag holds (an op slot,
+  ADR 0151) gives `calls{slot:<tag label>}` and
+  `faults{?}`. Before, it gave `calls{?}`.
+- A graph rule cannot prove a `slot:` call, as
+  with `?`: the finding names the slot.
+- An app with such an op gets a `tinker/graph`
+  finding on its line: run `tinker graph --write`.
+
 ## 0.34.14
 
 `@tinkered/cli`: the graph check compares

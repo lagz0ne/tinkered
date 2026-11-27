@@ -130,6 +130,16 @@ members.invite exits{already,invited} faults{}
   a name too: `access.user.list`.
 - The `/` marks a contract member: the capsule
   path, then the contract key.
+- An operation or a cell that a capsule exports
+  is named as its import is: `mail.send` gives
+  `calls{mail.send}` (#69). The capsule's
+  `exports` object must be written in the
+  `capsule` call.
+- A call of the op that a tag holds (an op slot,
+  ADR 0151) names the slot: `calls{slot:<tag>}`.
+  The graph does not follow the fill in a cmd: a
+  test scope can fill it with another op. The op
+  may end with any fault, so `faults` gets `?`.
 - A member is named only when the capsule's
   `label` is a string and its `exports` object
   is written in the `capsule` call.
@@ -184,13 +194,12 @@ way the graph cannot follow:
   `exports` object is not written in the call,
   a member under a key not written in the code,
   a member under a key not in the contract,
-  such as the handle's own `answer` op, any
-  other capsule export, or a cell whose label
-  is not written as a string;
-- a tag dep that holds a unit (ADR 0151), through
-  any edge: an operation gives `calls{?}`; a
-  cell, a view or a read gives `reads{?}`, and a
-  cell `writes{?}` too;
+  such as the handle's own `answer` op, a
+  capsule export the graph cannot read, or a
+  cell whose label is not written as a string;
+- a tag dep that holds a cell, a view or a read
+  (ADR 0151), through any edge: it gives
+  `reads{?}`, and a cell `writes{?}` too;
 - a `run` passed by name, not written in place.
   With a dep the graph cannot name, every set
   gets `?`.
@@ -364,9 +373,9 @@ members.invite uses{drizzlePg.tx},
 calls has no perm.canLead
 ```
 
-A `?` in `calls{}` of the op, or of an op on the
-way, is a finding too. The rule cannot be
-proved:
+A `?` or a `slot:` call in `calls{}` of the op,
+or of an op on the way, is a finding too. The
+rule cannot be proved:
 
 ```text
 src/issues/ops.server.ts:88 tinker/graph-rule

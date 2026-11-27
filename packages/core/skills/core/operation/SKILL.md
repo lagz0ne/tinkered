@@ -14,7 +14,7 @@ metadata:
     allowed in app code.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.14'
+  library_version: '0.34.15'
 requires:
   - core
 sources:
@@ -238,9 +238,10 @@ know, a dep it cannot name (a member of a bare
 `rpc` const, a member through a capsule whose
 `label` or `exports` object is not written in
 the call, a key not written in the code or not
-in the contract, any other capsule export, a
-label not written as a string), a tag that
-holds a unit, or a `run` passed by name. A tag
+in the contract, a capsule export it cannot
+read, a label not written as a string), a tag
+that holds a cell or a read, or a `run` passed
+by name. A tag
 that holds a union of unit kinds, or a held cell
 that `run` never uses, may show no `?`.
 
@@ -252,8 +253,14 @@ contract member: the capsule path, then the
 contract key. A member is named only when the
 capsule's `label` is a string and its `exports`
 object is written in the `capsule` call. An
-`atScope` or `atNamespace` controller reads and
-writes as the cell's `controller` does.
+operation or a cell that a capsule exports is
+named as its import is: `mail.send` gives
+`calls{mail.send}`. A call of the op a tag holds
+(an op slot) names the slot,
+`calls{slot:mail.backend}`, and adds `?` to
+`faults{}`. An `atScope` or `atNamespace`
+controller reads and writes as the cell's
+`controller` does.
 
 `faults{}` holds each fault of Core's `Fault`
 set that a named member call can end with, read
@@ -403,9 +410,9 @@ must reach that operation in `calls{}`, directly
 or through an operation it calls. The rule's own
 operation is exempt.
 
-A `?` in `calls{}` on the way is a finding too:
-the check cannot see the call, so the rule
-cannot be proved.
+A `?` or a `slot:` call in `calls{}` on the way
+is a finding too: the check cannot see which op
+runs, so the rule cannot be proved.
 
 An op the graph has no line for, such as an rpc
 member, ends the way: the graph does not follow

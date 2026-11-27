@@ -120,7 +120,7 @@ const ops = {
   keep: op("doc.keep.do", "{ ok: canEdit, db: tx }", "deps.ok.run(); return deps.db;"),
   relay: op("doc.relay.do", "{ ok: doc_guard, db: tx }", "deps.ok.run(); return deps.db;"),
   shelved: op("doc.shelved", "{ db: shelf.required }", "return deps.db;"),
-  hidden: op("doc.hidden.do", "{ ok: box.required, db: tx }", "deps.ok.run(); return deps.db;"),
+  hidden: op("doc.hidden.do", "{ ok: canEdit, db: tx }", "[deps.ok].pop(); return deps.db;"),
 };
 
 const imports = [
@@ -285,7 +285,7 @@ test(
 );
 
 test(
-  "a `?` in calls, its own or on the way, cannot prove the rule and is a finding",
+  "a `?` or an op slot in calls, its own or on the way, cannot prove the rule (#69)",
   { timeout: 60_000 },
   () => {
     const folder = appOf(["blind", "peek", "via"], [rule]);
@@ -294,9 +294,9 @@ test(
 
     expect(findings(out)).toEqual([
       "src/docs.ts:5 tinker/graph-rule doc.blind.do writes{docs.title.set}, " +
-        "calls{?} in doc.blind.do cannot prove docs.canEdit",
+        "calls{slot:box} in doc.blind.do cannot prove docs.canEdit",
       "src/docs.ts:21 tinker/graph-rule doc.via.do writes{docs.title.set}, " +
-        "calls{?} in doc.blind.do, doc.peek cannot prove docs.canEdit",
+        "calls{slot:box} in doc.blind.do, doc.peek cannot prove docs.canEdit",
     ]);
   },
 );

@@ -108,8 +108,11 @@ function labelIn(options: ts.Expression | undefined) {
 /** The unit a name holds, when it is a `const` made by a Core call with a literal label. */
 function unitAt(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): Unit | undefined {
   const call = callAt(checker, symbol);
-  if (!call) return undefined;
+  return call && unitIn(call);
+}
 
+/** The unit a Core call makes, when its label is written as a string. */
+function unitIn(call: ts.CallExpression): Unit | undefined {
   const [options] = call.arguments;
   const label = labelIn(options);
   const made = coreName(call);
@@ -167,6 +170,17 @@ function exportOf(checker: ts.TypeChecker, on: ts.Identifier, key: string) {
   const value = exports && ts.isPropertyAssignment(exports) ? exports.initializer : undefined;
   const call = exportCall(checker, propertyAt(value, key));
   return call && { call, capsule: labelIn(options) };
+}
+
+/**
+ * The unit a capsule exports under a key written in the code: `mail.send` is the op `send`
+ * that `mail` exports, as an import of `send` is (#69).
+ */
+function exportedUnit(checker: ts.TypeChecker, value: ts.Expression) {
+  const member = memberOf(value);
+  const found =
+    member && ts.isIdentifier(member.on) ? exportOf(checker, member.on, member.key) : undefined;
+  return found && unitIn(found.call);
 }
 
 /**
@@ -243,7 +257,7 @@ function edgeOf(checker: ts.TypeChecker, on: ts.Expression) {
   const placed = ts.isPropertyAccessExpression(on) && placements.includes(on.name.text);
   const unit = placed ? on.expression : on;
   if (ts.isIdentifier(unit)) return unitAt(checker, checker.getSymbolAtLocation(unit));
-  return contractMember(checker, on);
+  return contractMember(checker, on) ?? exportedUnit(checker, unit);
 }
 
 /**
@@ -254,9 +268,12 @@ function edgeOf(checker: ts.TypeChecker, on: ts.Expression) {
 function unitOf(checker: ts.TypeChecker, value: ts.Expression): Unit | undefined {
   if (ts.isIdentifier(value)) return bareOf(unitAt(checker, checker.getSymbolAtLocation(value)));
   if (ts.isCallExpression(value)) return partOf(checker, value);
+
   const member = contractMember(checker, value);
-  if (member || !ts.isPropertyAccessExpression(value)) return member;
-  return edgeOf(checker, value.expression);
+  if (member) return member;
+  const exported = exportedUnit(checker, value);
+  if (exported) return bareOf(exported);
+  return ts.isPropertyAccessExpression(value) ? edgeOf(checker, value.expression) : undefined;
 }
 
 /** The unit a dep's declaration names: `list: issues.controller`, or `{ inTeam }`. */
@@ -407,6 +424,19 @@ function heldHides(held: ts.Type | undefined): Hide[] {
   return held?.getProperty("kind") ? ["reads"] : [];
 }
 
+/** The mark of a call of the op an op slot holds: the slot's tag, by its label (#69). */
+export const slotMark = "slot:";
+
+/**
+ * A tag that holds an op is an op slot (ADR 0151). A call of it is `slot:<tag label>`: the
+ * graph names the slot, never a guess at the op a scope fills it with. That op may end with
+ * any fault, so `faults` has `?`.
+ */
+function slotDep(unit: Unit): Dep {
+  const slot = { made: "operation", label: `${slotMark}${unit.label}`, call: unit.call };
+  return namedDep({ ...slot, faults: [unseen] });
+}
+
 /** A dep whose unit the graph cannot name: it hides in `hides`. */
 const unnamed = (hides: Hide[]): Dep => ({ touches: new Map(), hides, named: false });
 
@@ -428,7 +458,10 @@ function namedDep(unit: Unit): Dep {
  */
 function depOf(checker: ts.TypeChecker, key: ts.Symbol, param?: ts.ParameterDeclaration): Dep {
   const unit = depUnit(checker, key.valueDeclaration);
-  if (unit?.made === "tag") return unnamed(heldHides(heldOf(checker, unit.call)));
+  if (unit?.made === "tag") {
+    const hides = heldHides(heldOf(checker, unit.call));
+    return hides.includes("calls") ? slotDep(unit) : unnamed(hides);
+  }
   const named = unit?.made === "operation" || unit?.made === "data";
   return named ? namedDep(unit) : unnamed(hidesOf(slotOf(checker, param, key.name)));
 }

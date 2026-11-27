@@ -212,7 +212,7 @@ const filed = (lines: string) => `# tinker.graph 2\n${lines}`;
 const golden = [
   "count.tick exits{value} faults{} reads{count.get,issues.list.where} writes{count.update} calls{} uses{}",
   "guard exits{refused,value} faults{} reads{issues.list.get} writes{} calls{issues.inTeam} uses{}",
-  "issue.boxed exits{value} faults{?} reads{} writes{} calls{?} uses{}",
+  "issue.boxed exits{value} faults{?} reads{} writes{} calls{slot:box} uses{}",
   "issue.boxes exits{value} faults{?} reads{} writes{} calls{?} uses{}",
   "issue.clear.do exits{cleared,kept} faults{} reads{} writes{issues.list.delete} " +
     "calls{issues.inTeam} uses{}",
@@ -405,6 +405,58 @@ test("an op labelled view keeps its one-word key in the file", { timeout: 60_000
   expect(findings(out)).toEqual([]);
   expect(code).toBe(0);
 });
+
+/** A mail capsule of the capsule skill: `send` hands a letter to the op its slot holds. */
+const mailUnits = [
+  `import { capsule, data, operation, tag, type Operation } from "@tinkered/core";`,
+  ``,
+  `const backend = tag<Operation.Handle<void, string>>({ label: "mail.backend" });`,
+  ``,
+  `const send = operation({`,
+  `  label: "mail.send",`,
+  `  depends: { backend },`,
+  `  run: ({ backend }, { input }: { input: string }) => backend.run({ input }),`,
+  `});`,
+  ``,
+  `const sent = data({ label: "mail.sent", initial: 0 });`,
+  ``,
+  `export const mail = capsule({`,
+  `  label: "mail",`,
+  `  config: { backend: backend.required },`,
+  `  exports: { send, sent },`,
+  `});`,
+].join("\n");
+
+test(
+  "an op a capsule exports is named through the capsule; an op slot is named by its tag (#69)",
+  { timeout: 60_000 },
+  () => {
+    const welcome = [
+      `import { operation } from "@tinkered/core";`,
+      ``,
+      `import { mail } from "./units";`,
+      ``,
+      `export const welcome = operation({`,
+      `  label: "mail.welcome",`,
+      `  depends: { send: mail.send, count: mail.sent.controller },`,
+      `  run: ({ send, count }) => {`,
+      `    count.set(count.get() + 1);`,
+      `    return send.run({ input: "You are in." });`,
+      `  },`,
+      `});`,
+    ].join("\n");
+    const folder = appOf({ "src/units.ts": mailUnits, "src/ops.ts": welcome });
+
+    const { code, out } = main(["graph", folder], "/");
+
+    expect(out).toBe(
+      "mail.send exits{value} faults{?} reads{} writes{} calls{slot:mail.backend} uses{}\n" +
+        "mail.welcome exits{value} faults{} reads{mail.sent.get} writes{mail.sent.set} " +
+        "calls{mail.send} uses{}\n",
+    );
+    expect(code).toBe(0);
+  },
+);
 
 test("no tinker.graph is one finding that says to write it", { timeout: 60_000 }, () => {
   const folder = appOf({ "src/ops.ts": ops });
