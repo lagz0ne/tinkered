@@ -88,7 +88,14 @@ key. The cmd names no string.
    namespace.** `mailPace.runner` is `runner`
    that runs with `ns: mailPace`'s namespace. A
    slot that holds it delivers it so (ADR 0151).
-4. **Reads take the install's export.**
+4. **The bare handle names no install.** With
+   two installs, a slot filled with
+   `throttler.runner` is refused at
+   `createScope` with `DuplicateCapsule`, and its
+   text names the fix: `mailPace.runner`. Duke,
+   2026-11-27 07:08 UTC: "shouldn't they use
+   mailPace.runner?" (Q1, option A).
+5. **Reads take the install's export.**
    `scope.resolve(mailPace.turn)` reads that
    install's bucket.
 
@@ -109,10 +116,6 @@ createScope({
 
 ## Not decided
 
-- **Q1. The bare handle with two installs.**
-  `throttler.runner` names no install. Refuse
-  it at `createScope`, or let it mean the first
-  install?
 - **Q2. A shared part inside the capsule.** A
   `target: "scope"` resource is blind to the
   namespace (ADR 0059 decision 8), so two
