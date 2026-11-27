@@ -83,7 +83,8 @@ key. The cmd names no string.
 2. **Two installs of one capsule: each owns a
    namespace.** Its config tags bind in that
    namespace. Its cells keep their state there.
-   Its hooks run there. `DuplicateCapsule` goes.
+   Its hooks run there. `DuplicateCapsule` goes:
+   two installs are allowed.
 3. **An install's export is its unit in its
    namespace.** `mailPace.runner` is `runner`
    that runs with `ns: mailPace`'s namespace. A
@@ -91,8 +92,7 @@ key. The cmd names no string.
 4. **The bare handle names no install.** With
    two installs, a slot filled with
    `throttler.runner` is refused at
-   `createScope` with `DuplicateCapsule`, and its
-   text names the fix: `mailPace.runner`. Duke,
+   `createScope` with `InstallNotNamed`. Duke,
    2026-11-27 07:08 UTC: "shouldn't they use
    mailPace.runner?" (Q1, option A).
 5. **Reads take the install's export.**
@@ -104,17 +104,38 @@ key. The cmd names no string.
    decision 8), so two installs would share it.
    When a capsule installed twice has a unit that
    depends on one, `createScope` raises
-   `DuplicateCapsule` and names the resource. The
-   fix text: `target: "namespace"`. Duke,
-   2026-11-27 08:05 UTC: "if multiple instances
-   of capsule running and having scope of the
-   same resource, do throw error" (Q2).
+   `ScopeResourceShared`. Duke, 2026-11-27
+   08:05 UTC: "if multiple instances of capsule
+   running and having scope of the same
+   resource, do throw error" (Q2).
 7. **The graph check finds the same case.**
    `tinker check` prints one finding at its graph
    stage, before any run. Duke, 08:05 UTC: "it
    should have the same issue at graph level".
-8. **`target: "scope"` stays.** Duke, 08:05 UTC:
-   "ignore that for now" (removing it).
+8. **Each error names the intent and the way
+   out**, not the rule it broke. Duke,
+   08:13 UTC: "not duplicateCapsule, but more
+   like the intention, multiple capsules
+   registering scope level resources, and way
+   out".
+
+```text
+ScopeResourceShared: smtp is installed 2 times,
+  and smtp.deliver depends on smtp.pool, a scope
+  resource. Both installs would share one pool.
+  Way out: give smtp.pool target: "namespace"
+  (one per install), or install smtp once.
+
+InstallNotNamed: throttler is installed 2 times,
+  and mail.smtp.throttle holds throttler.runner,
+  which names no install.
+  Way out: fill it from one install, as
+  mailPace.runner.
+```
+
+`tinker check` prints the first as
+`tinker/scope-shared`, with the same way out. 9. **`target: "scope"` stays.** Duke, 08:05 UTC:
+"ignore that for now" (removing it).
 
 ```ts
 const mailPace = throttler({ gapMs: 100 });
