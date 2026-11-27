@@ -1,6 +1,6 @@
 # 0172 Each install of a capsule owns its units
 
-Date: 2026-11-27. Status: proposed.
+Date: 2026-11-27. Status: accepted (Duke, 2026-11-27 08:38 UTC: "good"); not built (#73).
 Direction: Duke, 2026-11-27 06:45 UTC, option A
 ("Each install owns its units"; B: the app
 declares a second capsule; C: one throttler
@@ -73,7 +73,7 @@ cmd cannot say "this install's runner".
 Where ours is simpler: the install value is the
 key. The cmd names no string.
 
-## Decision (proposed)
+## Decision
 
 1. **An install is one capsule call.** A capsule
    installed once acts as today: its config binds
