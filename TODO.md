@@ -118,6 +118,9 @@ None. All Parked cards were removed on 2026-10-02 (user); they are kept in the a
 
 ## Done
 
+- **skills/patterns** — done 2026-11-27 (Duke: "improve our recipe", capsule patterns). Three Core sub-skills: `core/resilience` (a throttler capsule fills the backend's op slot, Duke 06:34: `smtpMail({ throttle: throttler.runner })`; retry, breaker, bulkhead), `core/messaging` (queue with a start-hook pump and dead letter, listeners list slot, wire tap run hook), `core/server` (serve + routes tables + guards list slots). `tinker skill list` shows them.
+  Proof: each pattern runs in the lab (project files `tinkered/patterns/lab`, main 1ce6491): `tinker check: OK`, 9 test files, 22 ops; each plain fence typechecks, lints and runs there; `vp run skills` and `vp run prose` green. Gaps 1-3 went to the issue desk.
+
 - **cli/graph-format-line** — done 2026-11-27 (GitHub #68, from the easel read; no decision needed, option A of the issue). `tinker graph --write` writes `# tinker.graph 2` first; a file of another format (none is 1) is one `tinker/graph` finding that says to run `--write`, not one per line. ADR 0161 point 12. Released as 0.34.13.
   Proof: `graph.test.ts` "a tinker.graph an older CLI wrote is one finding" red on main (5 shown of many), green after; cli graph + exits tests 33 green; apps/site graph rewritten, its check OK.
 
