@@ -15,7 +15,7 @@ metadata:
     binding only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.16'
+  library_version: '0.34.17'
 requires:
   - core
 sources:
@@ -207,6 +207,67 @@ await live.close();
   first, then the input.
 - The graph names the slot:
   `calls{slot:mail.backend}`.
+
+### A foreign callback lives in a capsule
+
+A `MessagePort`, a `ResizeObserver` or a process
+hook calls your code outside any run. Put the
+listener in the capsule's `start` hook, written
+in place. It enters a run with the hook's `run`.
+
+```ts
+import { capsule, data, operation, tag } from "@tinkered/core";
+
+// src/kit/port-link.ts
+const port = tag<MessagePort>({ label: "port.port" });
+
+const got = data<unknown[]>({
+  label: "port.got",
+  initial: [],
+});
+
+const take = operation({
+  label: "port.take",
+  depends: { got: got.controller },
+  run: ({ got }, { input }: { input: unknown }) => {
+    got.update((list) => [...list, input]);
+  },
+});
+
+export const portLink = capsule({
+  label: "port",
+  config: { port: port.required },
+  exports: { got, take },
+  hooks: {
+    async start({ next, run, config, closing }) {
+      config.port.addEventListener(
+        "message",
+        (event) =>
+          void run(
+            take,
+            { input: event.data },
+            { role: "handler", explain: "One message" },
+          ),
+        { signal: closing },
+      );
+      config.port.start();
+      await next();
+    },
+  },
+});
+```
+
+- Each message is one run of `take`: a span, and
+  its deps come through the graph.
+- `closing` takes the listener off when the scope
+  closes.
+- A library's plugin, such as `setup` in
+  `Bun.build({ plugins: [...] })`, is written in
+  place in the call, inside an operation.
+- Code that runs before any scope, such as a
+  frame's script, gets its own cmd: it makes the
+  scope, and a capsule's `start` hook does the
+  work.
 
 ## Common mistakes
 

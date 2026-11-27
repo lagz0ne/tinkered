@@ -342,12 +342,25 @@ function graphOption(file: File, fn: Fn) {
   return hookNames.has(nameOf(fn) ?? "") && isHooks(file, object);
 }
 
-/** Inside the options of a library call, at any depth. Core calls are graph options instead. */
+/** The list an object is an item of, written in place, or the object itself. */
+function listOf(node: ts.Node) {
+  const item = outer(node).parent;
+  return ts.isArrayLiteralExpression(item) ? item : node;
+}
+
+/**
+ * Inside the options of a library call, at any depth, through a list written in place too
+ * (`Bun.build({ plugins: [{ setup }] })`, #70). Core calls are graph options instead.
+ */
 function nativeOption(file: File, fn: Fn) {
   let node: ts.Node | undefined = memberOf(fn);
   while (node && ts.isObjectLiteralExpression(node)) {
-    const holder = outer(node).parent;
-    if (!ts.isPropertyAssignment(holder)) break;
+    const at = listOf(node);
+    const holder = outer(at).parent;
+    if (!ts.isPropertyAssignment(holder)) {
+      node = at;
+      break;
+    }
     node = holder.parent;
   }
 
@@ -785,7 +798,8 @@ function inObject(node: ts.Node) {
   while (ts.isPropertyAssignment(at.parent) && ts.isObjectLiteralExpression(at.parent.parent)) {
     at = at.parent.parent;
   }
-  return !ts.isCallExpression(at.parent) && !ts.isNewExpression(at.parent);
+  const holder = outer(listOf(at)).parent;
+  return !ts.isCallExpression(holder) && !ts.isNewExpression(holder);
 }
 
 /**

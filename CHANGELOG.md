@@ -9,6 +9,23 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.17
+
+A foreign callback lives in a capsule (#70,
+Duke's comment).
+
+- `@tinkered/core` capsule skill: the pattern
+  "A foreign callback lives in a capsule". A
+  `MessagePort` listener is written in place in
+  the `start` hook and enters a run with the
+  hook's `run`; `closing` takes it off.
+- `@tinkered/cli`: `tinker/plain` passes a
+  function in a list written in place in a
+  library call's options:
+  `Bun.build({ plugins: [{ setup() {} }] })`.
+  Before, only objects counted. A named plugin
+  in the list still fails.
+
 ## 0.34.16
 
 An adapter is a backend capsule in an op slot

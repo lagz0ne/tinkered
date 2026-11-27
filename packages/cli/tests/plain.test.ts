@@ -306,6 +306,28 @@ test("Bun.serve's fetch and error pass", () => {
   expect(result.hits).toBe("");
 });
 
+test("a plugin in a list in Bun.build's options passes; a named one in a list does not (#70)", () => {
+  const result = checkFiles({
+    "src/build.server.ts": [
+      `export const inline = () =>`,
+      `  Bun.build({`,
+      `    entrypoints: ["cmds/host.ts"],`,
+      `    plugins: [{ name: "embed", setup(build) { build.onLoad({ filter: /x/ }, () => ({ contents: "" })); } }],`,
+      `  });`,
+      ``,
+      `const embed = { name: "embed", setup() {} };`,
+      ``,
+      `export const named = () => Bun.build({ entrypoints: [], plugins: [embed] });`,
+    ].join("\n"),
+  });
+
+  expect(result.hits.split("\n")).toEqual([
+    hit("src/build.server.ts", 1),
+    `src/build.server.ts:7 tinker/plain ${inObject}`,
+    hit("src/build.server.ts", 9),
+  ]);
+});
+
 test("a React component passes", () => {
   const result = checkFiles({
     "src/page.tsx": `export function Greeting({ name }: { name: string }) {\n  return <p>{name}</p>;\n}\n`,
