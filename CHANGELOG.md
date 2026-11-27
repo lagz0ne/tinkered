@@ -9,6 +9,20 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.18
+
+`@tinkered/cli`: a loop over a list slot names
+the slot (#71).
+
+- A use of an op slot dep that the graph cannot
+  follow, such as `for (const each of on)` over
+  `listener.all`, gives `calls{slot:signup.on}`,
+  not `calls{?}`. The dep can run only the
+  slot's ops. `faults` keeps `?`.
+- `@tinkered/core` capsule skill: a run with a
+  `signal` writes its own session; use
+  `cell.atScope.controller` to write the root.
+
 ## 0.34.17
 
 A foreign callback lives in a capsule (#70,

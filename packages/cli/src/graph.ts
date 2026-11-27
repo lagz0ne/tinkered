@@ -373,9 +373,16 @@ type Touch = { set: Hide; fact: string; faults: string[] };
 /**
  * A dep as `run` sees it: what each call the graph knows on it adds, and the sets a use the
  * graph cannot follow may hide facts in. `named` is false for a dep whose unit the graph cannot
- * name: it may hold anything. `value` is the read a bare cell makes on each run.
+ * name: it may hold anything. `value` is the read a bare cell makes on each run. `hidden` is the
+ * fact a use the graph cannot follow adds in place of `?`: an op slot can only run its ops.
  */
-type Dep = { touches: Map<string, Touch>; hides: Hide[]; named: boolean; value?: string };
+type Dep = {
+  touches: Map<string, Touch>;
+  hides: Hide[];
+  named: boolean;
+  value?: string;
+  hidden?: string;
+};
 
 const allSets: Hide[] = ["reads", "writes", "calls"];
 
@@ -430,11 +437,13 @@ export const slotMark = "slot:";
 /**
  * A tag that holds an op is an op slot (ADR 0151). A call of it is `slot:<tag label>`: the
  * graph names the slot, never a guess at the op a scope fills it with. That op may end with
- * any fault, so `faults` has `?`.
+ * any fault, so `faults` has `?`. A use the graph cannot follow, such as a loop over a list
+ * slot (`tag.all`), still runs only the slot's ops: it names the slot too (#71).
  */
 function slotDep(unit: Unit): Dep {
-  const slot = { made: "operation", label: `${slotMark}${unit.label}`, call: unit.call };
-  return namedDep({ ...slot, faults: [unseen] });
+  const label = `${slotMark}${unit.label}`;
+  const slot = { made: "operation", label, call: unit.call };
+  return { ...namedDep({ ...slot, faults: [unseen] }), hidden: label };
 }
 
 /** A dep whose unit the graph cannot name: it hides in `hides`. */
@@ -551,8 +560,9 @@ class Reader {
     return this.facts;
   }
 
-  private hide({ hides }: Dep) {
-    for (const set of hides) this.facts[set].add(unseen);
+  private hide({ hides, hidden }: Dep) {
+    for (const set of hides) this.facts[set].add(hidden ?? unseen);
+    if (hidden) this.facts.faults.add(unseen);
   }
 
   /** Bind each name a destructure of the deps gives. */

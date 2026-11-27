@@ -13,7 +13,7 @@ metadata:
     cell read only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.17'
+  library_version: '0.34.18'
 requires:
   - core
 sources:

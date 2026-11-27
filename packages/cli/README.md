@@ -140,6 +140,9 @@ members.invite exits{already,invited} faults{}
   The graph does not follow the fill in a cmd: a
   test scope can fill it with another op. The op
   may end with any fault, so `faults` gets `?`.
+  A use the graph cannot follow, such as a loop
+  over a list slot (`tag.all`), names the slot
+  too: the dep can run only the slot's ops (#71).
 - A member is named only when the capsule's
   `label` is a string and its `exports` object
   is written in the `capsule` call.

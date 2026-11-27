@@ -213,13 +213,13 @@ const golden = [
   "count.tick exits{value} faults{} reads{count.get,issues.list.where} writes{count.update} calls{} uses{}",
   "guard exits{refused,value} faults{} reads{issues.list.get} writes{} calls{issues.inTeam} uses{}",
   "issue.boxed exits{value} faults{?} reads{} writes{} calls{slot:box} uses{}",
-  "issue.boxes exits{value} faults{?} reads{} writes{} calls{?} uses{}",
+  "issue.boxes exits{value} faults{?} reads{} writes{} calls{slot:box} uses{}",
   "issue.clear.do exits{cleared,kept} faults{} reads{} writes{issues.list.delete} " +
     "calls{issues.inTeam} uses{}",
   "issue.hand exits{value} faults{} reads{?} writes{?} calls{issues.inTeam} uses{}",
   "issue.late exits{value} faults{} reads{issues.list.get} writes{} calls{} uses{}",
   looked,
-  "issue.maybe exits{value} faults{?} reads{} writes{} calls{?} uses{}",
+  "issue.maybe exits{value} faults{?} reads{} writes{} calls{slot:box} uses{}",
   "issue.move.again exits{gone,moved,stale} faults{?} reads{?} writes{?} calls{?} uses{}",
   `issue.move.do ${moved}`,
   `issue.move.shared ${moved}`,
@@ -457,6 +457,30 @@ test(
     expect(code).toBe(0);
   },
 );
+
+test("a loop over a list slot names the slot, not `?` (#71)", { timeout: 60_000 }, () => {
+  const units = [
+    `import { operation, tag, type Operation } from "@tinkered/core";`,
+    ``,
+    `const listener = tag<Operation.Handle<unknown, string>>({ label: "signup.on" });`,
+    ``,
+    `export const join = operation({`,
+    `  label: "signup.join",`,
+    `  depends: { on: listener.all },`,
+    `  run: async ({ on }, { input }: { input: string }) => {`,
+    `    for (const each of on) await each.run({ input });`,
+    `  },`,
+    `});`,
+  ].join("\n");
+  const folder = appOf({ "src/units.ts": units, "src/ops.ts": "export {};\n" });
+
+  const { code, out } = main(["graph", folder], "/");
+
+  expect(out).toBe(
+    "signup.join exits{value} faults{?} reads{} writes{} calls{slot:signup.on} uses{}\n",
+  );
+  expect(code).toBe(0);
+});
 
 test("no tinker.graph is one finding that says to write it", { timeout: 60_000 }, () => {
   const folder = appOf({ "src/ops.ts": ops });

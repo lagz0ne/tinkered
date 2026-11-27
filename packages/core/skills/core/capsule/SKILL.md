@@ -15,7 +15,7 @@ metadata:
     binding only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.17'
+  library_version: '0.34.18'
 requires:
   - core
 sources:
@@ -261,6 +261,12 @@ export const portLink = capsule({
   its deps come through the graph.
 - `closing` takes the listener off when the scope
   closes.
+- A run with a `signal`, such as
+  `run(pump, { signal: closing }, note)`, opens a
+  child session (ADR 0090). A `cell.controller`
+  write lands in that session, and the root never
+  sees it. Depend on `cell.atScope.controller` to
+  write the root (ADR 0126).
 - A library's plugin, such as `setup` in
   `Bun.build({ plugins: [...] })`, is written in
   place in the call, inside an operation.

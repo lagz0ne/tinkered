@@ -114,7 +114,9 @@ The known models:
     code. The graph does not follow the fill in
     a cmd, since a test scope fills it with
     another op. A graph rule cannot prove a
-    `slot:` call, as with `?`.
+    `slot:` call, as with `?`. A use of a slot
+    dep the graph cannot follow, such as a loop
+    over `tag.all`, names the slot too (#71).
 
 ## Amended 2026-11-17: facts only, one line per op
 
