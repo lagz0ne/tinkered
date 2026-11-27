@@ -351,6 +351,24 @@ test("a write the file does not list is one finding at the operation", { timeout
 });
 
 test(
+  "a line that lacks one part is one finding for that part, not for each later part (#68)",
+  { timeout: 60_000 },
+  () => {
+    const lacking = moved.replace("faults{} ", "");
+    const file = golden.replace(`issue.move.do ${moved}`, `issue.move.do ${lacking} extra{x}`);
+    const folder = appOf({ "src/ops.ts": ops, "tinker.graph": filed(file) });
+
+    const { code, out } = main(["check", folder], "/");
+
+    expect(code).toBe(1);
+    expect(findings(out)).toEqual([
+      "src/ops.ts:7 tinker/graph issue.move.do: faults{}, tinker.graph says nothing; " +
+        "no extra, tinker.graph says extra{x}",
+    ]);
+  },
+);
+
+test(
   "an operation the file lacks and a line the code lacks are findings",
   { timeout: 60_000 },
   () => {

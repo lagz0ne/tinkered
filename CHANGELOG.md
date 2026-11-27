@@ -9,6 +9,18 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.14
+
+`@tinkered/cli`: the graph check compares
+parts by name (#68).
+
+- A line that lacks a part, or has one more,
+  is one difference for that part. Before, a
+  missing part shifted each later part, so the
+  check named each of them.
+- A part only the file has reads
+  `no <name>, tinker.graph says <part>`.
+
 ## 0.34.13
 
 `@tinkered/cli`: `tinker.graph` names its format;

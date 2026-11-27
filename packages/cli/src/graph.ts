@@ -775,12 +775,22 @@ function linesIn(text: string) {
   return lines;
 }
 
-/** What a code line says that the file's line does not: each part that differs. */
+/** A part's name: the word before its `{`, so `faults{}` is `faults`. */
+const nameOf = (part: string) => part.split("{")[0];
+
+/**
+ * What a code line says that the file's line does not, part by part name (#68): a missing
+ * part is one difference, and it does not shift the parts after it.
+ */
 function changed(code: string[], file: string[]) {
-  return code.flatMap((part, index) => {
-    const said = file[index] ?? "nothing";
-    return part === said ? [] : [`${part}, ${graphFile} says ${said}`];
+  const said = new Map(file.map((part) => [nameOf(part), part]));
+  const differ = code.flatMap((part) => {
+    const filed = said.get(nameOf(part)) ?? "nothing";
+    said.delete(nameOf(part));
+    return part === filed ? [] : [`${part}, ${graphFile} says ${filed}`];
   });
+  const extra = [...said].map(([name, part]) => `no ${name}, ${graphFile} says ${part}`);
+  return [...differ, ...extra];
 }
 
 /**
