@@ -40,6 +40,13 @@ the task crosses two of them.
   [rpc](./rpc/SKILL.md)
 - A test of any unit:
   [testing](./testing/SKILL.md)
+- A throttle, retry, breaker or bulkhead in
+  front of a third party:
+  [resilience](./resilience/SKILL.md)
+- A queue, an outbox, listeners, a wire tap:
+  [messaging](./messaging/SKILL.md)
+- A server, its routes and middleware:
+  [server](./server/SKILL.md)
 
 ## Setup
 
