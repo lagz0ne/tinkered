@@ -9,6 +9,24 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.16
+
+An adapter is a backend capsule in an op slot
+(#67, Duke's pick).
+
+- `@tinkered/core` capsule skill: the pattern
+  "An adapter is a backend capsule in an op
+  slot", with a mail example. A backend
+  capsule's operation fills the app capsule's
+  slot: `mail({ backend: queuedMail.deliver })`.
+- New common mistake: an adapter as
+  `{ key: fn }` in a tag.
+- `@tinkered/cli`: `tinker/plain` says
+  "a plain function in an object, `{ key: fn }`"
+  for a function in an object value (not in a
+  call's options). Its fix is that section.
+- `tinker/plain` stays as strict as before.
+
 ## 0.34.15
 
 `@tinkered/cli`: the graph names a call through

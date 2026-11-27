@@ -44,6 +44,9 @@ function checkFiles(files: Record<string, string>) {
 
 const hit = (path: string, line: number) => `${path}:${line} tinker/plain a plain function`;
 
+/** What a plain function in an object says: the skill section for an adapter names it. */
+const inObject = "a plain function in an object, `{ key: fn }`";
+
 test("a plain helper fails", () => {
   const result = checkFiles({
     "src/api/greet.ts": `export function shout(s: string) {\n  return s + "!";\n}\n`,
@@ -62,6 +65,22 @@ test("an IIFE and an object of helpers fail", () => {
 
   expect(result.hits).toContain(hit("src/a.ts", 1));
   expect(result.hits).toContain(hit("src/b.ts", 2));
+});
+
+test("a function in an object names the object, so its fix is the adapter pattern (#67)", () => {
+  const result = checkFiles({
+    "src/mail.ts": [
+      `import { tag } from "@tinkered/core";`,
+      ``,
+      `type Mailer = { send: (to: string) => Promise<void> };`,
+      ``,
+      `export const mailer = tag<Mailer>({ label: "mail.mailer" });`,
+      ``,
+      `export const smtp: Mailer = { send: async (to) => void to };`,
+    ].join("\n"),
+  });
+
+  expect(result.hits).toBe(`src/mail.ts:7 tinker/plain ${inObject}`);
 });
 
 test("an operation passes, with its inline callbacks", () => {

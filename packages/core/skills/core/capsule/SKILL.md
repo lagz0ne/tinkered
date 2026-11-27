@@ -6,6 +6,8 @@ description: >
   import it from other code. Also when start
   fails with MissingConfig, or a check prints
   tinker/seam, tinker/config or tinker/barrel.
+  Also when you add an adapter: a mailer, a
+  provider client, a store.
 metadata:
   purpose: >
     How to write a capsule, fill its config in
@@ -13,7 +15,7 @@ metadata:
     binding only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.15'
+  library_version: '0.34.16'
 requires:
   - core
 sources:
@@ -112,6 +114,100 @@ export default defineMain(async ({ env, signal }) => {
   function builds it.
 - A feature never reads `process.env`.
 
+### An adapter is a backend capsule in an op slot
+
+A mailer, a provider client or a store is an
+adapter. The app's capsule declares a slot: a tag
+that holds an operation (ADR 0151). A backend
+capsule gives the operation, and the cmd fills
+the slot with it.
+
+```ts
+import {
+  capsule,
+  createScope,
+  data,
+  operation,
+  tag,
+  type Operation,
+} from "@tinkered/core";
+import { z } from "zod";
+
+// src/mail/index.ts
+const letter = z.object({
+  to: z.string(),
+  body: z.string(),
+});
+type Letter = z.infer<typeof letter>;
+
+// The slot. Handle<Out, In>: no answer, a letter.
+const backend = tag<Operation.Handle<void, Letter>>({
+  label: "mail.backend",
+});
+
+const send = operation({
+  label: "mail.send",
+  input: letter,
+  depends: { backend },
+  run: ({ backend }, { input }) =>
+    backend.run({ input }),
+});
+
+export const mail = capsule({
+  label: "mail",
+  config: { backend: backend.required },
+  exports: { send },
+});
+
+// src/mail/memory.server.ts
+const sent = data<Letter[]>({
+  label: "mail.memory.sent",
+  initial: [],
+});
+
+const deliver = operation({
+  label: "mail.memory.deliver",
+  input: letter,
+  depends: { sent: sent.controller },
+  run: ({ sent }, { input }) => {
+    sent.update((list) => [...list, input]);
+  },
+});
+
+export const memoryMail = capsule({
+  label: "mail.memory",
+  exports: { sent, deliver },
+});
+
+// cmds/server.ts
+const app = createScope({
+  capsules: [
+    memoryMail(),
+    mail({ backend: memoryMail.deliver }),
+  ],
+});
+const live = await app.ready;
+await live.run(mail.send, {
+  input: { to: "ana@x.io", body: "Hi" },
+});
+live.resolve(memoryMail.sent).get();
+await live.close();
+```
+
+- A feature depends on `mail.send`. It never
+  sees which backend runs.
+- The backend's operation has its own
+  `depends`: a queue, an identity, a client. Its
+  capsule's `start` hook can check them.
+- A real backend and the memory one fill the same
+  slot: `mail({ backend: queuedMail.deliver })`
+  in the server cmd, `memoryMail.deliver` in a
+  test.
+- `Operation.Handle<Out, In>` names the answer
+  first, then the input.
+- The graph names the slot:
+  `calls{slot:mail.backend}`.
+
 ## Common mistakes
 
 ### HIGH: root tags fill a capsule key [tinker/config]
@@ -165,6 +261,31 @@ A file exports only what it declares.
 
 Check: `tinker check` prints each re-export and
 its line.
+
+### HIGH: an adapter as `{ key: fn }` in a tag [tinker/plain]
+
+A tag that holds an object of functions hides
+each call. The functions have no span and no
+deps, and the graph shows `calls{?}`.
+
+Wrong:
+
+```ts no-check
+const mailer = tag<{
+  send: (letter: Letter) => Promise<void>;
+}>({ label: "mail.mailer" });
+
+mail({ mailer: { send: async (l) => post(l) } });
+```
+
+Right: make the adapter a backend capsule, and
+fill the app capsule's op slot with its
+operation: `mail({ backend: queuedMail.deliver })`.
+See "An adapter is a backend capsule in an op
+slot".
+
+Check: `tinker check` prints each function in the
+object.
 
 ### MEDIUM: a function that makes units
 

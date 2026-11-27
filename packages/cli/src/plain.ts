@@ -772,6 +772,28 @@ function readFile(pass: Pass, path: string, text: string): File {
   return file;
 }
 
+/**
+ * A function that is a value of an object literal, `{ send: async () => … }` or a method, where
+ * the object is a value of its own: not the options of a call, at any depth.
+ */
+function inObject(node: ts.Node) {
+  const { parent } = node;
+  let at = ts.isPropertyAssignment(parent) ? parent.parent : parent;
+  if (!ts.isObjectLiteralExpression(at)) return false;
+  if (at === parent && !ts.isMethodDeclaration(node)) return false;
+
+  while (ts.isPropertyAssignment(at.parent) && ts.isObjectLiteralExpression(at.parent.parent)) {
+    at = at.parent.parent;
+  }
+  return !ts.isCallExpression(at.parent) && !ts.isNewExpression(at.parent);
+}
+
+/**
+ * The finding names a function in an object, so its fix is the adapter section of the capsule
+ * skill: an adapter is a backend capsule whose operation fills an op slot (#67).
+ */
+const objectWhat = "a plain function in an object, `{ key: fn }`";
+
 function check(file: File): Check.Finding[] {
   const hits: Check.Finding[] = [];
   walk(file.source, (node) => {
@@ -780,7 +802,7 @@ function check(file: File): Check.Finding[] {
       path: file.path,
       line: lineOf(file, node),
       rule: "tinker/plain",
-      what: "a plain function",
+      what: inObject(node) ? objectWhat : "a plain function",
     });
   });
   return hits;
