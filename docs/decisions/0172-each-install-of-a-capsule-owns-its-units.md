@@ -98,6 +98,23 @@ key. The cmd names no string.
 5. **Reads take the install's export.**
    `scope.resolve(mailPace.turn)` reads that
    install's bucket.
+6. **Two installs and a `target: "scope"`
+   resource refuse to start.** A scope-target
+   resource is blind to the namespace (ADR 0059
+   decision 8), so two installs would share it.
+   When a capsule installed twice has a unit that
+   depends on one, `createScope` raises
+   `DuplicateCapsule` and names the resource. The
+   fix text: `target: "namespace"`. Duke,
+   2026-11-27 08:05 UTC: "if multiple instances
+   of capsule running and having scope of the
+   same resource, do throw error" (Q2).
+7. **The graph check finds the same case.**
+   `tinker check` prints one finding at its graph
+   stage, before any run. Duke, 08:05 UTC: "it
+   should have the same issue at graph level".
+8. **`target: "scope"` stays.** Duke, 08:05 UTC:
+   "ignore that for now" (removing it).
 
 ```ts
 const mailPace = throttler({ gapMs: 100 });
@@ -116,10 +133,6 @@ createScope({
 
 ## Not decided
 
-- **Q2. A shared part inside the capsule.** A
-  `target: "scope"` resource is blind to the
-  namespace (ADR 0059 decision 8), so two
-  installs share it (one HTTP pool). Keep that?
 - **Q3. The graph.** One line per op, as today,
   or one per install?
 
