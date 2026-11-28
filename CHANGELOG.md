@@ -32,6 +32,26 @@ writes of each exit with a committed file,
   `tinker.graph` and `tinker.effects`, once the
   tests pass. A plain check never writes.
 
+`@tinkered/cli`: a new command, `tinker pins`,
+names each graph fact that no test pins
+(ADR 0173).
+
+- The command:
+  `tinker pins [root] [--since <ref>] [--json]`.
+- It puts in one mutant at a time: a fault put
+  in on purpose, at a fact the graph states. It runs only the test files
+  that reached that fact.
+- A green run leaves the mutant live.
+- It prints facts. It never fails a check: it
+  exits 0 when it ran, with live mutants or none.
+- It exits 1 only when it cannot run.
+- It sees only a test whose scope lists the
+  `exits` capsule. Another scope gets no trace
+  and no fault.
+- `--since <ref>` keeps the ops whose lines
+  changed since `<ref>`.
+- `--json` prints the same facts as one object.
+
 `@tinkered/core`: the testing skill teaches the
 `tinker/effect` rule. Do not delete an assert and
 write the file again to make a finding go away.
