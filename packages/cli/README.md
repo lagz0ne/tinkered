@@ -21,6 +21,7 @@ GitHub release; the
 ```text
 tinker check [root] [--json]
 tinker graph [root] [--write]
+tinker pins [root] [--since <ref>] [--json]
 tinker skill list
 tinker skill load <skill>
 ```
@@ -494,6 +495,82 @@ afterAll(async () => {
 - The check reads the label of an operation as
   a literal, and the return type of its `run`.
 - A thrown error is not an exit.
+
+## The pins
+
+`tinker pins` names each graph fact that no
+test pins (ADR 0173). A test pins a fact when
+it fails once the fact breaks.
+
+```text
+tinker pins [root] [--since <ref>] [--json]
+```
+
+It gives facts. It is never a gate: it exits 0
+when it ran, with live mutants or none.
+
+How it runs:
+
+1. It runs each test file alone, with a trace.
+   The `exits` capsule writes each exit, write
+   and call that the run reached.
+2. It puts in one mutant at a time: a fault put
+   in on purpose, at a fact that the graph states
+   and a test reached.
+3. It runs only the test files that reached that
+   fact. A red run or a timeout (120 s) kills the
+   mutant. A green run leaves it live.
+
+The test files: each `*.test.{ts,tsx,mts,mjs}`
+file of the app, outside `node_modules`.
+
+The mutant kinds:
+
+- **swap:** where the op answered one exit, it
+  answers another exit it declares. Never
+  `refused`.
+- **empty:** the answer keeps its `kind`. Each
+  other field gets its empty twin: `0`, `""`,
+  `[]`, a flipped boolean, or `null`.
+- **drop:** a write of a cell in the op's
+  `writes{}` is lost.
+- **fail:** a call of an op in its `calls{}`
+  throws.
+
+Each live mutant prints two lines. A last line
+counts:
+
+```text
+src/throttle/dispatch.server.ts:17
+dispatch.sendOne swap sent->idle lives
+  reached by: tests/dispatch.test.ts
+pins: 16 mutants, 7 live, 2 test files
+```
+
+A live mutant is one of two things. You judge
+which:
+
+- **dead API:** no caller reads the fact.
+  Remove it.
+- **a missing check:** a caller needs the fact,
+  and no test says so. Add the check.
+
+A test that checks an op's answers kills its
+swaps. A test that reads a cell kills the drop
+of its write.
+
+- `--since <ref>` keeps the ops whose
+  `operation({…})` lines changed since `<ref>`,
+  the working tree included. With no op changed,
+  it puts in no mutant.
+- `--json` prints the same facts as one object.
+- It exits 1 when it cannot run. An app with no
+  `tests` command in `tinker.json` has nothing
+  to pin.
+- A test file that fails with no mutant in stops
+  the run. It prints that file's output.
+- A write or a call that the graph does not
+  state gets no mutant: a hook's, say (#72).
 
 ## Where the fix comes from
 

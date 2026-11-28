@@ -2,6 +2,9 @@
   "name": "@tinkered/cli",
   "version": "0.34.22",
   "description": "The tinker command: one check that corrects the writer (types, then rules, each finding with its fix from the skill), and the skills.",
+  "keywords": [
+    "tanstack-intent"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,7 +17,8 @@
   "files": [
     "dist",
     "lint",
-    "base"
+    "base",
+    "skills"
   ],
   "type": "module",
   "sideEffects": false,
