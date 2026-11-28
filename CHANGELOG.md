@@ -9,6 +9,19 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.20
+
+`@tinkered/cli`: a `kind: string` data field
+reaches the plain return (#74).
+
+- The `exits` capsule writes the `kind` of a
+  run's answer. When an op answers data with a
+  `kind: string` field, that kind is not an exit
+  the op declares. The gate now counts such a
+  line as the op's `value` exit.
+- A kind the op declares still needs its own
+  test: an undeclared kind never reaches it.
+
 ## 0.34.19
 
 `@tinkered/core`: three skills of known

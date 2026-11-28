@@ -195,12 +195,24 @@ const said: Readonly<Record<string, string>> = {
   [plain]: "returns",
 };
 
+/**
+ * The plain returns a run reached by its data: a run writes its answer's `kind`, and a
+ * `kind: string` field is data, not an exit the op declares. Such a line reaches `value` (#74).
+ */
+function plainByData(reached: ReadonlySet<string>, declared: readonly Exits.Exit[]) {
+  const kinds = new Set(declared.map(({ label, exit }) => `${label}\t${exit}`));
+  const labels = [...reached].filter((line) => !kinds.has(line)).map((line) => line.split("\t")[0]);
+  return new Set(labels.map((label) => `${label}\t${plain}`));
+}
+
 /** A finding for each exit in `declared` that no test reached. */
 export function unreached(root: string, file: string, declared: Exits.Exit[]): Tools.Found[] {
   const reached = reachedIn(root, file);
+  const byData = plainByData(reached, declared);
 
   return declared
     .filter(({ label, exit }) => !reached.has(`${label}\t${exit}`))
+    .filter(({ label, exit }) => !byData.has(`${label}\t${exit}`))
     .map(({ path, line, label, exit }) => ({
       path,
       line,

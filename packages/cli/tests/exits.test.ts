@@ -116,6 +116,35 @@ test("a refusal and a plain return are exits too", { timeout: 60_000 }, () => {
   ]);
 });
 
+test(
+  "a run whose answer has a `kind` the op does not declare reaches its plain return (#74)",
+  { timeout: 60_000 },
+  () => {
+    const memo = all.filter((line) => line !== "guard\tvalue").concat("guard\tmemo");
+    const folder = appOf(memo);
+
+    const { code, out } = main(["check", folder], "/");
+
+    expect(findings(out)).toEqual([]);
+    expect(code).toBe(0);
+  },
+);
+
+test(
+  "an undeclared kind does not reach an answer kind the op declares (#74)",
+  { timeout: 60_000 },
+  () => {
+    const other = all.filter((line) => line !== "move.do\tgone").concat("move.do\tother");
+    const folder = appOf(other);
+
+    const { out } = main(["check", folder], "/");
+
+    expect(findings(out)).toEqual([
+      "src/ops.ts:3 tinker/exit `move.do` answers `gone`, and no test reaches it",
+    ]);
+  },
+);
+
 test("the finding prints the fix its skill teaches", { timeout: 60_000 }, () => {
   const folder = appOf([]);
 
