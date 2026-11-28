@@ -79,6 +79,8 @@ The golden app of chain step ck12, 0.34.19:
 
 - 77 lines. Two full runs gave the same file.
 - 12 lines hold more than one write set.
+- The build drops test cells (point 6): 94
+  lines, 10 exits with more than one set.
 - The case above changes one line:
 
   ```text
@@ -107,6 +109,11 @@ The golden app of chain step ck12, 0.34.19:
    makes it, or an operation it runs makes it.
    So the line says what the caller's call
    changed.
+   A capsule hook that runs inside the run
+   counts too. A scope lists `exits` first,
+   so each later capsule's hooks are inside.
+   A write after the run's exit (a timer it
+   started) is in no line.
 4. A cell is named by its label, with no verb.
    The cells of a line are sorted.
 5. An exit with two write sets has two lines.
@@ -122,8 +129,10 @@ The golden app of chain step ck12, 0.34.19:
    each run, its exit and the cells written
    inside it. No new export.
 8. `tinker check` compares after the `exits`
-   stage. Each line that differs is one
-   finding, in both directions:
+   stage. Each operation and exit whose write
+   sets differ is one finding. It names each
+   set the runs gave, or `no run`, and each
+   set the file has, or `file has no line`.
 
    ```text
    src/issues/ops.server.ts:204 tinker/effect
@@ -138,7 +147,10 @@ The golden app of chain step ck12, 0.34.19:
    file again and let the diff be reviewed;
    if not, fix the code.
 10. No file is one finding that says how to
-    write it, as ADR 0161 point 9.
+    write it, as ADR 0161 point 9, when the
+    runs gave a line. With no file and no line
+    there is nothing to compare: no finding
+    (points 11, 13).
 11. A scope that does not list `exits` gives
     no line, as ADR 0173 point 7.
 12. A write is tied to its run as `tinker pins`
@@ -162,10 +174,13 @@ The golden app of chain step ck12, 0.34.19:
     - At the graph stage it writes
       `tinker.graph` and does not compare it.
       The graph rules still run.
-    - After the `exits` stage it writes
-      `tinker.effects` and does not compare it.
-    - It writes `tinker.effects` only when the
-      tests passed. A failed run is not a fact.
+    - Once the tests pass it writes
+      `tinker.effects` and does not compare it,
+      even when the `exits` stage then has
+      findings.
+    - When a test fails it does not write
+      `tinker.effects`. A failed run is not a
+      fact.
     - Each other finding prints as before.
     - `tinker graph --write` stays as it is:
       it reads code only and runs no test.
