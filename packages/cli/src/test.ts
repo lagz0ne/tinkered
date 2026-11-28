@@ -261,7 +261,7 @@ export const exits = capsule({
       ? (event) => {
           const run = placeOf().getStore();
           const cell = event.cell.label;
-          note(pins?.trace, `write\t${run?.label ?? "-"}\t${cell}`);
+          if (pins?.trace) note(pins.trace, `write\t${run?.label ?? "-"}\t${cell}`);
           if (dropped(run?.label, cell)) return;
 
           count(run, cell);
