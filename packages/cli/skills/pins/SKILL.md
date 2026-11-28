@@ -10,7 +10,7 @@ metadata:
     is a graph fact that no test pins.
   type: core
   library: '@tinkered/cli'
-  library_version: '0.34.20'
+  library_version: '0.34.21'
 requires:
   - '@tinkered/core#core/testing'
 sources:
