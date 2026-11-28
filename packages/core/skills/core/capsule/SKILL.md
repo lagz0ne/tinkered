@@ -15,7 +15,7 @@ metadata:
     binding only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.35.1'
+  library_version: '0.35.2'
 requires:
   - core
 sources:
@@ -377,6 +377,29 @@ Right: keep the install in a const and reach
 through it: `live.run(tide.press, ...)`. A
 feature that needs another one's op takes it in a
 slot: `welcome({ send: mailer.send })`.
+
+### HIGH: a `watch` outside a unit [tinker/loose-watch]
+
+A `watch` outside an operation, a resource or a
+capsule has no owner. No scope ends it. No trace
+or graph shows it.
+
+Wrong:
+
+```ts no-check
+const view = scope.resolve(total);
+view.watch(() => port.postMessage(view.get()));
+```
+
+Right: put the watch where a unit owns it: a
+capsule's `start` hook, or a resource factory
+that `defer`s the stop. See "A foreign callback
+lives in a capsule". For a remote part, read
+"Hold a remote part before the page reads it" in
+the data skill.
+
+Check: `tinker check` prints each watch and its
+line.
 
 ### MEDIUM: a function that makes units
 

@@ -216,19 +216,20 @@ function afterRules(
 }
 
 /**
- * The graph stage's findings: the code's graph against `tinker.graph`, and the app's graph
- * rules. `write` writes `tinker.graph` in place of the compare; the rules still run.
+ * The graph stage's findings: the code's graph against `tinker.graph`, the app's graph rules,
+ * and each watch outside a unit (#83). `write` writes `tinker.graph` in place of the compare;
+ * the rules still run.
  */
 function graphStage(
   root: string,
   write: boolean,
-  { ops, views, hooks }: Graph.Of,
+  { ops, views, hooks, watches }: Graph.Of,
   graphRules: readonly Check.GraphRule[],
 ) {
   const rows = [...ops, ...views, ...hooks];
   if (write) writeFileSync(join(root, graphFile), graphFileText(rows));
   const compared = write ? [] : graphFindings(root, rows);
-  return [...compared, ...ruleFindings(ops, graphRules)];
+  return [...compared, ...ruleFindings(ops, graphRules), ...watches];
 }
 
 /**

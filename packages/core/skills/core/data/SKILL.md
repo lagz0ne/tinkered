@@ -13,7 +13,7 @@ metadata:
     cell read only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.35.1'
+  library_version: '0.35.2'
 requires:
   - core
 sources:
@@ -351,6 +351,31 @@ Read the cell with `depends: { w: sea.waves }`.
 
 Check: the lint rule `tinker/cell-write`, and the
 error `InvalidDependency` when the scope builds.
+
+### HIGH: a `remoteData` part watched outside a unit [tinker/loose-watch]
+
+A route loader that waits for a part with its own
+`watch` and a timer holds the part with no owner.
+No scope ends the watch. No trace or graph shows
+it (#83).
+
+Wrong:
+
+```ts no-check
+loader: async ({ context }) => {
+  const rows = context.scope.resolve(part);
+  const stop = rows.watch(() => undefined);
+  await sleep(2_000);
+  stop();
+},
+```
+
+Right: hold the part in a capsule, and let the
+page read a `kind`. See "Hold a remote part
+before the page reads it".
+
+Check: `tinker check` prints each watch and its
+line.
 
 ### HIGH: a mutation in place
 

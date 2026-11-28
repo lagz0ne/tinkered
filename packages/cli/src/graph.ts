@@ -6,6 +6,7 @@ import ts from "typescript-api";
 import { coreImports, importsOf, labelOf, readOperations } from "./exits";
 import type { Exits } from "./exits";
 import type { Tools } from "./tools";
+import { findWatches } from "./watch";
 
 export declare namespace Graph {
   /**
@@ -33,8 +34,9 @@ export declare namespace Graph {
    * The app's graph: a line per operation, then a line per view, then a line per capsule hook.
    * A view line's `parts` are `reads{…}` and `runs{…}`; a hook line's are `reads{…}`,
    * `writes{…}`, `runs{…}`, `wraps{…}` and `uses{…}` (#72). No graph rule reads a view or a hook line.
+   * `watches` are the `tinker/loose-watch` findings, read with the same types (#83).
    */
-  type Of = { ops: Line[]; views: Row[]; hooks: Row[] };
+  type Of = { ops: Line[]; views: Row[]; hooks: Row[]; watches: Tools.Found[] };
 }
 
 /** The app's committed graph, at its root (ADR 0161). */
@@ -944,7 +946,7 @@ const byLabel = (a: Graph.Row, b: Graph.Row) => (a.label < b.label ? -1 : 1);
  */
 export function graphOf(root: string): Graph.Of {
   const app = readOperations(root);
-  if (!app) return { ops: [], views: [], hooks: [] };
+  if (!app) return { ops: [], views: [], hooks: [], watches: [] };
 
   const ops = app.operations.map((operation): Graph.Line => {
     const facts = factsOf(app.checker, operation);
@@ -966,7 +968,13 @@ export function graphOf(root: string): Graph.Of {
   });
   const views = app.files.flatMap((file) => viewsIn(app.checker, file));
   const hooks = app.files.flatMap((file) => hookRowsIn(app.checker, file));
-  return { ops: ops.sort(byLabel), views: views.sort(byLabel), hooks: hooks.sort(byLabel) };
+  const watches = findWatches(app.checker, app.files);
+  return {
+    ops: ops.sort(byLabel),
+    views: views.sort(byLabel),
+    hooks: hooks.sort(byLabel),
+    watches,
+  };
 }
 
 /** The graph as `tinker graph` prints it: one line per row, and an end of line after each. */

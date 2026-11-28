@@ -9,6 +9,22 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.35.2
+
+`@tinkered/cli`: a new check rule,
+`tinker/loose-watch` (#83, Duke 2026-11-28:
+"Rule + recipes").
+
+- The graph stage prints each `watch` of a Core
+  reader outside an operation, a resource or a
+  capsule. No unit owns it, so no scope ends it.
+- A watch of a `remoteData` part names the part.
+  Its fix points to the data skill's prefetch
+  recipe.
+- Any other watch points to the capsule skill's
+  "A foreign callback lives in a capsule".
+- Hedl, tinker-app and acountee: 0 findings.
+
 ## 0.35.1
 
 `@tinkered/core` skills: a recipe to show a

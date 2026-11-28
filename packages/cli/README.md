@@ -427,6 +427,29 @@ A write or a resource the graph marks `?` is not
 tested: it is not known. No rule, no finding: the
 check finds no copy by itself.
 
+## A watch outside a unit
+
+The graph stage also finds each `watch` of a Core
+reader outside an operation, a resource or a
+capsule (#83). No unit owns that watch, so no
+scope ends it, and no trace shows it:
+
+```text
+src/routes/inbox.ts:12 tinker/loose-watch
+`remoteData` part `board.messages`: watched
+outside an operation, resource or capsule
+```
+
+- A read of a `remoteData` part, through `const`s,
+  names its part. Its fix is the data skill's
+  recipe "Hold a remote part before the page
+  reads it".
+- Any other read prints "`watch` outside an
+  operation, resource or capsule". Its fix is
+  the capsule skill's "A foreign callback lives
+  in a capsule".
+- A test file is not read.
+
 ## The tests and the exits
 
 An exit is one way out of an operation: each

@@ -13,7 +13,7 @@ metadata:
     slot of listeners, a run hook.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.35.1'
+  library_version: '0.35.2'
 requires:
   - core
   - capsule

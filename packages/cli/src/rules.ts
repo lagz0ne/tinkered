@@ -36,5 +36,6 @@ export const rules = [
     "tinker/effect",
     "tinker/graph",
     "tinker/graph-rule",
+    "tinker/loose-watch",
   ]),
 ];
