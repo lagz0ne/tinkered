@@ -89,12 +89,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   Next: reviewer re-checks the fix round (7d0cd3b5), then land.
   Verify: on the pattern lab, `tinker pins` prints the 7 live mutants the probe found (6 `dispatch.sendOne` swaps, `signup.join` drop of `signup.members`); `--since` with no op change prints 0 mutants; a planted check that pins `sendOne` makes its swaps die; `vp check` and the cli tests green.
 
+## Review
+
 - **cli/effect-file** — ADR 0175. The `exits` capsule reports, for each run, its exit and the cells written inside it. `tinker check` compares these to the committed `tinker.effects` after the `exits` stage: one line per operation, exit and write set; each line that differs is a `tinker/effect` finding. `tinker check --write` writes `tinker.graph` and `tinker.effects`. A skill section teaches the rule id. Lab and its results: project files `tinkered/plans/test-check/lab2/`.
   Owner: Claude lead (thread "Find a test gate that stops test erosion"); Opus writer.
-  Next: the writer builds it in `packages/cli` on `cli/effect-file`; then the reviewer, one fix round, land.
+  Next: land on main; the mutation run for the landing commit goes green; then Done with that run in the proof.
+  Proof so far: gates green on `d11a92cf` (cli 228 tests); Opus convention-review READY at `d11a92cf`; golden Verify on tinker-app `48968a1` (scratch copy): two `tinker check --write` runs give the same 94-line `tinker.effects`, plain check OK, and with the seeded bug and the eroded test `tinker check` exits 1 with one finding, `src/issues/ops.server.ts:204 tinker/effect issue.rename.do stale`.
   Verify: on the ck12 golden tree (tinker-app `48968a1`), two runs of `tinker check --write` write the same `tinker.effects`; with `seed-stale-rename.diff` and `erode-stale-assert.diff` applied, `tinker check` prints one `tinker/effect` finding for `issue.rename.do stale` and no other; a library cell and a test's own cell are in no line; a run with no ask for these facts adds no write hook; `vp check` and the cli tests green.
-
-## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
   Owner: Codex lead; Haiku writer.
