@@ -102,17 +102,18 @@ Probe, project files `plans/graph-mutants/`:
 6. `--since <ref>`: only ops whose lines
    changed since `ref`. With no `--since`,
    every op.
-7. Each mutant runs the test files whose
+7. Each mutant runs only the test files whose
    trace has its fact.
-   A file whose run wrote no trace line is
-   unknown, not "reaches nothing".
-   It runs for every mutant (TAP: unknown
-   means affected).
-   Proof (2026-11-28, Hedl): 83 of 188 files
-   use `createScope({})`. One of them killed
-   a mutant the traced files left alive.
-   A scope in a traced file that does not list
-   `exits` is still not seen: a known limit.
+   A scope that does not list `exits` gets no
+   trace and no fault, so running it adds
+   only time.
+   Its checks are not seen: a live mutant may
+   still be checked there.
+   The report names each file with no trace.
+   Hedl, 2026-11-28: 83 of 188 test files use
+   `createScope({})`.
+   (Stryker mutants change the source, so
+   there a file with no trace must run.)
 8. Line shape, one per live mutant:
    `<path>:<line> <op> <kind> <fact> lives`,
    then `  reached by: <files>`.
