@@ -29,6 +29,11 @@ runs{} wraps{} uses{}`, after the view lines.
   run `tinker graph --write` once, read the
   diff, and commit it.
 
+`@tinkered/core`: the rpc skill has a recipe,
+"A guard that needs a backend" (#65). A guard
+op has `depends` on a store, and the auth
+service is a backend capsule in an op slot.
+
 ## 0.34.20
 
 `@tinkered/cli`: a `kind: string` data field
