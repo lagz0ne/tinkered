@@ -18,9 +18,11 @@ export declare namespace Graph {
    * `faults{…}`, `reads{…}`, `writes{…}`, `calls{…}` and `uses{…}`, in that order. A
    * fact is never a judgement: the reader of the line judges it (ADR 0161, amended). `writes`,
    * `calls` and `uses` are those facts, sorted, for the graph rules (ADR 0167, amended).
-   * `faults` are the faults its calls of a contract member can end with, sorted.
+   * `faults` are the faults its calls of a contract member can end with, sorted. `end` is the
+   * last line of its `operation(…)` call.
    */
   type Line = Row & {
+    end: number;
     exits: string[];
     faults: string[];
     writes: string[];
@@ -946,7 +948,7 @@ export function graphOf(root: string): Graph.Of {
 
   const ops = app.operations.map((operation): Graph.Line => {
     const facts = factsOf(app.checker, operation);
-    const { path, line, label, exits } = operation;
+    const { path, line, end, label, exits } = operation;
     const faults = faultsIn(facts);
     const writes = sorted(facts.writes);
     const calls = sorted(facts.calls);
@@ -960,7 +962,7 @@ export function graphOf(root: string): Graph.Of {
       listed("calls", calls),
       listed("uses", uses),
     ];
-    return { path, line, label, exits, faults, parts, writes, calls, uses };
+    return { path, line, end, label, exits, faults, parts, writes, calls, uses };
   });
   const views = app.files.flatMap((file) => viewsIn(app.checker, file));
   const hooks = app.files.flatMap((file) => hookRowsIn(app.checker, file));

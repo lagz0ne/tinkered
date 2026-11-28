@@ -6,6 +6,8 @@ type Payloads = {
   MissingTool: { tool: string; reason: string };
   /** A tool failed and printed no finding: its own output says why. */
   ToolFailed: { tool: string; output: string };
+  /** A `fail` mutant of `tinker pins`: the run of `callee` inside `op` throws (ADR 0173). */
+  Mutant: { op: string; callee: string };
 };
 
 export declare namespace Errors {

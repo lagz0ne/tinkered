@@ -201,6 +201,10 @@ const guard = operation({
   run: (_, { input }) => input.refuse({}),
 });
 
+test("with no `tinker pins` env value, the capsule does not hook writes", () => {
+  expect(exits.hooks).toEqual({ run: expect.any(Function) });
+});
+
 test("the capsule writes the exit of each run of a scope that lists it", async () => {
   const folder = mkdtempSync(join(tmpdir(), "tinker-exits-run-"));
   folders.push(folder);

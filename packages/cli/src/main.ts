@@ -1,5 +1,6 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { parseArgs } from "node:util";
 
 import { IntentCoreError } from "@tanstack/intent/core";
 
@@ -10,6 +11,8 @@ import { applyGaps } from "./gaps";
 import { graphFile, graphFileText, graphFindings, graphOf, graphText } from "./graph";
 import type { Graph } from "./graph";
 import { ruleFindings } from "./graph-rules";
+import { readPins } from "./pins";
+import type { Pins } from "./pins";
 import { rules } from "./rules";
 import { fixOf, listSkills, loadSkill, sectionsOf } from "./skills";
 import type { Skills } from "./skills";
@@ -53,6 +56,7 @@ function tail(output: string) {
 const usage = `usage:
   tinker check [root] [--json]
   tinker graph [root] [--write]
+  tinker pins [root] [--since <ref>] [--json]
   tinker skill list
   tinker skill load <skill>
 
@@ -66,6 +70,12 @@ that fails prints. Each finding prints its fix.
 graph prints the app's graph: one line per operation, with its exits and what its run reads,
 writes and calls. The lines are facts; the reader judges them. --write writes them to
 tinker.graph, for the app to commit.
+
+pins puts one fault at a time at each fact of the graph a test reaches: an op answers another
+exit, or an emptied answer, or loses a write, or a call it makes throws. It runs only the test
+files that reach the fact, and prints each mutant they let live. --since <ref> keeps only the
+ops whose lines changed since ref. A live mutant is a fact, never a failure: either dead API
+or a missing check, and the reader judges. Exit 1 only when it cannot run.
 `;
 
 /** One line per gaps row: marked lines over the row's count, as `G3 5/5`. */
@@ -286,6 +296,75 @@ function graphCommand(root: string, write: boolean): Main.Result {
   return { code: 0, out: `wrote ${graphFile}: ${linesCount(graph)}\n`, err: "" };
 }
 
+/** The text of a pins report: one entry per live mutant, the files not traced, then the counts. */
+function pinsText(report: Pins.Report) {
+  switch (report.kind) {
+    case "untested":
+      return "tinker pins: tinker.json has no `tests` command, so no test can pin a fact.\n";
+    case "red":
+      return [
+        tail(report.output),
+        "",
+        `tinker pins: ${report.file} fails with no mutant in.`,
+        "Next: make it pass, then run `tinker pins` again.",
+        "",
+      ].join("\n");
+    case "ran": {
+      const entries = report.live.flatMap(({ path, line, fault, fact, reachedBy }) => [
+        `${path}:${line} ${fault.op} ${fault.kind} ${fact} lives`,
+        `  reached by: ${reachedBy.join(", ")}`,
+      ]);
+
+      const { mutants, live, files, untraced } = report;
+      const tested = `${counted(files, "test file")}, ${untraced.length} not traced`;
+      const count = `${counted(mutants, "mutant")}, ${live.length} live, ${tested}`;
+      const named = untraced.length ? [`  not traced: ${untraced.join(", ")}`] : [];
+      return [...entries, ...named, `pins: ${count}`, ""].join("\n");
+    }
+  }
+}
+
+/** `tinker pins`'s words: a root, `--since <ref>` and `--json`; any other is no call. */
+function pinsCall(args: readonly string[]) {
+  const options = { since: { type: "string" }, json: { type: "boolean" } } as const;
+  try {
+    const { values, positionals } = parseArgs({ args: [...args], options, allowPositionals: true });
+    const [root = ".", ...rest] = positionals;
+    return rest.length ? undefined : { root, since: values.since, json: values.json === true };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      String(error.code).startsWith("ERR_PARSE_ARGS")
+    ) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+/** Put the graph's mutants in, and print the live ones. Exit 0 when it ran, whatever lived. */
+function pinsCommand(cwd: string, args: readonly string[]): Main.Result {
+  const call = pinsCall(args);
+  if (!call) return { code: 2, out: "", err: usage };
+  const root = resolve(cwd, call.root);
+  if (!existsSync(root)) return { code: 2, out: "", err: `tinker pins: no folder at ${root}\n` };
+
+  try {
+    const report = readPins(root, call.since);
+    const out = call.json ? `${JSON.stringify(report)}\n` : pinsText(report);
+    return { code: report.kind === "ran" ? 0 : 1, out, err: "" };
+  } catch (error) {
+    if (isError(error, "BadConfig")) {
+      const { path, reason } = error.payload;
+      return { code: 2, out: "", err: `${path}: ${reason}\n` };
+    }
+    if (!isError(error, "ToolFailed")) throw error;
+    const { tool, output } = error.payload;
+    return { code: 2, out: "", err: `tinker pins: ${tool} failed:\n${output}` };
+  }
+}
+
 function skillCommand(root: string, args: readonly string[]): Main.Result {
   const [action, use, ...rest] = args;
   try {
@@ -312,6 +391,12 @@ function flagOf(command: string) {
  * config or a tool the command cannot use.
  */
 export function main(argv: readonly string[], cwd: string): Main.Result {
+  const [command, ...args] = argv;
+  return command === "pins" ? pinsCommand(cwd, args) : oneFlag(argv, cwd);
+}
+
+/** The commands that take at most their one flag, and no value after it. */
+function oneFlag(argv: readonly string[], cwd: string): Main.Result {
   const [command = "", ...args] = argv.filter((arg) => !arg.startsWith("-"));
   const flag = flagOf(command);
   const on = argv.some((arg) => arg === flag);
