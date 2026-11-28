@@ -62,7 +62,9 @@ export function GuideHome({ pages }: { pages: readonly Entry[] }) {
           </li>
           <li>
             <Link to="/play">Play</Link>
-            <p>Edit the ocean, a capsule with a page. esbuild builds it in this tab.</p>
+            <p>
+              Edit the welcome mail and see its spans, or the ocean. esbuild builds it in this tab.
+            </p>
           </li>
           <li>
             <Link to="/live" search={{ room: "lobby" }}>

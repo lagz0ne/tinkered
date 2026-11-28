@@ -4,6 +4,7 @@ import { editor } from "./editor";
 import {
   addFile,
   back,
+  choose,
   closeFile,
   forward,
   open,
@@ -15,15 +16,19 @@ import {
 } from "./ops";
 import { bundler, persistence, preview } from "./services";
 import { library } from "./sources";
-import { bundle, dirty, files, nav, renaming, status, theme, view } from "./state";
+import { bundle, dirty, files, nav, project, renaming, status, theme, view } from "./state";
 
 // The play page: the preview runs the bundle in a frame; Code puts the editor beside it. The page
 // holds no state: the ops write the cells, the services compile and keep the session.
 
-/** The modules the bundle imports by bare name: one React, one Core and zod, served by the site. */
+/**
+ * The modules the bundle imports by bare name: one React, one Core, devtools and zod, served by
+ * the site.
+ */
 const importMap = JSON.stringify({
   imports: {
     "@tinkered/core": "/vendor/core.mjs",
+    "@tinkered/devtools": "/vendor/devtools.mjs",
     "@tinkered/react": "/vendor/tinker-react.mjs",
     react: "/vendor/react.mjs",
     "react/jsx-runtime": "/vendor/react-jsx-runtime.mjs",
@@ -209,7 +214,31 @@ function Status() {
   );
 }
 
-/** `/play`: the starter project, compiled and run in this browser. */
+/** The project switch, and for the welcome mail the way to its tests and graph. */
+function Project() {
+  const open = useData(project);
+  const pick = useRun(choose);
+
+  return (
+    <>
+      <select
+        aria-label="Project"
+        value={open}
+        onChange={(e) => pick.run({ rawInput: e.currentTarget.value })}
+      >
+        <option value="ocean">Ocean</option>
+        <option value="welcome">Welcome mail</option>
+      </select>
+      {open === "welcome" && (
+        <a className="blitz" href="/open/welcome" target="_blank" rel="noreferrer">
+          Tests and graph on StackBlitz
+        </a>
+      )}
+    </>
+  );
+}
+
+/** `/play`: a starter project, the ocean or the welcome mail, compiled and run in this browser. */
 export function PlayPage() {
   useResource(persistence);
   useResource(bundler);
@@ -236,6 +265,7 @@ export function PlayPage() {
             Code
           </button>
         </div>
+        <Project />
         <Status />
         <button
           type="button"

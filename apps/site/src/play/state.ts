@@ -1,6 +1,8 @@
 import { data, tag } from "@tinkered/core";
 import { z } from "zod";
 
+import { welcomeFiles } from "@/open/files";
+
 import app from "./starter/App.tsx?raw";
 import draw from "./starter/draw.ts?raw";
 import engine from "./starter/engine.ts?raw";
@@ -16,11 +18,14 @@ import style from "./starter/style.ts?raw";
 /** One editor tab: one file of the project the preview runs. */
 export type PlayFile = { name: string; content: string };
 
-/** The bundler's entry. Other files are reached through relative imports. */
+/** A project's files as it starts: at least one, and the first is the entry. */
+export type Starter = readonly [PlayFile, ...PlayFile[]];
+
+/** The ocean's entry. The bundler starts at the first tab; others are reached by import. */
 export const entry = "main.tsx";
 
 /** The starter project: the tile ocean in starter/, real modules checked by the site's tsc. */
-export const starter: readonly PlayFile[] = [
+export const starter: Starter = [
   { name: "main.tsx", content: main },
   { name: "ocean.ts", content: ocean },
   { name: "state.ts", content: state },
@@ -31,6 +36,33 @@ export const starter: readonly PlayFile[] = [
   { name: "Scene.tsx", content: scene },
   { name: "style.ts", content: style },
 ];
+
+// The welcome mail's src/ files, as tabs named by their path under src/.
+const welcomeSources: PlayFile[] = [];
+
+for (const [path, content] of Object.entries(welcomeFiles)) {
+  if (path.startsWith("src/")) welcomeSources.push({ name: path.slice("src/".length), content });
+}
+
+/**
+ * The welcome mail: examples/welcome as the repo has it, with its page cmd as the first tab. A tab
+ * is named by its path under src/, so `@/mail` finds `mail/index.ts`.
+ */
+export const welcomeStarter: Starter = [
+  { name: "page.ts", content: welcomeFiles["cmds/page.ts"] ?? "" },
+  ...welcomeSources,
+];
+
+/** The projects the page offers, each with its starter files; the first file is the entry. */
+export const starters = { ocean: starter, welcome: welcomeStarter };
+
+/** Which project is open. */
+export const projectName = z.enum(["ocean", "welcome"]);
+
+export type ProjectName = z.infer<typeof projectName>;
+
+/** The open project. */
+export const project = data<ProjectName>({ label: "play.project", initial: "ocean" });
 
 /** What the bottom line says: compiling, running, ready, or the error. `ms` is the last compile. */
 export type Status = { kind: "ok" | "error" | "info"; text: string; ms?: number };
@@ -43,6 +75,7 @@ export const saved = z.object({
   files: z.tuple([playFile], playFile),
   active: z.string(),
   dirty: z.boolean(),
+  project: projectName.catch("ocean"),
   theme: z.enum(["github-light", "github-dark", "one-dark"]).catch("github-light"),
 });
 

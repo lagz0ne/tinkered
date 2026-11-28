@@ -1,3 +1,4 @@
+import pageCmd from "@examples/welcome/cmds/page.ts?raw";
 import server from "@examples/welcome/cmds/server.ts?raw";
 import readme from "@examples/welcome/README.md?raw";
 import audit from "@examples/welcome/src/audit/index.ts?raw";
@@ -28,6 +29,7 @@ export const welcomeFiles: Readonly<Record<string, string>> = {
   "README.md": readme,
   "tsconfig.json": tsconfig,
   "tinker.graph": graph,
+  "cmds/page.ts": pageCmd,
   "cmds/server.ts": server,
   "src/audit/index.ts": audit,
   "src/mail/index.ts": mail,

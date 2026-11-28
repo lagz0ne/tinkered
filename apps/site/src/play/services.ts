@@ -10,6 +10,7 @@ import {
   files,
   inbox,
   nav,
+  project,
   saved,
   status,
   storage,
@@ -38,8 +39,8 @@ export const started = resource({
 export type Compiled = { ok: true; code: string } | { ok: false; message: string };
 
 /**
- * The esbuild plugin that reads the tabs: a relative import finds a tab, with or without its
- * extension; a bare import stays for the preview's import map.
+ * The esbuild plugin that reads the tabs: a relative or `@/` import finds a tab, with or without its
+ * extension or `/index`; a bare import stays for the preview's import map.
  */
 export const tabs = operation({
   label: "play.tabs",
@@ -51,10 +52,14 @@ export const tabs = operation({
       setup: (build) => {
         build.onResolve({ filter: /.*/ }, (args) => {
           if (args.kind === "entry-point") return { path: args.path, namespace: "tabs" };
-          if (!args.path.startsWith(".")) return { path: args.path, external: true };
 
-          const base = args.path.replace(/^\.\//, "");
-          const found = ["", ".tsx", ".ts", ".jsx", ".js"]
+          const own = args.path.startsWith("@/");
+          if (!own && !args.path.startsWith(".")) return { path: args.path, external: true };
+
+          // `@/x` is from the project's root; `./x` and `../x` are from the importing tab's folder.
+          const from = own ? "file:///" : new URL(".", `file:///${args.importer}`).href;
+          const base = new URL(own ? args.path.slice(2) : args.path, from).pathname.slice(1);
+          const found = ["", ".tsx", ".ts", ".jsx", ".js", "/index.ts", "/index.tsx"]
             .map((ext) => base + ext)
             .find((n) => byName.has(n));
           return found
@@ -70,7 +75,7 @@ export const tabs = operation({
   },
 });
 
-/** Bundles the tabs from `main.tsx` into one ES module. */
+/** Bundles the tabs from the first one into one ES module. */
 export const compile = operation({
   label: "play.compile",
   input: z.array(z.object({ name: z.string(), content: z.string() })),
@@ -78,7 +83,7 @@ export const compile = operation({
   run: async ({ esbuild, tabs }, { input }): Promise<Compiled> => {
     try {
       const result = await esbuild.build({
-        entryPoints: [entry],
+        entryPoints: [input[0]?.name ?? entry],
         bundle: true,
         write: false,
         format: "esm",
@@ -164,8 +169,9 @@ export const persistence = resource({
     nav: nav.controller,
     dirty: dirty.controller,
     theme: theme.controller,
+    project: project.controller,
   },
-  factory: ({ storage, files, nav, dirty, theme }, { defer }) => {
+  factory: ({ storage, files, nav, dirty, theme, project }, { defer }) => {
     let raw: unknown = null;
     try {
       raw = JSON.parse(storage.getItem(key) ?? "null");
@@ -178,6 +184,7 @@ export const persistence = resource({
     if (kept.success) theme.set(kept.data.theme);
     if (restored) {
       const { files: list, active } = kept.data;
+      project.set(kept.data.project);
       files.set(list);
       nav.set({
         place: { file: list.some((f) => f.name === active) ? active : list[0].name, offset: 0 },
@@ -194,6 +201,7 @@ export const persistence = resource({
           files: files.get(),
           active: nav.get().place.file,
           dirty: dirty.get(),
+          project: project.get(),
           theme: theme.get(),
         }),
       );
@@ -201,6 +209,7 @@ export const persistence = resource({
     defer(nav.watch(save));
     defer(dirty.watch(save));
     defer(theme.watch(save));
+    defer(project.watch(save));
     return { restored };
   },
 });

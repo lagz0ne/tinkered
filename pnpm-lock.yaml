@@ -326,6 +326,9 @@ importers:
       '@tinkered/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@tinkered/devtools':
+        specifier: workspace:*
+        version: link:../../packages/devtools
       '@tinkered/react':
         specifier: workspace:*
         version: link:../../packages/react

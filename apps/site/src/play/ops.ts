@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { definition } from "./language";
 import { library } from "./sources";
-import { dirty, entry, files, nav, renaming, starter, theme, view } from "./state";
+import { dirty, files, nav, project, projectName, renaming, starters, theme, view } from "./state";
 import type { Place } from "./state";
 
 // Every visitor action is an operation: the input is parsed at the door, the cells it writes are
@@ -177,13 +177,30 @@ export const setRenaming = operation({
   run: ({ renaming }, { input }) => renaming.set(input),
 });
 
-/** Back to the starter project, at its entry, with no history. The session is clean again. */
+/** Back to the open project's starter, at its entry, with no history. The session is clean again. */
 export const reset = operation({
   label: "play.reset",
-  depends: { files: files.controller, dirty: dirty.controller, nav: nav.controller },
-  run: ({ files, dirty, nav }) => {
+  depends: {
+    files: files.controller,
+    dirty: dirty.controller,
+    nav: nav.controller,
+    project: project.controller,
+  },
+  run: ({ files, dirty, nav, project }) => {
+    const start = starters[project.get()];
     dirty.set(false);
-    files.set([...starter]);
-    nav.set({ place: { file: entry, offset: 0 }, back: [], forward: [] });
+    files.set([...start]);
+    nav.set({ place: { file: start[0].name, offset: 0 }, back: [], forward: [] });
+  },
+});
+
+/** Opens another project at its starter. Its own edits go, as a reset drops them. */
+export const choose = operation({
+  label: "play.choose",
+  input: projectName,
+  depends: { project: project.controller, reset: reset.controller },
+  run: ({ project, reset }, { input }) => {
+    project.set(input);
+    reset.run();
   },
 });

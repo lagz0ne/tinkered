@@ -46,6 +46,12 @@ vp exec tinker check
 vp run start
 ```
 
+`cmds/page.ts` runs the same capsules in a
+browser tab, and draws the audit and the span
+tree. The site's playground runs it: pick
+"Welcome mail" on
+[/play](https://playground.tini.works/play).
+
 `tinker check` ends with `tinker check: OK`.
 `vp run start` prints the audit, the close
 status, and the count of each exit.

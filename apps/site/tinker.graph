@@ -43,6 +43,7 @@ ocean.turn exits{value} faults{} reads{ocean.heading.get} writes{ocean.heading.s
 ocean.view exits{value} faults{} reads{} writes{} calls{} uses{}
 play.add exits{value} faults{} reads{play.files.get} writes{play.dirty.set,play.files.update} calls{play.open} uses{}
 play.back exits{value} faults{} reads{play.nav.get} writes{play.nav.set} calls{} uses{}
+play.choose exits{value} faults{} reads{} writes{play.project.set} calls{play.reset} uses{}
 play.close exits{value} faults{} reads{play.files.get,play.nav.get} writes{play.dirty.set,play.files.update,play.nav.set} calls{} uses{}
 play.compile exits{value} faults{} reads{} writes{} calls{play.tabs} uses{play.esbuild,play.esbuild.started}
 play.definition exits{value} faults{} reads{} writes{} calls{} uses{play.language}
@@ -53,7 +54,7 @@ play.open exits{value} faults{} reads{play.files.get,play.nav.get} writes{play.n
 play.rebuild exits{value} faults{} reads{play.bundle.get,play.files.get} writes{play.bundle.set,play.status.set} calls{play.compile} uses{}
 play.rename exits{value} faults{} reads{play.files.get} writes{play.dirty.set,play.files.update,play.nav.update} calls{} uses{}
 play.renaming.set exits{value} faults{} reads{} writes{play.renaming.set} calls{} uses{}
-play.reset exits{value} faults{} reads{} writes{play.dirty.set,play.files.set,play.nav.set} calls{} uses{}
+play.reset exits{value} faults{} reads{play.project.get} writes{play.dirty.set,play.files.set,play.nav.set} calls{} uses{}
 play.tabs exits{value} faults{} reads{} writes{} calls{} uses{}
 play.theme.set exits{value} faults{} reads{} writes{play.theme.set} calls{} uses{}
 play.track exits{value} faults{} reads{} writes{play.nav.update} calls{} uses{}
@@ -69,6 +70,7 @@ view src/bench/page.tsx#BenchPage reads{bench.run.get} runs{bench.run.do}
 view src/bench/subjects.ts#tinker reads{?,shared.get} runs{}
 view src/play/page.tsx#PlayPage reads{play.view.get} runs{play.view.set}
 view src/play/page.tsx#Preview reads{play.bundle.get} runs{}
+view src/play/page.tsx#Project reads{play.project.get} runs{play.choose}
 view src/play/page.tsx#Status reads{play.dirty.get,play.status.get} runs{play.reset}
 view src/play/page.tsx#Tabs reads{play.files.get,play.nav.get,play.renaming.get} runs{play.add,play.close,play.open,play.rename,play.renaming.set}
 view src/play/page.tsx#Tools reads{play.nav.get,play.theme.get} runs{play.back,play.forward,play.open,play.theme.set}

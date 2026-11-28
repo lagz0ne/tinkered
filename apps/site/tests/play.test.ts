@@ -2,10 +2,21 @@ import { createScope } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 
 import { play } from "@/play";
-import { addFile, closeFile, editFile, renameFile, reset } from "@/play/ops";
+import { addFile, choose, closeFile, editFile, renameFile, reset } from "@/play/ops";
 import { setTheme } from "@/play/ops";
 import { bundler, compile, persistence, preview } from "@/play/services";
-import { bundle, dirty, entry, files, nav, starter, status, theme } from "@/play/state";
+import {
+  bundle,
+  dirty,
+  entry,
+  files,
+  nav,
+  project,
+  starter,
+  status,
+  theme,
+  welcomeStarter,
+} from "@/play/state";
 
 // The playground at its seam: real esbuild (Bun runs it with no wasm file), a Map as the storage,
 // and the scope's own clock.
@@ -39,7 +50,7 @@ const compiled = async (scope: Awaited<ReturnType<typeof start>>["scope"]) => {
 
 test("the starter project compiles to one module, bare imports kept for the import map", async () => {
   const { scope } = await start();
-  const out = await scope.run(compile, { input: starter });
+  const out = await scope.run(compile, { input: [...starter] });
 
   expect(out.ok).toBe(true);
   if (!out.ok) return;
@@ -212,4 +223,40 @@ test("an unknown theme is refused at the door", async () => {
   const { scope } = await start();
   expect(() => scope.run(setTheme, { rawInput: "solarized" })).toThrow();
   expect(scope.controller(theme).get()).toBe("github-light");
+});
+
+test("the welcome mail compiles from its page cmd: `@/` and `./` find tabs, packages stay bare", async () => {
+  const { scope } = await start();
+  const out = await scope.run(compile, { input: [...welcomeStarter] });
+
+  expect(welcomeStarter[0].name).toBe("page.ts");
+  expect(out.ok).toBe(true);
+  if (!out.ok) return;
+  expect(out.code).toContain('from "@tinkered/devtools"');
+  expect(out.code).toContain('from "zod"');
+  expect(out.code).toContain('label: "outbox.pump"');
+  expect(out.code).not.toContain('"@/mail');
+});
+
+test("a project opens at its starter's entry; a changed one comes back in its project", async () => {
+  const first = await start();
+  first.scope.resolve(persistence);
+  first.scope.run(choose, { input: "welcome" });
+
+  expect(first.scope.controller(files).get()).toEqual(welcomeStarter);
+  expect(first.scope.controller(nav).get().place.file).toBe("page.ts");
+
+  first.scope.run(editFile, { input: { name: "page.ts", content: "// mine" } });
+  const again = await start(memory(Object.fromEntries(first.store.kept)));
+  again.scope.resolve(persistence);
+
+  expect(again.scope.controller(project).get()).toBe("welcome");
+  expect(again.scope.controller(files).get()[0]?.content).toBe("// mine");
+
+  again.scope.run(reset);
+  expect(again.scope.controller(files).get()).toEqual(welcomeStarter);
+
+  again.scope.run(choose, { input: "ocean" });
+  expect(again.scope.controller(files).get()).toEqual(starter);
+  expect(again.scope.controller(nav).get().place.file).toBe(entry);
 });

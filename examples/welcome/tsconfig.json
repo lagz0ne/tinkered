@@ -2,7 +2,7 @@
   "extends": "@tinkered/cli/tsconfig.json",
   "compilerOptions": {
     "target": "esnext",
-    "lib": ["es2023"],
+    "lib": ["es2023", "dom"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "types": ["node"],

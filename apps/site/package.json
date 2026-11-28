@@ -28,6 +28,7 @@
     "@tanstack/react-router": "1.170.41",
     "@tinkered/bun": "workspace:*",
     "@tinkered/core": "workspace:*",
+    "@tinkered/devtools": "workspace:*",
     "@tinkered/react": "workspace:*",
     "@uiw/codemirror-theme-github": "^4.23.10",
     "codemirror": "^6.0.1",

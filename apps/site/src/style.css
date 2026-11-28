@@ -533,6 +533,18 @@ main.play {
   border: 1px solid var(--fg);
 }
 
+/* The project switch, and the welcome mail's way to StackBlitz. */
+.play-bar > select {
+  font: inherit;
+  font-weight: 700;
+  padding: 2px 4px;
+}
+
+.play-bar .blitz {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .switch button,
 .play-status button,
 .tab button,
