@@ -1,4 +1,4 @@
-import { createScope, data, operation, resource } from "@tinkered/core";
+import { capsule, createScope, data, operation, resource } from "@tinkered/core";
 import {
   ScopeProvider,
   SessionProvider,
@@ -63,18 +63,26 @@ function SpanCount(): React.ReactElement {
   );
 }
 
+/** The demo's capsule: its units, and its components as foreign exports (ADR 0125). */
+export const basics = capsule({
+  label: "basics",
+  exports: { count, profile, save, Counter, ProfileCard, SaveButton, SpanCount },
+});
+
+const demo = basics();
+
 /** The provider owns the scope; the mounted view owns the span refresh state. */
 export function App(): React.ReactElement {
   return (
-    <ScopeProvider create={() => createScope({ observe: { history: 200 } })}>
-      <Counter />
+    <ScopeProvider create={() => createScope({ observe: { history: 200 }, capsules: [demo] })}>
+      <demo.Counter />
       <Suspense fallback={<p>loading…</p>}>
-        <ProfileCard />
+        <demo.ProfileCard />
       </Suspense>
       <SessionProvider>
-        <SaveButton />
+        <demo.SaveButton />
       </SessionProvider>
-      <SpanCount />
+      <demo.SpanCount />
     </ScopeProvider>
   );
 }

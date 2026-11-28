@@ -1,1 +1,1 @@
-export { region, count, doubled, store, stamp } from "./basic";
+export { basic } from "./basic";

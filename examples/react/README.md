@@ -46,13 +46,15 @@ vp run preview
 ```
 
 `preview` serves the built browser app.
-The test drives the form through `index.ts` with a recording save operation.
+The test installs `drafts` with a recording post in its `post` slot, and drives the form through the install.
 It needs no browser or network service.
 
 ## Read the code
 
-- `basic.tsx` declares the counter, profile, and document save once.
-- `form.tsx` declares the draft and its edit and save operations once.
+- `basic.tsx` declares the counter, profile, and document save once, in the `basics` capsule.
+  Its components go out as foreign exports; the app renders `<demo.Counter />` from the install.
+- `form.tsx` declares the draft and its edit and save operations once, in the `drafts` capsule.
+  The post is a slot: the app fills it with `localPost`, the test with a recording op.
 - `ScopeProvider` creates and closes each mounted sample's scope.
 - `main.tsx` mounts both samples when `index.html` calls it.
 - `vite.config.ts` and `tsconfig.json` belong to this folder.

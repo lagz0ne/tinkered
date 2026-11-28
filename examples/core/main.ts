@@ -1,14 +1,15 @@
 import { createScope, type Scope } from "@tinkered/core";
 import { makeTestClock } from "@tinkered/core/testing";
 
-import { count, doubled, region, stamp, store } from "./index";
+import { basic } from "./index";
 
 if (import.meta.main) {
   const stop = new AbortController();
+  const app = basic({ region: "eu" });
   const scope = createScope({
     signal: stop.signal,
-    tags: [region("eu")],
     clock: makeTestClock({ now: 0 }),
+    capsules: [app],
   });
 
   const shutdown = (): void => stop.abort();
@@ -16,29 +17,27 @@ if (import.meta.main) {
   process.once("SIGTERM", shutdown);
 
   let total: number;
+  let place: string;
   let end: Scope.Result;
   try {
     await scope.ready;
-    const counter = scope.controller(count);
-    counter.set(21);
+    const count = scope.resolve(app.count);
     const seen: number[] = [];
-    counter.watch((value) => seen.push(value));
+    count.watch(() => seen.push(count.get()));
+    await scope.run(app.setCount, { input: 21 });
 
-    const twiceCount = scope.run(doubled);
-    const inline = scope.run(
-      { depends: { count }, run: ({ count }, { input }) => count + input },
-      { input: 1 },
-    );
-    const rows = scope.resolve(store);
+    const twice = await scope.run(app.doubled);
+    place = await scope.run(app.where);
+    const rows = scope.resolve(app.store);
     rows.add("first");
-    const time = scope.run(stamp);
+    const time = await scope.run(app.stamp);
 
-    const inSession = await scope.session((child) => {
-      child.controller(count).set(100);
-      return child.run(doubled);
+    const inSession = await scope.session(async (child) => {
+      await child.run(app.setCount, { input: 100 });
+      return child.run(app.doubled);
     });
 
-    total = twiceCount + rows.size() + inSession + counter.get() + seen.length + time + inline;
+    total = twice + rows.size() + inSession + count.get() + seen.length + time;
   } finally {
     stop.abort();
     end = await scope.closed;
@@ -52,5 +51,5 @@ if (import.meta.main) {
     throw error;
   }
 
-  process.stdout.write(`Core example: ${total}\n`);
+  process.stdout.write(`Core example: ${total} (${place})\n`);
 }

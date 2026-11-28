@@ -1,6 +1,6 @@
 # Core example
 
-A small example of tags, data, operations, resources, sessions, and a test clock.
+A small capsule with config, a data cell, operations, a resource, a session, and a test clock.
 It runs without a network service.
 The entry keeps its result before closing the scope.
 
@@ -25,7 +25,7 @@ vp install
 vp run start
 ```
 
-The output is `Core example: 286`.
+The output is `Core example: 265 (eu:21)`.
 `vp run dev` runs the same entry.
 After the repository install and build, these commands also work in
 `examples/core`.
@@ -39,16 +39,18 @@ vp run check
 vp run test
 ```
 
-Tests build small roots from the units in `index.ts`.
+Each test installs the capsule from `index.ts` and reaches its units through the install.
 
 ## Read the code
 
-- `basic.ts` declares the graph once.
-- `index.ts` exports `region`, `count`, `doubled`, `store`, and `stamp`.
+- `basic.ts` declares the units once, inside one capsule, `basic`.
+- `index.ts` exports `basic` only. Its units leave only as its exports.
+- The cmd keeps the install in a const, `app = basic({ region: "eu" })`, and reaches each unit through it: `app.setCount`, `app.count`.
+- `app.count` is a read view: `get` and `watch`, no `set`. `app.setCount` changes it.
 - A child session changes its own count without changing the root's count.
-- An inline call reads tags, data, and its input.
+- The install's config reaches its operations: `app.where` answers `eu:21`.
 - Reading the store again keeps its rows.
-- `stamp` reads the clock supplied by the root.
+- `app.stamp` reads the clock supplied by the root.
 - `main.ts` owns a root and a test clock set to zero inside `if (import.meta.main)`.
 - The entry reads its result while the scope is open.
 - A stop signal closes the root in `finally`; the entry waits for `closed`.

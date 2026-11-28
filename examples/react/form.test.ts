@@ -1,34 +1,28 @@
-import { createScope } from "@tinkered/core";
-import { preset } from "@tinkered/core/testing";
+import { capsule, createScope, operation } from "@tinkered/core";
 import { expect, test } from "vite-plus/test";
 
-import { draft, save, saveDraft, typeDraft } from "./index";
+import { drafts, type Draft } from "./form";
 
 test("typing then saving posts once and clears the draft", async () => {
-  const seen: string[] = [];
-  const stop = new AbortController();
-  const scope = createScope({
-    signal: stop.signal,
-    presets: [
-      preset(save, (_deps, ctx) => {
-        seen.push("post");
-        return Promise.resolve(ctx.input);
-      }),
-    ],
+  const seen: Draft[] = [];
+  const record = operation({
+    label: "test.post",
+    run: (_deps, { input }: { input: Draft }) => {
+      seen.push(input);
+      return Promise.resolve(input);
+    },
   });
-  try {
-    await scope.ready;
+  const fake = capsule({ label: "test.post", exports: { record } })();
+  const form = drafts({ post: fake.record });
+  const scope = await createScope({ capsules: [fake, form] }).ready;
 
-    scope.run(typeDraft, { input: { title: "x" } });
-    expect(scope.resolve(draft)).toEqual({ title: "x", description: "" });
+  await scope.run(form.typeDraft, { input: { title: "x" } });
+  expect(scope.resolve(form.draft).get()).toEqual({ title: "x", description: "" });
 
-    const saved = await scope.run(saveDraft);
-    expect(saved).toEqual({ title: "x", description: "" });
+  const saved = await scope.run(form.saveDraft);
+  expect(saved).toEqual({ title: "x", description: "" });
 
-    expect(seen).toEqual(["post"]);
-    expect(scope.resolve(draft)).toEqual({ title: "", description: "" });
-  } finally {
-    stop.abort();
-    await scope.closed;
-  }
+  expect(seen).toEqual([{ title: "x", description: "" }]);
+  expect(scope.resolve(form.draft).get()).toEqual({ title: "", description: "" });
+  await scope.close();
 });

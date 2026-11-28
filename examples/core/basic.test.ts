@@ -2,69 +2,55 @@ import { createScope } from "@tinkered/core";
 import { makeTestClock } from "@tinkered/core/testing";
 import { expect, test } from "vite-plus/test";
 
-import { count, doubled, region, stamp, store } from "./index";
+import { basic } from "./index";
 
 test("a child session changes its own count without changing the root's count", async () => {
-  const stop = new AbortController();
-  const root = createScope({ signal: stop.signal });
-  try {
-    await root.ready;
-    root.controller(count).set(21);
-    expect(
-      await root.session((child) => {
-        child.controller(count).set(100);
-        return child.run(doubled);
-      }),
-    ).toBe(200);
-    expect(root.run(doubled)).toBe(42);
-  } finally {
-    stop.abort();
-    await root.closed;
-  }
+  const app = basic({ region: "eu" });
+  const root = await createScope({ capsules: [app] }).ready;
+  await root.run(app.setCount, { input: 21 });
+
+  const inChild = await root.session(async (child) => {
+    await child.run(app.setCount, { input: 100 });
+    return child.run(app.doubled);
+  });
+
+  expect(inChild).toBe(200);
+  expect(await root.run(app.doubled)).toBe(42);
+  await root.close();
 });
 
-test("an inline call reads tags, data, and its input", async () => {
-  const stop = new AbortController();
-  const root = createScope({ signal: stop.signal, tags: region("eu") });
-  try {
-    await root.ready;
-    root.controller(count).set(21);
-    expect(
-      root.run(
-        {
-          depends: { count, region },
-          run: ({ count, region }, { input }) => `${region}:${count + input}`,
-        },
-        { input: 1 },
-      ),
-    ).toBe("eu:22");
-  } finally {
-    stop.abort();
-    await root.closed;
-  }
+test("the install's config reaches its operations", async () => {
+  const app = basic({ region: "eu" });
+  const root = await createScope({ capsules: [app] }).ready;
+  await root.run(app.setCount, { input: 21 });
+
+  expect(await root.run(app.where)).toBe("eu:21");
+  await root.close();
+});
+
+test("the count goes out as a read view: get and watch, no set", async () => {
+  const app = basic({ region: "eu" });
+  const root = await createScope({ capsules: [app] }).ready;
+  const count = root.resolve(app.count);
+
+  expect(count.get()).toBe(0);
+  expect("set" in count).toBe(false);
+  await root.close();
 });
 
 test("reading the store again keeps its rows", async () => {
-  const stop = new AbortController();
-  const root = createScope({ signal: stop.signal });
-  try {
-    await root.ready;
-    root.resolve(store).add("first");
-    expect(root.resolve(store).size()).toBe(1);
-  } finally {
-    stop.abort();
-    await root.closed;
-  }
+  const app = basic({ region: "eu" });
+  const root = await createScope({ capsules: [app] }).ready;
+  root.resolve(app.store).add("first");
+
+  expect(root.resolve(app.store).size()).toBe(1);
+  await root.close();
 });
 
 test("stamp reads the clock supplied by the root", async () => {
-  const stop = new AbortController();
-  const root = createScope({ signal: stop.signal, clock: makeTestClock({ now: 7 }) });
-  try {
-    await root.ready;
-    expect(root.run(stamp)).toBe(7);
-  } finally {
-    stop.abort();
-    await root.closed;
-  }
+  const app = basic({ region: "eu" });
+  const root = await createScope({ clock: makeTestClock({ now: 7 }), capsules: [app] }).ready;
+
+  expect(await root.run(app.stamp)).toBe(7);
+  await root.close();
 });
