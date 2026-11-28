@@ -102,12 +102,22 @@ Probe, project files `plans/graph-mutants/`:
 6. `--since <ref>`: only ops whose lines
    changed since `ref`. With no `--since`,
    every op.
-7. Each mutant runs only the test files whose
+7. Each mutant runs the test files whose
    trace has its fact.
+   A file whose run wrote no trace line is
+   unknown, not "reaches nothing".
+   It runs for every mutant (TAP: unknown
+   means affected).
+   Proof (2026-11-28, Hedl): 83 of 188 files
+   use `createScope({})`. One of them killed
+   a mutant the traced files left alive.
+   A scope in a traced file that does not list
+   `exits` is still not seen: a known limit.
 8. Line shape, one per live mutant:
    `<path>:<line> <op> <kind> <fact> lives`,
    then `  reached by: <files>`.
-   The last line counts: mutants, live, files.
+   The last line counts: mutants, live, files,
+   and files not traced.
 9. A scope with no capsule stays as it is:
    a capsule would give it a start.
    Its runs are not traced.
