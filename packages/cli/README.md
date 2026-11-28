@@ -502,9 +502,9 @@ afterAll(async () => {
 
 ### The write sets: `tinker.effects`
 
-A write set is the cells one exit of an
-operation wrote in the tests. It holds the
-writes of each operation that run called.
+A write set is the cells one run of an exit
+wrote. It holds the writes of each operation
+that run called.
 
 `tinker check --write` writes the sets to
 `tinker.effects`, once the tests pass. Commit
@@ -528,8 +528,8 @@ issue.rename.do stale writes{}
 - A run that throws writes no line. Its writes
   count for the run that called it.
 
-Each set that the tests and the file do not
-share is a finding at the operation:
+Each op and exit whose write sets differ is
+one finding, at the operation:
 
 ```text
 src/issues/ops.server.ts:80 tinker/effect
