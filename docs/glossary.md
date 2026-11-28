@@ -523,6 +523,7 @@ New sections are lists, one term per item (vertical layout,
 - **page guard** — The Vite plugin `pageGuard()`: a page build fails when its module graph holds server code (ADR 0160, as TanStack Start import protection).
 - **barrel** — A file that re-exports other files (`export … from`). App code has none: rule `tinker/barrel` (ADR 0160).
 - **graph** — `tinker.graph`: one line per operation and exit, with the cells it reads and writes and the ops it calls; `tinker check` compares the code to it (ADR 0161, as API Extractor `.api.md`).
+- **write set** — The cells one exit of an operation wrote in the tests, its callees' writes too. `tinker.effects` holds one line per operation, exit and write set; `tinker check` compares the tests to it, rule `tinker/effect` (ADR 0175, as JML's `assignable` clause seen at run time).
 - **graph mutant** — One fault at one fact of `tinker.graph`, put in by the `exits` capsule's hooks at run time: `swap` (another declared exit), `empty` (the answer's other fields emptied), `drop` (a write lost), `fail` (a call throws). No source edit (ADR 0173, as Descartes' extreme mutation).
 - **pinned** — A fact is pinned when a test that reached it fails under its graph mutant. A **live** mutant: every test that reached the fact still passes (ADR 0173).
 - **`tinker pins`** — The command that runs graph mutants on the ops a change touches, only in the test files that reached each fact, and prints each live one; it never fails for one (ADR 0173).

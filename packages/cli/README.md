@@ -19,7 +19,7 @@ GitHub release; the
 ## Commands
 
 ```text
-tinker check [root] [--json]
+tinker check [root] [--json] [--write]
 tinker graph [root] [--write]
 tinker pins [root] [--since <ref>] [--json]
 tinker skill list
@@ -329,6 +329,8 @@ tinker.graph says writes{}
 
 - Meant the change? Run `--write` again. The
   reviewer reads the diff of the file.
+- `tinker check --write` writes it too, then
+  runs the graph rules and the later stages.
 - Did not mean it? Fix the code.
 - No `tinker.graph` is one finding, when the app
   has an operation or a view.
@@ -437,12 +439,14 @@ Name the test command in `tinker.json`:
 { "tests": "bun run test" }
 ```
 
-Then the check runs two more stages:
+Then the check runs three more stages:
 
 4. **tests:** the command. Red tests print the
    end of their output.
 5. **exits:** each exit that the types declare
    and no test reached is a finding.
+6. **effects:** each exit's write set must match
+   `tinker.effects` (see below).
 
 ```text
 src/todos.server.ts:41 tinker/exit `todo.remove.do`
@@ -495,6 +499,52 @@ afterAll(async () => {
 - The check reads the label of an operation as
   a literal, and the return type of its `run`.
 - A thrown error is not an exit.
+
+### The write sets: `tinker.effects`
+
+A write set is the cells one exit of an
+operation wrote in the tests. It holds the
+writes of each operation that run called.
+
+`tinker check --write` writes the sets to
+`tinker.effects`, once the tests pass. Commit
+that file. A plain check never writes it.
+
+```text
+# tinker.effects 1
+issue.rename.do renamed writes{issues.list}
+issue.rename.do stale writes{}
+```
+
+- One line per operation, exit and write set.
+- An exit with two sets in the tests has two
+  lines.
+- Only an operation that `tinker.graph` has a
+  line for, and only a cell a graph line names.
+  A library's cells and a test's own cells are
+  in no line.
+- A run that throws writes no line. Its writes
+  count for the run that called it.
+
+Each set that the tests and the file do not
+share is a finding at the operation:
+
+```text
+src/issues/ops.server.ts:80 tinker/effect
+issue.rename.do stale: writes{issues.list},
+file says writes{}
+```
+
+- Meant the change? Run `tinker check --write`.
+  The reviewer reads the diff of the file.
+- Did not mean it? Fix the code.
+- Never delete an assert and write the file
+  again to make a finding go away.
+- No `tinker.effects` is one finding, when the
+  tests wrote a set.
+- The check sets `TINKER_EFFECTS` for the tests.
+  In a plain test run it is not set, and the
+  capsule hooks no write.
 
 ## The pins
 
