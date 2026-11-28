@@ -105,6 +105,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
+- **cli/effect-file** — ADR 0175. The `exits` capsule reports, for each run, its exit and the cells written inside it. `tinker check` compares these to a committed file after the `exits` stage: one line per operation, exit and write set; each line that differs is a `tinker/effect` finding. A skill section teaches the rule id. Lab and its results: project files `tinkered/plans/test-check/lab2/`.
+  Owner: Claude lead (thread "Find a test gate that stops test erosion"); Opus writer.
+  Missing: Duke's pick of the command that writes the file and of its name (asked 2026-11-28); `cli/tinker-pins` on main, since it adds the write hook this card uses.
+  Next, once both are there: the writer's brief, then the build in `packages/cli`.
+  Verify: on the ck12 golden tree (tinker-app `48968a1`), two runs write the same file; with `seed-stale-rename.diff` and `erode-stale-assert.diff` applied, `tinker check` prints one `tinker/effect` finding for `issue.rename.do stale` and no other; a library cell and a test's own cell are in no line; a run with no ask for these facts adds no write hook; `vp check` and the cli tests green.
+
 ## Parked
 
 - **analyze/statechart** — ADR 0129 parked part: state moves from code (checker-narrowed writes, lint M1). Restart once the `analyze/*` cards are Done.
