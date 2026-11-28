@@ -24,6 +24,7 @@
     "@codemirror/theme-one-dark": "^6.1.2",
     "@codemirror/view": "^6.36.2",
     "@preact/signals-react": "^3.12.0",
+    "@stackblitz/sdk": "catalog:",
     "@tanstack/react-router": "1.170.41",
     "@tinkered/bun": "workspace:*",
     "@tinkered/core": "workspace:*",

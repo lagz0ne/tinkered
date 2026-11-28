@@ -60,6 +60,8 @@ play.track exits{value} faults{} reads{} writes{play.nav.update} calls{} uses{}
 play.view.set exits{value} faults{} reads{} writes{play.view.set} calls{} uses{}
 sea.clock.now.do exits{value} faults{} reads{} writes{} calls{} uses{}
 sea.press.do exits{value} faults{} reads{sea.waves.get,sea.waves.where} writes{sea.waves.delete,sea.waves.set} calls{} uses{}
+stackblitz.open exits{value} faults{} reads{} writes{} calls{stackblitz.project} uses{stackblitz.sdk}
+stackblitz.project exits{value} faults{} reads{} writes{} calls{} uses{}
 tide.arrive exits{value} faults{} reads{?,tide.ahead.get,tide.seen.get,tide.sent.get} writes{?,tide.seen.set} calls{ocean.land,tide.sync} uses{}
 tide.send exits{value} faults{?} reads{} writes{tide.sent.update} calls{?} uses{}
 tide.sync exits{value} faults{?} reads{} writes{tide.ahead.set} calls{?} uses{}

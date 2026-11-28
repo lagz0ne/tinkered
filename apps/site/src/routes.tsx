@@ -4,6 +4,7 @@ import type { Scope } from "@tinkered/core";
 import { BenchPage } from "@/bench";
 import { guide } from "@/guide";
 import { GuideHome, GuidePage } from "@/guide/guide";
+import { stackblitz } from "@/open";
 import { PlayPage } from "@/play";
 import { LivePage } from "@/sea";
 import { roomName } from "@/sea/contract";
@@ -50,4 +51,16 @@ const live = createRoute({
   component: () => <LivePage room={live.useSearch().room} />,
 });
 
-export const routeTree = root.addChildren([index, page, play, live, bench]);
+// StackBlitz: the loader sends the welcome mail example there, and this tab goes with it.
+const openWelcome = createRoute({
+  getParentRoute: () => root,
+  path: "/open/welcome",
+  loader: ({ context }) => context.scope.run(stackblitz.open),
+  component: () => (
+    <main className="home">
+      <p className="lede">Opening the welcome mail on StackBlitz…</p>
+    </main>
+  ),
+});
+
+export const routeTree = root.addChildren([index, page, play, live, bench, openWelcome]);

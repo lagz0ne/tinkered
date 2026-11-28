@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 
 import { bench } from "@/bench";
 import { guide } from "@/guide";
+import { stackblitz } from "@/open";
 import { play } from "@/play";
 import { routeTree } from "@/routes";
 import { Pending } from "@/shell";
@@ -24,6 +25,7 @@ const app = createScope({
     guide.api({ remote: ws.client }),
     bench({ timer: performance }),
     play({ storage: localStorage, debounce: 250, wasm: "/esbuild.wasm", inbox: window }),
+    stackblitz(),
   ],
 });
 

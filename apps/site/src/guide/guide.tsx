@@ -6,7 +6,21 @@ import type { Entry } from "./contract";
 
 type Found = { slug: string; title: string; html: string; prev: Entry | null; next: Entry | null };
 
-/** `/`: what Tinker is, three things to try, and every page of the guide. */
+/** The welcome mail's installs, from examples/welcome/cmds/server.ts (its gap comes from env). */
+const welcomeCmd = `const pace = throttler({ gapMs: 100 });
+const smtp = smtpMail({ throttle: pace.runner });
+const queue = outbox({ inner: smtp.deliver, everyMs: 50 });
+const mailer = mail({ backend: queue.enqueue });
+const greeter = welcome({ send: mailer.send });
+const members = signup({ on: [greeter.greet] });
+const trail = audit({ of: mailer.send });
+
+await createScope({
+  capsules: [trail, pace, smtp, queue,
+             mailer, greeter, members],
+}).ready;`;
+
+/** `/`: what Tinker is, the idea in one cmd, four things to try, and every page of the guide. */
 export function GuideHome({ pages }: { pages: readonly Entry[] }) {
   return (
     <main className="home">
@@ -14,18 +28,41 @@ export function GuideHome({ pages }: { pages: readonly Entry[] }) {
         <p className="kicker">Tinker</p>
         <h1>A TypeScript library for apps.</h1>
         <p className="lede">
-          Operations, data and resources in one graph. Capsules as doors. rpc and remote data
-          between a server scope and a client scope.
+          An app is capsules. You build capsules, and you use other capsules. Core starts them,
+          traces each call, and closes them.
         </p>
       </header>
       <section className="grid-row">
         <h2>
-          <span>01</span> Try it
+          <span>01</span> The idea
+        </h2>
+        <p>
+          A welcome mail, as the cmd installs it. Each line is one capsule; each takes the one above
+          in a slot. A new need adds a line, and sign-up never changes.
+        </p>
+        <pre>
+          <code>{welcomeCmd}</code>
+        </pre>
+        <p className="agents">
+          The outbox starts its pump in a start hook; the audit sees each send in a run hook.
+        </p>
+      </section>
+      <section className="grid-row">
+        <h2>
+          <span>02</span> Try it
         </h2>
         <ul className="cards">
           <li>
+            <a href="/open/welcome" target="_blank" rel="noreferrer">
+              Welcome mail
+            </a>
+            <p>
+              The code above on StackBlitz, in Node in your tab: 6 test steps, the graph, the trace.
+            </p>
+          </li>
+          <li>
             <Link to="/play">Play</Link>
-            <p>Edit the ocean. esbuild builds it in this tab; F12 opens Core's source.</p>
+            <p>Edit the ocean, a capsule with a page. esbuild builds it in this tab.</p>
           </li>
           <li>
             <Link to="/live" search={{ room: "lobby" }}>
@@ -41,7 +78,7 @@ export function GuideHome({ pages }: { pages: readonly Entry[] }) {
       </section>
       <section className="grid-row">
         <h2>
-          <span>02</span> Guide
+          <span>03</span> Guide
         </h2>
         <ol className="toc">
           {pages.map((page) => (

@@ -12,7 +12,12 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "types": ["bun"],
-    "paths": { "~/*": ["./tinker/*"], "@/*": ["./src/*"], "@pkg/*": ["../../packages/*"] }
+    "paths": {
+      "~/*": ["./tinker/*"],
+      "@/*": ["./src/*"],
+      "@pkg/*": ["../../packages/*"],
+      "@examples/*": ["../../examples/*"]
+    }
   },
   "include": ["src", "cmds", "tinker", "tests", "scripts"]
 }

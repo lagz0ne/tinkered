@@ -49,3 +49,8 @@ vp run start
 `tinker check` ends with `tinker check: OK`.
 `vp run start` prints the audit, the close
 status, and the count of each exit.
+
+To run it with no install, open it on
+[StackBlitz](https://playground.tini.works/open/welcome).
+There, `npm test`, `npm run graph` and
+`npm start` run in Node in your tab.

@@ -9,8 +9,18 @@ import { clientMeta } from "./scripts/client-meta";
 import { textImport } from "./scripts/text-import";
 
 const at = (path: string) => fileURLToPath(new URL(path, import.meta.url));
-/** `@pkg` reaches the workspace packages' sources: the playground shows them read only. */
-const alias = { "~": at("tinker"), "@": at("src"), "@pkg": at("../../packages") };
+
+/**
+ * `@pkg` reaches the workspace packages' sources: the playground shows them read only.
+ * `@examples` reaches the repo's examples: the StackBlitz button sends one as a project.
+ */
+const alias = {
+  "~": at("tinker"),
+  "@": at("src"),
+  "@pkg": at("../../packages"),
+  "@examples": at("../../examples"),
+};
+
 /** The Bun server in dev (`bun --hot cmds/api.ts`): Vite answers the page, Bun the rest. */
 const api = `http://127.0.0.1:${process.env.API_PORT ?? 3001}`;
 

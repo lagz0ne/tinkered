@@ -16,6 +16,25 @@ you and an AI agent write together.
 Each package ships its own skills: the rules for
 its code, for the version you installed.
 
+## Try it online
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://playground.tini.works/open/welcome)
+
+The link opens the welcome mail from
+"Build with capsules" on StackBlitz. It runs
+in Node in your tab, with no install on your
+machine:
+
+- `npm test` runs at start: the 6 steps.
+- `npm run graph` prints `tinker.graph`.
+- `npm start` runs the cmd.
+
+`tinker check` and lint need native tools, so
+they run on your machine only.
+
+The site, [playground.tini.works](https://playground.tini.works),
+has the guide and an ocean to edit in your tab.
+
 ## How it fits
 
 ```text
