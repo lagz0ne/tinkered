@@ -226,6 +226,28 @@ function appOf(files: Record<string, string>) {
 /** The lab's app files, less its code and tests: an app's frame. */
 const frame = Object.fromEntries(Object.entries(lab).filter(([path]) => !path.includes("/")));
 
+/** One op answering a `total`, and a traced test that does not read it. */
+const counted = {
+  ...frame,
+  "src/count.ts": `import { operation } from "@tinkered/core";
+import { z } from "zod";
+export const count = operation({
+  label: "count.add",
+  input: z.array(z.string()),
+  run: (_, { input }) => ({ kind: "added" as const, total: input.length }),
+});
+`,
+  "tests/count.test.ts": `import { createScope } from "@tinkered/core";
+import { expect, test } from "vite-plus/test";
+import { exits } from "${at("src/test")}";
+import { count } from "@/count";
+test("count adds", async () => {
+  const scope = createScope({ capsules: [exits({ file: process.env.TINKER_EXITS })] });
+  expect(await scope.run(count, { input: ["a", "b"] })).toMatchObject({ kind: "added" });
+});
+`,
+};
+
 test(
   "a fact no test checks lives: each swap of an answer no caller reads, and a write no test reads",
   slow,
@@ -334,26 +356,7 @@ test("sendOne answers idle, then sent, then failed", async () => {
 });
 
 test("an answer field no test reads lives as an empty answer", slow, () => {
-  const folder = appOf({
-    ...frame,
-    "src/count.ts": `import { operation } from "@tinkered/core";
-import { z } from "zod";
-export const count = operation({
-  label: "count.add",
-  input: z.array(z.string()),
-  run: (_, { input }) => ({ kind: "added" as const, total: input.length }),
-});
-`,
-    "tests/count.test.ts": `import { createScope } from "@tinkered/core";
-import { expect, test } from "vite-plus/test";
-import { exits } from "${at("src/test")}";
-import { count } from "@/count";
-test("count adds", async () => {
-  const scope = createScope({ capsules: [exits({ file: process.env.TINKER_EXITS })] });
-  expect(await scope.run(count, { input: ["a", "b"] })).toMatchObject({ kind: "added" });
-});
-`,
-  });
+  const folder = appOf(counted);
 
   const { out } = main(["pins", folder], "/");
 
@@ -365,6 +368,170 @@ test("count adds", async () => {
       "",
     ].join("\n"),
   );
+});
+
+test("the text names each test file it could not trace", slow, () => {
+  const folder = appOf({
+    ...counted,
+    "tests/plain.test.ts": `import { createScope } from "@tinkered/core";
+import { expect, test } from "vite-plus/test";
+import { count } from "@/count";
+test("count adds, with no exits", async () => {
+  const scope = createScope({});
+  expect(await scope.run(count, { input: ["a"] })).toEqual({ kind: "added", total: 1 });
+});
+`,
+  });
+
+  const { out } = main(["pins", folder], "/");
+
+  expect(out).toBe(
+    [
+      "src/count.ts:3 count.add empty added lives",
+      "  reached by: tests/count.test.ts",
+      "  not traced: tests/plain.test.ts",
+      "pins: 1 mutant, 1 live, 2 test files, 1 not traced",
+      "",
+    ].join("\n"),
+  );
+});
+
+test("--since counts a file git does not track yet as changed", slow, () => {
+  const folder = appOf(frame);
+  for (const [path, text] of Object.entries(counted).filter(([path]) => path.includes("/"))) {
+    mkdirSync(dirname(join(folder, path)), { recursive: true });
+    writeFileSync(join(folder, path), text);
+  }
+
+  const { out } = main(["pins", folder, "--since", "HEAD"], "/");
+
+  expect(out).toBe(
+    [
+      "src/count.ts:3 count.add empty added lives",
+      "  reached by: tests/count.test.ts",
+      "pins: 1 mutant, 1 live, 1 test file, 0 not traced",
+      "",
+    ].join("\n"),
+  );
+});
+
+test(
+  "an answer that is not plain JSON data stays green under trace, and gets no empty twin",
+  slow,
+  () => {
+    const folder = appOf({
+      ...frame,
+      "src/stamp.ts": `import { operation } from "@tinkered/core";
+export const at = operation({ label: "stamp.at", run: () => ({ kind: "stamped" as const, at: new Date(0) }) });
+export const tally = operation({ label: "stamp.tally", run: () => ({ kind: "tallied" as const, total: 1n }) });
+`,
+      "tests/stamp.test.ts": `import { createScope } from "@tinkered/core";
+import { expect, test } from "vite-plus/test";
+import { exits } from "${at("src/test")}";
+import { at, tally } from "@/stamp";
+test("stamp answers", async () => {
+  const scope = createScope({ capsules: [exits({ file: process.env.TINKER_EXITS })] });
+  expect(await scope.run(at)).toMatchObject({ kind: "stamped" });
+  expect(await scope.run(tally)).toMatchObject({ kind: "tallied" });
+});
+`,
+    });
+
+    const { code, out } = main(["pins", folder], "/");
+
+    expect(code).toBe(0);
+    expect(out).toBe("pins: 0 mutants, 0 live, 1 test file, 0 not traced\n");
+  },
+);
+
+test("a refusal is never swapped to another answer", slow, () => {
+  const folder = appOf({
+    ...frame,
+    "src/api.ts": `import { operation, rpc, transport } from "@tinkered/core";
+import { z } from "zod";
+export const api = rpc({ echo: { input: z.number(), output: z.object({ kind: z.literal("echoed") }) } });
+export const echo = operation({
+  label: "echo",
+  input: api.echo.input,
+  run: () => ({ kind: "echoed" as const }),
+});
+export const guard = operation({
+  label: "guard",
+  input: transport.hook.start,
+  run: (_, { input }) => (input.input === 0 ? input.refuse({}) : { kind: "open" as const }),
+});
+`,
+    "tests/api.test.ts": `import { createScope } from "@tinkered/core";
+import { expect, test } from "vite-plus/test";
+import { exits } from "${at("src/test")}";
+import { api, echo, guard } from "@/api";
+test("the guard refuses zero", async () => {
+  const scope = createScope({
+    capsules: [exits({ file: process.env.TINKER_EXITS }), api({ implement: { echo }, onStart: [guard] })],
+  });
+  expect(await scope.settle(api.echo, { input: 1 })).toMatchObject({ status: "success" });
+  expect(await scope.settle(api.echo, { input: 0 })).toMatchObject({ status: "failed" });
+  await scope.close();
+});
+`,
+  });
+
+  const { out } = main(["pins", folder], "/");
+
+  expect(out).toBe("pins: 0 mutants, 0 live, 1 test file, 0 not traced\n");
+});
+
+test("a call that a hook makes inside a slot op's run gets no fail", slow, () => {
+  const folder = appOf({
+    ...frame,
+    "src/signup/index.server.ts": lab["src/signup/index.server.ts"] ?? "",
+    "src/welcome/index.server.ts": lab["src/welcome/index.server.ts"] ?? "",
+    "src/audit.server.ts": `import { capsule, data, operation } from "@tinkered/core";
+import { z } from "zod";
+import { signup } from "@/signup/index.server";
+const noted = data<string[]>({ label: "audit.noted", initial: [] });
+const note = operation({
+  label: "audit.note",
+  input: z.string(),
+  depends: { noted: noted.controller },
+  run: ({ noted }, { input }) => {
+    noted.update((list) => [...list, input]);
+  },
+});
+export const audit = capsule({
+  label: "audit",
+  exports: { note, noted },
+  hooks: {
+    async run(event) {
+      if (event.is(signup.join)) {
+        await event.run(note, { input: "join" }, { role: "handler", explain: "Notes each join" });
+      }
+      return event.next();
+    },
+  },
+});
+`,
+    "tests/signup.test.ts": `import { createScope } from "@tinkered/core";
+import { expect, test } from "vite-plus/test";
+import { exits } from "${at("src/test")}";
+import { audit } from "@/audit.server";
+import { signup } from "@/signup/index.server";
+import { welcome } from "@/welcome/index.server";
+test("a join is noted, greeted and kept", async () => {
+  const scope = createScope({
+    capsules: [exits({ file: process.env.TINKER_EXITS }), audit, welcome, signup({ on: [welcome.greet] })],
+  });
+  expect(await scope.run(signup.join, { input: { email: "a@x.io" } })).toEqual({ kind: "joined" });
+  expect(scope.resolve(audit.noted).get()).toEqual(["join"]);
+  expect(scope.resolve(welcome.greeted).get()).toEqual(["a@x.io"]);
+  expect(scope.resolve(signup.members).get()).toEqual([{ email: "a@x.io" }]);
+});
+`,
+  });
+
+  const { out } = main(["pins", folder], "/");
+
+  expect(out).toBe("pins: 4 mutants, 0 live, 1 test file, 0 not traced\n");
 });
 
 test("a test file that fails with no fault in stops the run with its output", slow, () => {

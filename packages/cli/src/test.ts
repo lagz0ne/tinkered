@@ -77,20 +77,19 @@ function envOf(name: string) {
  */
 type Pins = { trace?: string; fault?: Mutant.Fault };
 
-/** The last `TINKER_MUTANT` text and its fault: each run reads the env, few parse it. */
-let parsed: { text: string; fault: Mutant.Fault } | undefined;
-
-function faultOf(text: string): Mutant.Fault {
-  if (parsed?.text !== text) parsed = { text, fault: JSON.parse(text) };
-  return parsed.fault;
-}
-
 function pinsOf(): Pins | undefined {
   const trace = envOf("TINKER_TRACE");
   const mutant = envOf("TINKER_MUTANT");
   if (!trace && !mutant) return undefined;
-  return { ...(trace ? { trace } : {}), ...(mutant ? { fault: faultOf(mutant) } : {}) };
+  const fault: Mutant.Fault | undefined = mutant ? JSON.parse(mutant) : undefined;
+  return { ...(trace ? { trace } : {}), ...(fault ? { fault } : {}) };
 }
+
+/**
+ * What `tinker pins` asks of this process, read once at load: it sets both env values before
+ * the test process starts. With neither, the capsule is the plain exits capsule.
+ */
+const pins = pinsOf();
 
 /**
  * The label of the innermost operation running. Made at the first traced run, by name, so a
@@ -126,14 +125,42 @@ function enter({ trace, fault }: Pins, label: string, next: () => unknown) {
   return place.run(label, next);
 }
 
-/** The exit a run reached, and the first answer of each exit as its sample. */
+/** Whether a value is a JSON leaf: a string, a finite number, a boolean or null. */
+function isPlainLeaf(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value);
+  return value === null || typeof value === "string" || typeof value === "boolean";
+}
+
+/**
+ * Whether a value is plain JSON data: leaves, arrays and plain objects, no symbol key, no
+ * cycle. Its JSON is the value itself, so a swap to it gives the same answer back, and the
+ * empty twin of its JSON is the empty twin of the answer. A bigint, a `Date`, a `Map` or a
+ * class instance is not.
+ */
+function isPlainData(value: unknown, path: Set<object>): boolean {
+  if (typeof value !== "object" || value === null) return isPlainLeaf(value);
+  const proto = Object.getPrototypeOf(value);
+  const plain = Array.isArray(value) || proto === Object.prototype || proto === null;
+  if (!plain || path.has(value) || Object.getOwnPropertySymbols(value).length) return false;
+
+  path.add(value);
+  const each = Object.values(value).every((field) => isPlainData(field, path));
+  path.delete(value);
+  return each;
+}
+
+/**
+ * The exit a run reached, and the first plain answer of each exit as its sample. An answer
+ * that is not plain JSON data gets no sample: no swap to it, and no `empty` of it. So a trace
+ * never turns a green test red.
+ */
 function trail(trace: string, label: string, exit: string, value: unknown) {
   note(trace, `exit\t${label}\t${exit}`);
   const key = `${trace}\nsample\t${label}\t${exit}`;
-  if (noted.has(key)) return;
+  if (noted.has(key) || !isPlainData(value, new Set())) return;
 
   noted.add(key);
-  append(trace, `sample\t${label}\t${exit}\t${JSON.stringify(value) ?? "null"}`);
+  append(trace, `sample\t${label}\t${exit}\t${JSON.stringify(value)}`);
 }
 
 /** The answer a `swap` or an `empty` mutant gives where `label` reached its `from`. */
@@ -153,8 +180,8 @@ function answer({ trace, fault }: Pins, label: string, exit: string, value: unkn
  * A run that throws reaches no exit.
  *
  * `tinker pins` sets `TINKER_TRACE` or `TINKER_MUTANT` (ADR 0173): the capsule then writes
- * each exit, write and call a run reaches, or puts in the one fault it names. With neither, it
- * does only the above.
+ * each exit, write and call a run reaches, or puts in the one fault it names. It reads them
+ * once, at load, and only then hooks writes. With neither, it does only the above.
  */
 export const exits = capsule({
   label: "tinker.exits",
@@ -163,7 +190,6 @@ export const exits = capsule({
     run(event) {
       const { file: to, store: page } = event.config;
       const label = "label" in event.op ? event.op.label : undefined;
-      const pins = pinsOf();
       if (!label || (!to.present && !page.present && !pins)) return event.next();
 
       const say = (value: unknown) => {
@@ -175,16 +201,16 @@ export const exits = capsule({
       const out = pins ? enter(pins, label, () => event.next()) : event.next();
       return out instanceof Promise ? out.then(say) : say(out);
     },
-    write(event) {
-      const pins = pinsOf();
-      if (!pins) return event.next();
+    write:
+      pins &&
+      ((event) => {
+        const op = placeOf().getStore() ?? "-";
+        const cell = event.cell.label;
+        note(pins.trace, `write\t${op}\t${cell}`);
 
-      const op = placeOf().getStore() ?? "-";
-      const cell = event.cell.label;
-      note(pins.trace, `write\t${op}\t${cell}`);
-      const { fault } = pins;
-      if (fault?.kind === "drop" && fault.op === op && fault.cell === cell) return;
-      event.next();
-    },
+        const { fault } = pins;
+        if (fault?.kind === "drop" && fault.op === op && fault.cell === cell) return;
+        event.next();
+      }),
   },
 });

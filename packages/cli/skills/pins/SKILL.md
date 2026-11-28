@@ -54,7 +54,8 @@ pins: 16 mutants, 7 live, 2 test files,
 ```
 
 `not traced`: the test files whose trace has no
-line. `--json` lists them in `untraced`.
+line. A `not traced:` line names them, above
+the count. `--json` lists them in `untraced`.
 
 ## The kinds and their facts
 
@@ -112,6 +113,7 @@ tinker pins --json
   and its facts get no mutant.
 - A live mutant may still be checked by a file
   that is not traced. Add `exits` to its scopes.
-- `--since` keeps the ops whose lines changed.
+- `--since` keeps the ops whose lines changed,
+  and the ops in files git does not track yet.
 - Exit 1 means it could not run: no `tests`
   command, or a test file red with no mutant in.

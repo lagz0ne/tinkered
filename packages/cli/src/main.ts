@@ -296,7 +296,7 @@ function graphCommand(root: string, write: boolean): Main.Result {
   return { code: 0, out: `wrote ${graphFile}: ${linesCount(graph)}\n`, err: "" };
 }
 
-/** The text of a pins report: one entry per live mutant, then the counts. */
+/** The text of a pins report: one entry per live mutant, the files not traced, then the counts. */
 function pinsText(report: Pins.Report) {
   switch (report.kind) {
     case "untested":
@@ -314,10 +314,12 @@ function pinsText(report: Pins.Report) {
         `${path}:${line} ${fault.op} ${fault.kind} ${fact} lives`,
         `  reached by: ${reachedBy.join(", ")}`,
       ]);
+
       const { mutants, live, files, untraced } = report;
       const tested = `${counted(files, "test file")}, ${untraced.length} not traced`;
       const count = `${counted(mutants, "mutant")}, ${live.length} live, ${tested}`;
-      return [...entries, `pins: ${count}`, ""].join("\n");
+      const named = untraced.length ? [`  not traced: ${untraced.join(", ")}`] : [];
+      return [...entries, ...named, `pins: ${count}`, ""].join("\n");
     }
   }
 }

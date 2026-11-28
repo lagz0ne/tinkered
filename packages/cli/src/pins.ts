@@ -116,13 +116,13 @@ function unionOf(traces: readonly Trace[]): Trace {
 
 /**
  * The swaps of an op: where it answered one declared exit, it answers another, by that exit's
- * sample. Never to `refused`: a refusal is Core's own mark, and no sample makes one.
+ * sample. Never from or to `refused`: a refusal is a hook's fact, and Core's own mark.
  */
 function swapsOf(op: Graph.Line, { facts, samples }: Trace): Planned[] {
   const { label, exits } = op;
   return exits.flatMap((from) => {
     const traced = `exit\t${label}\t${from}`;
-    if (!facts.has(traced)) return [];
+    if (from === "refused" || !facts.has(traced)) return [];
     return exits.flatMap((to) => {
       const sample = samples.get(`${label}\t${to}`);
       if (to === from || to === "refused" || sample === undefined) return [];
@@ -158,17 +158,30 @@ function dropsOf(op: Graph.Line, { facts }: Trace): Planned[] {
 }
 
 /**
- * The fails of an op: each call its `calls{}` names. A `slot:` call names no op, so each op
- * the trace shows it call that `calls{}` does not name is the slot's.
+ * The ops a capsule hook runs, by the `runs{…}` of its hook lines (#72). A hook that runs one
+ * inside an op shows in the trace as that op's call.
  */
-function failsOf(op: Graph.Line, { facts }: Trace): Planned[] {
+function hookRunsOf(hooks: readonly Graph.Row[]) {
+  const head = "runs{";
+  const runs = hooks
+    .flatMap(({ parts }) => parts.filter((part) => part.startsWith(head)))
+    .flatMap((part) => part.slice(head.length, -1).split(","));
+  return new Set(runs.filter((label) => label && label !== unseen));
+}
+
+/**
+ * The fails of an op: each call its `calls{}` names. A `slot:` call names no op, so each op
+ * the trace shows it call that `calls{}` does not name is the slot's, unless a hook line runs
+ * it: that call is the hook's, and a hook's fact gets no mutant (ADR 0173 decision 5).
+ */
+function failsOf(op: Graph.Line, { facts }: Trace, hookRuns: ReadonlySet<string>): Planned[] {
   const { label, calls } = op;
   const head = `call\t${label}\t`;
   const slot = calls.some((call) => call.startsWith(slotMark));
   const callees = [...facts]
     .filter((fact) => fact.startsWith(head))
     .map((fact) => fact.slice(head.length))
-    .filter((callee) => slot || calls.includes(callee));
+    .filter((callee) => calls.includes(callee) || (slot && !hookRuns.has(callee)));
   return callees.map((callee) => ({
     op,
     fault: { kind: "fail", op: label, callee },
@@ -201,18 +214,37 @@ function changedIn(diff: string) {
 }
 
 /**
- * The ops whose `operation(…)` call has a line changed since `ref`: `git diff <ref>`, the
- * working tree included, with paths from the app's root.
+ * What one git command printed, run in the app's folder.
  *
- * @throws `ToolFailed` when `git diff` fails: `ref` is no commit, or the app is in no repo.
+ * @throws `ToolFailed` when it fails: a ref that is no commit, or an app in no repo.
+ */
+function gitIn(root: string, command: string, args: string[]) {
+  const done = spawnSync("git", [command, ...args], {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 1 << 28,
+  });
+  const output = `${done.stdout ?? ""}${done.stderr ?? ""}`;
+  if (done.status !== 0) raise("ToolFailed", { tool: `git ${command}`, output });
+  return done.stdout;
+}
+
+/**
+ * The ops whose `operation(…)` call has a line changed since `ref`: `git diff <ref>`, the
+ * working tree included, with paths from the app's root. A file git does not track yet
+ * (`git ls-files --others --exclude-standard`) is changed on every line.
+ *
+ * @throws `ToolFailed` when `git diff` or `git ls-files` fails.
  */
 function opsSince(root: string, ops: Graph.Line[], ref: string) {
-  const args = ["diff", "--relative", "--no-prefix", "--no-color", "--unified=0", ref];
-  const done = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 });
-  const output = `${done.stdout ?? ""}${done.stderr ?? ""}`;
-  if (done.status !== 0) raise("ToolFailed", { tool: "git diff", output });
+  const diff = ["--relative", "--no-prefix", "--no-color", "--unified=0", ref];
+  const changed = changedIn(gitIn(root, "diff", diff));
+  for (const path of gitIn(root, "ls-files", ["-z", "--others", "--exclude-standard"]).split(
+    "\0",
+  )) {
+    if (path) changed.set(path, [{ from: 1, to: Infinity }]);
+  }
 
-  const changed = changedIn(done.stdout);
   return ops.filter(({ path, line, end }) =>
     (changed.get(path) ?? []).some(({ from, to }) => from <= end && line <= to),
   );
@@ -226,7 +258,7 @@ function opsSince(root: string, ops: Graph.Line[], ref: string) {
  * `since` keeps only the ops whose lines changed since that ref.
  *
  * @throws `BadConfig` for a `tinker.json` it cannot read.
- * @throws `ToolFailed` when `git diff <since>` fails.
+ * @throws `ToolFailed` when `git diff <since>` or `git ls-files` fails.
  */
 export function readPins(root: string, since?: string): Pins.Report {
   const { tests } = configOf(root);
@@ -235,7 +267,7 @@ export function readPins(root: string, since?: string): Pins.Report {
     .map((path) => path.replaceAll("\\", "/"))
     .filter((path) => testFile.test(path))
     .sort();
-  const { ops } = graphOf(root);
+  const { ops, hooks } = graphOf(root);
   const chosen = since === undefined ? ops : opsSince(root, ops, since);
   if (!chosen.length) {
     return { kind: "ran", mutants: 0, files: files.length, untraced: [], live: [] };
@@ -250,11 +282,12 @@ export function readPins(root: string, since?: string): Pins.Report {
 
   const untraced = traces.filter(({ trace }) => !trace.facts.size).map(({ file }) => file);
   const all = unionOf(traces.map(({ trace }) => trace));
+  const hookRuns = hookRunsOf(hooks);
   const mutants = chosen.flatMap((op) => [
     ...swapsOf(op, all),
     ...emptiesOf(op, all),
     ...dropsOf(op, all),
-    ...failsOf(op, all),
+    ...failsOf(op, all, hookRuns),
   ]);
   const live = mutants.flatMap(({ op, fault, fact, traced }): Pins.Live[] => {
     const reachedBy = traces.filter(({ trace }) => trace.facts.has(traced)).map(({ file }) => file);

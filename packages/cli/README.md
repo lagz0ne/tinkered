@@ -528,7 +528,7 @@ The mutant kinds:
 
 - **swap:** where the op answered one exit, it
   answers another exit it declares. Never
-  `refused`.
+  from or to `refused`.
 - **empty:** the answer keeps its `kind`. Each
   other field gets its empty twin: `0`, `""`,
   `[]`, a flipped boolean, or `null`.
@@ -536,6 +536,11 @@ The mutant kinds:
   `writes{}` is lost.
 - **fail:** a call of an op in its `calls{}`
   throws.
+
+An exit's first answer is its sample, when it is
+plain JSON data. A `Date`, a bigint, a `Map` or
+a class is not. An exit with no sample gets no
+swap to it and no empty.
 
 Each live mutant prints two lines. A last line
 counts:
@@ -562,7 +567,9 @@ of its write.
 
 - `--since <ref>` keeps the ops whose
   `operation({…})` lines changed since `<ref>`,
-  the working tree included. With no op changed,
+  the working tree included. A file git does
+  not track yet counts as changed. With no op
+  changed,
   it puts in no mutant.
 - `--json` prints the same facts as one object.
 - It exits 1 when it cannot run. An app with no
@@ -573,8 +580,9 @@ of its write.
 - A write or a call that the graph does not
   state gets no mutant: a hook's, say (#72).
 - A test file whose trace has no line is not
-  traced. The count names how many. `--json`
-  lists them in `untraced`.
+  traced. A `not traced:` line names them,
+  above the count. `--json` lists them in
+  `untraced`.
 - A scope that does not list exits is not seen:
   it gets no fault and no trace.
 - A live mutant may still be checked by a file
