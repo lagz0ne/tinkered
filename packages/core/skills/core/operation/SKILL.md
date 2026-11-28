@@ -28,10 +28,19 @@ shape, its deps and a `run`. Each call is a span.
 
 ## Setup
 
+An operation lives in a capsule's file. Others
+reach it through the capsule's install.
+
 ```ts
-import { createScope, data, operation } from "@tinkered/core";
+import {
+  capsule,
+  createScope,
+  data,
+  operation,
+} from "@tinkered/core";
 import { z } from "zod";
 
+// src/wave/index.ts
 const hues = data<number[]>({
   label: "wave.hues",
   initial: [],
@@ -49,8 +58,17 @@ const press = operation({
   },
 });
 
-const scope = createScope();
-const { hue } = await scope.run(press, {
+export const wave = capsule({
+  label: "wave",
+  exports: { hues, press },
+});
+
+// cmds/main.ts
+const sea = wave();
+const scope = await createScope({
+  capsules: [sea],
+}).ready;
+const { hue } = await scope.run(sea.press, {
   input: { x: 1, y: 2 },
 });
 ```
@@ -90,20 +108,35 @@ const quad = operation({
 ```
 
 A dep that is an operation has `run` and
-`settle`, as a scope has.
+`settle`, as a scope has. A dep on the same
+capsule's unit names it bare, in the same file.
+A dep on another capsule's op is a slot the cmd
+fills from an install (see the capsule skill).
 
 ### Read the result without a throw
 
 ```ts
-import { createScope, operation } from "@tinkered/core";
+import {
+  capsule,
+  createScope,
+  operation,
+} from "@tinkered/core";
 
 const risky = operation({
-  label: "risky",
+  label: "job.risky",
   run: () => 1,
 });
 
-const scope = createScope();
-const result = await scope.settle(risky);
+const job = capsule({
+  label: "job",
+  exports: { risky },
+});
+
+const work = job();
+const scope = await createScope({
+  capsules: [work],
+}).ready;
+const result = await scope.settle(work.risky);
 if (result.status === "success") result.value;
 if (result.status === "failed") result.error;
 if (result.status === "cancelled") result.reason;
@@ -207,7 +240,7 @@ with no `await` loses its error.
 Wrong:
 
 ```ts no-check
-scope.run(press, { input: { x: 1, y: 2 } });
+scope.run(sea.press, { input: { x: 1, y: 2 } });
 ```
 
 Right: `await scope.run(...)`, or keep the

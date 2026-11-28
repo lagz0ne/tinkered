@@ -91,18 +91,20 @@ export const todoRoutes: Table = {
 };
 
 // cmds/server.ts
+const caps = limits({ maxBytes: 64 * 1024 });
+const router = routes({
+  table: [todoRoutes, issueRoutes],
+  guards: [caps.bodySize, caps.jsonOnly],
+});
 capsules: [
-  serve({ port, handlers: [routes] }),
-  limits({ maxBytes: 64 * 1024 }),
-  routes({
-    table: [todoRoutes, issueRoutes],
-    guards: [limits.bodySize, limits.jsonOnly],
-  }),
+  serve({ port, handlers: [router] }),
+  caps,
+  router,
 ],
 ```
 
 - A guard is an op, so it has a span, its own
-  deps, and a graph line. `limits.bodySize`
+  deps, and a graph line. `caps.bodySize`
   answers 413 past `maxBytes`.
 - A feature owns its rows. The cmd lists the
   tables, as it lists capsules.

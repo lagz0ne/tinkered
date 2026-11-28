@@ -33,8 +33,18 @@ in a resource.
 
 ## Setup
 
+A feature's component lives in its capsule's
+file and goes out as a foreign export (ADR 0125).
+Inside that file it reads the capsule's own
+units. The page reaches it through the install.
+
 ```tsx
-import { createScope, data, operation } from "@tinkered/core";
+import {
+  capsule,
+  createScope,
+  data,
+  operation,
+} from "@tinkered/core";
 import {
   ScopeProvider,
   useData,
@@ -42,6 +52,7 @@ import {
 } from "@tinkered/react";
 import { createRoot } from "react-dom/client";
 
+// src/counter/index.tsx
 const count = data({ label: "count", initial: 0 });
 
 const add = operation({
@@ -60,10 +71,17 @@ function Counter() {
   );
 }
 
-const scope = createScope();
+export const counter = capsule({
+  label: "counter",
+  exports: { count, add, Counter },
+});
+
+// cmds/browser.tsx
+const tally = counter();
+const scope = createScope({ capsules: [tally] });
 createRoot(document.body).render(
   <ScopeProvider scope={scope}>
-    <Counter />
+    <tally.Counter />
   </ScopeProvider>,
 );
 ```
@@ -73,9 +91,11 @@ createRoot(document.body).render(
 - `useRun(op)` gives `run`, `runAsync`, `status`,
   `data` and `error`. It has the shape of a React
   Query mutation.
-- With capsules, pass the scope that
-  `createScope({ capsules })` returns. The
-  provider waits for its start.
+- Pass the scope that `createScope({ capsules })`
+  returns. The provider waits for its start.
+- Outside the capsule's file, read through the
+  install: `useData(tally.count)`,
+  `useRun(tally.add)`.
 
 ## Core patterns
 

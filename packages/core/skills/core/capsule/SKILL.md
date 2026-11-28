@@ -27,6 +27,8 @@ sources:
 
 A capsule holds a feature's config, its exports
 and its hooks. A cmd installs it with values.
+Code reaches a unit through its install, kept in
+a const: `waves.press`, never a bare `press`.
 
 ## Setup
 
@@ -65,12 +67,11 @@ export const sea = capsule({
 });
 
 // cmds/server.ts
-const app = createScope({
-  capsules: [sea({ size: 4 })],
-});
+const tide = sea({ size: 4 });
+const app = createScope({ capsules: [tide] });
 const live = await app.ready;
-live.run(sea.press, { input: { x: 9 } });
-live.resolve(sea.waves).get();
+live.run(tide.press, { input: { x: 9 } });
+live.resolve(tide.waves).get();
 await live.close();
 ```
 
@@ -79,7 +80,8 @@ await live.close();
 - `exports` names what others may touch: an
   operation to call, a cell to read.
 - The cmd calls the capsule with values. That
-  call is the install.
+  call is the install. Keep it in a const, and
+  reach each export through it: `tide.press`.
 - `await app.ready` gives the started scope. Its
   sync calls stay sync.
 - `await app.settled` gives the same end as a
@@ -180,29 +182,28 @@ export const memoryMail = capsule({
 });
 
 // cmds/server.ts
+const memory = memoryMail();
+const mailer = mail({ backend: memory.deliver });
 const app = createScope({
-  capsules: [
-    memoryMail(),
-    mail({ backend: memoryMail.deliver }),
-  ],
+  capsules: [memory, mailer],
 });
 const live = await app.ready;
-await live.run(mail.send, {
+await live.run(mailer.send, {
   input: { to: "ana@x.io", body: "Hi" },
 });
-live.resolve(memoryMail.sent).get();
+live.resolve(memory.sent).get();
 await live.close();
 ```
 
-- A feature depends on `mail.send`. It never
-  sees which backend runs.
+- A feature takes the send op in its own slot,
+  filled with `mailer.send`. It never sees which
+  backend runs.
 - The backend's operation has its own
   `depends`: a queue, an identity, a client. Its
   capsule's `start` hook can check them.
 - A real backend and the memory one fill the same
-  slot: `mail({ backend: queuedMail.deliver })`
-  in the server cmd, `memoryMail.deliver` in a
-  test.
+  slot: `mail({ backend: queue.deliver })` in the
+  server cmd, `memory.deliver` in a test.
 - `Operation.Handle<Out, In>` names the answer
   first, then the input.
 - The graph names the slot:
@@ -291,7 +292,8 @@ createScope({
 });
 ```
 
-Right: `capsules: [sea({ size: 4 })]`.
+Right: `const tide = sea({ size: 4 })`, then
+`capsules: [tide]`.
 
 ### HIGH: a feature reads env [tinker/seam]
 
@@ -347,12 +349,34 @@ mail({ mailer: { send: async (l) => post(l) } });
 
 Right: make the adapter a backend capsule, and
 fill the app capsule's op slot with its
-operation: `mail({ backend: queuedMail.deliver })`.
+operation: `mail({ backend: queue.deliver })`.
 See "An adapter is a backend capsule in an op
 slot".
 
 Check: `tinker check` prints each function in the
 object.
+
+### HIGH: a bare unit or a capsule handle in a call
+
+`scope.run(press)` reaches past the capsule. So
+does `scope.run(sea.press)` or
+`depends: { send: mail.send }` in another
+feature: it names no install, and a second
+install of `sea` or `mail` breaks it (ADR 0172).
+
+Wrong:
+
+```ts no-check
+await live.run(press, { input: { x: 9 } });
+const greet = operation({
+  depends: { send: mail.send },
+});
+```
+
+Right: keep the install in a const and reach
+through it: `live.run(tide.press, ...)`. A
+feature that needs another one's op takes it in a
+slot: `welcome({ send: mailer.send })`.
 
 ### MEDIUM: a function that makes units
 

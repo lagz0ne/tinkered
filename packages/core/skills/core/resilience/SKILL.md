@@ -136,25 +136,24 @@ export const smtpMail = capsule({
 });
 
 // cmds/server.ts
+const pace = throttler({ gapMs: 100 });
+const smtp = smtpMail({ throttle: pace.runner });
+const mailer = mail({ backend: smtp.deliver });
 const app = createScope({
-  capsules: [
-    throttler({ gapMs: 100 }),
-    smtpMail({ throttle: throttler.runner }),
-    mail({ backend: smtpMail.deliver }),
-  ],
+  capsules: [pace, smtp, mailer],
 });
 
 const live = await app.ready;
 
-await live.run(mail.send, {
+await live.run(mailer.send, {
   input: { to: "ana@x.io" },
 });
 
 await live.close();
 ```
 
-- A feature calls `mail.send`. It never sees the
-  backend or its pace.
+- A feature calls `mailer.send`, through a slot.
+  It never sees the backend or its pace.
 - The runner takes no input and gives no answer,
   so one throttler fits any backend.
 - Each call books the next free turn in a cell
@@ -346,8 +345,8 @@ export const breaker = capsule({
 ```
 
 - Join it with retry in the cmd:
-  `breaker({ inner: retry.fetch })`, then
-  `retry({ inner: provider.fetch })`.
+  `const again = retry({ inner: rates.fetch })`,
+  then `breaker({ inner: again.fetch })`.
 - A test reaches each exit: `rate`, and `down`
   both when the call fails and while it is open.
 

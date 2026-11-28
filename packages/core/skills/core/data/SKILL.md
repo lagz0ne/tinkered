@@ -29,9 +29,18 @@ changed.
 
 ## Setup
 
-```ts
-import { createScope, data, operation } from "@tinkered/core";
+A cell lives in a capsule's file. Others read it
+through the capsule's install.
 
+```ts
+import {
+  capsule,
+  createScope,
+  data,
+  operation,
+} from "@tinkered/core";
+
+// src/theme/index.ts
 const theme = data({ label: "theme", initial: "light" });
 
 const flip = operation({
@@ -49,13 +58,25 @@ const show = operation({
   run: ({ theme }) => `theme is ${theme}`,
 });
 
-const scope = createScope();
-await scope.run(flip);
+export const looks = capsule({
+  label: "looks",
+  exports: { theme, flip, show },
+});
+
+// cmds/main.ts
+const ui = looks();
+const scope = await createScope({
+  capsules: [ui],
+}).ready;
+await scope.run(ui.flip);
+scope.resolve(ui.theme).get(); // "dark"
 ```
 
 - `depends: { theme }` gives the value.
 - `depends: { theme: theme.controller }` gives
   `get`, `set`, `update` and `watch`.
+- `ui.theme` is a read view: `get` and `watch`,
+  no `set`. Change it through `ui.flip`.
 
 ## Core patterns
 

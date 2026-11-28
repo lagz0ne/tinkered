@@ -50,9 +50,19 @@ the task crosses two of them.
 
 ## Setup
 
-```ts
-import { createScope, data, operation } from "@tinkered/core";
+An app is capsules. A unit lives in a capsule's
+file; the cmd makes the install and reaches each
+unit through it.
 
+```ts
+import {
+  capsule,
+  createScope,
+  data,
+  operation,
+} from "@tinkered/core";
+
+// src/counter/index.ts
 const count = data({ label: "count", initial: 0 });
 
 const add = operation({
@@ -64,14 +74,26 @@ const add = operation({
   },
 });
 
-const scope = createScope();
-const total = await scope.run(add);
+export const counter = capsule({
+  label: "counter",
+  exports: { count, add },
+});
+
+// cmds/main.ts
+const tally = counter();
+const scope = await createScope({
+  capsules: [tally],
+}).ready;
+const total = await scope.run(tally.add);
 await scope.close();
 ```
 
-- A unit is declared once, at module level.
+- A unit is declared once, at module level, in
+  its capsule's file. Only `exports` leave it.
 - `depends` names each thing a `run` reads or
   writes. The run gets them as its first argument.
+- Code reaches a unit through its install:
+  `tally.add`, never a bare `add`.
 - A scope runs the graph. Close it when done.
 
 ## The rules

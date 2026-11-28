@@ -55,6 +55,7 @@ import {
   capsule,
   data,
   operation,
+  resource,
   tag,
   type Operation,
 } from "@tinkered/core";
@@ -129,21 +130,47 @@ const sendOne = operation({
   },
 });
 
+// Fires when the scope begins to close.
+const stopping = resource({
+  label: "outbox.stopping",
+  factory: (_deps, { closing }) => closing,
+});
+
+const drain = operation({
+  label: "outbox.drain",
+  depends: { sendOne: sendOne.controller },
+  run: async ({ sendOne }) => {
+    for (;;) {
+      const one = await sendOne.run();
+      if (one.kind === "idle") {
+        return { kind: "drained" as const };
+      }
+    }
+  },
+});
+
 const pump = operation({
   label: "outbox.pump",
-  depends: { everyMs, sendOne: sendOne.controller },
-  run: async ({ everyMs, sendOne }, ctx) => {
+  depends: {
+    everyMs,
+    stopping,
+    sendOne: sendOne.controller,
+    drain: drain.controller,
+  },
+  run: async (deps, ctx) => {
+    const { everyMs, stopping, sendOne } = deps;
     for (;;) {
       const slept = await ctx.clock
-        .sleep(everyMs, ctx.signal)
+        .sleep(everyMs, stopping)
         .then(
           () => true,
           () => false,
         );
-      if (!slept) return;
+      if (!slept) break;
 
       await sendOne.run();
     }
+    if (!ctx.signal.aborted) await deps.drain.run();
   },
 });
 
@@ -170,9 +197,19 @@ export const outbox = capsule({
 
 - `settle` gives the failure as a value, so one
   bad item never stops the pump.
-- The pump's own `ctx.signal` aborts at the
-  scope's close. The sleep then fails, and the
-  loop returns.
+- The pump sleeps on the scope's closing signal,
+  not on `ctx.signal`. `ctx.signal` stays live
+  in a graceful close, so a sleep on it holds
+  the close until the next tick, and a 60 s tick
+  holds it 60 s.
+- On a graceful close the pump drains the line.
+  On a forced close `ctx.signal` aborts, and the
+  line is dropped.
+- A `close` hook cannot do the drain: its `run`
+  raises `Disposed` (#78).
+- Today the drain's calls pass only when some
+  capsule in the scope has a `run` hook; with
+  none they fail with `Disposed` (#81).
 - `dead` keeps what failed `tries` times. Read it
   on an admin page, or alert on it.
 - Items in a cell end with the process. To keep
@@ -229,34 +266,36 @@ export const signup = capsule({
 });
 
 // cmds/server.ts:
-// signup({ on: [stats.count, welcome.greet] })
+// signup({ on: [tally.count, greeter.greet] })
 ```
 
 - A listener is an op of another capsule. Its
   own `depends` reach its own cells.
 - A listener that must not hold the caller goes
-  through a queue: put `outbox.deliver` in the
-  list.
+  through a queue: put `queue.deliver` in the
+  list, where `queue = outbox({ ... })`.
 
 ### Wire tap (interceptor)
 
 A `run` hook sees every run in the scope.
 `event.is(op)` says yes for one op, and types
 its input. The hook calls `next()` and changes
-nothing.
+nothing. The op comes in a slot, so the cmd
+names which install to watch:
+`tap({ of: mailer.send })`.
 
 ```ts
 import {
   capsule,
   data,
-  operation,
+  tag,
+  type Operation,
 } from "@tinkered/core";
-import { z } from "zod";
 
-const send = operation({
-  label: "mail.send",
-  input: z.object({ subject: z.string() }),
-  run: () => undefined,
+type Letter = { subject: string };
+
+const of = tag<Operation.Handle<void, Letter>>({
+  label: "tap.of",
 });
 
 const seen = data<string[]>({
@@ -271,10 +310,11 @@ const kept = {
 
 export const tap = capsule({
   label: "tap",
+  config: { of: of.required },
   exports: { seen },
   hooks: {
     run(event) {
-      if (event.is(send)) {
+      if (event.is(event.config.of)) {
         const subject = event.input.subject;
         event
           .load(seen, kept)

@@ -399,6 +399,9 @@ if (!signal.aborted) await drain.run();
 
 `scope.close({ graceful: true })` sends both
 letters in line. `scope.close()` drops them.
+Today the drain needs some capsule with a run
+hook in the scope, such as `audit` in step 5
+([#81](https://github.com/lagz0ne/tinkered/issues/81)).
 
 ### Step 5. Support asks: did Ana get her mail?
 

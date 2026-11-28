@@ -22,8 +22,9 @@ sources:
 
 # Testing
 
-A test makes a real scope and calls the public
-units. It swaps time, chance and heavy parts.
+A test makes a real scope with the capsules the
+cmd installs, and calls their exports through the
+installs. It swaps time, chance and heavy parts.
 Nothing is mocked.
 
 Test helpers come from `@tinkered/core/testing`.
@@ -32,7 +33,12 @@ The main entry has none.
 ## Setup
 
 ```ts
-import { createScope, data, operation } from "@tinkered/core";
+import {
+  capsule,
+  createScope,
+  data,
+  operation,
+} from "@tinkered/core";
 import {
   makeTestClock,
   makeTestRandom,
@@ -52,15 +58,23 @@ const stamp = operation({
   },
 });
 
-const clock = makeTestClock({ now: 1_000 });
-const scope = createScope({
-  clock,
-  random: makeTestRandom({ seed: 42 }),
+const stamper = capsule({
+  label: "stamper",
+  exports: { stamps, stamp },
 });
 
-await scope.run(stamp);
+// the test
+const clock = makeTestClock({ now: 1_000 });
+const marks = stamper();
+const scope = await createScope({
+  clock,
+  random: makeTestRandom({ seed: 42 }),
+  capsules: [marks],
+}).ready;
+
+await scope.run(marks.stamp);
 clock.advance(500);
-const seen = await scope.run(stamp);
+const seen = await scope.run(marks.stamp);
 // seen is [1000, 1500]
 await scope.close();
 ```
@@ -73,33 +87,46 @@ await scope.close();
 
 ### Swap a part
 
-A preset replaces one unit in one scope.
+A preset replaces one heavy unit in one scope.
+Name it through the install.
 
 ```ts
-import { createScope, data, resource } from "@tinkered/core";
+import {
+  capsule,
+  createScope,
+  resource,
+} from "@tinkered/core";
 import { preset } from "@tinkered/core/testing";
 
 const compiler = resource({
-  label: "compiler",
+  label: "build.compiler",
   factory: () => ({ build: (src: string) => src }),
 });
-const count = data({ label: "count", initial: 0 });
 
-const scope = createScope({
-  presets: [
-    preset(count, 3),
-    preset(compiler, () => ({ build: () => "fake" })),
-  ],
+const builder = capsule({
+  label: "build",
+  exports: { compiler },
 });
+
+const kit = builder();
+const scope = await createScope({
+  capsules: [kit],
+  presets: [
+    preset(kit.compiler, () => ({
+      build: () => "fake",
+    })),
+  ],
+}).ready;
 ```
 
 ### Test a capsule as the cmd installs it
 
 ```ts no-check
+const tide = sea({ size: 4 });
 const app = await createScope({
-  capsules: [sea({ size: 4 })],
+  capsules: [tide],
 }).ready;
-expect(app.run(sea.press, { input: { x: 9 } })).toBe(1);
+expect(app.run(tide.press, { input: { x: 9 } })).toBe(1);
 await app.close();
 ```
 
