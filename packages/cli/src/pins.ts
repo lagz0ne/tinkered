@@ -63,7 +63,7 @@ const word = (path: string) =>
  * repo, not the app's.
  */
 function envWith(values: Record<string, string>) {
-  const own = ["TINKER_EXITS", "TINKER_TRACE", "TINKER_MUTANT"];
+  const own = ["TINKER_EXITS", "TINKER_EFFECTS", "TINKER_TRACE", "TINKER_MUTANT"];
   const env = Object.entries(process.env).filter(
     ([name]) => !own.includes(name) && !name.startsWith("GIT_"),
   );

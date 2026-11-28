@@ -33,6 +33,7 @@ export const rules = [
     ...Object.values(gates),
     ...Object.values(taught),
     "tinker/exit",
+    "tinker/effect",
     "tinker/graph",
     "tinker/graph-rule",
   ]),

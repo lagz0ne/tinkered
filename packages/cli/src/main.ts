@@ -6,6 +6,7 @@ import { IntentCoreError } from "@tanstack/intent/core";
 
 import { readApp } from "./check";
 import type { Check } from "./check";
+import { effectFindings, effectLines, effectsFile, effectsFileText } from "./effects";
 import { isError } from "./errors";
 import { applyGaps } from "./gaps";
 import { graphFile, graphFileText, graphFindings, graphOf, graphText } from "./graph";
@@ -54,7 +55,7 @@ function tail(output: string) {
 }
 
 const usage = `usage:
-  tinker check [root] [--json]
+  tinker check [root] [--json] [--write]
   tinker graph [root] [--write]
   tinker pins [root] [--since <ref>] [--json]
   tinker skill list
@@ -63,9 +64,12 @@ const usage = `usage:
 check runs the app's types (tsc, the kind gate, the cast gate), then its rules (Tinker's
 rules and the app's other lint), then its graph (the code's graph must match tinker.graph,
 and keep each graph rule in tinker.json), then its tests when tinker.json names their
-command: each exit an operation declares must be reached by a test. Only the first stage
-that fails prints. Each finding prints its fix.
+command: each exit an operation declares must be reached by a test, and the cells each exit
+wrote in the tests must match tinker.effects. Only the first stage that fails prints. Each
+finding prints its fix.
 "tinker check: OK" and exit 0 is the only sign that the work is done.
+--write runs the same stages, but writes tinker.graph and tinker.effects in place of
+comparing them, for the app to commit. It writes tinker.effects only when the tests pass.
 
 graph prints the app's graph: one line per operation, with its exits and what its run reads,
 writes and calls. The lines are facts; the reader judges them. --write writes them to
@@ -117,7 +121,7 @@ function failed(
  * error; its own findings are rules. The graph stage runs no app code, so it comes before the
  * tests (ADR 0161); no gap allows a graph finding.
  */
-function stages(root: string): Main.Report {
+function stages(root: string, write: boolean): Main.Report {
   const { sources, found, doc, tests, graphRules } = readApp(root);
   const tools = runTools(root, sources);
   const all = [...tools.types, ...found, ...tools.rules];
@@ -136,7 +140,7 @@ function stages(root: string): Main.Report {
   if (broken.length) return failed(root, "rules", broken, gaps);
 
   const ran = [...tools.ran, `rules (${sources.length} files)`];
-  return afterRules(root, {
+  return afterRules(root, write, {
     ran,
     skipped: tools.skipped,
     gaps,
@@ -154,20 +158,38 @@ const linesCount = ({ ops, views, hooks }: Graph.Of) => {
   return `${counted(ops.length, "operation")}, ${counted(views.length, "view")}${hooked}`;
 };
 
+/** A stage that wrote its file in place of comparing it says so on the `ran:` line. */
+const wrote = (write: boolean, file: string) => (write ? `, wrote ${file}` : "");
+
 /** The graph stage on the `ran:` line: its lines, and its rules when the app has any. */
-function graphRan(graph: Graph.Of, graphRules: number) {
+function graphRan(graph: Graph.Of, graphRules: number, write: boolean) {
   const tested = graphRules ? `, ${counted(graphRules, "rule")}` : "";
-  return `graph (${linesCount(graph)}${tested})`;
+  return `graph (${linesCount(graph)}${tested}${wrote(write, graphFile)})`;
 }
 
 /**
- * The stages after clean rules: the graph, then the tests and their exits. The graph stage
- * compares the code's graph with `tinker.graph`, and tests it against the app's graph rules
- * (ADR 0167). `ran` names the graph only when the app has an operation: an app with none needs
- * no `tinker.graph`.
+ * The stage after the exits: the cells each exit wrote in the tests, against `tinker.effects`
+ * (ADR 0175). `--write` wrote the file before the exits were read, so it compares nothing.
+ * `ran` names it only when a run wrote a line.
+ */
+function afterExits(root: string, write: boolean, lines: string[], ops: Graph.Line[]) {
+  const drift = write ? [] : effectFindings(root, lines, ops);
+  const named = lines.length
+    ? [`effects (${counted(lines.length, "line")}${wrote(write, effectsFile)})`]
+    : [];
+  return { drift, named };
+}
+
+/**
+ * The stages after clean rules: the graph, then the tests, their exits and their effects. The
+ * graph stage compares the code's graph with `tinker.graph`, and tests it against the app's
+ * graph rules (ADR 0167). `ran` names the graph only when the app has an operation: an app with
+ * none needs no `tinker.graph`. `write` writes `tinker.graph` in place of the compare, and
+ * `tinker.effects` once the tests pass (ADR 0175 point 14).
  */
 function afterRules(
   root: string,
+  write: boolean,
   {
     ran,
     skipped,
@@ -183,22 +205,54 @@ function afterRules(
   },
 ): Main.Report {
   const graph = graphOf(root);
-  const { ops, views, hooks } = graph;
-  const rows = [...ops, ...views, ...hooks];
-  const changed = [...graphFindings(root, rows), ...ruleFindings(ops, graphRules)];
+  const changed = graphStage(root, write, graph, graphRules);
   if (changed.length) return failed(root, "graph", changed, gaps);
 
-  if (rows.length) ran.push(graphRan(graph, graphRules.length));
+  const lined = graph.ops.length + graph.views.length + graph.hooks.length;
+  if (lined) ran.push(graphRan(graph, graphRules.length, write));
   if (skipped.length) return { kind: "incomplete", ran, skipped, gaps };
   if (!tests) return { kind: "ok", ran, gaps };
+  return afterGraph(root, write, graph, { ran, gaps, tests });
+}
 
-  const declared = ops.flatMap(({ path, line, label, exits }) =>
+/**
+ * The graph stage's findings: the code's graph against `tinker.graph`, and the app's graph
+ * rules. `write` writes `tinker.graph` in place of the compare; the rules still run.
+ */
+function graphStage(
+  root: string,
+  write: boolean,
+  { ops, views, hooks }: Graph.Of,
+  graphRules: readonly Check.GraphRule[],
+) {
+  const rows = [...ops, ...views, ...hooks];
+  if (write) writeFileSync(join(root, graphFile), graphFileText(rows));
+  const compared = write ? [] : graphFindings(root, rows);
+  return [...compared, ...ruleFindings(ops, graphRules)];
+}
+
+/**
+ * The tests, their exits and their effects. `write` writes `tinker.effects` once the tests
+ * pass, before the exits are read: a check that writes never compares the file.
+ */
+function afterGraph(
+  root: string,
+  write: boolean,
+  graph: Graph.Of,
+  { ran, gaps, tests }: { ran: string[]; gaps: Check.Gap[]; tests: string },
+): Main.Report {
+  const declared = graph.ops.flatMap(({ path, line, label, exits }) =>
     exits.map((exit) => ({ path, line, label, exit })),
   );
   const tested = runTests(root, tests, declared);
   if (tested.status !== 0) return { kind: "red", output: tail(tested.output), gaps };
+  const lines = effectLines(tested.effects, graph);
+  if (write) writeFileSync(join(root, effectsFile), effectsFileText(lines));
   if (tested.unreached.length) return failed(root, "exits", tested.unreached, gaps);
-  return { kind: "ok", ran: [...ran, "tests", "exits"], gaps };
+
+  const { drift, named } = afterExits(root, write, lines, graph.ops);
+  if (drift.length) return failed(root, "effects", drift, gaps);
+  return { kind: "ok", ran: [...ran, "tests", "exits", ...named], gaps };
 }
 
 /** A finding's lines: the finding, then its fix once per rule, then the skill to load. */
@@ -264,10 +318,10 @@ const codes: Readonly<Record<Main.Report["kind"], number>> = {
   incomplete: 2,
 };
 
-function checkCommand(root: string, json: boolean): Main.Result {
+function checkCommand(root: string, json: boolean, write: boolean): Main.Result {
   if (!existsSync(root)) return { code: 2, out: "", err: `tinker check: no folder at ${root}\n` };
   try {
-    const report = stages(root);
+    const report = stages(root, write);
     const out = json ? `${JSON.stringify(report)}\n` : text(report);
     return { code: codes[report.kind], out, err: "" };
   } catch (error) {
@@ -379,10 +433,10 @@ function skillCommand(root: string, args: readonly string[]): Main.Result {
   return { code: 2, out: "", err: usage };
 }
 
-/** The one flag each command takes: `--json` prints data, `--write` writes the file. */
-function flagOf(command: string) {
-  if (command === "check") return "--json";
-  return command === "graph" ? "--write" : undefined;
+/** The flags each command takes: `--json` prints data, `--write` writes the file. */
+function flagsOf(command: string): readonly string[] {
+  if (command === "check") return ["--json", "--write"];
+  return command === "graph" ? ["--write"] : [];
 }
 
 /**
@@ -392,21 +446,22 @@ function flagOf(command: string) {
  */
 export function main(argv: readonly string[], cwd: string): Main.Result {
   const [command, ...args] = argv;
-  return command === "pins" ? pinsCommand(cwd, args) : oneFlag(argv, cwd);
+  return command === "pins" ? pinsCommand(cwd, args) : withFlags(argv, cwd);
 }
 
-/** The commands that take at most their one flag, and no value after it. */
-function oneFlag(argv: readonly string[], cwd: string): Main.Result {
+/** The commands that take only their own flags, and no value after one. */
+function withFlags(argv: readonly string[], cwd: string): Main.Result {
   const [command = "", ...args] = argv.filter((arg) => !arg.startsWith("-"));
-  const flag = flagOf(command);
-  const on = argv.some((arg) => arg === flag);
-  if (argv.some((arg) => arg.startsWith("-") && arg !== flag)) {
+  const flags = flagsOf(command);
+  const on = (flag: string) => argv.includes(flag);
+  if (argv.some((arg) => arg.startsWith("-") && !flags.includes(arg))) {
     return { code: 2, out: "", err: usage };
   }
 
   if (command === "skill") return skillCommand(cwd, args);
   const [root = ".", ...rest] = args;
-  if (!flag || rest.length) return { code: 2, out: "", err: usage };
+  if (!flags.length || rest.length) return { code: 2, out: "", err: usage };
   const at = resolve(cwd, root);
-  return command === "graph" ? graphCommand(at, on) : checkCommand(at, on);
+  if (command === "graph") return graphCommand(at, on("--write"));
+  return checkCommand(at, on("--json"), on("--write"));
 }

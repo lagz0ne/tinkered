@@ -241,6 +241,38 @@ passes the page's store:
 If no state can give the answer, remove it from
 the operation.
 
+### HIGH: an exit that writes other cells [tinker/effect]
+
+`tinker.effects` holds, for each exit a test
+reached, the cells written inside that run. A
+write by an op it runs counts too. `tinker check`
+compares the tests' runs to the file. Each op
+and exit whose write sets differ is a finding:
+
+```text
+src/issues/ops.server.ts:204 tinker/effect
+  issue.rename.do stale:
+  writes{issues.events,issues.list},
+  file says writes{}
+```
+
+The finding is a fact. It does not say which side
+is right.
+
+Wrong: delete the assert that reads the cell,
+then write the file again, so the finding goes
+away. The bug stays, and no test can see it.
+
+Right: if the change is meant, run
+`tinker check --write` and let the diff of
+`tinker.effects` be reviewed. If not, fix the
+code. Do not delete an assert and write the file
+again to make a finding go away.
+
+```text
+tinker check --write
+```
+
 ### MEDIUM: a scope that stays open
 
 An open scope keeps timers and sockets. Close

@@ -249,7 +249,7 @@ test("an unknown command or a spare argument prints the usage and exits 2", () =
   expect(main(["skill", "load"], folder).code).toBe(2);
   expect(main(["skill", "load", "a#b", "more"], folder).code).toBe(2);
   expect(main(["skill", "list", "--json"], folder).code).toBe(2);
-  expect(main(["check", ".", "--write"], folder).code).toBe(2);
+  expect(main(["check", ".", "--since"], folder).code).toBe(2);
   expect(main(["graph", ".", "--json"], folder).code).toBe(2);
   expect(main(["check", "--help"], folder)).toMatchObject({ code: 2, err: usage });
 });

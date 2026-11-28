@@ -14,11 +14,15 @@ import { gates, taught } from "./rules";
 export declare namespace Tools {
   /**
    * A stage of `tinker check`: `types` runs first, `rules` only once it is clean, `graph` only
-   * once the rules are, and `exits` only once the app's tests pass.
+   * once the rules are, `exits` only once the app's tests pass, and `effects` once the exits are
+   * clean.
    */
-  type Stage = "types" | "rules" | "graph" | "exits";
-  /** A run of the app's tests: its exit status, all it said, and the exits no test reached. */
-  type Tested = { status: number | null; output: string; unreached: Found[] };
+  type Stage = "types" | "rules" | "graph" | "exits" | "effects";
+  /**
+   * A run of the app's tests: its exit status, all it said, the exits no test reached, and the
+   * lines the `exits` capsule wrote of each run's exit and write set.
+   */
+  type Tested = { status: number | null; output: string; unreached: Found[]; effects: string[] };
   /**
    * One error from the app's own tools. `rule` is a Tinker rule id, a `TS` code, or a lint
    * rule as `<plugin>/<rule>`. `help` is the tool's own hint, when it gives one.
@@ -346,13 +350,15 @@ export function runTools(root: string, sources: readonly Check.Source[]): Tools.
 /**
  * Run the app's tests by its own command, in its folder. `TINKER_EXITS` names a new file: the
  * `exits` capsule of a test scope writes each exit it sees there, and the file goes after the
- * read. A page test leaves its exits in `pageExits`, which is emptied first, so an old run says
- * nothing. A red run names no exit: its tests are the finding.
+ * read. `TINKER_EFFECTS` names one beside it, for each run's exit and write set (ADR 0175). A
+ * page test leaves its exits in `pageExits`, which is emptied first, so an old run says
+ * nothing. A red run names no exit and no write set: its tests are the finding.
  */
 export function runTests(root: string, command: string, declared: Exits.Exit[]): Tools.Tested {
   const folder = mkdtempSync(join(tmpdir(), "tinker-exits-"));
   const file = join(folder, "exits.tsv");
-  const env = { ...process.env, TINKER_EXITS: file };
+  const written = join(folder, "effects.tsv");
+  const env = { ...process.env, TINKER_EXITS: file, TINKER_EFFECTS: written };
   rmSync(join(root, pageExits), { recursive: true, force: true });
 
   const done = spawnSync(command, {
@@ -363,8 +369,10 @@ export function runTests(root: string, command: string, declared: Exits.Exit[]):
     maxBuffer: 1 << 28,
   });
   const output = `${done.error ? `${done.error.message}\n` : ""}${done.stdout ?? ""}${done.stderr ?? ""}`;
-  const missed = done.status === 0 ? unreached(root, file, declared) : [];
+  const passed = done.status === 0;
+  const missed = passed ? unreached(root, file, declared) : [];
+  const effects = passed && existsSync(written) ? readFileSync(written, "utf8").split("\n") : [];
 
   rmSync(folder, { recursive: true, force: true });
-  return { status: done.status, output, unreached: missed };
+  return { status: done.status, output, unreached: missed, effects };
 }

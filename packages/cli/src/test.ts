@@ -92,10 +92,25 @@ function pinsOf(): Pins | undefined {
 const pins = pinsOf();
 
 /**
- * The label of the innermost operation running. Made at the first traced run, by name, so a
- * page build and a run with neither env value never load `node:async_hooks`.
+ * The file each run's exit and write set go to, when `tinker check` asks for them (ADR 0175).
+ * It sets `TINKER_EFFECTS` for its tests stage, as it sets `TINKER_EXITS`; read once at load.
  */
-let where: AsyncLocalStorage<string> | undefined;
+const effects = envOf("TINKER_EFFECTS") || undefined;
+
+/**
+ * A run of an operation, as the store holds it: its label, and, when the check asks for the
+ * effects, the cells written inside it and the run it is inside.
+ */
+type Run = { label: string; cells: Set<string> | undefined; up: Run | undefined };
+
+/** Whether a run keeps where it is: `tinker pins` or the effects ask for it. */
+const traced = pins !== undefined || effects !== undefined;
+
+/**
+ * The innermost run. Made at the first traced run, by name, so a page build and a run with no
+ * env value never load `node:async_hooks`.
+ */
+let where: AsyncLocalStorage<Run> | undefined;
 
 function placeOf() {
   where ??= new (process.getBuiltinModule("node:async_hooks").AsyncLocalStorage)();
@@ -112,17 +127,59 @@ function note(trace: string | undefined, line: string) {
 }
 
 /**
- * Enter `label`'s run: a call of it from the op around it is a fact, and a `fail` mutant of
- * that call throws here, before the run starts.
+ * A call of `label` from the op around it is a fact, and a `fail` mutant of that call throws
+ * here, before the run starts.
  */
-function enter({ trace, fault }: Pins, label: string, next: () => unknown) {
-  const place = placeOf();
-  const caller = place.getStore();
+function called({ trace, fault }: Pins, caller: string | undefined, label: string) {
   if (caller) note(trace, `call\t${caller}\t${label}`);
   if (fault?.kind === "fail" && fault.op === caller && fault.callee === label) {
     raise("Mutant", { op: caller, callee: label });
   }
-  return place.run(label, next);
+}
+
+/**
+ * `label`'s run, inside the run around it. It keeps its own cells when the check asks. With no
+ * ask and no pins there is none: the run is not traced.
+ */
+function runOf(label: string): Run | undefined {
+  if (!traced) return undefined;
+  const up = placeOf().getStore();
+  if (pins) called(pins, up?.label, label);
+  return effects ? { label, cells: new Set(), up } : { label, cells: undefined, up: undefined };
+}
+
+/** A run's exit and its cells, sorted: one line, once a file. */
+function effect(to: string, { label, cells }: Run, exit: string) {
+  note(to, `${label}\t${exit}\t${[...(cells ?? [])].sort().join(",")}`);
+}
+
+/** Whether a `drop` mutant loses this write: the one cell of the one op it names. */
+function dropped(op: string | undefined, cell: string) {
+  const fault = pins?.fault;
+  return fault?.kind === "drop" && fault.op === op && fault.cell === cell;
+}
+
+/** A write counts for the run that makes it and for each run it is inside. */
+function count(run: Run | undefined, cell: string) {
+  for (let at = run; at?.cells; at = at.up) at.cells.add(cell);
+}
+
+/** The config of the capsule as a run hook reads it: the file, the store, both optional. */
+type Where = {
+  to: { present: boolean; value?: string };
+  page: { present: boolean; value?: Exits.Store };
+};
+
+/**
+ * What a run's answer leaves behind: its exit in the file or the store, and its write set when
+ * the check asks. A `tinker pins` fault may change the answer.
+ */
+function reached({ to, page }: Where, label: string, run: Run | undefined, value: unknown) {
+  const exit = exitOf(value);
+  if (to.value !== undefined) append(to.value, `${label}\t${exit}`);
+  if (page.value !== undefined) keep(page.value, `${label}\t${exit}`);
+  if (effects && run) effect(effects, run, exit);
+  return pins ? answer(pins, label, exit, value) : value;
 }
 
 /** Whether a value is a JSON leaf: a string, a finite number, a boolean or null. */
@@ -180,8 +237,11 @@ function answer({ trace, fault }: Pins, label: string, exit: string, value: unkn
  * A run that throws reaches no exit.
  *
  * `tinker pins` sets `TINKER_TRACE` or `TINKER_MUTANT` (ADR 0173): the capsule then writes
- * each exit, write and call a run reaches, or puts in the one fault it names. It reads them
- * once, at load, and only then hooks writes. With neither, it does only the above.
+ * each exit, write and call a run reaches, or puts in the one fault it names. `tinker check`
+ * sets `TINKER_EFFECTS` (ADR 0175): the capsule then writes, at each run's exit, the cells
+ * written inside that run. A run that throws writes no line; its writes count for the runs it
+ * is inside. It reads them once, at load, and only then hooks writes. With none, it does only
+ * the above.
  */
 export const exits = capsule({
   label: "tinker.exits",
@@ -190,27 +250,23 @@ export const exits = capsule({
     run(event) {
       const { file: to, store: page } = event.config;
       const label = "label" in event.op ? event.op.label : undefined;
-      if (!label || (!to.present && !page.present && !pins)) return event.next();
+      if (!label || (!to.present && !page.present && !traced)) return event.next();
 
-      const say = (value: unknown) => {
-        const exit = exitOf(value);
-        if (to.present) append(to.value, `${label}\t${exit}`);
-        if (page.present) keep(page.value, `${label}\t${exit}`);
-        return pins ? answer(pins, label, exit, value) : value;
-      };
-      const out = pins ? enter(pins, label, () => event.next()) : event.next();
+      const run = runOf(label);
+      const say = (value: unknown) => reached({ to, page }, label, run, value);
+      const out = run ? placeOf().run(run, () => event.next()) : event.next();
       return out instanceof Promise ? out.then(say) : say(out);
     },
-    write:
-      pins &&
-      ((event) => {
-        const op = placeOf().getStore() ?? "-";
-        const cell = event.cell.label;
-        note(pins.trace, `write\t${op}\t${cell}`);
+    write: traced
+      ? (event) => {
+          const run = placeOf().getStore();
+          const cell = event.cell.label;
+          note(pins?.trace, `write\t${run?.label ?? "-"}\t${cell}`);
+          if (dropped(run?.label, cell)) return;
 
-        const { fault } = pins;
-        if (fault?.kind === "drop" && fault.op === op && fault.cell === cell) return;
-        event.next();
-      }),
+          count(run, cell);
+          event.next();
+        }
+      : undefined,
   },
 });
