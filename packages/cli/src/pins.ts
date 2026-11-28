@@ -57,10 +57,16 @@ type Planned = { op: Graph.Line; fault: Mutant.Fault; fact: string; traced: stri
 const word = (path: string) =>
   /^[\w./-]+$/.test(path) ? path : `'${path.replaceAll("'", "'\\''")}'`;
 
-/** The env of a test run: this process's, with no value of `tinker check` or `tinker pins`. */
+/**
+ * The env of a test run or a git command: this process's, with no value of `tinker check` or
+ * `tinker pins` and no `GIT_` value. A git hook sets `GIT_DIR`, which points git at the hook's
+ * repo, not the app's.
+ */
 function envWith(values: Record<string, string>) {
   const own = ["TINKER_EXITS", "TINKER_TRACE", "TINKER_MUTANT"];
-  const env = Object.entries(process.env).filter(([name]) => !own.includes(name));
+  const env = Object.entries(process.env).filter(
+    ([name]) => !own.includes(name) && !name.startsWith("GIT_"),
+  );
   return { ...Object.fromEntries(env), ...values };
 }
 
@@ -221,6 +227,7 @@ function changedIn(diff: string) {
 function gitIn(root: string, command: string, args: string[]) {
   const done = spawnSync("git", [command, ...args], {
     cwd: root,
+    env: envWith({}),
     encoding: "utf8",
     maxBuffer: 1 << 28,
   });

@@ -206,6 +206,11 @@ test("a member who joins is greeted", async () => {
 `,
 };
 
+/** A git hook sets `GIT_DIR`, which would point `git` at the hook's repo, not the app's: drop it. */
+const gitFree = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")),
+);
+
 /** A fresh copy of `files` in a temp folder, its own git repo with one commit. */
 function appOf(files: Record<string, string>) {
   const folder = mkdtempSync(join(tmpdir(), "tinker-pins-app-"));
@@ -216,7 +221,7 @@ function appOf(files: Record<string, string>) {
     writeFileSync(join(folder, path), text);
   }
 
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: folder });
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, env: gitFree });
   git("init", "-q");
   git("add", "-A");
   git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "lab");
