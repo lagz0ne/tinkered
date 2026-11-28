@@ -26,16 +26,24 @@ const scope = await createScope({
   capsules: [trace, trail, pace, smtp, queue, mailer, greeter, members],
 }).ready;
 
-const started = performance.now();
-
 for (const email of ["ana@x.io", "bo@x.io", "cy@x.io"]) {
   await scope.run(members.join, { input: { email } });
 }
 
-const answered = performance.now() - started;
 const seen = scope.resolve(trail.seen).get();
 const closed = await scope.close({ graceful: true });
 const spans = trace.snapshot().runs.filter((s) => s.kind !== "resource");
+
+// Times come from the spans: the scope's clock stamps each start and end.
+let first = Infinity;
+let joined = 0;
+let last = 0;
+
+for (const span of spans) {
+  first = Math.min(first, span.start);
+  last = Math.max(last, span.end ?? span.start);
+  if (span.name === "signup.join") joined = Math.max(joined, span.end ?? span.start);
+}
 
 // The span tree, one line per span, two spaces per level: `name [capsule] exit`.
 const children = new Map<number | undefined, Observe.Span[]>();
@@ -65,9 +73,9 @@ while (stack.length) {
 }
 
 const sections = [
-  ["Sign-up answered", `3 members in ${Math.round(answered)} ms`],
+  ["Sign-up answered", `3 members in ${Math.round(joined - first)} ms`],
   ["The audit saw", seen.join("\n")],
-  ["Close", `${closed.status} in ${Math.round(performance.now() - started)} ms`],
+  ["Close", `${closed.status}, the last letter sent at ${Math.round(last - first)} ms`],
   ["Spans, by capsule", lines.join("\n")],
 ];
 
