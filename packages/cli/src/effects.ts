@@ -121,8 +121,9 @@ export function effectFindings(
   const ran = setsBy(lines.map((line) => ({ text: line, line: 0 })));
   const where = new Map(ops.map(({ label, path: at, line }) => [label, { path: at, line }]));
 
-  const keys = [...new Set([...ran.keys(), ...filed.keys()])].sort();
-  return keys.flatMap((key): Tools.Found[] => {
+  const keys = new Set(ran.keys());
+  for (const key of filed.keys()) keys.add(key);
+  return [...keys].sort().flatMap((key): Tools.Found[] => {
     const file = filed.get(key);
     const what = differ(key, ran.get(key), file);
     if (!what) return [];
