@@ -1827,7 +1827,7 @@ function ensureAccepting(layer: Layer): void {
 /** Only call entry uses the body's or caller's live ownership. Release still uses
  * ensureAccepting without this access, so it cannot tear down helpers during a drain. */
 function ensureRunning(layer: Layer, caller?: RunState): void {
-  const live = (caller === RECOVERED ? OperationControl.settling : caller)?.live;
+  const live = caller === RECOVERED ? OperationControl.settling === layer : caller?.live;
   if (!layer.closed && (layer.body !== undefined || live)) return;
   ensureAccepting(layer);
 }
@@ -2645,10 +2645,11 @@ type RunState = OperationCtx<unknown> | typeof RECOVERED;
 /** Callers may destructure the own `run` field. The settle closure and twin controller are
  * made on the first `settle` read and kept. */
 class OperationControl<T, I> {
-  /** The run a `settle` call is made for, while the call enters (#81). A settle hands its
-   * failure to the caller as a value, but its call is still that run's work: a live run's
-   * `settle` passes {@link ensureRunning} in a graceful close, as its `run` does. */
-  static settling: OperationCtx<unknown> | undefined;
+  /** The layer of a live run whose `settle` call is entering (#81). A settle hands its failure
+   * to the caller as a value, but its call is still that run's work: it passes
+   * {@link ensureRunning} in a graceful close, as its `run` does. Bound to that one layer, so a
+   * call into another scope is still refused. */
+  static settling: Layer | undefined;
   /** `declare`: assigned once in the constructor, so the build emits no field that is written twice. */
   declare readonly run: (call?: Scope.Invocation<I>) => unknown;
   declare private layer: Layer;
@@ -2686,7 +2687,7 @@ class OperationControl<T, I> {
       const owner = this.owner;
       this.settler = (call) => {
         const signal = call?.signal;
-        if (owner !== RECOVERED) OperationControl.settling = owner;
+        OperationControl.settling = owner !== RECOVERED && owner?.live ? layer : undefined;
         try {
           return settledValue(layer, twin.run(call), signal);
         } catch (error) {
