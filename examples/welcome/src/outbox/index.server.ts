@@ -90,7 +90,7 @@ const pump = operation({
 });
 
 /**
- * A queue in front of a backend: `outbox({ inner: smtpMail.deliver, everyMs: 100 })`.
+ * A queue in front of a backend: `outbox({ inner: smtp.deliver, everyMs: 100 })`, where `smtp = smtpMail(...)`.
  * Its start hook runs the pump. A graceful close sends what is left before the scope ends.
  */
 export const outbox = capsule({

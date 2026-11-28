@@ -24,7 +24,7 @@ const join = operation({
   },
 });
 
-/** Sign-up with listeners: `signup({ on: [welcome.greet] })`. */
+/** Sign-up with listeners: `signup({ on: [greeter.greet] })`, where `greeter = welcome(...)`. */
 export const signup = capsule({
   label: "signup",
   config: { on: listener.all },

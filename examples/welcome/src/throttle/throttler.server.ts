@@ -19,7 +19,7 @@ const runner = operation({
   },
 });
 
-/** A pace for one provider: `smtpMail({ throttle: throttler.runner })`. */
+/** A pace for one provider: `smtpMail({ throttle: pace.runner })`, where `pace = throttler(...)`. */
 export const throttler = capsule({
   label: "throttler",
   config: { gapMs: gapMs.required },

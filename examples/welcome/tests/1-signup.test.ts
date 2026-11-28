@@ -8,20 +8,18 @@ import { signup } from "@/signup";
 import { welcome } from "@/welcome";
 
 test("step 1: a new member gets a welcome letter", async () => {
+  const memory = memoryMail();
+  const mailer = mail({ backend: memory.deliver });
+  const greeter = welcome({ send: mailer.send });
+  const members = signup({ on: [greeter.greet] });
   const scope = await createScope({
-    capsules: [
-      exits({ file: process.env.TINKER_EXITS }),
-      memoryMail(),
-      mail({ backend: memoryMail.deliver }),
-      welcome(),
-      signup({ on: [welcome.greet] }),
-    ],
+    capsules: [exits({ file: process.env.TINKER_EXITS }), memory, mailer, greeter, members],
   }).ready;
 
-  const answer = await scope.run(signup.join, { input: { email: "ana@x.io" } });
+  const answer = await scope.run(members.join, { input: { email: "ana@x.io" } });
 
   expect(answer).toEqual({ kind: "joined" });
-  expect(scope.resolve(memoryMail.sent).get()).toEqual([
+  expect(scope.resolve(memory.sent).get()).toEqual([
     { to: "ana@x.io", subject: "Welcome", body: "You are in." },
   ]);
   await scope.close();

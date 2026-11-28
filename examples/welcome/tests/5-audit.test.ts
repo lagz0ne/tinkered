@@ -9,19 +9,17 @@ import { signup } from "@/signup";
 import { welcome } from "@/welcome";
 
 test("step 5: the audit sees each letter, and no other capsule changed", async () => {
+  const memory = memoryMail();
+  const mailer = mail({ backend: memory.deliver });
+  const greeter = welcome({ send: mailer.send });
+  const members = signup({ on: [greeter.greet] });
+  const trail = audit({ of: mailer.send });
   const scope = await createScope({
-    capsules: [
-      exits({ file: process.env.TINKER_EXITS }),
-      audit(),
-      memoryMail(),
-      mail({ backend: memoryMail.deliver }),
-      welcome(),
-      signup({ on: [welcome.greet] }),
-    ],
+    capsules: [exits({ file: process.env.TINKER_EXITS }), trail, memory, mailer, greeter, members],
   }).ready;
 
-  await scope.run(signup.join, { input: { email: "ana@x.io" } });
+  await scope.run(members.join, { input: { email: "ana@x.io" } });
 
-  expect(scope.resolve(audit.seen).get()).toEqual(["ana@x.io: Welcome"]);
+  expect(scope.resolve(trail.seen).get()).toEqual(["ana@x.io: Welcome"]);
   await scope.close();
 });

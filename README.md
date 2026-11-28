@@ -158,22 +158,37 @@ export function add(a: number, b: number) {
 }
 ```
 
-After: an operation. The check passes it.
+After: an operation, exported by a capsule. The
+check passes it.
 
 ```ts
-import { operation } from "@tinkered/core";
+import { capsule, operation } from "@tinkered/core";
 
 type Pair = { a: number; b: number };
 
-export const add = operation({
+const add = operation({
   label: "math.add",
   run: (_deps, { input }: { input: Pair }) =>
     input.a + input.b,
 });
+
+export const math = capsule({
+  label: "math",
+  exports: { add },
+});
 ```
 
-Call it through a scope:
-`await scope.run(add, { input: { a: 1, b: 2 } })`.
+Call it through the install:
+
+```ts
+const sums = math();
+const scope = await createScope({
+  capsules: [sums],
+}).ready;
+await scope.run(sums.add, {
+  input: { a: 1, b: 2 },
+}); // 3
+```
 
 These functions pass with no change:
 
@@ -242,7 +257,11 @@ use other capsules. That is all.
   `exports` are seen from outside.
 - **A slot** is a config key that holds another
   capsule's export. The cmd fills it.
-- **A cmd** installs capsules, with values, in
+- **An install** is one capsule call, kept in a
+  const: `const pace = throttler({ gapMs: 100 })`.
+  Code reaches a unit through its install, as
+  `pace.runner`, never through a bare unit.
+- **A cmd** makes the installs and lists them in
   `createScope({ capsules })`.
 
 It is the Terraform module model: inputs
@@ -286,17 +305,23 @@ export const mail = capsule({
 ```
 
 `signup` keeps the member, then calls each
-listener in its list slot, `on`. `welcome.greet`
-is one listener: it calls `mail.send`.
+listener in its list slot, `on`. `welcome` is one
+listener. It sends through the op in its `send`
+slot.
 
 ```ts
 // cmds/server.ts
-capsules: [
-  memoryMail(),
-  mail({ backend: memoryMail.deliver }),
-  welcome(),
-  signup({ on: [welcome.greet] }),
-];
+const memory = memoryMail();
+const mailer = mail({ backend: memory.deliver });
+const greeter = welcome({ send: mailer.send });
+const members = signup({ on: [greeter.greet] });
+
+const scope = await createScope({
+  capsules: [memory, mailer, greeter, members],
+}).ready;
+await scope.run(members.join, {
+  input: { email: "ana@x.io" },
+});
 ```
 
 `memoryMail` keeps each letter in a cell. Tests
@@ -308,14 +333,12 @@ A `throttler` gives one turn per `gapMs`. The
 SMTP backend waits for a turn in its slot.
 
 ```ts
-capsules: [
-  throttler({ gapMs: 100 }),
-  smtpMail({ throttle: throttler.runner }),
-  mail({ backend: smtpMail.deliver }),
-  welcome(),
-  signup({ on: [welcome.greet] }),
-];
+const pace = throttler({ gapMs: 100 });
+const smtp = smtpMail({ throttle: pace.runner });
+const mailer = mail({ backend: smtp.deliver });
 ```
+
+`greeter` and `members` stay as they were.
 
 Now three sign-ups at once take 200 ms. The
 third member waits for the provider.
@@ -349,17 +372,11 @@ export const outbox = capsule({
 ```
 
 ```ts
-capsules: [
-  throttler({ gapMs: 100 }),
-  smtpMail({ throttle: throttler.runner }),
-  outbox({
-    inner: smtpMail.deliver,
-    everyMs: 50,
-  }),
-  mail({ backend: outbox.enqueue }),
-  welcome(),
-  signup({ on: [welcome.greet] }),
-];
+const queue = outbox({
+  inner: smtp.deliver,
+  everyMs: 50,
+});
+const mailer = mail({ backend: queue.enqueue });
 ```
 
 ### Step 4. A deploy must not lose mail
@@ -385,16 +402,18 @@ letters in line. `scope.close()` drops them.
 
 ### Step 5. Support asks: did Ana get her mail?
 
-An `audit` capsule sees each `mail.send` in its
-run hook. No other capsule changes.
+An `audit` capsule sees each run of the op in its
+`of` slot, in its run hook. No other capsule
+changes.
 
 ```ts
 export const audit = capsule({
   label: "audit",
+  config: { of: of.required },
   exports: { seen },
   hooks: {
     run(event) {
-      if (event.is(mail.send)) {
+      if (event.is(event.config.of)) {
         const { to, subject } = event.input;
         const line = `${to}: ${subject}`;
         event.load(seen, kept).update(
@@ -407,9 +426,9 @@ export const audit = capsule({
 });
 ```
 
-Add `audit()` to the cmd. Five steps, eight
-capsules, and `signup.ts` is still the file of
-step 1.
+Add `const trail = audit({ of: mailer.send })`
+to the cmd. Five steps, eight capsules, and the
+sign-up file is still the file of step 1.
 
 ### See it without a run: `tinker.graph`
 
@@ -425,8 +444,11 @@ outbox.sendOne exits{failed,idle,sent}
   calls{slot:outbox.inner}
 hook outbox#start runs{outbox.pump}
 hook audit#run writes{audit.seen.update}
-  wraps{mail.send}
+  wraps{?}
 ```
+
+`?` is a slot the graph cannot read: the cmd
+fills it.
 
 Drop the drain from the pump, and `tinker check`
 stops at the graph:
@@ -446,27 +468,30 @@ A test installs the same capsules, with a test
 backend in the slot. No mock, no sleep.
 
 ```ts
+const flaky = flakyMail();
+const queue = outbox({
+  inner: flaky.deliver,
+  everyMs: 100,
+  tries: 2,
+});
+const mailer = mail({ backend: queue.enqueue });
+const greeter = welcome({ send: mailer.send });
+const members = signup({ on: [greeter.greet] });
+
 const scope = await createScope({
   clock,
   capsules: [
     exits({ file: process.env.TINKER_EXITS }),
-    flakyMail(),
-    outbox({
-      inner: flakyMail.deliver,
-      everyMs: 100,
-      tries: 2,
-    }),
-    mail({ backend: outbox.enqueue }),
-    welcome(),
-    signup({ on: [welcome.greet] }),
+    flaky, queue, mailer, greeter, members,
   ],
 }).ready;
 
-await scope.run(signup.join, {
+await scope.run(members.join, {
   input: { email: "b@down.io" },
 });
 clock.advance(200);
-// outbox.dead holds b@down.io
+scope.resolve(queue.dead).get();
+// [{ letter: { to: "b@down.io", ... }, tries: 2 }]
 ```
 
 `exits` records each answer a test reaches.
@@ -480,8 +505,10 @@ src/outbox/index.server.ts:34 tinker/exit
 
 ### Trace it: `devtools()`
 
-Devtools is a capsule too. Add it, and read each
-span, with the capsule of each exported unit:
+Devtools is a capsule too. Add
+`const trace = devtools()`, then read
+`trace.snapshot()`: each span, with the capsule
+of each exported unit.
 
 ```text
 signup.join [signup] joined
@@ -502,19 +529,18 @@ loaded, with a `role` and an `explain`.
 
 ### Next: one capsule, two installs
 
+Code already reaches each unit through its
+install, so a second install needs no new rule.
 Mail and Slack each get their own pace
 (ADR 0172):
 
 ```ts
 const mailPace = throttler({ gapMs: 100 });
 const slackPace = throttler({ gapMs: 1000 });
-
-capsules: [
-  mailPace,
-  slackPace,
-  smtpMail({ throttle: mailPace.runner }),
-  slackPost({ throttle: slackPace.runner }),
-];
+const smtp = smtpMail({ throttle: mailPace.runner });
+const slack = slackPost({
+  throttle: slackPace.runner,
+});
 ```
 
 Not built yet: [#73](https://github.com/lagz0ne/tinkered/issues/73).

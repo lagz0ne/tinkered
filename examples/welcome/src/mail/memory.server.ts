@@ -15,5 +15,5 @@ const deliver = operation({
   },
 });
 
-/** A backend for dev and tests: `mail({ backend: memoryMail.deliver })`. */
+/** A backend for dev and tests: `const memory = memoryMail()`, then `mail({ backend: memory.deliver })`. */
 export const memoryMail = capsule({ label: "mail.memory", exports: { sent, deliver } });

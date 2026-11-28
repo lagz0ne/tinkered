@@ -13,7 +13,7 @@ const send = operation({
   run: ({ backend }, { input }) => backend.run({ input }),
 });
 
-/** The app's mail capsule: `mail({ backend: someBackend.deliver })` in the cmd. */
+/** The app's mail capsule: `mail({ backend: memory.deliver })`, where `memory = memoryMail()`. */
 export const mail = capsule({
   label: "mail",
   config: { backend: backend.required },

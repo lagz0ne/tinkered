@@ -8,26 +8,24 @@ import { outbox } from "@/outbox/index.server";
 import { signup } from "@/signup";
 import { welcome } from "@/welcome";
 
-const capsules = () => [
-  exits({ file: process.env.TINKER_EXITS }),
-  memoryMail(),
-  outbox({ inner: memoryMail.deliver, everyMs: 60_000 }),
-  mail({ backend: outbox.enqueue }),
-  welcome(),
-  signup({ on: [welcome.greet] }),
-];
-
 /** Joins two members, closes, and answers who got a letter before the scope ended. */
 const joinThenClose = async (graceful: boolean) => {
-  const scope = await createScope({ capsules: capsules() }).ready;
-  const sent = scope.resolve(memoryMail.sent);
+  const memory = memoryMail();
+  const queue = outbox({ inner: memory.deliver, everyMs: 60_000 });
+  const mailer = mail({ backend: queue.enqueue });
+  const greeter = welcome({ send: mailer.send });
+  const members = signup({ on: [greeter.greet] });
+  const scope = await createScope({
+    capsules: [exits({ file: process.env.TINKER_EXITS }), memory, queue, mailer, greeter, members],
+  }).ready;
+  const sent = scope.resolve(memory.sent);
   let got: string[] = [];
   sent.watch(() => {
     got = sent.get().map((l) => l.to);
   });
 
-  await scope.run(signup.join, { input: { email: "a@x.io" } });
-  await scope.run(signup.join, { input: { email: "b@x.io" } });
+  await scope.run(members.join, { input: { email: "a@x.io" } });
+  await scope.run(members.join, { input: { email: "b@x.io" } });
   expect(got).toEqual([]);
 
   await scope.close({ graceful });

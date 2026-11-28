@@ -19,7 +19,7 @@ const deliver = operation({
   },
 });
 
-/** An SMTP backend with its pace in a slot: `smtpMail({ throttle: throttler.runner })`. */
+/** An SMTP backend with its pace in a slot: `smtpMail({ throttle: pace.runner })`, where `pace = throttler(...)`. */
 export const smtpMail = capsule({
   label: "mail.smtp",
   config: { throttle: throttle.required },

@@ -8,6 +8,6 @@ outbox.pump exits{value} faults{} reads{} writes{} calls{outbox.drain,outbox.sen
 outbox.sendOne exits{failed,idle,sent} faults{?} reads{outbox.line.get} writes{outbox.dead.update,outbox.line.set,outbox.line.update} calls{slot:outbox.inner} uses{}
 signup.join exits{joined} faults{?} reads{} writes{signup.members.update} calls{slot:signup.on} uses{}
 throttler.runner exits{value} faults{} reads{throttler.turn.get} writes{throttler.turn.set} calls{} uses{}
-welcome.greet exits{value} faults{} reads{} writes{} calls{mail.send} uses{}
-hook audit#run reads{} writes{audit.seen.update} runs{} wraps{mail.send} uses{}
+welcome.greet exits{value} faults{?} reads{} writes{} calls{slot:welcome.send} uses{}
+hook audit#run reads{} writes{audit.seen.update} runs{} wraps{?} uses{}
 hook outbox#start reads{} writes{} runs{outbox.pump} wraps{} uses{}

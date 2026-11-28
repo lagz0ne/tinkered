@@ -13,21 +13,19 @@ import { tick } from "./support";
 
 test("step 2: the provider takes one letter per 100 ms, so the third sign-up waits 200 ms", async () => {
   const clock = makeTestClock();
+  const pace = throttler({ gapMs: 100 });
+  const smtp = smtpMail({ throttle: pace.runner });
+  const mailer = mail({ backend: smtp.deliver });
+  const greeter = welcome({ send: mailer.send });
+  const members = signup({ on: [greeter.greet] });
   const scope = await createScope({
     clock,
-    capsules: [
-      exits({ file: process.env.TINKER_EXITS }),
-      throttler({ gapMs: 100 }),
-      smtpMail({ throttle: throttler.runner }),
-      mail({ backend: smtpMail.deliver }),
-      welcome(),
-      signup({ on: [welcome.greet] }),
-    ],
+    capsules: [exits({ file: process.env.TINKER_EXITS }), pace, smtp, mailer, greeter, members],
   }).ready;
   const done: string[] = [];
 
   for (const email of ["a@x.io", "b@x.io", "c@x.io"]) {
-    void scope.run(signup.join, { input: { email } }).then(() => done.push(email));
+    void scope.run(members.join, { input: { email } }).then(() => done.push(email));
   }
 
   await tick(clock, 0);

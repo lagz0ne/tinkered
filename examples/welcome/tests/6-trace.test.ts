@@ -31,29 +31,36 @@ const tree = (spans: readonly Observe.Span[]) => {
 
 test("step 6: devtools shows each span, by capsule", async () => {
   const clock = makeTestClock();
-  const dt = devtools();
+  const trace = devtools();
+  const pace = throttler({ gapMs: 100 });
+  const smtp = smtpMail({ throttle: pace.runner });
+  const queue = outbox({ inner: smtp.deliver, everyMs: 50 });
+  const mailer = mail({ backend: queue.enqueue });
+  const greeter = welcome({ send: mailer.send });
+  const members = signup({ on: [greeter.greet] });
+  const trail = audit({ of: mailer.send });
   const scope = await createScope({
     clock,
     capsules: [
       exits({ file: process.env.TINKER_EXITS }),
-      dt,
-      audit(),
-      throttler({ gapMs: 100 }),
-      smtpMail({ throttle: throttler.runner }),
-      outbox({ inner: smtpMail.deliver, everyMs: 50 }),
-      mail({ backend: outbox.enqueue }),
-      welcome(),
-      signup({ on: [welcome.greet] }),
+      trace,
+      trail,
+      pace,
+      smtp,
+      queue,
+      mailer,
+      greeter,
+      members,
     ],
   }).ready;
 
-  await scope.run(signup.join, { input: { email: "ana@x.io" } });
-  await scope.run(signup.join, { input: { email: "bo@x.io" } });
+  await scope.run(members.join, { input: { email: "ana@x.io" } });
+  await scope.run(members.join, { input: { email: "bo@x.io" } });
   await tick(clock, 50);
   await tick(clock, 100);
   await scope.close({ graceful: true });
 
-  const lines = tree(dt.snapshot().runs.filter((s) => s.kind !== "resource"));
+  const lines = tree(trace.snapshot().runs.filter((s) => s.kind !== "resource"));
   console.log(lines.join("\n"));
   expect(lines).toContain("signup.join [signup] joined");
   expect(lines).toContain("      outbox.enqueue [outbox]");
