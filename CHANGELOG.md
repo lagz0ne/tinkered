@@ -9,6 +9,21 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.35.1
+
+`@tinkered/core` skills: a recipe to show a
+remote part with no empty frame first (#83, Duke
+2026-11-28: "not primitive problem but rather the
+receipe"). No code change.
+
+- The data skill, "Hold a remote part before the
+  page reads it": a keyed resource gives the page
+  a `kind` (`loading`, `ready`, `fault`), and a
+  capsule holds the part ahead of time.
+- A build alone does not keep a part in use: the
+  holder watches each read and `defer`s the stop.
+- The rpc skill points to it.
+
 ## 0.35.0
 
 `@tinkered/cli`: `tinker check` compares the

@@ -13,7 +13,7 @@ metadata:
     cell read only.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.35.0'
+  library_version: '0.35.1'
 requires:
   - core
 sources:
@@ -183,6 +183,116 @@ const read = count({ room: "a" });
   follows its sources.
 - With no required key, the bare unit reads too.
 - The last reader leaves, and the entry goes.
+
+### Hold a remote part before the page reads it
+
+A page that reads a part on mount shows an empty
+list for a moment, then fills it. Do not wait in
+a route loader with hand-made watches and timers
+(#83). Hold the part ahead of time in a capsule,
+and let the page read a `kind`, never bare rows.
+
+```ts
+import {
+  capsule,
+  createScope,
+  data,
+  remoteData,
+  resource,
+  tag,
+} from "@tinkered/core";
+import { memory } from "@tinkered/core/testing";
+
+type Mail = { box: string; id: string };
+
+// src/mail/units.ts
+const messages = data({
+  label: "mail.messages",
+  mode: "keyed",
+  key: (m: Mail) => ({ box: m.box, id: m.id }),
+});
+const board = remoteData({ messages });
+const box = tag<string>({ label: "mail.box" });
+
+// what the page reads: loading, ready, or fault
+const inbox = resource({
+  label: "mail.inbox",
+  config: { box: box.required },
+  depends: (c) => {
+    const part = board.messages.where({ box: c.box });
+    return { rows: part, state: board.status(part) };
+  },
+  factory: ({ rows, state }) => {
+    const now = state.get()?.status;
+    if (now === "fault") return { kind: "fault" } as const;
+    if (now !== "ready") return { kind: "loading" } as const;
+    return { kind: "ready", rows: rows.get() } as const;
+  },
+});
+
+// src/mail/warm.ts: hold the boxes ahead of time
+const held = resource({
+  label: "mail.held",
+  depends: { inbox: inbox({ box: "inbox" }) },
+  factory: ({ inbox }, { defer }) => {
+    defer(inbox.watch(() => undefined));
+    return true;
+  },
+});
+
+export const warm = capsule({
+  label: "mail.warm",
+  exports: { held },
+  hooks: {
+    async start({ next, load }) {
+      const done = await next();
+      await load(held, {
+        role: "worker",
+        explain: "Holds the boxes the page opens first",
+      });
+      return done;
+    },
+  },
+});
+
+// cmds: the server, then a tab
+const server = await createScope({
+  capsules: [
+    board({ serve: true }),
+    memory.server({ services: [board] }),
+  ],
+}).ready;
+
+const tab = await createScope({
+  capsules: [
+    memory.client({ peer: server }),
+    board({
+      read: memory.client,
+      refetchInterval: { messages: 30_000 },
+    }),
+    warm(),
+  ],
+}).ready;
+
+// the page: useData(inbox({ box })) in React
+const page = tab.resolve(inbox({ box: "inbox" }));
+page.get().kind;
+
+await tab.close();
+await server.close();
+```
+
+- `depends` takes the config here, because the
+  part follows the key. Plain values the build
+  needs come from `config` in the factory.
+- An empty box is `ready` with `[]`, so the page
+  tells "empty" from "loading".
+- A build alone does not keep a part in use. The
+  holder watches each read and `defer`s the stop.
+- `refetchInterval` asks again on a timer, so a
+  held part stays fresh with no reader on screen.
+- With the part held, the page's first read is
+  `ready`. No route loader is needed.
 
 ### Say where a write lands
 

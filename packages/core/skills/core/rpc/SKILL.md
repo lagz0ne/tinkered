@@ -14,7 +14,7 @@ metadata:
     on the client with remote data.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.35.0'
+  library_version: '0.35.1'
 requires:
   - core
   - capsule
@@ -154,6 +154,9 @@ const list = useData(
 - A call ends at its reply, as a TanStack Query
   mutation. To see your own write at once, run
   `board.invalidate` on its part after the call.
+- To show a part with no empty frame first, hold
+  it ahead of time in a capsule (data skill,
+  "Hold a remote part before the page reads it").
 
 ### Guard a call or a read
 
