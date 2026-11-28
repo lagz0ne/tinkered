@@ -90,15 +90,21 @@ Probe, project files `plans/graph-mutants/`:
    - **swap**: the op answers another of its
      declared exits (a sample from the trace)
      where it answered this one;
+     never to or from `refused` (a hook's);
    - **empty**: the op's answer keeps its
      `kind`; each other field is emptied;
-   - **drop**: one write of a cell the op's
-     `writes{}` names is lost;
+   - **drop**: each write of one cell the
+     op's `writes{}` names is lost, inside
+     that op;
    - **fail**: one call that the op's
      `calls{}` names throws.
-     A `slot:` call is the op the trace shows.
+     A `slot:` call is the op the trace shows,
+     less the ops a hook's `runs{}` names.
      A hook's write or call (#72) has no line,
      so it gets no mutant.
+     A sample is kept only when the answer is
+     plain JSON data. With no sample, that exit
+     gets no swap target and no `empty` mutant.
 6. `--since <ref>`: only ops whose lines
    changed since `ref`. With no `--since`,
    every op.
