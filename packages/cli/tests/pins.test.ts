@@ -257,7 +257,7 @@ test(
   },
 );
 
-test("with no op changed since the ref, it puts in no mutant", slow, () => {
+test("with no op changed since the ref, it breaks no fact", slow, () => {
   const folder = appOf(lab);
 
   const { code, out } = main(["pins", folder, "--since", "HEAD"], "/");
@@ -337,7 +337,7 @@ test("count adds", async () => {
   );
 });
 
-test("a test file that fails with no mutant in stops the run with its output", slow, () => {
+test("a test file that fails with no fault in stops the run with its output", slow, () => {
   const folder = appOf({
     ...lab,
     "tests/broken.test.ts": `import { expect, test } from "vite-plus/test";

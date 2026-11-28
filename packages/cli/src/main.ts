@@ -388,7 +388,8 @@ function flagOf(command: string) {
  * config or a tool the command cannot use.
  */
 export function main(argv: readonly string[], cwd: string): Main.Result {
-  return argv[0] === "pins" ? pinsCommand(cwd, argv.slice(1)) : oneFlag(argv, cwd);
+  const [command, ...args] = argv;
+  return command === "pins" ? pinsCommand(cwd, args) : oneFlag(argv, cwd);
 }
 
 /** The commands that take at most their one flag, and no value after it. */

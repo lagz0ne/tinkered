@@ -34,8 +34,8 @@ export declare namespace Pins {
     | { kind: "red"; file: string; output: string };
 }
 
-/** The test files: each file named so, anywhere in the app outside `node_modules`. */
-const testFiles = "**/*.test.{ts,tsx,mts,mjs}";
+/** A test file, by its ending: `.test.` and `ts`, `tsx`, `mts` or `mjs`, outside `node_modules`. */
+const testFile = /\.test\.(?:tsx?|mts|mjs)$/;
 
 const isModules = (path: string) => /(?:^|[\\/])node_modules$/.test(path);
 
@@ -50,7 +50,7 @@ const timeout = 120_000;
 type Trace = { facts: Set<string>; samples: Map<string, string> };
 
 /** A mutant before it runs: its fault, its fact as one word, and its fact as the trace has it. */
-type Candidate = { op: Graph.Line; fault: Mutant.Fault; fact: string; traced: string };
+type Planned = { op: Graph.Line; fault: Mutant.Fault; fact: string; traced: string };
 
 /** A path as one shell word: quoted only when it has more than plain path signs. */
 const word = (path: string) =>
@@ -117,7 +117,7 @@ function unionOf(traces: readonly Trace[]): Trace {
  * The swaps of an op: where it answered one declared exit, it answers another, by that exit's
  * sample. Never to `refused`: a refusal is Core's own mark, and no sample makes one.
  */
-function swapsOf(op: Graph.Line, { facts, samples }: Trace): Candidate[] {
+function swapsOf(op: Graph.Line, { facts, samples }: Trace): Planned[] {
   const { label, exits } = op;
   return exits.flatMap((from) => {
     const traced = `exit\t${label}\t${from}`;
@@ -132,7 +132,7 @@ function swapsOf(op: Graph.Line, { facts, samples }: Trace): Candidate[] {
 }
 
 /** The empties of an op: each declared exit whose sample has an empty twin. */
-function emptiesOf(op: Graph.Line, { facts, samples }: Trace): Candidate[] {
+function emptiesOf(op: Graph.Line, { facts, samples }: Trace): Planned[] {
   const { label, exits } = op;
   return exits.flatMap((from) => {
     const traced = `exit\t${label}\t${from}`;
@@ -144,7 +144,7 @@ function emptiesOf(op: Graph.Line, { facts, samples }: Trace): Candidate[] {
 }
 
 /** The drops of an op: each cell its `writes{}` names (`dispatch.line.set` is `dispatch.line`). */
-function dropsOf(op: Graph.Line, { facts }: Trace): Candidate[] {
+function dropsOf(op: Graph.Line, { facts }: Trace): Planned[] {
   const { label, writes } = op;
   const cells = new Set(
     writes.filter((fact) => fact !== unseen).map((fact) => fact.slice(0, fact.lastIndexOf("."))),
@@ -160,7 +160,7 @@ function dropsOf(op: Graph.Line, { facts }: Trace): Candidate[] {
  * The fails of an op: each call its `calls{}` names. A `slot:` call names no op, so each op
  * the trace shows it call that `calls{}` does not name is the slot's.
  */
-function failsOf(op: Graph.Line, { facts }: Trace): Candidate[] {
+function failsOf(op: Graph.Line, { facts }: Trace): Planned[] {
   const { label, calls } = op;
   const head = `call\t${label}\t`;
   const slot = calls.some((call) => call.startsWith(slotMark));
@@ -191,8 +191,9 @@ function changedIn(diff: string) {
     const hunk = /^@@ -\S+ \+(\d+)(?:,(\d+))? @@/.exec(line);
     if (!hunk) continue;
 
-    const from = Number(hunk[1]);
-    const count = Number(hunk[2] ?? 1);
+    const [, start = "", size = "1"] = hunk;
+    const from = Number(start);
+    const count = Number(size);
     spans.push({ from, to: count ? from + count - 1 : from + 1 });
   }
   return changed;
@@ -228,8 +229,9 @@ function opsSince(root: string, ops: Graph.Line[], ref: string) {
 export function readPins(root: string, since?: string): Pins.Report {
   const { tests } = configOf(root);
   if (!tests) return { kind: "untested" };
-  const files = globSync(testFiles, { cwd: root, exclude: isModules })
+  const files = globSync("**", { cwd: root, exclude: isModules })
     .map((path) => path.replaceAll("\\", "/"))
+    .filter((path) => testFile.test(path))
     .sort();
   const { ops } = graphOf(root);
   const chosen = since === undefined ? ops : opsSince(root, ops, since);
