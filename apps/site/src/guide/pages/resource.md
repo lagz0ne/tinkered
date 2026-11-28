@@ -23,9 +23,10 @@ const ticker = resource({
 - A test swaps a heavy resource with a preset:
 
 ```ts
+const kit = builder();
 createScope({
-  capsules: [play.build({})],
-  presets: [preset(compiler, fakeCompiler)],
+  capsules: [kit],
+  presets: [preset(kit.compiler, fakeCompiler)],
 });
 ```
 

@@ -1,14 +1,20 @@
 # Testing
 
-A test makes a real scope. It swaps time, chance
-and heavy parts. Nothing is mocked.
+A test makes a real scope with the capsules the
+cmd installs, and calls them through the
+installs. It swaps time, chance and heavy parts.
+Nothing is mocked.
 
 ## Time and chance
 
 ```ts
 const clock = makeTestClock({ now: 0 });
-const scope = createScope({ clock });
-const woke = scope.run(nap);
+const tide = sea({ size: 4 });
+const scope = await createScope({
+  clock,
+  capsules: [tide],
+}).ready;
+const woke = scope.run(tide.nap);
 clock.advance(1_000);
 await woke;
 ```
@@ -17,11 +23,13 @@ await woke;
 
 ## Swap a part
 
+Fill a slot with a test backend, as the cmd
+fills it with the real one:
+
 ```ts
-createScope({
-  capsules: [sea.board({ serve: true })],
-  presets: [preset(waves, [])],
-});
+const memory = memoryMail();
+const mailer = mail({ backend: memory.deliver });
+createScope({ capsules: [memory, mailer] });
 ```
 
 ## Both sides, one process

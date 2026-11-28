@@ -1,7 +1,8 @@
 # Capsule
 
 A capsule holds a feature's config, its exports
-and its hooks. A cmd installs it with values.
+and its hooks. A cmd installs it with values,
+and code reaches each unit through the install.
 
 ## Write one
 
@@ -27,15 +28,13 @@ The cmd is the seam. It reads env and fills each
 key by name:
 
 ```ts
+const tide = sea({ size: Number(env.SEA_SIZE) });
 const app = createScope({
   signal: stop.signal,
-  capsules: [
-    ws.client({ url }),
-    sea.board({ read: ws.client }),
-    sea.api({ remote: ws.client }),
-  ],
+  capsules: [tide],
 });
 const live = await app.ready;
+await live.run(tide.press, { input: { x: 9 } });
 ```
 
 - `ready` throws if the start fails.
@@ -43,8 +42,12 @@ const live = await app.ready;
   `success`, `cancelled` or `failed`.
 - Config goes in the call, never as root
   `tags`.
-- Reach a unit through the binding:
-  `sea.waves`, never a raw import from its file.
+- Keep the install in a const, and reach a unit
+  through it: `tide.waves`. Never a bare unit,
+  never a raw import from its file.
+- A feature that needs another feature's op
+  takes it in a slot, filled from an install:
+  `welcome({ send: mailer.send })`.
 - The cmd is one top-level `createScope`. No
   wrapper function builds it.
 

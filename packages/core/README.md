@@ -16,6 +16,432 @@ Each release also attaches tarballs to its
 GitHub release; the
 [changelog](../../CHANGELOG.md) lists them.
 
+## Start with a capsule
+
+An app is capsules. A unit (an operation, a data
+cell, a resource, a tag) lives in a capsule's
+file. Only the capsule's `exports` leave it.
+
+The cmd keeps each install in a const, and code
+reaches every unit through it:
+
+```ts
+const tide = sea({ size: 4 });
+const scope = await createScope({
+  capsules: [tide],
+}).ready;
+
+await scope.run(tide.press, { input: { x: 9 } });
+scope.resolve(tide.waves).get();
+await scope.close();
+```
+
+- A feature that needs another feature's op takes
+  it in a slot, filled from an install:
+  `welcome({ send: mailer.send })`.
+- The sections after [Capsules](#capsules) are
+  the reference for each unit. Their short
+  fences show a unit alone; in an app it sits in
+  a capsule, as above.
+- The walk-through: the root
+  [README](../../README.md#build-with-capsules)
+  and `examples/welcome`.
+
+## Capsules
+
+A capsule is a library's door (ADR 0121).
+It holds the library's config, its hooks, and the units it exports.
+Make one with `capsule()` and install it with `createScope({ capsules })`.
+Keep the install in a const. Wait with `await scope.ready`, then read its start value with `scope.resolve(mailer)`.
+A library that reads tags declares them as its `config` ([Config](#config)).
+
+```ts
+import { capsule, createScope } from "@tinkered/core";
+
+export const mail = capsule({
+  label: "mail",
+  config: { smtpUrl, from },
+  exports: { enqueue, send },
+  hooks: {
+    start: async ({ run }) => {
+      await run(migrate, {}, {
+        role: "setup",
+        explain: "Brings the outbox up to date",
+      });
+    },
+  },
+});
+
+const mailer = mail({ smtpUrl: url, from: "ops@example.com" });
+const scope = createScope({ capsules: [mailer] });
+await scope.ready;
+scope.run(mailer.enqueue, { input: message });
+await scope.close({ graceful: true });
+```
+
+A capsule with no required key is called with nothing: `health()`.
+It also installs uncalled: `capsules: [health]`.
+
+Start has a 10 000 ms limit on the scope clock (ADR 0119).
+Set `createScope({ startTimeout: 5_000 })` to change it.
+A hanging start rejects `ready` with `StartTimeout`.
+Its payload holds the capsule's `label`.
+Core closes the scope and runs cleanup before `ready` rejects.
+The label names the innermost start still waiting.
+A settled start cancels the timer.
+Closing the root cancels it and rejects pending `ready` with the close reason.
+Set `createScope({ startTimeout: 0 })` or `Infinity` to turn the timer off.
+Negative limits and `NaN` raise `BadStartTimeout`.
+Finite limits are capped at 2 147 483 647 ms.
+A clock sleep throw or rejection leaves startup waiting without a timeout.
+
+### Hooks
+
+Each hook takes one event object.
+`event.kind` names the hook and narrows its fields.
+Common access is built on first use.
+Reading `op`, `call`, `ns`, or `next` does not build that access.
+
+- `start`: `next()`; returns the start value. Every start runs once, in `capsules` order.
+- `run`: `op`, the original `call`, `next()`.
+- `write`: `cell`, `value`, `next()`.
+- `resolve`: `target`, `next()`.
+- `close`: `options`, `next()` returns the close result. Close hooks run in reverse order.
+- `session`: `handle`, `next()` returns the session result.
+
+`resolve`, `run`, `write`, and `session` are onion middleware: install order, first is outermost.
+A `start` that skips `next()` still lets the next start run once it returns.
+A `close` that skips `next()` cannot skip cleanup (ADR 0085).
+
+### What a hook reaches
+
+Every event has `config`, `load`, `run`, and `settle`.
+None has `resolve`, `controller`, or `scope`.
+
+- `config`: the config values, read once after the binding, with defaults filled.
+- `load(unit, meta, options?)`: a resource answers a promise of its value; a cell answers its
+  controller. `options.ns` reads it in that namespace; one made with `observe: false` is quiet.
+- `run(op, options, meta)`: what `scope.run` answers, as a promise. No controller is made.
+- `settle(op, options, meta)`: what `scope.settle` answers, as a promise.
+
+The meta is what devtools show: `{ role, explain }`.
+`role` is `setup`, `worker`, `handler`, or `state`.
+Call options (`input`, `rawInput`, `signal`, `ns`, `tags`) go on the run, never in the meta.
+
+```ts
+const active = data({ initial: 0 });
+const audit = capsule({
+  label: "audit",
+  hooks: {
+    run(event) {
+      const count = event.load(active, {
+        role: "state",
+        explain: "Counts runs in flight",
+      });
+      count.update((value) => value + 1);
+      event.defer((end) => {
+        event.log("finished", { status: end.status });
+      });
+      return event.next();
+    },
+  },
+});
+```
+
+They use the hook's own owner, effective `ns` chain, trace, signal, and lifetime.
+A controller one request loaded never serves another.
+Run hooks share the run's trace, cancellation, and `defer` cleanup.
+Other hooks defer cleanup to their session; start and close use the root.
+All events also have `closing`, `signal`, `obs`, `log`, `clock`, `random`, and `raise`.
+A namespace chain selects buckets in that owner; it does not find a sibling session.
+A hook reads a tag through a unit that depends on it, or through a config key.
+
+In a `close` hook, `load` reads units already built on the root until `next()` releases them.
+After that, and for a unit never built, it raises `Disposed`.
+
+`Capsule.Events[keyof Capsule.Events]` is the union of these event shapes.
+`Capsule.Events["run"]` names one shape.
+A run hook may refuse raw input before its parser runs.
+
+One run hook serves every operation, so its event is untyped.
+`event.is(op)` says if the run is `op`'s; a true answer gives `op`, `call`, `input`, and
+`next()` that operation's types (ADR 0142).
+`event.input` is the input the body gets: the caller's `input`, or its `rawInput` through the
+operation's parser. A bad raw input raises `DataValidationFailed` at the read.
+
+```ts
+const tide = capsule({
+  label: "tide",
+  hooks: {
+    run(event) {
+      if (!event.is(press)) return event.next();
+
+      const hue = event.next();
+      const input = { ...event.input, hue };
+      return event.run(send, { input }, meta);
+    },
+  },
+});
+```
+
+Graceful close joins hook waits before and after `next()`.
+After a run finishes, a saved `next()` raises `Disposed` and starts no body.
+A waiting hook can still use its saved `load` and `run` during graceful close.
+Saved data controllers can read, update, and watch through the run's deferred cleanup.
+Forced close aborts its signal and prevents a late `next()` from starting the body.
+Resource loads through a run event retain the selected instance through hook and run cleanup.
+A hook that starts `next()` and returns a substitute still owns that body's work.
+That body keeps its span open until it ends; its failure still marks the span.
+Catching a body's panic in its hook does not erase the owner's failure.
+A hook-started run shares the active trace; a dropped failure stays on the owner.
+`event.settle` receives a child failure without failing the owner.
+A saved `settle` returns `cancelled` when a waiting hook is forced closed.
+It returns `failed` with `Disposed` when called after that hook ends.
+A run in a namespace made with `observe: false` leaves no span and no log line.
+
+A tagged call enters its actual child before run hooks start.
+Its session hook runs before its run hook; each runs once.
+
+Start and close can load a root-owned resource to keep state apart across roots.
+Concurrent and repeated closes join the same close hook once.
+
+Resolve hooks cover direct root `resolve` calls only.
+Session reads, dependency reads, controller reads, and event loads bypass them.
+
+A `resolve` hook wraps snapshot reads on the root handle (skip `next()` to short-circuit with a
+substitute):
+
+```ts
+const gate = capsule({
+  label: "gate",
+  hooks: {
+    resolve: (event) => (allowed ? event.next() : "denied"),
+  },
+});
+```
+
+A `run` hook wraps every operation call, on the root or in a session (skip `next()` to refuse a
+call with a substitute):
+
+```ts
+const audit = capsule({
+  label: "audit",
+  hooks: {
+    run: async (event) => {
+      console.log("before");
+      const out = await event.next();
+      console.log("after");
+      return out;
+    },
+  },
+});
+```
+
+Await `ready` before the first `resolve(capsule)`.
+
+A `start` can read, after `await next()`, only capsules listed after it.
+So list a capsule that reads a server before that server: `[serve, server]`.
+
+A `write` hook wraps cell writes at every layer (skip `next()` to refuse a write, leaving the value
+and watchers unchanged):
+
+```ts
+const even = capsule({
+  label: "even",
+  hooks: {
+    write: (event) => {
+      const { value } = event;
+      if (typeof value !== "number" || value % 2 === 0) {
+        event.next();
+      }
+    },
+  },
+});
+```
+
+A session read still skips `resolve` hooks; its runs and writes use inherited `run` and `write` hooks.
+A root run and a session run each invoke the `run` hook once.
+A tagged run invokes its `run` hook once with the original call, not again on its child session.
+A subflow invokes `run` hooks once even when its caller is another operation.
+An inline run in a session passes its original inline config to the `run` hook.
+A `run` hook that skips `next()` stops a subflow and returns its substitute to the caller.
+A `run` hook that throws stops a subflow before its body and throws to its caller.
+An async `run` hook keeps a dropped subflow's rejection on the scope, not the host.
+A root write and a session write each invoke the `write` hook once.
+A write through a `depends: { x: cell.controller }` edge invokes the `write` hook.
+A namespaced write invokes the `write` hook once and stores its value in that namespace.
+Two hooks keep install order for both runs and writes on child layers.
+
+### Exports
+
+Exports are copied onto the handle and every binding (ADR 0057).
+An op, a resource, or a tag is the same object: `mail.enqueue === enqueue`.
+A cell is not. It shows as a read view (ADR 0123):
+
+```ts
+const talk = capsule({ label: "talk", exports: { point, clear } });
+const chat = talk();
+
+scope.resolve(chat.point);
+// point.get(), point.watch(fn): no set
+```
+
+- A read view has no `controller` and no path to the cell.
+- `depends`, `scope.resolve`, and a hook's `load` hand a reader: `get()` and `watch()`.
+- `useData(chat.point)` reads it in React.
+- A `depends` that names `talk.point.controller` is a type error, and `InvalidDependency` at
+  first touch.
+- To change the cell from outside, call an op the capsule exports.
+- The raw cell, imported from its own file, keeps full power. Lint `tinker/cell-write` warns
+  on `.controller` of another capsule's cell.
+
+A value that is not a unit is a foreign export (ADR 0125), such as a React component:
+
+```ts
+const talk = capsule({ label: "talk", exports: { said, say, Panel } });
+const chat = talk();
+// <chat.Panel title="Talk" />
+```
+
+- It is the same object on the handle and on each binding, with its type.
+- Core never marks, checks, or resolves it. It may be frozen.
+- `CapsuleMissing` comes from the exported units it touches.
+
+`label`, `config`, `hooks`, `exports`, and `tags` are reserved: a type error, and `ReservedExport`.
+
+A capsule may carry fixed tags: `capsule({ label, tags: [side("server")] })`.
+They take what `createScope({ tags })` takes and bind on the root at install, before the
+command's own `tags`.
+A tag bound twice follows the root list rule: the last binding wins, so a later capsule wins
+over an earlier one, and the command's `tags` win over every capsule.
+The record shows them in `tags`, by tag label.
+
+An export needs its capsule.
+A scope that first touches an exported unit whose capsule it does not install raises
+`CapsuleMissing` with `{ unit, capsule }`, before any work.
+A first touch is a run, a resolve, a `load`, or a `depends` of another unit.
+A later run under the same root does not check again.
+A unit that is not exported fails as before, at its first private tag (`MissingTag`).
+
+A tag export is one the capsule binds per call, such as `http.request`.
+It has no capsule check: an unbound one fails with `MissingTag`.
+
+A span of an exported unit carries `attributes.capsule`.
+A hook's log line carries `attributes.capsule`, the hook's capsule label.
+
+### The record
+
+`scope.capsules` is what the scope knows about each installed capsule, in `capsules` order.
+
+```ts
+scope.capsules[0];
+// { label: "mail",
+//   config: { smtpUrl: "smtp://x", from: "ops@x" },
+//   tags: {},
+//   exports: ["enqueue", "send"],
+//   loaded: [{ unit: "mail.migrate",
+//     role: "setup",
+//     explain: "Brings the outbox up to date" }] }
+```
+
+It exists before the first `start`, and a read shows the state now.
+A unit's first `load`, `run`, or `settle` adds one `loaded` line; a later one keeps the first meta.
+A tag made with `secret: true` shows `"[hidden]"` for its whole value.
+A config value that is a unit shows its label.
+It holds no run status: runs and failures are spans.
+
+### Config
+
+A library reads tags to learn what it is configured against.
+It declares them once, as its `config` (ADR 0120).
+Calling the capsule fills the config and answers the binding a scope installs.
+
+A key is required when its tag has no default.
+Leaving it out is a type error: the error names the key.
+A required key still takes `undefined`, since an env value may be unset.
+An `undefined` value counts as unfilled, so such a key fails at start.
+An optional key then reads its tag's default instead.
+Use `tag.required` to make a key required whatever its tag says.
+Use `tag.optional` to let the call leave it out.
+Use `tag.all` for a list key: the call takes a list, and each item is one binding.
+
+A filled key binds its tag on the root, before the app's own `tags`.
+So a `tags` entry on the root still wins over the capsule's.
+A list reads every binding last first, so a list key reads back in the reverse of the call's order.
+
+A slot key holds a unit: a resource or an operation the app chooses.
+
+```ts
+const storeSlot = tag<Resource.Handle<Store>>({
+  label: "sync.store",
+});
+const migrateSlot = tag<Operation.Handle<string, void>>({
+  label: "sync.migrate",
+});
+
+const sync = capsule({
+  label: "sync",
+  config: { store: storeSlot, migrate: migrateSlot },
+  hooks: {
+    start: async ({ config, load, run }) => {
+      const store = await load(config.store, {
+        role: "state",
+        explain: "Holds the records",
+      });
+      const ran = await run(config.migrate, {}, {
+        role: "setup",
+        explain: "Migrates the store",
+      });
+
+      return { store, ran };
+    },
+  },
+});
+```
+
+The library builds the held unit in its own start, through the scope.
+A unit that reads the start value sees the instance the scope built, not a copy.
+So a preset on that unit reaches every reader of it.
+
+A unit that depends on a slot tag gets what the held unit gives in `depends` (ADR 0151):
+
+- a resource: its built value;
+- an operation: a subflow to call;
+- a cell: its value; `tag.controller` gives its controller;
+- `tag.all`: each item the same way.
+
+```ts
+const whoami = operation({
+  label: "app.whoami",
+  depends: { store: storeSlot },
+  run: ({ store }) => store.id,
+});
+```
+
+`scope.resolve(tag)` and a start hook's `config` still give the handle.
+A list or record inside one tag's value stays as bound.
+
+Core adds no owner mark on config tags. A library's index does not export them, so the app uses
+the library through its capsule.
+
+`createScope` checks the config once, before the root layer exists.
+A required key written as `undefined` raises `MissingConfig` with `{ label, key }`.
+One library installed twice on a root raises `DuplicateCapsule` with `{ label }`.
+A bad value raises `DataValidationFailed` from the tag's own `parse`, there.
+Resolve, run, and write add no work: the bindings sit on the root like any other tag.
+
+`scope.resolve(sync)` and `scope.resolve(sync({ ... }))` both read the start value.
+A binding in `depends` delivers the same start value.
+
+A test fills config the same way, and swaps a heavy unit with a preset (ADR 0015):
+
+```ts
+const scope = createScope({
+  capsules: [sync({ store: sqlite, migrate })],
+  presets: [preset(sqlite, () => fakeStore)],
+});
+```
+
 ## Scope handles
 
 A scope handle is passed by reference (ADR 0108).
@@ -224,400 +650,6 @@ function exitCode(end: Scope.Result): number {
   if (end.teardownErrors?.length) return 1;
   return 0;
 }
-```
-
-## Capsules
-
-A capsule is a library's door (ADR 0121).
-It holds the library's config, its hooks, and the units it exports.
-Make one with `capsule()` and install it with `createScope({ capsules })`.
-Wait with `await scope.ready`, then read its start value with `scope.resolve(mail)`.
-A library that reads tags declares them as its `config` ([Config](#config)).
-
-```ts
-import { capsule, createScope } from "@tinkered/core";
-
-export const mail = capsule({
-  label: "mail",
-  config: { smtpUrl, from },
-  exports: { enqueue, send },
-  hooks: {
-    start: async ({ run }) => {
-      await run(migrate, {}, {
-        role: "setup",
-        explain: "Brings the outbox up to date",
-      });
-    },
-  },
-});
-
-const scope = createScope({
-  capsules: [mail({ smtpUrl: url, from: "ops@example.com" })],
-});
-await scope.ready;
-scope.run(mail.enqueue, { input: message });
-await scope.close({ graceful: true });
-```
-
-A capsule with no required key is called with nothing: `health()`.
-It also installs uncalled: `capsules: [health]`.
-
-Start has a 10 000 ms limit on the scope clock (ADR 0119).
-Set `createScope({ startTimeout: 5_000 })` to change it.
-A hanging start rejects `ready` with `StartTimeout`.
-Its payload holds the capsule's `label`.
-Core closes the scope and runs cleanup before `ready` rejects.
-The label names the innermost start still waiting.
-A settled start cancels the timer.
-Closing the root cancels it and rejects pending `ready` with the close reason.
-Set `createScope({ startTimeout: 0 })` or `Infinity` to turn the timer off.
-Negative limits and `NaN` raise `BadStartTimeout`.
-Finite limits are capped at 2 147 483 647 ms.
-A clock sleep throw or rejection leaves startup waiting without a timeout.
-
-### Hooks
-
-Each hook takes one event object.
-`event.kind` names the hook and narrows its fields.
-Common access is built on first use.
-Reading `op`, `call`, `ns`, or `next` does not build that access.
-
-- `start`: `next()`; returns the start value. Every start runs once, in `capsules` order.
-- `run`: `op`, the original `call`, `next()`.
-- `write`: `cell`, `value`, `next()`.
-- `resolve`: `target`, `next()`.
-- `close`: `options`, `next()` returns the close result. Close hooks run in reverse order.
-- `session`: `handle`, `next()` returns the session result.
-
-`resolve`, `run`, `write`, and `session` are onion middleware: install order, first is outermost.
-A `start` that skips `next()` still lets the next start run once it returns.
-A `close` that skips `next()` cannot skip cleanup (ADR 0085).
-
-### What a hook reaches
-
-Every event has `config`, `load`, `run`, and `settle`.
-None has `resolve`, `controller`, or `scope`.
-
-- `config`: the config values, read once after the binding, with defaults filled.
-- `load(unit, meta, options?)`: a resource answers a promise of its value; a cell answers its
-  controller. `options.ns` reads it in that namespace; one made with `observe: false` is quiet.
-- `run(op, options, meta)`: what `scope.run` answers, as a promise. No controller is made.
-- `settle(op, options, meta)`: what `scope.settle` answers, as a promise.
-
-The meta is what devtools show: `{ role, explain }`.
-`role` is `setup`, `worker`, `handler`, or `state`.
-Call options (`input`, `rawInput`, `signal`, `ns`, `tags`) go on the run, never in the meta.
-
-```ts
-const active = data({ initial: 0 });
-const audit = capsule({
-  label: "audit",
-  hooks: {
-    run(event) {
-      const count = event.load(active, {
-        role: "state",
-        explain: "Counts runs in flight",
-      });
-      count.update((value) => value + 1);
-      event.defer((end) => {
-        event.log("finished", { status: end.status });
-      });
-      return event.next();
-    },
-  },
-});
-```
-
-They use the hook's own owner, effective `ns` chain, trace, signal, and lifetime.
-A controller one request loaded never serves another.
-Run hooks share the run's trace, cancellation, and `defer` cleanup.
-Other hooks defer cleanup to their session; start and close use the root.
-All events also have `closing`, `signal`, `obs`, `log`, `clock`, `random`, and `raise`.
-A namespace chain selects buckets in that owner; it does not find a sibling session.
-A hook reads a tag through a unit that depends on it, or through a config key.
-
-In a `close` hook, `load` reads units already built on the root until `next()` releases them.
-After that, and for a unit never built, it raises `Disposed`.
-
-`Capsule.Events[keyof Capsule.Events]` is the union of these event shapes.
-`Capsule.Events["run"]` names one shape.
-A run hook may refuse raw input before its parser runs.
-
-One run hook serves every operation, so its event is untyped.
-`event.is(op)` says if the run is `op`'s; a true answer gives `op`, `call`, `input`, and
-`next()` that operation's types (ADR 0142).
-`event.input` is the input the body gets: the caller's `input`, or its `rawInput` through the
-operation's parser. A bad raw input raises `DataValidationFailed` at the read.
-
-```ts
-const tide = capsule({
-  label: "tide",
-  hooks: {
-    run(event) {
-      if (!event.is(press)) return event.next();
-
-      const hue = event.next();
-      const input = { ...event.input, hue };
-      return event.run(send, { input }, meta);
-    },
-  },
-});
-```
-
-Graceful close joins hook waits before and after `next()`.
-After a run finishes, a saved `next()` raises `Disposed` and starts no body.
-A waiting hook can still use its saved `load` and `run` during graceful close.
-Saved data controllers can read, update, and watch through the run's deferred cleanup.
-Forced close aborts its signal and prevents a late `next()` from starting the body.
-Resource loads through a run event retain the selected instance through hook and run cleanup.
-A hook that starts `next()` and returns a substitute still owns that body's work.
-That body keeps its span open until it ends; its failure still marks the span.
-Catching a body's panic in its hook does not erase the owner's failure.
-A hook-started run shares the active trace; a dropped failure stays on the owner.
-`event.settle` receives a child failure without failing the owner.
-A saved `settle` returns `cancelled` when a waiting hook is forced closed.
-It returns `failed` with `Disposed` when called after that hook ends.
-A run in a namespace made with `observe: false` leaves no span and no log line.
-
-A tagged call enters its actual child before run hooks start.
-Its session hook runs before its run hook; each runs once.
-
-Start and close can load a root-owned resource to keep state apart across roots.
-Concurrent and repeated closes join the same close hook once.
-
-Resolve hooks cover direct root `resolve` calls only.
-Session reads, dependency reads, controller reads, and event loads bypass them.
-
-A `resolve` hook wraps snapshot reads on the root handle (skip `next()` to short-circuit with a
-substitute):
-
-```ts
-const gate = capsule({
-  label: "gate",
-  hooks: {
-    resolve: (event) => (allowed ? event.next() : "denied"),
-  },
-});
-```
-
-A `run` hook wraps every operation call, on the root or in a session (skip `next()` to refuse a
-call with a substitute):
-
-```ts
-const audit = capsule({
-  label: "audit",
-  hooks: {
-    run: async (event) => {
-      console.log("before");
-      const out = await event.next();
-      console.log("after");
-      return out;
-    },
-  },
-});
-```
-
-Await `ready` before the first `resolve(capsule)`.
-
-A `start` can read, after `await next()`, only capsules listed after it.
-So list a capsule that reads a server before that server: `[serve, server]`.
-
-A `write` hook wraps cell writes at every layer (skip `next()` to refuse a write, leaving the value
-and watchers unchanged):
-
-```ts
-const even = capsule({
-  label: "even",
-  hooks: {
-    write: (event) => {
-      const { value } = event;
-      if (typeof value !== "number" || value % 2 === 0) {
-        event.next();
-      }
-    },
-  },
-});
-```
-
-A session read still skips `resolve` hooks; its runs and writes use inherited `run` and `write` hooks.
-A root run and a session run each invoke the `run` hook once.
-A tagged run invokes its `run` hook once with the original call, not again on its child session.
-A subflow invokes `run` hooks once even when its caller is another operation.
-An inline run in a session passes its original inline config to the `run` hook.
-A `run` hook that skips `next()` stops a subflow and returns its substitute to the caller.
-A `run` hook that throws stops a subflow before its body and throws to its caller.
-An async `run` hook keeps a dropped subflow's rejection on the scope, not the host.
-A root write and a session write each invoke the `write` hook once.
-A write through a `depends: { x: cell.controller }` edge invokes the `write` hook.
-A namespaced write invokes the `write` hook once and stores its value in that namespace.
-Two hooks keep install order for both runs and writes on child layers.
-
-### Exports
-
-Exports are copied onto the handle and every binding (ADR 0057).
-An op, a resource, or a tag is the same object: `mail.enqueue === enqueue`.
-A cell is not. It shows as a read view (ADR 0123):
-
-```ts
-const talk = capsule({ label: "talk", exports: { point, clear } });
-
-depends: { point: talk.point, clear: talk.clear }
-// point.get(), point.watch(fn): no set
-```
-
-- A read view has no `controller` and no path to the cell.
-- `depends`, `scope.resolve`, and a hook's `load` hand a reader: `get()` and `watch()`.
-- `useData(talk.point)` reads it in React.
-- A `depends` that names `talk.point.controller` is a type error, and `InvalidDependency` at
-  first touch.
-- To change the cell from outside, call an op the capsule exports.
-- The raw cell, imported from its own file, keeps full power. Lint `tinker/cell-write` warns
-  on `.controller` of another capsule's cell.
-
-A value that is not a unit is a foreign export (ADR 0125), such as a React component:
-
-```ts
-const talk = capsule({ label: "talk", exports: { said, say, Panel } });
-// <talk.Panel title="Talk" />
-```
-
-- It is the same object on the handle and on each binding, with its type.
-- Core never marks, checks, or resolves it. It may be frozen.
-- `CapsuleMissing` comes from the exported units it touches.
-
-`label`, `config`, `hooks`, `exports`, and `tags` are reserved: a type error, and `ReservedExport`.
-
-A capsule may carry fixed tags: `capsule({ label, tags: [side("server")] })`.
-They take what `createScope({ tags })` takes and bind on the root at install, before the
-command's own `tags`.
-A tag bound twice follows the root list rule: the last binding wins, so a later capsule wins
-over an earlier one, and the command's `tags` win over every capsule.
-The record shows them in `tags`, by tag label.
-
-An export needs its capsule.
-A scope that first touches an exported unit whose capsule it does not install raises
-`CapsuleMissing` with `{ unit, capsule }`, before any work.
-A first touch is a run, a resolve, a `load`, or a `depends` of another unit.
-A later run under the same root does not check again.
-A unit that is not exported fails as before, at its first private tag (`MissingTag`).
-
-A tag export is one the capsule binds per call, such as `http.request`.
-It has no capsule check: an unbound one fails with `MissingTag`.
-
-A span of an exported unit carries `attributes.capsule`.
-A hook's log line carries `attributes.capsule`, the hook's capsule label.
-
-### The record
-
-`scope.capsules` is what the scope knows about each installed capsule, in `capsules` order.
-
-```ts
-scope.capsules[0];
-// { label: "mail",
-//   config: { smtpUrl: "smtp://x", from: "ops@x" },
-//   tags: {},
-//   exports: ["enqueue", "send"],
-//   loaded: [{ unit: "mail.migrate",
-//     role: "setup",
-//     explain: "Brings the outbox up to date" }] }
-```
-
-It exists before the first `start`, and a read shows the state now.
-A unit's first `load`, `run`, or `settle` adds one `loaded` line; a later one keeps the first meta.
-A tag made with `secret: true` shows `"[hidden]"` for its whole value.
-A config value that is a unit shows its label.
-It holds no run status: runs and failures are spans.
-
-### Config
-
-A library reads tags to learn what it is configured against.
-It declares them once, as its `config` (ADR 0120).
-Calling the capsule fills the config and answers the binding a scope installs.
-
-A key is required when its tag has no default.
-Leaving it out is a type error: the error names the key.
-A required key still takes `undefined`, since an env value may be unset.
-An `undefined` value counts as unfilled, so such a key fails at start.
-An optional key then reads its tag's default instead.
-Use `tag.required` to make a key required whatever its tag says.
-Use `tag.optional` to let the call leave it out.
-Use `tag.all` for a list key: the call takes a list, and each item is one binding.
-
-A filled key binds its tag on the root, before the app's own `tags`.
-So a `tags` entry on the root still wins over the capsule's.
-A list reads every binding last first, so a list key reads back in the reverse of the call's order.
-
-A slot key holds a unit: a resource or an operation the app chooses.
-
-```ts
-const storeSlot = tag<Resource.Handle<Store>>({
-  label: "sync.store",
-});
-const migrateSlot = tag<Operation.Handle<string, void>>({
-  label: "sync.migrate",
-});
-
-const sync = capsule({
-  label: "sync",
-  config: { store: storeSlot, migrate: migrateSlot },
-  hooks: {
-    start: async ({ config, load, run }) => {
-      const store = await load(config.store, {
-        role: "state",
-        explain: "Holds the records",
-      });
-      const ran = await run(config.migrate, {}, {
-        role: "setup",
-        explain: "Migrates the store",
-      });
-
-      return { store, ran };
-    },
-  },
-});
-```
-
-The library builds the held unit in its own start, through the scope.
-A unit that reads the start value sees the instance the scope built, not a copy.
-So a preset on that unit reaches every reader of it.
-
-A unit that depends on a slot tag gets what the held unit gives in `depends` (ADR 0151):
-
-- a resource: its built value;
-- an operation: a subflow to call;
-- a cell: its value; `tag.controller` gives its controller;
-- `tag.all`: each item the same way.
-
-```ts
-const whoami = operation({
-  label: "app.whoami",
-  depends: { store: storeSlot },
-  run: ({ store }) => store.id,
-});
-```
-
-`scope.resolve(tag)` and a start hook's `config` still give the handle.
-A list or record inside one tag's value stays as bound.
-
-Core adds no owner mark on config tags. A library's index does not export them, so the app uses
-the library through its capsule.
-
-`createScope` checks the config once, before the root layer exists.
-A required key written as `undefined` raises `MissingConfig` with `{ label, key }`.
-One library installed twice on a root raises `DuplicateCapsule` with `{ label }`.
-A bad value raises `DataValidationFailed` from the tag's own `parse`, there.
-Resolve, run, and write add no work: the bindings sit on the root like any other tag.
-
-`scope.resolve(sync)` and `scope.resolve(sync({ ... }))` both read the start value.
-A binding in `depends` delivers the same start value.
-
-A test fills config the same way, and swaps a heavy unit with a preset (ADR 0015):
-
-```ts
-const scope = createScope({
-  capsules: [sync({ store: sqlite, migrate })],
-  presets: [preset(sqlite, () => fakeStore)],
-});
 ```
 
 ## Errors and panics

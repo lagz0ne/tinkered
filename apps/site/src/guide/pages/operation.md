@@ -28,18 +28,24 @@ const press = operation({
 
 ## Call one
 
-The same op, from any place:
+An op leaves its file as a capsule export. Call
+it through the install:
 
 ```ts
-await scope.run(press, { input: { x: 1, y: 2 } });
-const result = await scope.settle(press, {
+const tide = sea({ size: 4 });
+const scope = await createScope({
+  capsules: [tide],
+}).ready;
+
+await scope.run(tide.press, { input: { x: 1, y: 2 } });
+const result = await scope.settle(tide.press, {
   input: { x: 1, y: 2 },
 });
 ```
 
 - `run` answers the value or throws.
 - `settle` answers `{ status, value | error }`.
-- In React, `useRun(press)` gives `run`,
+- In React, `useRun(tide.press)` gives `run`,
   `data` and `error`.
 
 ## Why every function is one

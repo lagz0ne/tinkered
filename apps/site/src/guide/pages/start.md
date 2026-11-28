@@ -1,11 +1,17 @@
 # Start
 
 Tinker is a TypeScript library for apps.
-You write the app as a graph of small units.
-Core runs the graph, traces each call, and closes it.
+An app is capsules: you build capsules, and you
+use other capsules. Core runs them, traces each
+call, and closes them.
 
 ## The units
 
+- **capsule**: a feature's config, exports and
+  hooks. The units below live inside one.
+  Code reaches them through the install:
+  `const tide = sea({ size: 4 })`, then
+  `tide.press`.
 - **operation**: an action. It has a label,
   an input shape, its deps and a `run`.
 - **data**: a cell. One value, or members
@@ -14,8 +20,6 @@ Core runs the graph, traces each call, and closes it.
   a socket or a timer. It is built once and
   cleaned up on close.
 - **tag**: a typed key a capsule reads.
-- **capsule**: a feature's config, exports and
-  hooks.
 
 ## The app
 
