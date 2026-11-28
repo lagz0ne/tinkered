@@ -4,7 +4,8 @@ description: >
   Use when the page must call the server or read
   server state live in a Tinker app: an rpc
   contract, its server operations, a remote data
-  board, a guard, or a fault. Also when a check
+  board, a guard (one that needs a store or an
+  auth backend too), or a fault. Also when a check
   prints tinker/one-wire.
 metadata:
   purpose: >
@@ -219,6 +220,113 @@ if ("teamId" in part && !teams.includes(part.teamId)) {
   return input.refuse({ notMember: part.teamId });
 }
 ```
+
+### A guard that needs a backend
+
+A sign-in guard reads a store and asks an auth
+service. Give it `depends`, as any operation has.
+The auth service is a backend capsule in an op
+slot, as `mail` is (capsule skill). Pass one
+guard list to each service you serve.
+
+```ts
+import {
+  capsule,
+  createScope,
+  data,
+  operation,
+  rpc,
+  tag,
+  transport,
+  type Operation,
+} from "@tinkered/core";
+import { memory } from "@tinkered/core/testing";
+import { z } from "zod";
+
+type Who = { id: string };
+
+// src/gate/index.ts: the slot and the guard
+const verify = tag<
+  Operation.Handle<Promise<Who | undefined>, string>
+>({ label: "gate.verify" });
+
+const users = data<Record<string, boolean>>({
+  label: "gate.users",
+  initial: { u1: true },
+});
+
+const viewer = tag<string>({ label: "gate.viewer" });
+
+const auth = operation({
+  label: "gate.auth",
+  input: transport.hook.start,
+  depends: { verify: verify.required, users },
+  run: async ({ verify, users }, { input }) => {
+    const token = input.meta.token ?? "";
+    const who = await verify.run({ input: token });
+    if (!who || !users[who.id]) {
+      return input.refuse({ signIn: true });
+    }
+    return { tags: [viewer(who.id)] };
+  },
+});
+
+export const gate = capsule({
+  label: "gate",
+  config: { verify: verify.required },
+  exports: { auth },
+});
+
+// src/jwt/index.ts: one auth backend
+const check = operation({
+  label: "jwt.check",
+  input: z.string(),
+  run: async (_, { input }) =>
+    input === "good" ? { id: "u1" } : undefined,
+});
+
+export const jwt = capsule({
+  label: "jwt",
+  exports: { check },
+});
+
+// src/todo: a service the guard keeps
+const todo = rpc({
+  "todo.add": { input: z.string(), output: z.string() },
+});
+
+const add = operation({
+  label: "todo.add.do",
+  input: z.string(),
+  run: (_, { input }) => input,
+});
+
+// cmds/server.ts (ws from @tinkered/bun in an app)
+const guards = [gate.auth];
+
+const server = await createScope({
+  capsules: [
+    jwt(),
+    gate({ verify: jwt.check }),
+    todo({
+      implement: { "todo.add": add },
+      onStart: guards,
+    }),
+    memory.server({ services: [todo] }),
+  ],
+}).ready;
+
+await server.close();
+```
+
+- The guard never sees which backend checks the
+  token. A test fills the slot with its own op.
+- `users` is a bare cell: the guard reads its
+  value at each call.
+- Each service gets `onStart: guards`. A service
+  with no `onStart` takes calls from anyone.
+- A guard that refuses ends the call before the
+  operation runs, and before a body is read.
 
 ### Handle a fault
 
