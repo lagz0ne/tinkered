@@ -1,8 +1,8 @@
 # 0175 tinker check compares the writes of each exit to a committed file
 
 Date: 2026-11-28. Status: accepted (Duke,
-2026-11-28 10:58 UTC, option A).
-One point is open: see "Open".
+2026-11-28 10:58 UTC, option A;
+11:48 UTC, the command, point 14).
 Adds to: ADR 0159 (the exit gate),
 ADR 0161 (the committed graph).
 Uses: ADR 0173 (the `exits` write hook).
@@ -23,6 +23,8 @@ Page: Tinker Test Check, v2.
   the scope as devtools".
 - 10:58: picked "A": a committed file that
   `tinker check` compares.
+- 11:48: "Go A": `tinker check --write` writes
+  the file.
 
 ## Context
 
@@ -58,6 +60,8 @@ the operation called before too.
 - **API Extractor**: the tool writes a report,
   the build fails on a difference, a person
   reads the diff. ADR 0161 names it.
+  Its `--local` flag writes the report where
+  the plain run fails. Point 14 is that flag.
 - **Frame condition** (JML `assignable`, Dafny
   `modifies`): what a call may change, and
   nothing else.
@@ -146,11 +150,29 @@ The golden app of chain step ck12, 0.34.19:
 13. A page test gives no line: a page has no
     such store. `tinker pins` has the same
     limit, by design.
+14. The file is `tinker.effects`.
+    `tinker check --write` writes it, and
+    `tinker.graph` with it:
 
-## Open
+    ```text
+    tinker check --write
+    ```
 
-- The command that writes the file, and the
-  file's name. Asked on 2026-11-28.
+    - It runs the stages of `tinker check`.
+    - At the graph stage it writes
+      `tinker.graph` and does not compare it.
+      The graph rules still run.
+    - After the `exits` stage it writes
+      `tinker.effects` and does not compare it.
+    - It writes `tinker.effects` only when the
+      tests passed. A failed run is not a fact.
+    - Each other finding prints as before.
+    - `tinker graph --write` stays as it is:
+      it reads code only and runs no test.
+
+15. The first line of `tinker.effects` names
+    its format, as `tinker.graph` does.
+    The lines after it are sorted.
 
 ## Not in this decision
 
