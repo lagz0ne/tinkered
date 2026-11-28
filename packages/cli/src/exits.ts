@@ -11,10 +11,14 @@ export declare namespace Exits {
    * `kind`, `refused` for a hook's refusal, or `value` for every other return.
    */
   type Exit = { path: string; line: number; label: string; exit: string };
-  /** One operation of the app, as the checker reads it: where it is, its `run`, and its exits. */
+  /**
+   * One operation of the app, as the checker reads it: where it is, its `run`, and its exits.
+   * `line` to `end` are the lines of its `operation({…})` call.
+   */
   type Operation = {
     path: string;
     line: number;
+    end: number;
     label: string;
     options: ts.ObjectLiteralExpression;
     run: ts.ObjectLiteralElementLike;
@@ -136,8 +140,9 @@ function operationsIn(checker: ts.TypeChecker, source: ts.SourceFile, path: stri
 
     const returned = returnOf(checker, run);
     const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+    const end = source.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
     const exits = returned ? exitsOf(checker, returned) : [];
-    found.push({ path, line, label, options, run, exits });
+    found.push({ path, line, end, label, options, run, exits });
   };
   visit(source);
   return found;

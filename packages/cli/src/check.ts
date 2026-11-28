@@ -146,7 +146,8 @@ function readConfig(root: string): Check.Config {
   return config as Check.Config;
 }
 
-function configOf(root: string): Check.Config {
+/** The app's `tinker.json`, read once at its door; an app with none has every key absent. */
+export function configOf(root: string): Check.Config {
   if (globSync(configName, { cwd: root }).length) return readConfig(root);
   if (globSync(oldName, { cwd: root }).length) {
     raise("BadConfig", { path: oldName, reason: `rename this file to ${configName}` });
