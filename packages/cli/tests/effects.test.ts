@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createScope, data, operation } from "@tinkered/core";
+import { capsule, createScope, data, operation } from "@tinkered/core";
 import { afterAll, expect, test } from "vite-plus/test";
 import { z } from "zod";
 
@@ -22,6 +22,7 @@ afterAll(() => {
 const written = join(mkdtempSync(join(tmpdir(), "tinker-effects-run-")), "effects.tsv");
 folders.push(dirname(written));
 process.env.TINKER_EFFECTS = written;
+/** The capsule reads its env values once, at load (ADR 0173): so the value is set before this. */
 const { exits } = await import("@/test");
 delete process.env.TINKER_EFFECTS;
 
@@ -125,6 +126,65 @@ test("a run that throws gives no line, and its writes count for the caller", asy
 
   expect(linesOf("door.jam")).toEqual([]);
   expect(linesOf("door.kick")).toEqual(["door.kick\tstuck\tdoors.log"]);
+});
+
+test("two child runs under one parent keep their own cells; the parent's line has both", async () => {
+  const child = operation({
+    label: "door.child",
+    input: z.enum(["doors", "log"]),
+    depends: { doors: doors.controller, log: log.controller },
+    run: async ({ doors, log }, { input }) => {
+      await Promise.resolve();
+      if (input === "doors") doors.set(["child"]);
+      else log.set(["child"]);
+      return { kind: "done" as const };
+    },
+  });
+  const parent = operation({
+    label: "door.parent",
+    depends: { child },
+    run: async ({ child }) => {
+      await Promise.all([child.run({ input: "doors" }), child.run({ input: "log" })]);
+      return { kind: "both" as const };
+    },
+  });
+  const scope = createScope({ capsules: [exits()] });
+
+  await scope.run(parent);
+  await scope.close();
+
+  expect(linesOf("door.child")).toEqual([
+    "door.child\tdone\tdoors.list",
+    "door.child\tdone\tdoors.log",
+  ]);
+  expect(linesOf("door.parent")).toEqual(["door.parent\tboth\tdoors.list,doors.log"]);
+});
+
+const seen = data<string[]>({ label: "tap.seen", initial: [] });
+
+const kept = { role: "state", explain: "Each knock the tap saw" } as const;
+
+const knock = operation({ label: "door.knock", run: () => ({ kind: "knocked" as const }) });
+
+/** A capsule listed after `exits`: its run hook writes an app cell inside each knock. */
+const tap = capsule({
+  label: "tap",
+  exports: { seen },
+  hooks: {
+    run(event) {
+      if (event.is(knock)) event.load(seen, kept).update((list) => [...list, "knock"]);
+      return event.next();
+    },
+  },
+});
+
+test("a later capsule's hook that writes inside a run counts for that run's line", async () => {
+  const scope = createScope({ capsules: [exits(), tap()] });
+
+  await scope.run(knock);
+  await scope.close();
+
+  expect(linesOf("door.knock")).toEqual(["door.knock\tknocked\ttap.seen"]);
 });
 
 /** A promise and the call that settles it: a run waits on it until the test lets it go. */
@@ -317,6 +377,102 @@ test(
       "src/ops.ts:5 tinker/effect door.open opened: writes{doors.list}, file says writes{doors.list} or writes{}",
       "src/ops.ts:5 tinker/effect door.open stuck: no run, file says writes{}",
     ]);
+  },
+);
+
+test("an exit the runs give and the file lacks is one finding", { timeout: 60_000 }, () => {
+  const folder = appOf({
+    ...configs,
+    "tests.mjs": testsOf(ran, 0),
+    "tinker.effects": `${filed.slice(0, 2).join("\n")}\n`,
+  });
+  main(["graph", folder, "--write"], "/");
+
+  const { out } = main(["check", folder], "/");
+
+  expect(findings(out)).toEqual([
+    "src/ops.ts:5 tinker/effect door.open opened: writes{doors.list}, file has no line",
+  ]);
+});
+
+test(
+  "a run line with an exit the op does not declare is its value line",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({ ...configs, "tests.mjs": testsOf([...ran, "door.open\tjammed\t"], 0) });
+
+    main(["check", folder, "--write"], "/");
+
+    expect(read(folder, "tinker.effects")).toBe(
+      `${[...filed, "door.open value writes{}"].join("\n")}\n`,
+    );
+  },
+);
+
+test(
+  "a cell only a reads fact names, and one only a hook line names, stay in the file",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({
+      ...configs,
+      "tests.mjs": testsOf(["door.open\topened\tdoors.list,doors.shown,tap.seen"], 0),
+      "src/ops.ts": [
+        `import { capsule, data, operation } from "@tinkered/core";`,
+        ``,
+        `const doors = data<string[]>({ label: "doors.list", initial: [] });`,
+        ``,
+        `const shown = data<string[]>({ label: "doors.shown", initial: [] });`,
+        ``,
+        `const seen = data<string[]>({ label: "tap.seen", initial: [] });`,
+        ``,
+        `const kept = { role: "state", explain: "Each door the tap saw" } as const;`,
+        ``,
+        `export const open = operation({`,
+        `  label: "door.open",`,
+        `  depends: { doors: doors.controller, shown: shown.controller },`,
+        `  run: ({ doors, shown }) => {`,
+        `    if (shown.get().length) return { kind: "locked" as const };`,
+        `    doors.set(["open"]);`,
+        `    return { kind: "opened" as const };`,
+        `  },`,
+        `});`,
+        ``,
+        `export const tap = capsule({`,
+        `  label: "tap",`,
+        `  exports: { seen },`,
+        `  hooks: {`,
+        `    run(event) {`,
+        `      if (event.is(open)) event.load(seen, kept).update((list) => [...list, "open"]);`,
+        `      return event.next();`,
+        `    },`,
+        `  },`,
+        `});`,
+      ].join("\n"),
+    });
+
+    main(["check", folder, "--write"], "/");
+
+    expect(read(folder, "tinker.effects")).toBe(
+      "# tinker.effects 1\ndoor.open opened writes{doors.list,doors.shown,tap.seen}\n",
+    );
+  },
+);
+
+test(
+  "an unsorted file with CRLF line ends and the same facts gives no finding",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({
+      ...configs,
+      "tests.mjs": testsOf(ran, 0),
+      "tinker.effects": `${[filed[0], filed[2], filed[1]].join("\r\n")}\r\n`,
+    });
+    main(["graph", folder, "--write"], "/");
+
+    const { code, out } = main(["check", folder], "/");
+
+    expect(out).toMatch(/effects \(2 lines\)\ntinker check: OK\n$/);
+    expect(code).toBe(0);
   },
 );
 

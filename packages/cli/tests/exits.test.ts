@@ -201,7 +201,7 @@ const guard = operation({
   run: (_, { input }) => input.refuse({}),
 });
 
-test("with no `tinker pins` env value, the capsule does not hook writes", () => {
+test("with no `tinker pins` env value and no `TINKER_EFFECTS`, the capsule does not hook writes", () => {
   expect(exits.hooks).toEqual({ run: expect.any(Function) });
 });
 
