@@ -13,7 +13,7 @@ export declare namespace Exits {
   type Exit = { path: string; line: number; label: string; exit: string };
   /**
    * One operation of the app, as the checker reads it: where it is, its `run`, and its exits.
-   * `line` to `end` are the lines of its `operation({…})` call.
+   * `line` to `end` are the lines of its `operation(…)` call.
    */
   type Operation = {
     path: string;

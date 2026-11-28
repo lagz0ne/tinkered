@@ -19,7 +19,7 @@ export declare namespace Graph {
    * fact is never a judgement: the reader of the line judges it (ADR 0161, amended). `writes`,
    * `calls` and `uses` are those facts, sorted, for the graph rules (ADR 0167, amended).
    * `faults` are the faults its calls of a contract member can end with, sorted. `end` is the
-   * last line of its `operation({…})` call.
+   * last line of its `operation(…)` call.
    */
   type Line = Row & {
     end: number;

@@ -200,7 +200,7 @@ function changedIn(diff: string) {
 }
 
 /**
- * The ops whose `operation({…})` call has a line changed since `ref`: `git diff <ref>`, the
+ * The ops whose `operation(…)` call has a line changed since `ref`: `git diff <ref>`, the
  * working tree included, with paths from the app's root.
  *
  * @throws `ToolFailed` when `git diff` fails: `ref` is no commit, or the app is in no repo.
