@@ -527,6 +527,14 @@ issue.rename.do stale writes{}
   in no line.
 - A run that throws writes no line. Its writes
   count for the run that called it.
+- Two runs side by side keep their own sets,
+  and so do two child runs of one parent. The
+  parent's set holds the cells of both.
+- A capsule listed after `exits` has its hooks
+  inside each run. A cell such a hook writes
+  there counts for that run's line.
+- The check reads the file's lines in any order,
+  with LF or CRLF line ends.
 
 Each op and exit whose write sets differ is
 one finding, at the operation:
@@ -550,8 +558,9 @@ file says writes{}
   `# tinker.effects 1`. A file with no format
   line, or another format, is one finding.
 - The check sets `TINKER_EFFECTS` for the tests.
-  In a plain test run it is not set, and the
-  capsule hooks no write.
+  In a plain test run it is not set. With no
+  `TINKER_EFFECTS` and no `tinker pins` env
+  value, the capsule hooks no write.
 
 ## The pins
 
