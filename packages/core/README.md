@@ -107,6 +107,9 @@ Reading `op`, `call`, `ns`, or `next` does not build that access.
 - `write`: `cell`, `value`, `next()`.
 - `resolve`: `target`, `next()`.
 - `close`: `options`, `next()` returns the close result. Close hooks run in reverse order.
+  On a graceful close, `run` and `settle` before `next()` work: the hook's own last work.
+  After `next()`, or on a forced close, they raise `Disposed`.
+  A call from outside the hook stays refused.
 - `session`: `handle`, `next()` returns the session result.
 
 `resolve`, `run`, `write`, and `session` are onion middleware: install order, first is outermost.

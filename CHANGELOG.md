@@ -9,6 +9,20 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.22
+
+`@tinkered/core`: a graceful close hook can run
+ops before `next()` (#78, Duke picked A).
+
+- Before, a close hook's `run` raised `Disposed`,
+  and the close still said `success`.
+- Now the run enters as the hook's own work, as a
+  Go `Shutdown` hook or a Spring `@PreDestroy` does.
+- After `next()` it raises `Disposed`, as before.
+- On a forced close it raises `Disposed`: a forced
+  close stops work now (ADR 0028).
+- A call from outside the hook stays refused.
+
 ## 0.34.21
 
 `@tinkered/cli`: a capsule hook gets a line in

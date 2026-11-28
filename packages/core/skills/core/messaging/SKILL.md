@@ -205,8 +205,10 @@ export const outbox = capsule({
 - On a graceful close the pump drains the line.
   On a forced close `ctx.signal` aborts, and the
   line is dropped.
-- A `close` hook cannot do the drain: its `run`
-  raises `Disposed` (#78).
+- A `close` hook may drain too: on a graceful
+  close, its `run` before `next()` works (#78).
+  After `next()`, or on a forced close, `run`
+  raises `Disposed`.
 - Today the drain's calls pass only when some
   capsule in the scope has a `run` hook; with
   none they fail with `Disposed` (#81).

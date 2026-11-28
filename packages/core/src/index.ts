@@ -6456,7 +6456,7 @@ class HookCtx implements Capsule.Ctx {
     };
   }
   /** Run straight through the run path, as a controller's `run` would, without making one. */
-  private invoke(
+  protected invoke(
     op: Operation.Handle<unknown, unknown>,
     call: Scope.Invocation<unknown> | undefined,
     caller: RunState | undefined,
@@ -6575,6 +6575,28 @@ class CloseEvent extends HookCtx {
       this.released = true;
       return next();
     };
+  }
+
+  /**
+   * A graceful close hook's run, before `next()`, is the owner's own last work (#78): as a Go
+   * `Shutdown` hook or a Spring `@PreDestroy` uses its parts before they stop. It enters as a
+   * hook does, so the closing root takes it; outside calls stay refused. A forced close stops
+   * work now (ADR 0028), and after `next()` the root is released: both raise `Disposed`.
+   */
+  protected override invoke(
+    op: Operation.Handle<unknown, unknown>,
+    call: Scope.Invocation<unknown> | undefined,
+    caller: RunState | undefined,
+  ): unknown {
+    if (this.released || !this.options.graceful) raise("Disposed", { reason: "scope is closed" });
+
+    const previous = activeHookOwner;
+    activeHookOwner = this.layer;
+    try {
+      return super.invoke(op, call, caller);
+    } finally {
+      activeHookOwner = previous;
+    }
   }
 
   protected override readResource(
