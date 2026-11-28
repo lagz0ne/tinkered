@@ -209,9 +209,8 @@ export const outbox = capsule({
   close, its `run` before `next()` works (#78).
   After `next()`, or on a forced close, `run`
   raises `Disposed`.
-- Today the drain's calls pass only when some
-  capsule in the scope has a `run` hook; with
-  none they fail with `Disposed` (#81).
+- The drain's `run` and `settle` calls pass in a
+  graceful close: they are running work (#81).
 - `dead` keeps what failed `tries` times. Read it
   on an admin page, or alert on it.
 - Items in a cell end with the process. To keep

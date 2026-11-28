@@ -23,6 +23,16 @@ ops before `next()` (#78, Duke picked A).
   close stops work now (ADR 0028).
 - A call from outside the hook stays refused.
 
+`@tinkered/core`: in a graceful close, a live
+run's `settle` is running work, as its `run` is
+(#81).
+
+- Before, such a `settle` was refused with
+  `Disposed`, unless some capsule had a `run` hook.
+  A run hook must not change what a call may do.
+- The pass is bound to the run's own scope. A call
+  into another closing scope stays refused.
+
 ## 0.34.21
 
 `@tinkered/cli`: a capsule hook gets a line in
