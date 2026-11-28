@@ -519,6 +519,8 @@ issue.rename.do stale writes{}
 - One line per operation, exit and write set.
 - An exit with two sets in the tests has two
   lines.
+- The lines are sorted, each once. So two runs
+  of `--write` give the same bytes.
 - Only an operation that `tinker.graph` has a
   line for, and only a cell a graph line names.
   A library's cells and a test's own cells are
@@ -540,8 +542,13 @@ file says writes{}
 - Did not mean it? Fix the code.
 - Never delete an assert and write the file
   again to make a finding go away.
+- A set or an exit that the file has and no
+  run gives is one finding too.
 - No `tinker.effects` is one finding, when the
   tests wrote a set.
+- The first line names the format:
+  `# tinker.effects 1`. A file with no format
+  line, or another format, is one finding.
 - The check sets `TINKER_EFFECTS` for the tests.
   In a plain test run it is not set, and the
   capsule hooks no write.
