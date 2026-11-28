@@ -83,7 +83,9 @@ const coreSize = runtimeSize - gzipOf(rpcChunks[0]);
 // stream-key marker (Duke 2026-11-22 22:57 UTC: option A).
 // The keyed watch's open check on a closed scope (core/keyed-watch-closed-scope) raised it by
 // 10 B (Duke 2026-11-24 card).
-const coreCap = 23457;
+// A live run's settle in a graceful close (#81, bound to its scope) and a graceful close hook's
+// run before next() (#78) raised it by 93 B (Duke 2026-11-28 09:50 UTC card: option A).
+const coreCap = 23550;
 // Keyed remote data raised the full cap by 2 KiB: k03 (parts, asks, rooting) and k05 (load).
 // The run event's `is` and `input` (ADR 0142) found it 1 byte under, and raised it by 1 KiB.
 // derived (ADR 0150) raised this cap by 1 KiB too.
