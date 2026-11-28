@@ -544,7 +544,8 @@ counts:
 src/throttle/dispatch.server.ts:17
 dispatch.sendOne swap sent->idle lives
   reached by: tests/dispatch.test.ts
-pins: 16 mutants, 7 live, 2 test files
+pins: 16 mutants, 7 live, 2 test files,
+  0 not traced
 ```
 
 A live mutant is one of two things. You judge
@@ -571,6 +572,13 @@ of its write.
   the run. It prints that file's output.
 - A write or a call that the graph does not
   state gets no mutant: a hook's, say (#72).
+- A test file whose trace has no line is not
+  traced. The count names how many. `--json`
+  lists them in `untraced`.
+- A scope that does not list exits is not seen:
+  it gets no fault and no trace.
+- A live mutant may still be checked by a file
+  that is not traced.
 
 ## Where the fix comes from
 

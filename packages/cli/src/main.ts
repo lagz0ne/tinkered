@@ -314,8 +314,9 @@ function pinsText(report: Pins.Report) {
         `${path}:${line} ${fault.op} ${fault.kind} ${fact} lives`,
         `  reached by: ${reachedBy.join(", ")}`,
       ]);
-      const { mutants, live, files } = report;
-      const count = `${counted(mutants, "mutant")}, ${live.length} live, ${counted(files, "test file")}`;
+      const { mutants, live, files, untraced } = report;
+      const tested = `${counted(files, "test file")}, ${untraced.length} not traced`;
+      const count = `${counted(mutants, "mutant")}, ${live.length} live, ${tested}`;
       return [...entries, `pins: ${count}`, ""].join("\n");
     }
   }

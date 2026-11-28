@@ -250,10 +250,40 @@ test(
         ]),
         "src/signup/index.server.ts:7 signup.join drop signup.members lives",
         "  reached by: tests/signup.test.ts",
-        "pins: 16 mutants, 7 live, 2 test files",
+        "pins: 16 mutants, 7 live, 2 test files, 0 not traced",
         "",
       ].join("\n"),
     );
+  },
+);
+
+test(
+  "a test file whose scope lists no exits is not traced, and the write it checks still lives",
+  slow,
+  () => {
+    const folder = appOf({
+      ...lab,
+      "tests/members.test.ts": `import { createScope } from "@tinkered/core";
+import { expect, test } from "vite-plus/test";
+import { signup } from "@/signup/index.server";
+import { welcome } from "@/welcome/index.server";
+test("a member who joins is a member", async () => {
+  const scope = createScope({ capsules: [welcome, signup({ on: [welcome.greet] })] });
+  await scope.run(signup.join, { input: { email: "a@x.io" } });
+  expect(scope.resolve(signup.members).get()).toEqual([{ email: "a@x.io" }]);
+});
+`,
+    });
+
+    const { out } = main(["pins", folder, "--json"], "/");
+
+    const swaps = ["failed->idle", "failed->sent", "idle->failed", "idle->sent", "sent->failed"];
+    expect(JSON.parse(out)).toMatchObject({
+      mutants: 16,
+      files: 3,
+      untraced: ["tests/members.test.ts"],
+      live: [...swaps, "sent->idle", "signup.members"].map((fact) => ({ fact })),
+    });
   },
 );
 
@@ -263,7 +293,7 @@ test("with no op changed since the ref, it breaks no fact", slow, () => {
   const { code, out } = main(["pins", folder, "--since", "HEAD"], "/");
 
   expect(code).toBe(0);
-  expect(out).toBe("pins: 0 mutants, 0 live, 2 test files\n");
+  expect(out).toBe("pins: 0 mutants, 0 live, 2 test files, 0 not traced\n");
 });
 
 test("a test that checks an op's answers kills its swaps", slow, () => {
@@ -300,7 +330,7 @@ test("sendOne answers idle, then sent, then failed", async () => {
 
   const { out } = main(["pins", folder, "--since", "HEAD", "--json"], "/");
 
-  expect(JSON.parse(out)).toEqual({ kind: "ran", mutants: 9, files: 3, live: [] });
+  expect(JSON.parse(out)).toEqual({ kind: "ran", mutants: 9, files: 3, untraced: [], live: [] });
 });
 
 test("an answer field no test reads lives as an empty answer", slow, () => {
@@ -331,7 +361,7 @@ test("count adds", async () => {
     [
       "src/count.ts:3 count.add empty added lives",
       "  reached by: tests/count.test.ts",
-      "pins: 1 mutant, 1 live, 1 test file",
+      "pins: 1 mutant, 1 live, 1 test file, 0 not traced",
       "",
     ].join("\n"),
   );

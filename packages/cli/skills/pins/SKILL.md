@@ -49,8 +49,12 @@ line:
 The last line counts the run:
 
 ```text
-pins: 16 mutants, 7 live, 2 test files
+pins: 16 mutants, 7 live, 2 test files,
+  0 not traced
 ```
+
+`not traced`: the test files whose trace has no
+line. `--json` lists them in `untraced`.
 
 ## The kinds and their facts
 
@@ -106,6 +110,8 @@ tinker pins --json
 - Each test scope lists the `exits` capsule
   first. A scope with no `exits` traces nothing,
   and its facts get no mutant.
+- A live mutant may still be checked by a file
+  that is not traced. Add `exits` to its scopes.
 - `--since` keeps the ops whose lines changed.
 - Exit 1 means it could not run: no `tests`
   command, or a test file red with no mutant in.

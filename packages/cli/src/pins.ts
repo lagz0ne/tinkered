@@ -24,12 +24,13 @@ export declare namespace Pins {
   };
   /**
    * The answer of `tinker pins` (ADR 0173). `ran` is the only answer that ran: it put in
-   * `mutants` faults, `live` lived, over `files` test files. A live mutant is a fact, never a
-   * failure. `untested`: `tinker.json` names no `tests` command. `red`: `file` failed with no
+   * `mutants` faults, `live` lived, over `files` test files. `untraced` are the files whose
+   * trace run wrote no line: their scopes list no `exits`, so no fault reaches them, and a live
+   * mutant may still be checked by one of them. A live mutant is a fact, never a failure. `untested`: `tinker.json` names no `tests` command. `red`: `file` failed with no
    * mutant in, and `output` is what it said.
    */
   type Report =
-    | { kind: "ran"; mutants: number; files: number; live: Live[] }
+    | { kind: "ran"; mutants: number; files: number; untraced: string[]; live: Live[] }
     | { kind: "untested" }
     | { kind: "red"; file: string; output: string };
 }
@@ -219,7 +220,8 @@ function opsSince(root: string, ops: Graph.Line[], ref: string) {
 
 /**
  * Put one fault at a time at each graph fact a test reached, and run only the test files whose
- * trace holds that fact (ADR 0173). A mutant is killed when its run fails or times out. Only a
+ * trace holds that fact (ADR 0173). A file whose trace is empty is named, never run: its scopes
+ * list no `exits`, so the fault cannot reach them. A mutant is killed when its run fails or times out. Only a
  * fact the graph states gets a mutant: a hook's write or call has no line, so it gets none.
  * `since` keeps only the ops whose lines changed since that ref.
  *
@@ -235,7 +237,9 @@ export function readPins(root: string, since?: string): Pins.Report {
     .sort();
   const { ops } = graphOf(root);
   const chosen = since === undefined ? ops : opsSince(root, ops, since);
-  if (!chosen.length) return { kind: "ran", mutants: 0, files: files.length, live: [] };
+  if (!chosen.length) {
+    return { kind: "ran", mutants: 0, files: files.length, untraced: [], live: [] };
+  }
 
   const traces: { file: string; trace: Trace }[] = [];
   for (const file of files) {
@@ -244,6 +248,7 @@ export function readPins(root: string, since?: string): Pins.Report {
     traces.push({ file, trace: run.trace });
   }
 
+  const untraced = traces.filter(({ trace }) => !trace.facts.size).map(({ file }) => file);
   const all = unionOf(traces.map(({ trace }) => trace));
   const mutants = chosen.flatMap((op) => [
     ...swapsOf(op, all),
@@ -257,5 +262,5 @@ export function readPins(root: string, since?: string): Pins.Report {
     if (!runFiles(root, tests, reachedBy, env).passed) return [];
     return [{ path: op.path, line: op.line, fault, fact, reachedBy }];
   });
-  return { kind: "ran", mutants: mutants.length, files: files.length, live };
+  return { kind: "ran", mutants: mutants.length, files: files.length, untraced, live };
 }
