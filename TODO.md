@@ -79,6 +79,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **cli/tinker-pins** — ADR 0173. `tinker pins [root] [--since <ref>] [--json]`: the `exits` capsule gains a write hook and, under `TINKER_TRACE` / `TINKER_MUTANT`, traces and puts in one graph mutant (swap, empty, drop, fail) at a fact `tinker.graph` states; each mutant runs only the test files that reached it; prints each live one; exit 0 unless it cannot run. Probe and its results: project files `tinkered/plans/graph-mutants/`.
+  Owner: Claude lead (thread "Judge test value with capsules and graph"); Opus writer.
+  Next: brief the writer.
+  Verify: on the pattern lab, `tinker pins` prints the 7 live mutants the probe found (6 `dispatch.sendOne` swaps, `signup.join` drop of `signup.members`); `--since` with no op change prints 0 mutants; a planted check that pins `sendOne` makes its swaps die; `vp check` and the cli tests green.
+
 ## Review
 
 - **core/mutation-seeded-random** — Core's mutation run loads its own source and replays seeded ids.
