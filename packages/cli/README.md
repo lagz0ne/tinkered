@@ -281,11 +281,44 @@ view src/home/home.tsx#SignIn
   runs which op.
 - No graph rule reads a view line.
 
+### Hook lines
+
+After the view lines comes one line per capsule
+hook whose code touches a unit (#72). The lines
+are sorted by name.
+
+```text
+hook dispatch#start runs{dispatch.pump}
+hook tap#run writes{tap.seen.update}
+  wraps{mail.send}
+```
+
+The file holds each part, empty too:
+`reads{} writes{} runs{} wraps{} uses{}`.
+
+- The name is the capsule's label, `#`, and the
+  hook's name: `start`, `run`, `write`, and so on.
+- `reads` and `writes`: the call made at once on
+  a `load(cell)` or a `controller(cell)`.
+  `load(seen, kept).update(…)` gives
+  `tap.seen.update`.
+- `runs`: the op of each `run` or `settle`, on
+  the event or on a scope a callback gets.
+- `wraps`: the op of each `event.is(op)`.
+- `uses`: each resource a `load` builds, as an
+  op's `depends` names it: `load(shore)` gives
+  `uses{tide.shore}`.
+- An op the graph cannot name gives `?`. So does
+  a `run` or a `load` handed on as a value.
+- A hook that touches no unit gives no line. So
+  does a `hooks` object written elsewhere.
+- No graph rule reads a hook line.
+
 `tinker graph --write` writes the graph to
 `tinker.graph`. Commit that file. Then the check
 builds the graph again and compares. Each line
-that differs is a finding at the operation or
-the view:
+that differs is a finding at the operation, the
+view or the hook:
 
 ```text
 src/issues/ops.server.ts:80 tinker/graph
@@ -299,7 +332,7 @@ tinker.graph says writes{}
 - No `tinker.graph` is one finding, when the app
   has an operation or a view.
 - The file's first line names its format:
-  `# tinker.graph 2`.
+  `# tinker.graph 3`.
 - A file of an older format is one finding:
   run `--write` once, read the diff, and commit
   it. A file with no format line is format 1.

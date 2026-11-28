@@ -14,7 +14,7 @@ metadata:
     allowed in app code.
   type: sub-skill
   library: '@tinkered/core'
-  library_version: '0.34.20'
+  library_version: '0.34.21'
 requires:
   - core
 sources:
@@ -224,7 +224,7 @@ and the resources its `depends` names
 `tinker check` builds them from the code. Each
 line that differs from the file is a finding.
 The first line names the format
-(`# tinker.graph 2`). A file of an older format
+(`# tinker.graph 3`). A file of an older format
 is one finding: run `tinker graph --write` once.
 
 The finding never judges the change. You judge
@@ -305,6 +305,14 @@ line names the declaration that holds the call:
 a custom hook that calls `useData` gets its own
 line, and a component that calls the custom hook
 gets none.
+
+A hook line follows the view lines: one per
+capsule hook that touches a unit.
+`hook tap#run reads{} writes{tap.seen.update}
+runs{} wraps{mail.send} uses{}` names each cell
+its `load` reads or writes, each op it runs, each
+op its `event.is(op)` wraps, and each resource it
+loads. No graph rule reads it.
 
 Wrong: a move now writes a cell it did not, and
 nobody read that.

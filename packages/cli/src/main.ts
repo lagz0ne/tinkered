@@ -139,8 +139,10 @@ function stages(root: string): Main.Report {
 const counted = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
 
 /** The lines of the graph, by kind: `2 operations, 3 views`. */
-const linesCount = ({ ops, views }: Graph.Of) =>
-  `${counted(ops.length, "operation")}, ${counted(views.length, "view")}`;
+const linesCount = ({ ops, views, hooks }: Graph.Of) => {
+  const hooked = hooks.length ? `, ${counted(hooks.length, "hook")}` : "";
+  return `${counted(ops.length, "operation")}, ${counted(views.length, "view")}${hooked}`;
+};
 
 /** The graph stage on the `ran:` line: its lines, and its rules when the app has any. */
 function graphRan(graph: Graph.Of, graphRules: number) {
@@ -171,11 +173,12 @@ function afterRules(
   },
 ): Main.Report {
   const graph = graphOf(root);
-  const { ops, views } = graph;
-  const changed = [...graphFindings(root, [...ops, ...views]), ...ruleFindings(ops, graphRules)];
+  const { ops, views, hooks } = graph;
+  const rows = [...ops, ...views, ...hooks];
+  const changed = [...graphFindings(root, rows), ...ruleFindings(ops, graphRules)];
   if (changed.length) return failed(root, "graph", changed, gaps);
 
-  if (ops.length || views.length) ran.push(graphRan(graph, graphRules.length));
+  if (rows.length) ran.push(graphRan(graph, graphRules.length));
   if (skipped.length) return { kind: "incomplete", ran, skipped, gaps };
   if (!tests) return { kind: "ok", ran, gaps };
 
@@ -276,7 +279,7 @@ function checkCommand(root: string, json: boolean): Main.Result {
 function graphCommand(root: string, write: boolean): Main.Result {
   if (!existsSync(root)) return { code: 2, out: "", err: `tinker graph: no folder at ${root}\n` };
   const graph = graphOf(root);
-  const rows = [...graph.ops, ...graph.views];
+  const rows = [...graph.ops, ...graph.views, ...graph.hooks];
   if (!write) return { code: 0, out: graphText(rows), err: "" };
 
   writeFileSync(join(root, graphFile), graphFileText(rows));

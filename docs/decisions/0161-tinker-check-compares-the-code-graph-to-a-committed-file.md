@@ -117,6 +117,16 @@ The known models:
     `slot:` call, as with `?`. A use of a slot
     dep the graph cannot follow, such as a loop
     over `tag.all`, names the slot too (#71).
+14. Amended 2026-11-28 (#72, Duke picked A): a
+    capsule hook gets a line, as a view does:
+    `hook <capsule>#<hook> reads{} writes{}
+runs{} wraps{} uses{}`. It names what the
+    hook's code touches through Core: a `load`
+    or `controller` call, a `run` or `settle`,
+    each `event.is(op)`, and each resource a
+    `load` builds (`uses`, as on an op line). `?` marks an op or a
+    unit it cannot name. The format goes to 3.
+    No graph rule reads a hook line yet.
 
 ## Amended 2026-11-17: facts only, one line per op
 

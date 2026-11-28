@@ -1,4 +1,4 @@
-# tinker.graph 2
+# tinker.graph 3
 bench.batch.mount exits{value} faults{} reads{} writes{} calls{bench.mount} uses{}
 bench.batch.write exits{value} faults{} reads{} writes{} calls{} uses{}
 bench.column exits{value} faults{} reads{} writes{} calls{bench.faster,bench.shown} uses{}
@@ -73,3 +73,6 @@ view src/play/page.tsx#Tools reads{play.nav.get,play.theme.get} runs{play.back,p
 view src/play/starter/App.tsx#Controls reads{ocean.physics.get,ocean.storm.get} runs{ocean.clear,ocean.storm.set,ocean.tune,ocean.turn}
 view src/play/starter/App.tsx#Live reads{ocean.storm.get,ocean.waves.get} runs{}
 view src/play/starter/Scene.tsx#Scene reads{} runs{ocean.key,ocean.look,ocean.poke}
+hook ocean#start reads{} writes{} runs{} wraps{} uses{ocean.ticker}
+hook tide#run reads{} writes{} runs{tide.send} wraps{ocean.press} uses{}
+hook tide#start reads{} writes{} runs{} wraps{} uses{tide.shore}

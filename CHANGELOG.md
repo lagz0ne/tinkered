@@ -9,6 +9,26 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.34.21
+
+`@tinkered/cli`: a capsule hook gets a line in
+`tinker.graph` (#72, Duke picked A). The file
+format goes to 3.
+
+- The line shape:
+  `hook <capsule>#<hook> reads{} writes{}
+runs{} wraps{} uses{}`, after the view lines.
+- It names what the hook touches through Core:
+  a `load` or `controller` call, a `run` or
+  `settle`, each `event.is(op)`, and each
+  resource a `load` builds (`uses`).
+- `?` marks an op or a unit the graph cannot
+  name, or a `run` handed on as a value.
+- A hook that touches no unit gives no line.
+- An app with a format 2 file gets one finding:
+  run `tinker graph --write` once, read the
+  diff, and commit it.
+
 ## 0.34.20
 
 `@tinkered/cli`: a `kind: string` data field

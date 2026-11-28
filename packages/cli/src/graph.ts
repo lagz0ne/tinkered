@@ -10,7 +10,7 @@ import type { Tools } from "./tools";
 export declare namespace Graph {
   /**
    * One line of the graph file, where it is in the code: its name, then its parts. A view's
-   * name is two words: `view src/home.tsx#SignIn`.
+   * name is two words: `view src/home.tsx#SignIn`; a hook's too: `hook tap#run`.
    */
   type Row = { path: string; line: number; label: string; parts: string[] };
   /**
@@ -28,10 +28,11 @@ export declare namespace Graph {
     uses: string[];
   };
   /**
-   * The app's graph: a line per operation, then a line per view. A view line's `parts` are
-   * `reads{…}` and `runs{…}`. No graph rule reads a view line.
+   * The app's graph: a line per operation, then a line per view, then a line per capsule hook.
+   * A view line's `parts` are `reads{…}` and `runs{…}`; a hook line's are `reads{…}`,
+   * `writes{…}`, `runs{…}`, `wraps{…}` and `uses{…}` (#72). No graph rule reads a view or a hook line.
    */
-  type Of = { ops: Line[]; views: Row[] };
+  type Of = { ops: Line[]; views: Row[]; hooks: Row[] };
 }
 
 /** The app's committed graph, at its root (ADR 0161). */
@@ -41,7 +42,7 @@ export const graphFile = "tinker.graph";
  * The line shape `graphText` writes. A change to the shape raises it (as npm's
  * `lockfileVersion`), so a file an older CLI wrote is one finding, not one per line (#68).
  */
-export const graphFormat = 2;
+export const graphFormat = 3;
 
 /** The first line of `tinker.graph`. A file with none is format 1: before the line, 0.34.12. */
 const formatLine = `# ${graphFile} ${graphFormat}`;
@@ -752,16 +753,196 @@ function viewsIn(checker: ts.TypeChecker, { path, source }: Exits.File): Graph.R
   });
 }
 
+/** What a hook line says: each a set of facts, in the order the line prints them (#72). */
+type HookFacts = Record<"reads" | "writes" | "runs" | "wraps" | "uses", Set<string>>;
+
+/** The members of a hook's event or a scope handle that touch a unit, by Core's own names. */
+const runMembers = ["run", "settle"];
+
+const loadMembers = ["load", "controller"];
+
+/** A declaration Core's own code makes: its source, or its built types in `dist`. */
+const isCoreFile = ({ fileName }: ts.SourceFile) =>
+  /[/\\](@tinkered[/\\]core|packages[/\\]core)[/\\]/.test(fileName);
+
+/** The property a destructured name takes: `run` in `start({ next, run })`. */
+function boundProperty(checker: ts.TypeChecker, declaration: ts.BindingElement) {
+  const key = keyText(declaration.propertyName ?? declaration.name);
+  return key === undefined
+    ? undefined
+    : checker.getTypeAtLocation(declaration.parent).getProperty(key);
+}
+
+/** The symbol a name stands for: in `{ run }`, the `run` it holds, not the new key. */
+function symbolOf(checker: ts.TypeChecker, name: ts.Node) {
+  const { parent } = name;
+  return ts.isShorthandPropertyAssignment(parent)
+    ? checker.getShorthandAssignmentValueSymbol(parent)
+    : checker.getSymbolAtLocation(name);
+}
+
+/** The property a name is: itself, or for a destructured name the property it takes. */
+function propertyOf(checker: ts.TypeChecker, symbol: ts.Symbol | undefined) {
+  const declaration = symbol?.valueDeclaration;
+  return declaration && ts.isBindingElement(declaration)
+    ? boundProperty(checker, declaration)
+    : symbol;
+}
+
+/**
+ * The member of Core's API a name is: `event.run`, a `run` taken from the event (also as
+ * `{ run }`), or `scope.run` on a handle a callback gets. Any other name is none.
+ */
+function coreMember(checker: ts.TypeChecker, node: ts.Expression) {
+  const at = ts.isPropertyAccessExpression(node) ? node.name : node;
+  const symbol = propertyOf(checker, symbolOf(checker, at));
+
+  const core = symbol?.declarations?.some((each) => isCoreFile(each.getSourceFile()));
+  return core ? symbol?.name : undefined;
+}
+
+/** The op a run names, or `?` when the graph cannot name it: an op a hook got as a value. */
+function opFact(checker: ts.TypeChecker, value: ts.Expression | undefined) {
+  const unit = value && unitOf(checker, value);
+  return unit?.made === "operation" ? unit.label : unseen;
+}
+
+/**
+ * The fact a load gives. A resource is a use, as in an op's `depends`: `load(shore)` uses
+ * `tide.shore`. A cell's controller gives the call made on it at once:
+ * `load(seen, kept).update(…)` writes `tap.seen.update`. Any other use may read or write it.
+ */
+function loadFacts(checker: ts.TypeChecker, call: ts.CallExpression, facts: HookFacts) {
+  const [first] = call.arguments;
+  if (!first) return mayTouchCells(facts);
+
+  const unit = unitOf(checker, first);
+  const use = useIn(checker, first, unit);
+  if (use) return void facts.uses.add(use);
+
+  const touch = cellTouch(call, unit);
+  if (touch) facts[touch.set].add(touch.fact);
+  else mayTouchCells(facts);
+}
+
+/** A load the graph cannot follow may read or write any cell. */
+function mayTouchCells(facts: HookFacts) {
+  facts.reads.add(unseen);
+  facts.writes.add(unseen);
+}
+
+/** The resource a load builds: its label, `?` for one the graph cannot name, or none. */
+function useIn(checker: ts.TypeChecker, value: ts.Expression, unit: Unit | undefined) {
+  if (unit?.made === "resource") return unit.label;
+  return !unit && isResource(checker, checker.getTypeAtLocation(value)) ? unseen : undefined;
+}
+
+/** The read or write a call made at once on a loaded cell gives: `.update(…)`, `.get()`. */
+function cellTouch(call: ts.CallExpression, unit: Unit | undefined) {
+  const kind = calledOn(call);
+  const touch = unit && kind !== undefined ? touchesOf(unit).get(kind) : undefined;
+  const set = touch?.set;
+  return touch && (set === "reads" || set === "writes") ? { set, fact: touch.fact } : undefined;
+}
+
+/** The facts one call of a Core member adds to a hook line. */
+function memberFacts(checker: ts.TypeChecker, call: ts.CallExpression, facts: HookFacts) {
+  const member = coreMember(checker, call.expression);
+  const [first] = call.arguments;
+  if (member === "is") facts.wraps.add(opFact(checker, first));
+  else if (member && runMembers.includes(member)) facts.runs.add(opFact(checker, first));
+  else if (member && loadMembers.includes(member)) loadFacts(checker, call, facts);
+}
+
+/** A Core member handed on as a value, not called: it may run or load any unit. */
+function handedOn(checker: ts.TypeChecker, name: ts.Identifier, facts: HookFacts) {
+  if (!isValueUse(name)) return;
+
+  const member = coreMember(checker, name) ?? "";
+  if (runMembers.includes(member)) facts.runs.add(unseen);
+  if (loadMembers.includes(member)) mayTouchCells(facts);
+}
+
+/** A name used as a value: not a call's callee, a destructure, or a member's name. */
+function isValueUse(name: ts.Identifier) {
+  const { parent } = name;
+  if (ts.isCallExpression(parent) && parent.expression === name) return false;
+  return !ts.isBindingElement(parent) && !ts.isPropertyAccessExpression(parent);
+}
+
+/** What one hook's code touches, a callback's code too: each call of a Core member. */
+function hookFacts(checker: ts.TypeChecker, node: ts.Node): HookFacts {
+  const facts: HookFacts = {
+    reads: new Set(),
+    writes: new Set(),
+    runs: new Set(),
+    wraps: new Set(),
+    uses: new Set(),
+  };
+  const visit = (child: ts.Node) => {
+    if (ts.isCallExpression(child)) memberFacts(checker, child, facts);
+    if (ts.isIdentifier(child)) handedOn(checker, child, facts);
+    ts.forEachChild(child, visit);
+  };
+  visit(node);
+  return facts;
+}
+
+/** The hooks a capsule call writes in place: `hooks: { start(…) {…} }`, each by its name. */
+function hooksOf(options: ts.ObjectLiteralExpression) {
+  const property = propertyAt(options, "hooks");
+  const hooks = property && ts.isPropertyAssignment(property) ? property.initializer : undefined;
+  if (!hooks || !ts.isObjectLiteralExpression(hooks)) return [];
+  return hooks.properties.flatMap((hook) => {
+    const name = hook.name && keyText(hook.name);
+    const fn = functionOf(hook);
+    return name && fn ? [{ name, fn }] : [];
+  });
+}
+
+/** Each `capsule(…)` call of a file, with a label written as a string and its options. */
+function capsulesIn(source: ts.SourceFile) {
+  const found: { label: string; options: ts.ObjectLiteralExpression }[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && coreName(node) === "capsule") {
+      const [options] = node.arguments;
+      const label = labelIn(options);
+      if (label && options && ts.isObjectLiteralExpression(options)) found.push({ label, options });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+}
+
+/**
+ * The hook lines of one file (#72): a line for each capsule hook whose code touches a unit,
+ * as a view line does for a view. A hook that touches none, or a `hooks` object written
+ * elsewhere, gives no line.
+ */
+function hookRowsIn(checker: ts.TypeChecker, { path, source }: Exits.File): Graph.Row[] {
+  return capsulesIn(source).flatMap(({ label, options }) =>
+    hooksOf(options).flatMap(({ name, fn }) => {
+      const facts = hookFacts(checker, fn);
+      if (Object.values(facts).every(({ size }) => size === 0)) return [];
+
+      const line = source.getLineAndCharacterOfPosition(fn.getStart()).line + 1;
+      const parts = Object.entries(facts).map(([name, set]) => listed(name, sorted(set)));
+      return [{ path, line, label: `hook ${label}#${name}`, parts }];
+    }),
+  );
+}
+
 const byLabel = (a: Graph.Row, b: Graph.Row) => (a.label < b.label ? -1 : 1);
 
 /**
  * The app's graph, from its code: one line per operation, sorted by label in code-unit order,
- * the same on every machine, then one line per view, sorted by name. `exits` are the words of
+ * the same on every machine, then one line per view and one per hook, each sorted by name. `exits` are the words of
  * ADR 0159.
  */
 export function graphOf(root: string): Graph.Of {
   const app = readOperations(root);
-  if (!app) return { ops: [], views: [] };
+  if (!app) return { ops: [], views: [], hooks: [] };
 
   const ops = app.operations.map((operation): Graph.Line => {
     const facts = factsOf(app.checker, operation);
@@ -782,7 +963,8 @@ export function graphOf(root: string): Graph.Of {
     return { path, line, label, exits, faults, parts, writes, calls, uses };
   });
   const views = app.files.flatMap((file) => viewsIn(app.checker, file));
-  return { ops: ops.sort(byLabel), views: views.sort(byLabel) };
+  const hooks = app.files.flatMap((file) => hookRowsIn(app.checker, file));
+  return { ops: ops.sort(byLabel), views: views.sort(byLabel), hooks: hooks.sort(byLabel) };
 }
 
 /** The graph as `tinker graph` prints it: one line per row, and an end of line after each. */
@@ -800,12 +982,15 @@ function formatOf(text: string) {
   return Number(/^# tinker\.graph (\d+)/.exec(text)?.[1] ?? 1);
 }
 
-/** A view's name: `view`, then a `<file>#<name>` word. An op may be labelled `view`. */
-const viewLabel = /^view [^ ]*#/;
+/**
+ * A view's or a hook's name: `view` or `hook`, then a `<where>#<name>` word. An op may be
+ * labelled `view` or `hook`.
+ */
+const viewLabel = /^(view|hook) [^ ]*#/;
 
 /**
- * Each line of the committed file by its label, and its line number: a view's label is its
- * first two words. A line may end in `\r`: a checkout on Windows can give the file those ends.
+ * Each line of the committed file by its label, and its line number: a view's or a hook's label
+ * is its first two words. A line may end in `\r`: a checkout on Windows can give the file those ends.
  */
 function linesIn(text: string) {
   const lines = new Map<string, { line: number; parts: string[] }>();

@@ -206,7 +206,7 @@ const moved =
   "calls{issues.inTeam} uses{}";
 
 /** A graph as `tinker.graph` holds it: the format line first. */
-const filed = (lines: string) => `# tinker.graph 2\n${lines}`;
+const filed = (lines: string) => `# tinker.graph 3\n${lines}`;
 
 /** The graph of `ops`: each name is a label, never the local name. */
 const golden = [
@@ -393,7 +393,7 @@ test("an op labelled view keeps its one-word key in the file", { timeout: 60_000
     `export const view = operation({ label: "view", run: () => 1 });`,
   ].join("\n");
   const graph = [
-    "# tinker.graph 2",
+    "# tinker.graph 3",
     "issues.inTeam exits{value} faults{} reads{} writes{} calls{} uses{}",
     "view exits{value} faults{} reads{} writes{} calls{} uses{}",
     "",
@@ -482,6 +482,150 @@ test("a loop over a list slot names the slot, not `?` (#71)", { timeout: 60_000 
   expect(code).toBe(0);
 });
 
+/**
+ * Capsules whose hooks run ops, wrap one, write a cell or hand `run` on, and one whose hook
+ * touches nothing.
+ */
+const hooked = [
+  `import { capsule, data, operation, resource, type Operation, type Scope } from "@tinkered/core";`,
+  ``,
+  `const seen = data<string[]>({ label: "tap.seen", initial: [] });`,
+  ``,
+  `const kept = { role: "state", explain: "Each letter the tap saw" } as const;`,
+  ``,
+  `const pumps = { role: "handler", explain: "Sends one letter per tick" } as const;`,
+  ``,
+  `export const send = operation({`,
+  `  label: "mail.send",`,
+  `  run: (_, { input }: { input: string }) => input,`,
+  `});`,
+  ``,
+  `export const pump = operation({ label: "dispatch.pump", run: () => undefined });`,
+  ``,
+  `export const tap = capsule({`,
+  `  label: "tap",`,
+  `  exports: { seen },`,
+  `  hooks: {`,
+  `    run(event) {`,
+  `      if (event.is(send)) {`,
+  `        const letter = event.input;`,
+  `        event.load(seen, kept).update((list) => [...list, letter]);`,
+  `      }`,
+  `      return event.next();`,
+  `    },`,
+  `  },`,
+  `});`,
+  ``,
+  `export const dispatch = capsule({`,
+  `  label: "dispatch",`,
+  `  hooks: {`,
+  `    async start({ next, run }) {`,
+  `      await next();`,
+  `      void run(pump, {}, pumps);`,
+  `    },`,
+  `  },`,
+  `});`,
+  ``,
+  `export const relay = capsule({`,
+  `  label: "relay",`,
+  `  hooks: {`,
+  `    async start({ next, run }) {`,
+  `      await next();`,
+  `      return (op: Operation.Handle<unknown, string>) => run(op, { input: "a" }, pumps);`,
+  `    },`,
+  `  },`,
+  `});`,
+  ``,
+  `export const quiet = capsule({`,
+  `  label: "quiet",`,
+  `  hooks: {`,
+  `    async start({ next }) {`,
+  `      await next();`,
+  `    },`,
+  `  },`,
+  `});`,
+  ``,
+  `export const keep = capsule({`,
+  `  label: "keep",`,
+  `  hooks: {`,
+  `    async start({ next, run, load }) {`,
+  `      await next();`,
+  `      const list = load(seen, kept);`,
+  `      return { run, list };`,
+  `    },`,
+  `  },`,
+  `});`,
+  ``,
+  `export const routes = capsule({`,
+  `  label: "routes",`,
+  `  hooks: {`,
+  `    async start({ next }) {`,
+  `      await next();`,
+  `      return (scope: Scope.Handle) => scope.run(send, { input: "a" });`,
+  `    },`,
+  `  },`,
+  `});`,
+  ``,
+  `const pool = resource({ label: "mail.pool", factory: () => 2 });`,
+  ``,
+  `export const warm = capsule({`,
+  `  label: "warm",`,
+  `  hooks: {`,
+  `    async start({ load, next }) {`,
+  `      await load(pool, pumps);`,
+  `      await next();`,
+  `    },`,
+  `  },`,
+  `});`,
+].join("\n");
+
+/**
+ * The hook lines of `hooked`: an op the graph cannot name is `?`, and so is each unit a
+ * `run` or a `load` handed on may touch. A scope a callback gets runs ops too. A loaded
+ * resource is a use, as in an op's `depends`.
+ */
+const hookLines = [
+  "hook dispatch#start reads{} writes{} runs{dispatch.pump} wraps{} uses{}",
+  "hook keep#start reads{?} writes{?} runs{?} wraps{} uses{}",
+  "hook relay#start reads{} writes{} runs{?} wraps{} uses{}",
+  "hook routes#start reads{} writes{} runs{mail.send} wraps{} uses{}",
+  "hook tap#run reads{} writes{tap.seen.update} runs{} wraps{mail.send} uses{}",
+  "hook warm#start reads{} writes{} runs{} wraps{} uses{mail.pool}",
+];
+
+test(
+  "a capsule hook gets a hook line: what it reads, writes, runs and wraps (#72)",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({ "src/units.ts": hooked, "src/ops.ts": "export {};\n" });
+
+    const { code, out } = main(["graph", folder], "/");
+
+    expect(out.split("\n").filter((line) => line.startsWith("hook "))).toEqual(hookLines);
+    expect(code).toBe(0);
+  },
+);
+
+test(
+  "a hook line the file lacks or says wrong is a finding at the hook (#72)",
+  { timeout: 60_000 },
+  () => {
+    const folder = appOf({ "src/units.ts": hooked, "src/ops.ts": "export {};\n" });
+    main(["graph", folder, "--write"], "/");
+    const path = join(folder, "tinker.graph");
+    const text = readFileSync(path, "utf8");
+    writeFileSync(path, text.replace("wraps{mail.send}", "wraps{}").replace(/hook relay.*\n/, ""));
+
+    const { code, out } = main(["check", folder], "/");
+
+    expect(code).toBe(1);
+    expect(findings(out)).toEqual([
+      "src/units.ts:20 tinker/graph hook tap#run: wraps{mail.send}, tinker.graph says wraps{}",
+      "src/units.ts:43 tinker/graph hook relay#start: not in tinker.graph",
+    ]);
+  },
+);
+
 test("no tinker.graph is one finding that says to write it", { timeout: 60_000 }, () => {
   const folder = appOf({ "src/ops.ts": ops });
 
@@ -505,7 +649,7 @@ test(
 
     expect(code).toBe(1);
     expect(findings(out)).toEqual([
-      "tinker.graph:1 tinker/graph tinker.graph has format 1; this CLI writes format 2: " +
+      "tinker.graph:1 tinker/graph tinker.graph has format 1; this CLI writes format 3: " +
         "run `tinker graph --write`, read the diff, and commit it",
     ]);
   },
@@ -1075,7 +1219,7 @@ const signIn = [
 
 /** The graph of `signIn`. */
 const signInLines = [
-  "# tinker.graph 2",
+  "# tinker.graph 3",
   "home.again exits{value} faults{} reads{access.logins.get} writes{} calls{} uses{}",
   "home.forget exits{value} faults{} reads{} writes{access.logins.set} calls{} uses{}",
   "view src/home/home.tsx#SignIn reads{access.logins.get} runs{home.forget}",
