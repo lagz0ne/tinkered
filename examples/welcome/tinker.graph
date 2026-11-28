@@ -1,0 +1,13 @@
+# tinker.graph 3
+mail.memory.deliver exits{value} faults{} reads{} writes{mail.memory.sent.update} calls{} uses{}
+mail.send exits{value} faults{?} reads{} writes{} calls{slot:mail.backend} uses{}
+mail.smtp.deliver exits{value} faults{?} reads{} writes{mail.smtp.sent.update} calls{slot:mail.smtp.throttle} uses{}
+outbox.drain exits{drained} faults{} reads{} writes{} calls{outbox.sendOne} uses{}
+outbox.enqueue exits{value} faults{} reads{} writes{outbox.line.update} calls{} uses{}
+outbox.pump exits{value} faults{} reads{} writes{} calls{outbox.drain,outbox.sendOne} uses{outbox.stopping}
+outbox.sendOne exits{failed,idle,sent} faults{?} reads{outbox.line.get} writes{outbox.dead.update,outbox.line.set,outbox.line.update} calls{slot:outbox.inner} uses{}
+signup.join exits{joined} faults{?} reads{} writes{signup.members.update} calls{slot:signup.on} uses{}
+throttler.runner exits{value} faults{} reads{throttler.turn.get} writes{throttler.turn.set} calls{} uses{}
+welcome.greet exits{value} faults{} reads{} writes{} calls{mail.send} uses{}
+hook audit#run reads{} writes{audit.seen.update} runs{} wraps{mail.send} uses{}
+hook outbox#start reads{} writes{} runs{outbox.pump} wraps{} uses{}

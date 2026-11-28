@@ -1,0 +1,30 @@
+{
+  "name": "@tinker/example-welcome",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vp pack && node dist/server.mjs",
+    "dev": "vp run start",
+    "build": "vp pack",
+    "check": "vp check",
+    "check:tinker": "tinker check",
+    "graph": "tinker graph --write",
+    "test": "vp test"
+  },
+  "dependencies": {
+    "@tinkered/core": "workspace:*",
+    "@tinkered/devtools": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@tinkered/cli": "workspace:*",
+    "@types/node": "^26.1.1",
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0",
+    "vite-plus": "1.0.0"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

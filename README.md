@@ -240,140 +240,270 @@ use other capsules. That is all.
 - **Its units** (operations, data cells,
   resources, tags) are private. Only its
   `exports` are seen from outside.
+- **A slot** is a config key that holds another
+  capsule's export. The cmd fills it.
 - **A cmd** installs capsules, with values, in
-  `createScope({ capsules })`. Nothing else
-  configures them.
+  `createScope({ capsules })`.
 
-The same idea as a Terraform module: inputs
+It is the Terraform module model: inputs
 (`config`), outputs (`exports`), and one root
 that calls them.
 
-### 1. Build one
+### The task: a welcome mail
+
+"Send a welcome mail when someone signs up."
+It sounds simple. Then the real needs come, one
+at a time. Each need is one new capsule, and one
+or two new lines in the cmd. The sign-up code
+never changes.
+
+The whole app, with a test per step:
+[`examples/welcome`](examples/welcome).
+
+### Step 1. Sign-up sends a mail
+
+`mail` is what features call. It hands each
+letter to a backend in its slot.
 
 ```ts
-// src/counter/index.ts
-import {
-  capsule,
-  data,
-  operation,
-  tag,
-} from "@tinkered/core";
-
-const step = tag<number>({ label: "counter.step" });
-const count = data({
-  label: "counter.count",
-  initial: 0,
+const backend = tag<Operation.Handle<void, Letter>>({
+  label: "mail.backend",
 });
 
-const add = operation({
-  label: "counter.add",
-  depends: { step, count: count.controller },
-  run: ({ step, count }) => {
-    count.update((n) => n + step);
-    return count.get();
+const send = operation({
+  label: "mail.send",
+  input: letter,
+  depends: { backend },
+  run: ({ backend }, { input }) =>
+    backend.run({ input }),
+});
+
+export const mail = capsule({
+  label: "mail",
+  config: { backend: backend.required },
+  exports: { send },
+});
+```
+
+`signup` keeps the member, then calls each
+listener in its list slot, `on`. `welcome.greet`
+is one listener: it calls `mail.send`.
+
+```ts
+// cmds/server.ts
+capsules: [
+  memoryMail(),
+  mail({ backend: memoryMail.deliver }),
+  welcome(),
+  signup({ on: [welcome.greet] }),
+];
+```
+
+`memoryMail` keeps each letter in a cell. Tests
+and dev use it. Nothing goes out.
+
+### Step 2. The provider takes 10 mails a second
+
+A `throttler` gives one turn per `gapMs`. The
+SMTP backend waits for a turn in its slot.
+
+```ts
+capsules: [
+  throttler({ gapMs: 100 }),
+  smtpMail({ throttle: throttler.runner }),
+  mail({ backend: smtpMail.deliver }),
+  welcome(),
+  signup({ on: [welcome.greet] }),
+];
+```
+
+Now three sign-ups at once take 200 ms. The
+third member waits for the provider.
+
+### Step 3. Sign-up must not wait, and the provider fails
+
+An `outbox` puts each letter in line and answers
+at once. Its start hook runs a pump: one send
+per tick, a failed send goes to the back of the
+line, and after `tries` it goes to `dead`.
+
+```ts
+export const outbox = capsule({
+  label: "outbox",
+  config: {
+    inner: inner.required,
+    everyMs: everyMs.required,
+    tries,
+  },
+  exports: { enqueue, line, dead },
+  hooks: {
+    async start({ next, run }) {
+      await next();
+      void run(pump, {}, {
+        role: "handler",
+        explain: "Sends one letter per tick",
+      });
+    },
   },
 });
+```
 
-export const counter = capsule({
-  label: "counter",
-  config: { step: step.required },
-  exports: { count, add },
+```ts
+capsules: [
+  throttler({ gapMs: 100 }),
+  smtpMail({ throttle: throttler.runner }),
+  outbox({
+    inner: smtpMail.deliver,
+    everyMs: 50,
+  }),
+  mail({ backend: outbox.enqueue }),
+  welcome(),
+  signup({ on: [welcome.greet] }),
+];
+```
+
+### Step 4. A deploy must not lose mail
+
+The pump sleeps on the scope's closing signal.
+A graceful close keeps running work alive, so the
+pump sends what is left. A forced close aborts
+it.
+
+```ts
+for (;;) {
+  const slept = await clock
+    .sleep(everyMs, stopping)
+    .then(() => true, () => false);
+  if (!slept) break;
+  await sendOne.run();
+}
+if (!signal.aborted) await drain.run();
+```
+
+`scope.close({ graceful: true })` sends both
+letters in line. `scope.close()` drops them.
+
+### Step 5. Support asks: did Ana get her mail?
+
+An `audit` capsule sees each `mail.send` in its
+run hook. No other capsule changes.
+
+```ts
+export const audit = capsule({
+  label: "audit",
+  exports: { seen },
+  hooks: {
+    run(event) {
+      if (event.is(mail.send)) {
+        const { to, subject } = event.input;
+        const line = `${to}: ${subject}`;
+        event.load(seen, kept).update(
+          (list) => [...list, line],
+        );
+      }
+      return event.next();
+    },
+  },
 });
 ```
 
-- `step` is config: the cmd must fill it.
-- `count` goes out as a read view: others can
-  `get()` and `watch()`, not `set()`.
-- `add` goes out as an operation: the only way
-  to change `count` from outside.
+Add `audit()` to the cmd. Five steps, eight
+capsules, and `signup.ts` is still the file of
+step 1.
 
-### 2. Use another capsule
+### See it without a run: `tinker.graph`
 
-A capsule that needs another one's work takes it
-in a slot: a config key that holds a unit.
+`tinker graph --write` reads the code and writes
+one line per operation and per hook. Commit it.
+Here, long lines wrap and empty parts are cut.
 
-```ts
-// src/score/index.ts
-import type { Operation } from "@tinkered/core";
-
-const bump = tag<Operation.Handle<number, void>>({
-  label: "score.bump",
-});
-
-const goal = operation({
-  label: "score.goal",
-  depends: { bump },
-  run: ({ bump }) => bump.run(),
-});
-
-export const score = capsule({
-  label: "score",
-  config: { bump: bump.required },
-  exports: { goal },
-});
+```text
+outbox.pump exits{value} reads{} writes{}
+  calls{outbox.drain,outbox.sendOne}
+  uses{outbox.stopping}
+outbox.sendOne exits{failed,idle,sent}
+  calls{slot:outbox.inner}
+hook outbox#start runs{outbox.pump}
+hook audit#run writes{audit.seen.update}
+  wraps{mail.send}
 ```
 
-`score` does not import `counter`. The cmd
-decides what fills `bump`.
+Drop the drain from the pump, and `tinker check`
+stops at the graph:
 
-### 3. Install them in the cmd
+```text
+src/outbox/index.server.ts:76 tinker/graph
+  outbox.pump: calls{outbox.sendOne},
+  tinker.graph says
+  calls{outbox.drain,outbox.sendOne}
+  Right: read the change. If you meant it, run
+  `tinker graph --write` and commit the file.
+```
+
+### Test it: real capsules, a test clock
+
+A test installs the same capsules, with a test
+backend in the slot. No mock, no sleep.
 
 ```ts
-// cmds/main.ts
-const scope = createScope({
+const scope = await createScope({
+  clock,
   capsules: [
-    counter({ step: 2 }),
-    score({ bump: counter.add }),
+    exits({ file: process.env.TINKER_EXITS }),
+    flakyMail(),
+    outbox({
+      inner: flakyMail.deliver,
+      everyMs: 100,
+      tries: 2,
+    }),
+    mail({ backend: outbox.enqueue }),
+    welcome(),
+    signup({ on: [welcome.greet] }),
   ],
+}).ready;
+
+await scope.run(signup.join, {
+  input: { email: "b@down.io" },
 });
-await scope.ready;
-
-await scope.run(score.goal); // 2
-scope.resolve(counter.count).get(); // 2
-await scope.close();
+clock.advance(200);
+// outbox.dead holds b@down.io
 ```
 
-A missing key is a type error, and
-`MissingConfig` at start.
+`exits` records each answer a test reaches.
+Remove that test, and the check names the gap:
 
-### 4. See what runs
-
-A capsule is easy to trace, from start on:
-
-- `scope.capsules` lists each install: its
-  config, its exports, and each unit its hooks
-  loaded, with a `role` and an `explain`.
-- Each span of an exported unit carries
-  `attributes.capsule`.
-- `tinker.graph` has a line per operation and
-  per hook, by capsule label.
-
-```ts
-scope.capsules[1];
-// { label: "score",
-//   config: { bump: "counter.add" },
-//   exports: ["goal"], ... }
+```text
+src/outbox/index.server.ts:34 tinker/exit
+  `outbox.sendOne` answers `failed`, and no
+  test reaches it
 ```
 
-### 5. Export more than units
+### Trace it: `devtools()`
 
-A capsule may export a plain value too, such as
-a React component (a foreign export, ADR 0125):
+Devtools is a capsule too. Add it, and read each
+span, with the capsule of each exported unit:
 
-```tsx
-export const counter = capsule({
-  label: "counter",
-  config: { step: step.required },
-  exports: { count, add, Badge },
-});
-
-// <counter.Badge />
+```text
+signup.join [signup] joined
+  welcome.greet [welcome]
+    mail.send [mail]
+      outbox.enqueue [outbox]
+outbox.pump
+  outbox.sendOne sent
+    mail.smtp.deliver [mail.smtp]
+      throttler.runner [throttler]
+  outbox.drain drained
+    outbox.sendOne idle
 ```
 
-### 6. Install one capsule twice
+`scope.capsules` lists each install: its
+config, its exports, and each unit its hooks
+loaded, with a `role` and an `explain`.
 
-Two installs, each with its own config and its
-own state (ADR 0172):
+### Next: one capsule, two installs
+
+Mail and Slack each get their own pace
+(ADR 0172):
 
 ```ts
 const mailPace = throttler({ gapMs: 100 });
@@ -390,7 +520,7 @@ capsules: [
 Not built yet: [#73](https://github.com/lagz0ne/tinkered/issues/73).
 Today a second install raises `DuplicateCapsule`.
 
-Next: `bunx tinker skill load @tinkered/core#core/capsule`.
+Load the rules: `bunx tinker skill load @tinkered/core#core/capsule`.
 
 ## Upgrade
 
