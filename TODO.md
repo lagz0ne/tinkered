@@ -25,6 +25,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **cli/pins-stryker-input** — ADR 0174. `tinker pins --json` adds `ops`: each changed op with `path`, `start`, `end` (its `run` body lines), `files` (traced files that reached it) and the shared `untraced` list. No new flag.
+  Owner: Claude lead (thread "Judge test value with capsules and graph"); Opus writer.
+  Next: after cli/tinker-pins lands.
+  Verify: on the lab fixture, `--since HEAD` after editing `dispatch.sendOne` lists one op with its body range and `tests/dispatch.test.ts`; Stryker with that range and the ADR 0174 mutator list runs on it; `vp check` and cli tests green.
+
 - **tools/blueprint-mutation-lane** — found on `repo/mutation-in-ci`. `stryker run` in `tools/blueprint` stops in its dry run: "No tests were executed" (Vitest `related` finds no test for the mutated files). With `vitest.related: false`, one test fails under Stryker: "verify on the golden pair with no key prints zero findings" (`expected 1 to be +0`). Seen on main `721be1a0`. The lane is out of `mutation.yml` until this card is done.
   Verify: the lane's dry run passes; the lane clears 85; it is back in the `mutation.yml` matrix.
 
@@ -81,7 +86,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **cli/tinker-pins** — ADR 0173. `tinker pins [root] [--since <ref>] [--json]`: the `exits` capsule gains a write hook and, under `TINKER_TRACE` / `TINKER_MUTANT`, traces and puts in one graph mutant (swap, empty, drop, fail) at a fact `tinker.graph` states; each mutant runs only the test files that reached it; prints each live one; exit 0 unless it cannot run. Probe and its results: project files `tinkered/plans/graph-mutants/`.
   Owner: Claude lead (thread "Judge test value with capsules and graph"); Opus writer.
-  Next: brief the writer.
+  Next: reviewer re-checks the fix round (7d0cd3b5), then land.
   Verify: on the pattern lab, `tinker pins` prints the 7 live mutants the probe found (6 `dispatch.sendOne` swaps, `signup.join` drop of `signup.members`); `--since` with no op change prints 0 mutants; a planted check that pins `sendOne` makes its swaps die; `vp check` and the cli tests green.
 
 ## Review
