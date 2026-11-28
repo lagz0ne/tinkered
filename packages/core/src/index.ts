@@ -1827,12 +1827,8 @@ function ensureAccepting(layer: Layer): void {
 /** Only call entry uses the body's or caller's live ownership. Release still uses
  * ensureAccepting without this access, so it cannot tear down helpers during a drain. */
 function ensureRunning(layer: Layer, caller?: RunState): void {
-  if (
-    !layer.closed &&
-    (layer.body !== undefined || (caller && caller !== RECOVERED && caller.live))
-  ) {
-    return;
-  }
+  const live = (caller === RECOVERED ? OperationControl.settling : caller)?.live;
+  if (!layer.closed && (layer.body !== undefined || live)) return;
   ensureAccepting(layer);
 }
 
@@ -2649,6 +2645,10 @@ type RunState = OperationCtx<unknown> | typeof RECOVERED;
 /** Callers may destructure the own `run` field. The settle closure and twin controller are
  * made on the first `settle` read and kept. */
 class OperationControl<T, I> {
+  /** The run a `settle` call is made for, while the call enters (#81). A settle hands its
+   * failure to the caller as a value, but its call is still that run's work: a live run's
+   * `settle` passes {@link ensureRunning} in a graceful close, as its `run` does. */
+  static settling: OperationCtx<unknown> | undefined;
   /** `declare`: assigned once in the constructor, so the build emits no field that is written twice. */
   declare readonly run: (call?: Scope.Invocation<I>) => unknown;
   declare private layer: Layer;
@@ -2658,6 +2658,7 @@ class OperationControl<T, I> {
   declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
   declare private twin: OperationControl<T, I> | undefined;
   declare private settler: ((call?: Scope.Invocation<I>) => unknown) | undefined;
+  declare private owner: RunState | undefined;
   constructor(
     run: (call?: Scope.Invocation<I>) => unknown,
     layer: Layer,
@@ -2665,6 +2666,7 @@ class OperationControl<T, I> {
     parent: SpanImpl | undefined,
     chain: readonly Namespace[] | undefined,
     hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
+    owner: RunState | undefined,
   ) {
     this.run = run;
     this.layer = layer;
@@ -2672,6 +2674,7 @@ class OperationControl<T, I> {
     this.parent = parent;
     this.chain = chain;
     this.hookTarget = hookTarget;
+    this.owner = owner;
 
     this.twin = undefined;
     this.settler = undefined;
@@ -2680,12 +2683,16 @@ class OperationControl<T, I> {
     if (this.settler === undefined) {
       const layer = this.layer;
       const twin = OperationControl.recover(this);
+      const owner = this.owner;
       this.settler = (call) => {
         const signal = call?.signal;
+        if (owner !== RECOVERED) OperationControl.settling = owner;
         try {
           return settledValue(layer, twin.run(call), signal);
         } catch (error) {
           return failedRun(layer, error, signal);
+        } finally {
+          OperationControl.settling = undefined;
         }
       };
     }
@@ -3390,6 +3397,7 @@ function operationController<T, I>(
       up,
       chain,
       hookTarget,
+      caller,
     ) as Scope.OperationController<T, I>;
   }
   const run = (call?: Scope.Invocation<I>): unknown =>
@@ -3401,6 +3409,7 @@ function operationController<T, I>(
     up,
     chain,
     hookTarget,
+    caller,
   ) as Scope.OperationController<T, I>;
 }
 
