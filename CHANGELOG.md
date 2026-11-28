@@ -9,6 +9,33 @@ Up to 0.25.1 the last was `@tinkered/analyze`.
 Up to 0.17.10 they were `@tinker/*`.
 They move to one version together.
 
+## 0.35.0
+
+`@tinkered/cli`: `tinker check` compares the
+writes of each exit with a committed file,
+`tinker.effects` (ADR 0175).
+
+- Upgrade: run `tinker check --write` once and
+  commit `tinker.effects`.
+- Until then, an app whose tests reach exits
+  gets one finding: it has no `tinker.effects`.
+- A write set is the cells one run of an exit
+  wrote, with the writes of each op it ran.
+- The file has one line per operation, exit and
+  write set: `issue.rename.do stale writes{}`.
+- A new stage runs after the exits stage. Each
+  operation and exit whose write sets differ
+  from the file is one `tinker/effect` finding.
+- So a change to what an exit writes is a
+  finding, even when no test checks that write.
+- New flag: `tinker check --write` writes
+  `tinker.graph` and `tinker.effects`, once the
+  tests pass. A plain check never writes.
+
+`@tinkered/core`: the testing skill teaches the
+`tinker/effect` rule. Do not delete an assert and
+write the file again to make a finding go away.
+
 ## 0.34.22
 
 `@tinkered/core`: a graceful close hook can run
