@@ -71,7 +71,7 @@ test("the list names every page in reading order, each with its first paragraph,
     slug: "start",
     title: "Start",
     summary:
-      "Tinker is a TypeScript library for apps. You write the app as a graph of small units. Core runs the graph, traces each call, and closes it.",
+      "Tinker is a TypeScript library for apps. An app is capsules: you build capsules, and you use other capsules. Core runs them, traces each call, and closes them.",
   });
 });
 
